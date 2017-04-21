@@ -1,0 +1,11 @@
+begin
+    declare x : natural, 
+            y : natural;
+    if "a" then
+       x := 2 + "a"
+    else
+        x := 1 -"a";
+        z := x;
+        z := "a"
+    fi
+ end
