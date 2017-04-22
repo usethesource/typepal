@@ -61,9 +61,7 @@ Tree define(e: (Expression) `\\ <Id name> . <Expression body>`, Tree scope, SGBu
     sigma2 = sgb.newTypeVar(e);
     sgb.define(e, "<name>", variableId(), name, defInfo(sigma1));
     sgb.fact(e, functionType(sigma1, sigma2));
-    sgb.require("lambda", e,
-                [ equal(typeof(body), sigma2, onError(body, "function body should be equal to result type"))
-                ]);
+    sgb.fact(body, sigma2);
     return e;
 }
 

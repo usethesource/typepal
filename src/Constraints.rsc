@@ -12,86 +12,61 @@ import Type;
 import String;
 import Message;
 
-bool cdebug = true;
+bool cdebug = false;
 
-AType followInBindings(tvar(loc src), map[loc, AType] bindings)
-    = followInBindings(src, bindings);
-
-default AType followInBindings(AType tp,  map[loc, AType] bindings) = tp;
-
-AType followInBindings(loc src, map[loc, AType] bindings){
-    return isTypeVariable(src) && bindings[src]? ? followInBindings(bindings[src], bindings) 
-                                                 :  tvar(src);
+// Substitute top-level type variables in a type first using bindings, then facts
+AType substitute(AType atype, map[loc, AType] bindings, map[loc, AType] facts)
+    = substituteUsingBindingsAndFacts(atype, bindings, facts);
+   
+AType substituteUsingBindingsAndFacts(AType atype, map[loc, AType] bindings, map[loc, AType] facts){
+    if(typeof(loc src) := atype || tvar(loc src) := atype){
+       if(bindings[src]?){
+          fct = bindings[src];
+          if(isTypeofOrTVar(fct)){
+             return substituteUsingBindingsAndFacts(fct, bindings, facts);
+          }
+          return substituteUsingFacts(fct, facts);
+        }
+    }
+    return isTypeofOrTVar(atype) ? substituteUsingFacts(atype, facts) : atype;
 }
 
-default AType followInBindings(AType tp,  map[loc, AType] bindings) = tp;
-
-AType followInFacts(tvar(loc tv), map[loc, AType] facts){
-    if(facts[tv]?){
-       fct = facts[tv];
-       if(tvar(loc other) := fct){
-          return followInFacts(fct, facts);
-       } else {
+AType substituteUsingFacts(AType atype, map[loc, AType] facts){
+    if(typeof(loc src) := atype || tvar(loc src) := atype){
+       if(facts[src]?){
+          fct = facts[src];
+          if(isTypeofOrTVar(fct)){
+             return substituteUsingFacts(fct, facts);
+          }
           return fct;
-       }
+        }
     }
-    return tvar(tv);
-}
-default AType followInFacts(AType tp, map[loc, AType] facts) = tp;
-
-AType follow(AType atype, map[loc, AType] bindings, map[loc, AType] facts){
-    res = follow1(atype, bindings, facts);
-    println("follow <atype> ==\> <res>");
-    return res;
+    return atype;
 }
 
-AType follow1(AType atype, map[loc, AType] bindings, map[loc, AType] facts){
-    switch(atype){
-      case typeof(loc src): {
-           atype1 = followInBindings(atype, bindings);
-           if(atype1 != atype){
-              return atype1;
-           }
-           return followInFacts(atype, facts);
-      }     
-      case tv: tvar(loc src): {
-           atype1 = followInBindings(atype, bindings);
-           if(atype1 != atype){
-              return atype1;
-           }
-           return followInFacts(atype, facts);
-      }
-      default:
-            return atype;
-    }
-}
-
+// Recursively instantiate all type variables in a type
 AType instantiate(AType atype, map[loc, AType] bindings, map[loc, AType] facts){
-   //println("instantiate: <ptype>, <bindings>");
-   return
+  return
       visit(atype){
-        case typeof(loc src): {
-            //println("instantiate typeof: <src>, <bindings[src]?>, <facts[src]?>");
-            insert follow(atype, bindings, facts); ///*facts[src]? ? */instantiate(facts[src], bindings, facts);// : typeof(src);
+        case to: typeof(loc src): {
+            insert substitute(to, bindings, facts);
         }
         case tv: tvar(loc src): {
-            //println("instantiate tv: <tv>, <facts[src]?>");
-            insert follow(atype, bindings, facts); //followInBindings(followInFacts(tv, facts), bindings);
+            insert substitute(tv, bindings, facts);
         }
-      }
+      };
 }
 
+// Instantiate requirements
 Requirement instantiate(Requirement req, map[loc, AType] bindings, map[loc, AType] facts)
     = visit(req) { case AType atype => instantiate(atype, bindings, facts) };
-    
+
+// Instantiate facts    
 Fact instantiate(Fact fct, map[loc, AType] bindings, map[loc, AType] facts)
     = visit(fct) { case AType atype => instantiate(atype, bindings, facts) };
 
-set[loc] typevarsOf(AType tp) = { src | /tvar(loc src) := tp };
-
-// Unification, for now, without checks on variables
+// Unification of two types, for now, without checks on variables
 tuple[bool, map[loc, AType]] unify(AType t1, AType t2, map[loc, AType] bindings){
-    //println("unify(<t1>, <t2>, <bindings>)");
     if(t1 == t2) return <true, bindings>;
    
     if(tvar(loc tv1) := t1){
@@ -127,13 +102,13 @@ tuple[bool, map[loc, AType]] unify(AType t1, AType t2, map[loc, AType] bindings)
     return <true, bindings>;
 }
 
-set[Message] validate(TENV tenv){
+set[Message] validate(REQUIREMENTS extractedRequirements){
           
-   overloads = tenv.overloads;
-   facts = tenv.facts;
-   set[Fact] openFacts = tenv.openFacts;
-   openReqs = tenv.openReqs;
-   tvScopes = tenv.tvScopes;
+   overloads = extractedRequirements.overloads;
+   facts = extractedRequirements.facts;
+   set[Fact] openFacts = extractedRequirements.openFacts;
+   openReqs = extractedRequirements.openReqs;
+   tvScopes = extractedRequirements.tvScopes;
    
    map[Key, Key] defs = ();
    
@@ -151,7 +126,7 @@ set[Message] validate(TENV tenv){
       println("facts:         <size(facts)>");
       println("openFacts:     <size(openFacts)>");
       println("openReqs:      <size(openReqs)>");
-      printScopeGraph(tenv);
+      printScopeGraph(extractedRequirements);
    }
    
    set[Message] messages = {};
@@ -191,12 +166,6 @@ set[Message] validate(TENV tenv){
    void addFact(loc l, AType tp){
          if(cdebug)println("addFact: <l>, <tp>, <triggersFact[l]>, <triggersRequirement[l]>");
         
-         //if(facts[l]? && facts[l] != tp){
-         //   for(fkey <- facts){
-         //       println("<fkey>: <facts[fkey]>");
-         //   }
-         //   throw "Overwrite facts[<l>]: old <facts[l]>, new <tp>";
-         //}
          if(typeof(loc other) := tp){// || tvar(loc other) := tp){
             if(facts[other]?){
                if(cdebug)println("add: facts[<l>] = <facts[other]>");
@@ -279,13 +248,11 @@ set[Message] validate(TENV tenv){
               throw "Cannot match <pargs[i]> and <sargs[i]>";
             }
          }
-         //println("match returns: true, <bindings>");
          return <true, bindings, {}>;
     }
     
     tuple[bool ok, map[loc, AType] bindings, set[Message] messages] 
         satisfies1(equal(AType given, AType expected, ErrorHandler onError), map[loc, AType] bindings){
-        //println("equal: <given>, <expected>");
         igiven = instantiate(given, bindings, facts);
         iexpected = instantiate(expected, bindings, facts);
         <ok, bindings1> = unify(igiven, iexpected, bindings);
@@ -318,7 +285,7 @@ set[Message] validate(TENV tenv){
        }
    } 
     
-    for(Define d <- tenv.defines){
+    for(Define d <- extractedRequirements.defines){
        addFact(d.defined, d.defInfo.tp);
     }
     
@@ -338,9 +305,9 @@ set[Message] validate(TENV tenv){
         }
     }
     
-    for(u <- tenv.uses){
+    for(u <- extractedRequirements.uses){
         try {
-           def = lookup(tenv, u.scope, u);
+           def = lookup(extractedRequirements, u.scope, u);
            defs[u.occ] = def;
            unresolvedUses += u;
         } catch noKey: {
@@ -349,7 +316,6 @@ set[Message] validate(TENV tenv){
     }
    
     solve(facts, openReqs, openFacts, unresolvedUses, requirementJobs){
-    
     //while(!(isEmpty(openFacts) && isEmpty(openReqs)) && iterations < 10){
        iterations += 1;
        
@@ -374,10 +340,10 @@ set[Message] validate(TENV tenv){
        
        // eliminate overloads for which argument types are known
        eliminate_overloads:
-       for(ovl <- tenv.overloads){
-          args = tenv.overloads[ovl].args;
+       for(ovl <- extractedRequirements.overloads){
+          args = extractedRequirements.overloads[ovl].args;
           if(all(p <- args, facts[p]?)){
-              for(<argTypes, resType> <- tenv.overloads[ovl].alternatives){
+              for(<argTypes, resType> <- extractedRequirements.overloads[ovl].alternatives){
                   if(all(int i <- index(argTypes), argTypes[i] == facts[args[i]])){
                      addFact(ovl, resType);
                      overloads = delete(overloads, ovl);
@@ -409,6 +375,9 @@ set[Message] validate(TENV tenv){
                     fct = instantiate(f, bindings1, facts);
                     addFact(f.src, fct.tp) ;
                 }
+                
+                if(cdebug)println("deleting: <oreq.name>, <oreq.src>");
+                  openReqs -= oreq;
                 
              } else {
                if(cdebug)println("!ok: <messages1>");

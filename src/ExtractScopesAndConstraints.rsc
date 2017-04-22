@@ -9,12 +9,20 @@ data DefInfo
     ;
     
 data AType
-    = typeof(loc other)                  // type dependencey on other source code fragment
+    = typeof(loc other)                  // type dependency on other source code fragment
     | tvar(loc name)                    // type variable
     ;
 
+str AType2String(typeof(loc other)) = "typeof(<other>)";
+str AType2String(tvar(loc name))    = "`<name>`";
+
 default str AType2String(AType tp) = "`<tp>`";
 
+// Convenience function to avoid the need to fetch source location
+AType typeof(Tree tree) = typeof(tree@\loc);
+
+AType tau(int n) = tvar(|typevar:///<right("<n>", 10, "0")>|);
+ 
 // Abstract type predicates
 
 data ATypePred
@@ -55,9 +63,11 @@ bool isLocalTypeVar(loc tv) = tv.scheme == "typevar" && tv < localTypeVars;
 
 bool isGlobalTypeVar(loc tv) = tv.scheme == "typevar" && tv >= localTypeVars;
 
-AType tau(int n) = tvar(|typevar:///<right("<n>", 10, "0")>|);
- 
-AType typeof(Tree tree) = typeof(tree@\loc);
+bool hasFreeVars(AType atype) = (/typeof(loc other) := atype  || /tvar(loc name) := atype);
+
+bool isTypeofOrTVar(tvar(loc src)) = true;
+bool isTypeofOrTVar(typeof(loc other)) = true;
+default bool isTypeofOrTVar(AType atype) = false;
 
 tuple[set[loc] deps, set[loc] typeVars] extractTypeDependencies(typeof(loc l)) = <{}, {}>;
 tuple[set[loc] deps, set[loc] typeVars] extractTypeDependencies(tvar(loc l)) = <{}, {}>;
@@ -76,7 +86,7 @@ data ScopeGraph (
         map[loc,loc] tvScopes = ()
         );
 
-alias TENV = ScopeGraph;
+alias REQUIREMENTS = ScopeGraph;
 
 alias Key = loc;
 
@@ -141,7 +151,7 @@ data SGBuilder
         void (Tree src, AType tp) fact,
         void (str name, Tree src, list[Tree] args, list[tuple[list[AType] argTypes, AType resType]] alternatives, ErrorHandler onError) overload,
         AType (Tree scope) newTypeVar,
-        TENV () build
+        REQUIREMENTS () build
       ); 
                            
 SGBuilder scopeGraphBuilder(){
@@ -230,7 +240,7 @@ SGBuilder scopeGraphBuilder(){
         return tvar(tv);
     }
     
-    TENV _build(){
+    REQUIREMENTS _build(){
        sg = scopeGraph();
        sg.defines = defines;
        sg.scopes = scopes;

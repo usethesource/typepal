@@ -4,6 +4,7 @@ import ParseTree;
 import IO;
 import String;
 import Set;
+import Map;
 import List;
 import Constraints;
 
@@ -52,6 +53,9 @@ bool runTests(loc tests, type[&T<:Tree] begin){
         println("Test <ti.name>: <result>");
         if(!result) failed["<ti.name>"] = result;     
     }
-    iprintln(failed);
+    if(!isEmpty(failed)){
+        println("Failed tests:");
+        iprintln(failed);
+    }
     return ok;
 }
