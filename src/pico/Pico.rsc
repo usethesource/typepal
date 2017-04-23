@@ -1,4 +1,4 @@
-module Pico
+module pico::Pico
 
 import Prelude;
 extend Constraints;
@@ -121,13 +121,8 @@ void require(e: (Expression) `<Natural natcon>`, SGBuilder sgb){
     sgb.fact(e, intType());
 }
 
-
 //----------------
 
-set[Message] validatePico() = typecheck(exp1());
+public Program samplePico(str name) = parse(#Program, |project://TypePal/src/pico/<name>.pico|);
 
-set[Message] typecheck(Program p) = validate(extractScopesAndConstraints(p));
-
-public Program exp1() = parse(#Program, |project://TypePal/src/examples/pico/e1.pico|);
-
-public Program exp2() = parse(#Program, |project://TypePal/src/examples/pico/fac.miniml|);
+set[Message] validatePico(str name) = validate(extractScopesAndConstraints(samplePico(name)));

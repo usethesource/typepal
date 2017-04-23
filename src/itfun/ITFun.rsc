@@ -1,4 +1,6 @@
-module MiniML
+module itfun::ITFun
+
+// Functional language with inferred types (MiniML-like)
  
 extend Constraints;
 extend TestFramework;
@@ -7,7 +9,7 @@ lexical Id  = ([a-z][a-z0-9]* !>> [a-z0-9]) \ Reserved;
 lexical Integer = [0-9]+ !>> [0-9]; 
 lexical Boolean = "true" | "false";
 
-keyword Reserved = "true" | "false" | "if" | "then" | "else" | "fi" | "let" | "in";
+keyword Reserved = "true" | "false" | "if" | "then" | "else" | "fi" | "let" | "in" | "fun" | "end";
 
 layout Layout = WhitespaceAndComment* !>> [\ \t\n\r%];
 
@@ -26,17 +28,12 @@ start syntax Expression
    > left ( Expression lhs "+" Expression rhs                                          
           | Expression lhs "&&" Expression rhs  
           )
-   | "\\" Id name "." Expression exp
-   | "(" Expression exp1 Expression exp2  ")"
-   | "let" Id name "=" Expression exp1 "in" Expression exp2
+   | "fun" Id name "{" Expression exp "}"
+   | Expression exp1 "(" Expression exp2  ")"
+   | "let" Id name "=" Expression exp1 "in" Expression exp2 "end"
    | "if" Expression cond "then" Expression thenPart "else" Expression elsePart "fi" 
    ;
 
-// Example
-
-public Expression sample(str name) = parse(#Expression, |project://TypePal/src/examples/miniml/<name>.mm|);
-
-public Expression tmp() = parse(#Expression, |project://TypePal/src/examples/miniml/tmp.mm|);
 
 // Declare Id roles
 data IdRole
@@ -56,7 +53,7 @@ str AType2String(boolType()) = "`bool`";
 str AType2String(functionType(AType from, AType to)) = "`fun <AType2String(from)> -\> <AType2String(to)>`";
 
 // Def/use
-Tree define(e: (Expression) `\\ <Id name> . <Expression body>`, Tree scope, SGBuilder sgb) {   
+Tree define(e: (Expression) `fun <Id name> { <Expression body> }`, Tree scope, SGBuilder sgb) {   
     sigma1 = sgb.newTypeVar(e); 
     sigma2 = sgb.newTypeVar(e);
     sgb.define(e, "<name>", variableId(), name, defInfo(sigma1));
@@ -65,7 +62,7 @@ Tree define(e: (Expression) `\\ <Id name> . <Expression body>`, Tree scope, SGBu
     return e;
 }
 
-Tree define(e: (Expression) `let <Id name> = <Expression exp1> in <Expression exp2>`, Tree scope, SGBuilder sgb) {  
+Tree define(e: (Expression) `let <Id name> = <Expression exp1> in <Expression exp2> end`, Tree scope, SGBuilder sgb) {  
     sgb.define(e, "<name>", variableId(), name, defInfo(typeof(exp1)));
     sgb.fact(e, typeof(exp2));
     return exp2;  
@@ -77,7 +74,7 @@ void use(e: (Expression) `<Id name>`, Tree scope, SGBuilder sgb){
 
 // Requirements
 
-void require(e: (Expression) `(<Expression exp1> <Expression exp2>)`, SGBuilder sgb) { 
+void require(e: (Expression) `<Expression exp1>(<Expression exp2>)`, SGBuilder sgb) { 
     sgb.require("application", e, 
                 [ match(functionType(tau(1), tau(2)), typeof(exp1), onError(exp1, "Function type expected")), 
                   equal(typeof(exp2), tau(1), onError(exp2, "Incorrect type of actual parameter")),
@@ -121,10 +118,14 @@ void require(e: (Expression) `<Integer intcon>`, SGBuilder sgb){
     sgb.fact(e, intType());
 }
 
-set[Message] main() = validate(extractScopesAndConstraints(tmp()));
+// ----------
 
-set[Message] validateMM(str name) = validate(extractScopesAndConstraints(sample(name)));
+// Examples
 
-void runTests() {
-    runTests(|project://TypePal/src/examples/miniml/tests.ttl|, #Expression);
+public Expression sample(str name) = parse(#Expression, |project://TypePal/src/itfun/<name>.it|);
+
+set[Message] validateIT(str name) = validate(extractScopesAndConstraints(sample(name)));
+
+void testIT() {
+    runTests(|project://TypePal/src/itfun/tests.ttl|, #Expression);
 }
