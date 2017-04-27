@@ -1,9 +1,11 @@
 module pico::Pico
 
+// Pico, a trivial language, single scope, no functions
+
 import Prelude;
 extend Constraints;
 
-// ---- Pico syntax
+// ----  Pico syntax -------------------------------------
 
 lexical Id  = [a-z][a-z0-9]* !>> [a-z0-9];
 lexical Natural = [0-9]+ ;
@@ -49,15 +51,12 @@ syntax Expression
           | Expression lhs "-" Expression rhs  
           )
    ;
- 
- // ---- Pico static semantics
-   
-// Declare Id roles: there are only variables
+
+// ----  IdRoles, PathLabels and AType ------------------- 
+
 data IdRole
     = variableId()
     ;
-
-// Pico types (with concrete <-> abstract mappings)
 
 data AType = intType() |  strType() ;  
 
@@ -67,7 +66,7 @@ AType transType((Type) `string`) = strType();
 str AType2String(intType()) = "`int`";
 str AType2String(strType()) = "`str`";
 
-// Rules for def/use
+// ----  Def/Use -----------------------------------------
  
 Tree define(d:(Declaration) `<Id id> : <Type tp>`,  Tree scope, SGBuilder sgb) {
      sgb.define(scope, "<d.id>", variableId(), d, defInfo(transType(tp)));
@@ -82,7 +81,7 @@ void use((Statement) `<Id var> := <Expression val>`, Tree scope, SGBuilder sgb){
      sgb.use(scope, "<var>", var, {variableId()}, 0);
 }
 
-// Requirements and facts for typing
+// ----  Requirements ------------------------------------
 
 void require(s: (Statement) `<Id var> :=  <Expression val>`, SGBuilder sgb){
      sgb.require("assignment", s, 
@@ -121,7 +120,7 @@ void require(e: (Expression) `<Natural natcon>`, SGBuilder sgb){
     sgb.fact(e, intType());
 }
 
-//----------------
+// ----  Examples & Tests --------------------------------
 
 public Program samplePico(str name) = parse(#Program, |project://TypePal/src/pico/<name>.pico|);
 

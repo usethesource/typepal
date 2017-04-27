@@ -48,3 +48,19 @@ test Imp6 [[ module A { def inc = fun x { x + 1 }; }
 test Imp6 [[ module A { def inc = fun x { x + 1 }; }
              module B { import A; def b = inc("abc"); } 
           ]] expect {"actual parameter"}
+          
+test L1   [[ module A {
+                 def a = 5;
+             }
+             module B {
+                  import A;
+                  def b = 6;
+                  def c = 3 + a;
+                  def f = fun x { x + a };
+             }
+             module C {
+                  import B;
+                  def g = f(3);
+                  def h = a;
+             }
+          ]]

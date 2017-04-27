@@ -3,7 +3,7 @@ module modlang::ModLang
 extend Constraints;
 extend TestFramework;
 
-// ----  Fun syntax
+// ----  ModLang syntax ----------------------------------
 
 lexical Id      = ([a-z][a-z0-9]* !>> [a-z0-9]) \ Reserved;
 lexical ModId   = ([A-Z][a-z0-9]* !>> [a-z0-9]) \ Reserved;
@@ -50,7 +50,9 @@ syntax Expression
    | left Expression exp1 "*" Expression exp2 
    > left Expression exp1 "+" Expression exp2 
    ;
-   
+
+// ----  IdRoles, PathLabels and AType ------------------- 
+     
 data IdRole
     = moduleId()
     | variableId()
@@ -61,16 +63,16 @@ data PathLabel
     = importsLabel()
     ;
 
-
 data AType   
     = intType()                                     // int type
     | strType()                                     // str type
     | functionType(AType from, AType to)            // function type
     ;
+    
 str AType2String(intType()) = "`int`";
 str AType2String(strType()) = "`str`";
 
-// Def/use
+// ----  Def/Use -----------------------------------------
 
 Tree define(ModuleDecl md, Tree scope, SGBuilder sg)     {
     sg.define(scope, "<md.mid>", moduleId(), md.mid, noDefInfo());
@@ -100,7 +102,7 @@ void use(exp: (Expression) `<Id name>`, Tree scope, SGBuilder sg){
     sg.use(scope, "<name>", name, {variableId(), parameterId()}, 0);
 }
 
-// Requirements
+// ----  Requirements ------------------------------------
 
 void require(e: (Expression) `<Expression exp1>(<Expression exp2>)`, SGBuilder sgb) { 
     sgb.require("application", e, 
@@ -136,7 +138,8 @@ void require(e: (Expression) `<Integer intcon>`, SGBuilder sgb){
     sgb.fact(e, intType());
 }
 
-// Refine use/def resolution: enforce def before use
+// ---- Refine use/def: enforce def before use -----------
+
 Accept isAcceptableSimple(ScopeGraph sg, Key def, Use use){
 
     res = variableId() in use.idRoles
@@ -148,23 +151,7 @@ Accept isAcceptableSimple(ScopeGraph sg, Key def, Use use){
     return res;
 }
 
-bool runTests(Tree t) = runTests(t);
-
-bool ex1() {
-     p = [Program] "module A {
-                  '  def s = 5;
-                  '}
-                  'module B {
-                  '  import A^1;
-                  '  def x = 6;
-                  '  def y = 3 + s^2;
-                  '  def f =
-                  '      fun x { x^9 + s^2 };
-                  '}";              
-    return runTests(p);
-}
-
-// Examples
+// ----  Examples & Tests --------------------------------
 
 private Program sample(str name) = parse(#Program, |project://TypePal/src/modlang/<name>.modlang|);
 

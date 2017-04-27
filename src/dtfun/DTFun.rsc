@@ -1,7 +1,11 @@
 module dtfun::DTFun
 
+// Functional language with declared types
+
 extend Constraints;
 extend TestFramework;
+
+// ----  DTFun syntax ------------------------------------
 
 lexical Id  = ([a-z][a-z0-9]* !>> [a-z0-9]) \ Reserved;
 lexical Integer = [0-9]+ !>> [0-9]; 
@@ -38,12 +42,11 @@ start syntax Expression
    | "if" Expression cond "then" Expression thenPart "else" Expression elsePart "fi" 
    ;
 
-// Declare Id roles
+// ----  IdRoles, PathLabels and AType ------------------- 
+
 data IdRole
     = variableId()
     ;
-
-// Extend Abstract type
 
 data AType   
     = intType()                                     // int type
@@ -59,7 +62,7 @@ str AType2String(intType()) = "`int`";
 str AType2String(boolType()) = "`bool`";
 str AType2String(functionType(AType from, AType to)) = "`fun <AType2String(from)> -\> <AType2String(to)>`";
 
-// Def/use
+// ----  Def/Use -----------------------------------------
 
 Tree define(e: (Expression) `fun <Id name> : <Type tp> { <Expression body> }`, Tree scope, SGBuilder sgb) {   
     sgb.define(e, "<name>", variableId(), name, defInfo(transType(tp)));
@@ -77,7 +80,7 @@ void use(e: (Expression) `<Id name>`, Tree scope, SGBuilder sgb){
     sgb.use(scope, "<name>", name, {variableId()}, 0);
 }
 
-// Requirements
+// ----  Requirements ------------------------------------
 
 void require(e: (Expression) `<Expression exp1> (<Expression exp2>)`, SGBuilder sgb) { 
     sgb.require("application", e, 
@@ -123,7 +126,7 @@ void require(e: (Expression) `<Integer intcon>`, SGBuilder sgb){
      sgb.fact(e, intType());
 }
 
-// Examples
+// ----  Examples & Tests --------------------------------
 
 private Expression sample(str name) = parse(#Expression, |project://TypePal/src/dtfun/<name>.dt|);
 
