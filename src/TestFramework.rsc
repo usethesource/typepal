@@ -43,7 +43,9 @@ bool runTests(loc tests, type[&T<:Tree] begin){
     ttlProgram = parse(#TTL, tests);
     ok = true;
     failed = ();
+    ntests = 0;
     for(ti <- ttlProgram.items){
+        ntests += 1;
         p = parse(begin, "<ti.tokens>");
         messages = validate(extractScopesAndConstraints(p));
         println("runTests: <messages>");
@@ -53,6 +55,8 @@ bool runTests(loc tests, type[&T<:Tree] begin){
         println("Test <ti.name>: <result>");
         if(!result) failed["<ti.name>"] = result;     
     }
+    nfailed = size(failed);
+    println("Test summary: <ntests> tests executed, <ntests - nfailed> succeeded, <nfailed> failed");
     if(!isEmpty(failed)){
         println("Failed tests:");
         iprintln(failed);

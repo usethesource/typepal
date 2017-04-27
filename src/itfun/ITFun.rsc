@@ -122,7 +122,7 @@ void require(e: (Expression) `<Integer intcon>`, SGBuilder sgb){
 
 // Examples
 
-public Expression sample(str name) = parse(#Expression, |project://TypePal/src/itfun/<name>.it|);
+private Expression sample(str name) = parse(#Expression, |project://TypePal/src/itfun/<name>.it|);
 
 set[Message] validateIT(str name) = validate(extractScopesAndConstraints(sample(name)));
 

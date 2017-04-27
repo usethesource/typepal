@@ -1,0 +1,50 @@
+test Int1 [[ module A { def x = 1; } ]]
+
+test Str1 [[ module A { def x = "abc"; } ]]
+
+test Var1 [[ module A { def x = y; } ]] expect {"Undefined"}
+
+test Add1 [[ module A { def x = 1 + 2; } ]]
+test Add2 [[ module A { def x = "a" + "b"; } ]]
+test Add3 [[ module A { def x = 1 + "a"; } ]] expect {"No version of +"}
+test Add4 [[ module A { def x = "a" + 2; } ]] expect {"No version of +"}
+
+test Mul1 [[ module A { def x = 1 * 2; } ]]
+test Mul2 [[ module A { def x = 1 * "a"; } ]] expect {"rhs of *"}
+test Mul3 [[ module A { def x = "a" * 2; } ]] expect {"lhs of *"}
+
+test Bracket1 [[ module A { def x = (1); }  ]]
+test Bracket2 [[ module A { def x = ("a"); }  ]]
+
+test Arith1 [[ module A { def x = 2 * (3 + 4); } ]]
+
+test Id1 [[ module A { def y = fun x { x }; } ]]
+test Id2 [[ module A { def y = fun x { x }(1); } ]]
+test Id3 [[ module A { def y = fun x { x }("a"); } ]]
+
+test Inc1 [[ module A { def y = fun x { x + 1 }; } ]]
+test Inc2 [[ module A { def y = fun x { x + 1 }(2); } ]]
+test Inc3 [[ module A { def y = fun x { x + 1 }("a"); } ]] expect {"actual parameter"}
+
+test Imp1 [[ module A { }
+             module B { import A; } 
+          ]]
+test Imp2 [[ module A { }
+             module B { import X; } 
+          ]]  expect{"Undefined"}         
+test Imp3 [[ module A { def a = 1; }
+             module B { import A; def b = a + 2; } 
+          ]]
+test Imp4 [[ module A { def a = 1; }
+             module B { import A; def b = x + 2; } 
+          ]] expect{"Undefined"}
+test Imp5 [[ module A { def a = 1; }
+             module B { import A; def b = a + "abc"; } 
+          ]] expect{"No version of +"}
+          
+test Imp6 [[ module A { def inc = fun x { x + 1 }; }
+             module B { import A; def b = inc(3); } 
+          ]]
+test Imp6 [[ module A { def inc = fun x { x + 1 }; }
+             module B { import A; def b = inc("abc"); } 
+          ]] expect {"actual parameter"}

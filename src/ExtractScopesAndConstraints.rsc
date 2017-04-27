@@ -5,7 +5,7 @@ import String;
 extend ScopeGraph;
 
 data DefInfo
-    = defInfo(AType tp)
+    = defInfo(AType atype)
     ;
     
 data AType
@@ -38,7 +38,7 @@ data ErrorHandler
 ErrorHandler onError(Tree t, str msg) = onError(t@\loc, msg);
 
 data Fact
-    = openFact(set[loc] dependsOn, set[loc] dependsOnTV, loc src, AType tp)
+    = openFact(set[loc] dependsOn, set[loc] dependsOnTV, loc src, AType atype)
     ;
 
 data Requirement
@@ -52,7 +52,7 @@ data Overload
                ErrorHandler onError)
     ;
 
-ATypePred fact(Tree t, AType tp) = fact(t@\loc, tp);
+ATypePred fact(Tree t, AType atype) = fact(t@\loc, atype);
 
 bool isTypeVariable(loc tv) = tv.scheme == "typevar"; 
 

@@ -59,7 +59,6 @@ str AType2String(intType()) = "`int`";
 str AType2String(boolType()) = "`bool`";
 str AType2String(functionType(AType from, AType to)) = "`fun <AType2String(from)> -\> <AType2String(to)>`";
 
-
 // Def/use
 
 Tree define(e: (Expression) `fun <Id name> : <Type tp> { <Expression body> }`, Tree scope, SGBuilder sgb) {   
@@ -68,13 +67,13 @@ Tree define(e: (Expression) `fun <Id name> : <Type tp> { <Expression body> }`, T
     return e;
 }
 
-Tree define("let", e: (Expression) `let <Id name> : <Type tp> = <Expression exp1> in <Expression exp2> end`, Key Tree, SGBuilder sgb) {  
+Tree define(e: (Expression) `let <Id name> : <Type tp> = <Expression exp1> in <Expression exp2> end`, Tree scope, SGBuilder sgb) {  
     sgb.define(e, "<name>", variableId(), name, defInfo(transType(tp)));
     sgb.fact(e, typeof(exp2));
-    return e;  
+    return exp2;  
 }
  
-void use("variable", e: (Expression) `<Id name>`, Tree scope, SGBuilder sgb){
+void use(e: (Expression) `<Id name>`, Tree scope, SGBuilder sgb){
     sgb.use(scope, "<name>", name, {variableId()}, 0);
 }
 
@@ -83,8 +82,8 @@ void use("variable", e: (Expression) `<Id name>`, Tree scope, SGBuilder sgb){
 void require(e: (Expression) `<Expression exp1> (<Expression exp2>)`, SGBuilder sgb) { 
     sgb.require("application", e, 
                 [ match(functionType(tau(1), tau(2)), typeof(exp1), onError(exp1, "Function type expected")), 
-                  equal(tau(1), typeof(exp2), onError(exp2, "Incorrect type of actual parameter")),
-                  fact(e, tau(1)) 
+                  equal(typeof(exp2), tau(1), onError(exp2, "Incorrect type of actual parameter")),
+                  fact(e, tau(2)) 
                 ]);
 }
 
@@ -126,7 +125,7 @@ void require(e: (Expression) `<Integer intcon>`, SGBuilder sgb){
 
 // Examples
 
-public Expression sample(str name) = parse(#Expression, |project://TypePal/src/dtfun/<name>.dt|);
+private Expression sample(str name) = parse(#Expression, |project://TypePal/src/dtfun/<name>.dt|);
 
 set[Message] validateDT(str name) = validate(extractScopesAndConstraints(sample(name)));
 
