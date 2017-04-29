@@ -118,11 +118,11 @@ private Key bind(ScopeGraph sg, Key context, Idn id, set[IdRole] idRoles){
 }
 
 // Lookup use in given syntactic context
-private Key lookupScope(ScopeGraph sg, Key context, Use u){
-    if(debug) println("lookupScope: <context>, <u>");
-    if(!(u has qualifierRoles)){
-       def = bind(sg, context, u.id, u.idRoles);
-       if(isAcceptableSimple(sg, def, u) == acceptBinding()){
+private Key lookupScope(ScopeGraph sg, Key context, Use use){
+    if(debug) println("lookupScope: <context>, <use>");
+    if(!(use has qualifierRoles)){
+       def = bind(sg, context, use.id, use.idRoles);
+       if(isAcceptableSimple(sg, def, use) == acceptBinding()){
           return def;
        }
     } 
@@ -155,18 +155,18 @@ private set[PathLabel] pathLabels(ScopeGraph sg){
 }
 
 // Lookup use in syntactic context and via all semantic paths
-private Key lookupQual(ScopeGraph sg, Key context, Use use){
+private Key lookupQual(ScopeGraph sg, Key context, Use u){
      try 
-        return lookupScope(sg, context, use);
+        return lookupScope(sg, context, u);
     catch noKey: {
         nextPath:
         for(PathLabel pathLabel <- pathLabels(sg)){
-           candidates = lookupPaths(sg, context, use, pathLabel);
+           candidates = lookupPaths(sg, context, u, pathLabel);
            if(size(candidates) == 1){
               return candidates[0];
            }
            for(Key candidate <- candidates){
-               switch(isAcceptableSimple(sg, candidate, use)){
+               switch(isAcceptableSimple(sg, candidate, u)){
                case acceptBinding():
                   return candidate;
                case ignoreContinue():
@@ -182,34 +182,35 @@ private Key lookupQual(ScopeGraph sg, Key context, Use use){
 
 // Lookup use in syntactic context and via all semantic paths,
 // recur to syntactic parent until found
-private Key lookupNest(ScopeGraph sg, Key context, Use use){
-    if(debug)println("lookupNest: <context>, <use>");
+private Key lookupNest(ScopeGraph sg, Key context, Use u){
+    if(debug)println("lookupNest: <context>, <u>");
     try 
-        return lookupQual(sg, context, use);
+        return lookupQual(sg, context, u);
     catch noKey: {
         if(sg.scopes[context] ?){
            parent = sg.scopes[context] ? noKey;
-           if(debug)println("lookupNest: <context>, <use> move up to <parent>");
-           return lookupNest(sg, parent, use);
+           if(debug)println("lookupNest: <context>, <u> move up to <parent>");
+           return lookupNest(sg, parent, u);
         }
         throw noKey;
     }
 }
 
-public Key lookup(ScopeGraph sg, Key context, Use a){
-    if(debug) println("lookup: <context>, <a>");
-    if(!(a has qualifierRoles)){
-       res = lookupNest(sg, context, a);
-       if(isAcceptableSimple(sg, res, a) == acceptBinding()){
+public Key lookup(ScopeGraph sg, Use u){
+    context = u.scope;
+    if(debug) println("lookup: <context>, <u>");
+    if(!(u has qualifierRoles)){
+       res = lookupNest(sg, context, u);
+       if(isAcceptableSimple(sg, res, u) == acceptBinding()){
           return res;
        }
     } else {
     
-       for(id <- a.ids[0..-1]){ 
-           context = lookupNest(sg, context, use(id, a.occ, context, a.qualifierRoles));
+       for(id <- u.ids[0..-1]){ 
+           context = lookupNest(sg, context, use(id, u.occ, context, u.qualifierRoles));
         }
-        res = lookupNest(sg, context, use(a.ids[-1], a.occ, context, a.idRoles));
-        if(isAcceptableQualified(sg, res, a) == acceptBinding()){
+        res = lookupNest(sg, context, use(u.ids[-1], u.occ, context, u.idRoles));
+        if(isAcceptableQualified(sg, res, u) == acceptBinding()){
            return res;
         }
      }
@@ -241,4 +242,8 @@ default bool checkPaths(ScopeGraph sg, Key from, Key to, PathLabel pathLabel, bo
         }
     } while(current != to);
     return all(p <- path, pred(sg, p));
+}
+
+bool existsPath(ScopeGraph sg, Key from, Key to, PathLabel pathLabel){
+    return <from, to> in sg.paths<1,0,2>[pathLabel]*;
 }

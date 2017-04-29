@@ -141,14 +141,11 @@ void require(e: (Expression) `<Integer intcon>`, SGBuilder sgb){
 // ---- Refine use/def: enforce def before use -----------
 
 Accept isAcceptableSimple(ScopeGraph sg, Key def, Use use){
-
-    res = variableId() in use.idRoles
+    return variableId() in use.idRoles
            && def < use.scope 
            && !(use.occ.offset >= def.offset)
            ? ignoreContinue()
            : acceptBinding();
-    println("isAcceptable: <def>, <use> ==\> <res>");
-    return res;
 }
 
 // ----  Examples & Tests --------------------------------

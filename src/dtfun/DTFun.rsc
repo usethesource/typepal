@@ -77,7 +77,7 @@ Tree define(e: (Expression) `let <Id name> : <Type tp> = <Expression exp1> in <E
 }
  
 void use(e: (Expression) `<Id name>`, Tree scope, SGBuilder sgb){
-    sgb.use(scope, "<name>", name, {variableId()}, 0);
+    sgb.use(scope, name, {variableId()}, 0);
 }
 
 // ----  Requirements ------------------------------------

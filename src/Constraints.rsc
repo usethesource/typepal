@@ -12,7 +12,7 @@ import Type;
 import String;
 import Message;
 
-bool cdebug = true;
+bool cdebug = false;
 
 // Substitute top-level type variables in a type first using bindings, then facts
 AType substitute(AType atype, map[loc, AType] bindings, map[loc, AType] facts)
@@ -102,7 +102,7 @@ tuple[bool, map[loc, AType]] unify(AType t1, AType t2, map[loc, AType] bindings)
     return <true, bindings>;
 }
 
-set[Message] validate(REQUIREMENTS extractedRequirements){
+set[Message] validate(ScopeGraph extractedRequirements){
           
    overloads = extractedRequirements.overloads;
    facts = extractedRequirements.facts;
@@ -164,7 +164,7 @@ set[Message] validate(REQUIREMENTS extractedRequirements){
    }
    
    void addFact(loc l, AType atype){
-         if(cdebug)println("addFact: <l>, <atype>, <triggersFact[l]>, <triggersRequirement[l]>");
+         if(cdebug)println("\naddFact: <l>, <atype>, <triggersFact[l]>, <triggersRequirement[l]>");
         
          if(typeof(loc other) := atype){// || tvar(loc other) := atype){
             if(facts[other]?){
@@ -268,6 +268,17 @@ set[Message] validate(REQUIREMENTS extractedRequirements){
                   : <false, bindings, {error("<onError.msg>, expected <AType2String(iexpected)>, found <AType2String(igiven)>", onError.where)}>;
     }
     
+    // Check the "subtype" predicate
+    tuple[bool ok, map[loc, AType] bindings, set[Message] messages] 
+        satisfies1(subtype(AType small, AType large, ErrorHandler onError), map[loc, AType] bindings){
+        ismall = instantiate(small, bindings, facts);
+        ilarge = instantiate(large, bindings, facts);
+        //println("ismall = <ismall>");
+        //println("ilarge = <ilarge>");
+        return isSubtype(ismall, ilarge, extractedRequirements) ? <true, (), {}> 
+                  : <false, (), {error("<onError.msg>, expected subtype of <AType2String(ilarge)>, found <AType2String(ismall)>", onError.where)}>;
+    }
+    
     // Check the "fact" predicate
     tuple[bool ok, map[loc, AType] bindings, set[Message] messages] 
         satisfies1(fact(loc l, AType atype), map[loc, AType] bindings){
@@ -315,9 +326,9 @@ set[Message] validate(REQUIREMENTS extractedRequirements){
     
     for(u <- extractedRequirements.uses){
         try {
-           println("u = <u>");
-           def = lookup(extractedRequirements, u.scope, u);
-           println("def = <def>");
+           //println("u = <u>");
+           def = lookup(extractedRequirements, u);
+           //println("def = <def>");
            defs[u.occ] = def;
            unresolvedUses += u;
         } catch noKey: {
@@ -335,7 +346,7 @@ set[Message] validate(REQUIREMENTS extractedRequirements){
        }
        
        for(u <- unresolvedUses){
-           if(cdebug)println("Consider use: <u>");
+           //if(cdebug)println("Consider use: <u>");
            def = defs[u.occ];
            if(facts[def]?){  // has type of def become available?
               fct1 = facts[def];

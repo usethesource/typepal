@@ -9,7 +9,7 @@ data DefInfo
     ;
     
 data AType
-    = typeof(loc other)                  // type dependency on other source code fragment
+    = typeof(loc other)                 // type dependency on other source code fragment
     | tvar(loc name)                    // type variable
     ;
 
@@ -18,8 +18,14 @@ str AType2String(tvar(loc name))    = "`<name>`";
 
 default str AType2String(AType tp) = "`<tp>`";
 
+default bool isSubtype(AType atype1, AType atype2, ScopeGraph sg) {
+    return atype1 == atype2;
+}
+
 // Convenience function to avoid the need to fetch source location
 AType typeof(Tree tree) = typeof(tree@\loc);
+
+list[AType] typeof(list[Tree] trees) = [typeof(tree) | Tree tree <- trees];
 
 AType tau(int n) = tvar(|typevar:///<right("<n>", 10, "0")>|);
  
@@ -28,6 +34,7 @@ AType tau(int n) = tvar(|typevar:///<right("<n>", 10, "0")>|);
 data ATypePred
     = match(AType pattern, AType subject, ErrorHandler onError)
     | equal(AType left, AType right, ErrorHandler onError)
+    | subtype(AType left, AType right, ErrorHandler onError)
     | fact(loc src, AType tp)
     ;
 
@@ -98,11 +105,15 @@ default void use(Tree tree, Tree scope, SGBuilder sgb){ }
 
 default void require(Tree tree, SGBuilder sgb) { }
 
+default void require(Tree tree, Tree scope, SGBuilder sgb) { }
+
 default void fact(Tree tree, SGBuilder sgb) { }
 
+default SGBuilder initialize(Tree tree, SGBuilder sgb) = sgb;
 
 ScopeGraph extractScopesAndConstraints(Tree root){
     sgb = scopeGraphBuilder();
+    sgb = initialize(root, sgb);
     extract2(root, root, sgb);
     sg = sgb.build();
     if(debug) printScopeGraph(sg);
@@ -111,7 +122,7 @@ ScopeGraph extractScopesAndConstraints(Tree root){
         n += 1;
         for(c <- sg.referPaths){
             try {
-                def = lookup(sg, c.use.scope, c.use);
+                def = lookup(sg, c.use);
                 if(debug) println("extract1: resolve <c.use> to <def>");
                 sg.paths += {<c.use.scope, c.pathLabel, def>};
                 sg.referPaths -= {c}; 
@@ -130,6 +141,7 @@ void extract2(currentTree: appl(Production prod, list[Tree] args), Tree currentS
    newScope = define(currentTree, currentScope, sgb);
    sgb.addScope(newScope, currentScope);
    require(currentTree, sgb);
+   require(currentTree, newScope, sgb);
    
    for(Tree arg <- args){
        extract2(arg, newScope, sgb);
@@ -141,8 +153,8 @@ default void extract2(Tree root, Tree currentScope, SGBuilder sgb) { }
 data SGBuilder 
     = sgbuilder(
         void (Tree scope, Idn id, IdRole idRole, Tree root, DefInfo info) define,
-        void (Tree scope, Idn id, Tree occ, set[IdRole] idRoles, int defLine) use,
-        void (Tree scope, Idn id, Tree occ, set[IdRole] idRoles, PathLabel pathLabel, int defLine) use_ref,
+        void (Tree scope, Tree occ, set[IdRole] idRoles, int defLine) use,
+        void (Tree scope, Tree occ, set[IdRole] idRoles, PathLabel pathLabel, int defLine) use_ref,
         void (Tree scope, list[Idn] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, int defLine) use_qual,
         void (Tree scope, list[Idn] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathLabel pathLabel, int defLine) use_qual_ref,   
         void (Tree inner, Tree outer) addScope,
@@ -151,7 +163,7 @@ data SGBuilder
         void (Tree src, AType tp) fact,
         void (str name, Tree src, list[Tree] args, list[tuple[list[AType] argTypes, AType resType]] alternatives, ErrorHandler onError) overload,
         AType (Tree scope) newTypeVar,
-        REQUIREMENTS () build
+        ScopeGraph () build
       ); 
                            
 SGBuilder scopeGraphBuilder(){
@@ -175,12 +187,12 @@ SGBuilder scopeGraphBuilder(){
         defines += {<scope@\loc, id, idRole, d@\loc, info>};
     }
        
-    void _use(Tree scope, Idn id, Tree occ, set[IdRole] idRoles, int defLine) {
-        uses += [use(id, occ@\loc, scope@\loc, idRoles, defLine=defLine)];
+    void _use(Tree scope, Tree occ, set[IdRole] idRoles, int defLine) {
+        uses += [use("<occ>", occ@\loc, scope@\loc, idRoles, defLine=defLine)];
     }
     
-    void _use_ref(Tree scope, Idn id, Tree occ, set[IdRole] idRoles, PathLabel pathLabel, int defLine) {
-        u = use(id, occ@\loc, scope@\loc, idRoles, defLine=defLine);
+    void _use_ref(Tree scope, Tree occ, set[IdRole] idRoles, PathLabel pathLabel, int defLine) {
+        u = use("<occ>", occ@\loc, scope@\loc, idRoles, defLine=defLine);
         uses += [u];
         referPaths += {refer(u, pathLabel)};
     }

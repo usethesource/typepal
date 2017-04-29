@@ -74,11 +74,11 @@ Tree define(d:(Declaration) `<Id id> : <Type tp>`,  Tree scope, SGBuilder sgb) {
 }
 
 void use(e: (Expression) `<Id name>`, Tree scope, SGBuilder sgb){
-     sgb.use(scope, "<name>", name, {variableId()}, 0);
+     sgb.use(scope, name, {variableId()}, 0);
 }
 
 void use((Statement) `<Id var> := <Expression val>`, Tree scope, SGBuilder sgb){
-     sgb.use(scope, "<var>", var, {variableId()}, 0);
+     sgb.use(scope, var, {variableId()}, 0);
 }
 
 // ----  Requirements ------------------------------------
