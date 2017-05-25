@@ -1,0 +1,13 @@
+test M1 [[ class C extends Object {
+                C() { super(); }
+           } ]]
+           
+test M2 [[ class C extends Object1 {
+                C() { super(); }
+           } 
+        ]] expect{ "Undefined `Object1`"}
+
+test M3 [[ class C extends Object {
+                D() { super(); }
+           } 
+        ]] expect{ "Undefined `D`"}
