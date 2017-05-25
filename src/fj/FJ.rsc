@@ -15,14 +15,15 @@ lexical ClassId  = ([A-Z][a-z0-9]* !>> [a-z0-9]) \ Reserved;
 lexical Id  = ([a-z][a-z0-9]* !>> [a-z0-9]) \ Reserved;
 lexical Integer = [0-9]+ !>> [0-9]; 
 
-keyword Reserved = "class" | "extends" | "super" | "this" | "return";
+keyword Reserved = "class" | "extends" | /*"super" |*/ "this" | "return";
 
 layout Layout = WhitespaceAndComment* !>> [\ \t\n\r%];
 
 lexical WhitespaceAndComment 
    = [\ \t\n\r]
-   | @category="Comment" ws2: "%" ![%]+ "%"
-   | @category="Comment" ws3: "%%" ![\n]* $
+   | @category="Comment" ws2:
+    "%" ![%]+ "%"
+   | @category="Comment" ws3: "{" ![\n}]*  "}"$
    ;
    
 syntax Program
@@ -43,13 +44,13 @@ syntax FieldDecl
 
 syntax ConstructorDecl
     =  ClassId cid Formals formals "{"
-            SuperCall
+            SuperCall supercall
             FieldAssignment* fieldAssignments
        "}"
     ;
 
 syntax SuperCall
-    = "super" "(" {Field ","}* fields ")" ";"
+    = Class super "(" {Variable ","}* vars ")" ";"
     ;
     
 syntax Formal
@@ -78,6 +79,7 @@ syntax Constructor
     ;
 syntax Class
     = ClassId id
+    | "super"
     ;
     
 syntax Variable
@@ -115,175 +117,213 @@ data PathLabel
     ;
 
 data AType
-    = classType(Use use)
-    | methodType(AType returnType, list[AType] argTypes)
+    = classType(str cname, Use use)
+    | methodType(AType returnType, AType argTypes)
     ;
 
-AType classType(Tree scope, Tree cname, SGBuilder sgb) {
-    sgb.use(scope, cname, {classId()}, 0);
-    return classType(use("<cname>", cname@\loc, scope@\loc, {classId()}));
+AType classType(Tree scope, Tree cname) = classType("<cname>", use("<cname>", cname@\loc, scope@\loc, {classId()}));
+
+AType useClassType(Tree scope, Tree cname){
+    return useType(use("<cname>", cname@\loc, scope@\loc, {classId()}));
 }
 
-str AType2String(classType(Use use)) = "<use.id>";
-str AType2String(methodType(AType returnType, list[AType] argTypes)) 
-    = "`method <AType2String(returnType)>(<intercalate(", ", [AType2String(a) | a <- argTypes])>)`";
+str AType2String(useType(Use use)) = "<use.id>";
+str AType2String(methodType(AType returnType, AType argTypes)) 
+    = "method <AType2String(returnType)>(<AType2String(argTypes)>)";
+str AType2String(classType(str cname, _)) = cname;
 
 // ---- isSubtype
 
 bool isSubtype(AType atype1, AType atype2, ScopeGraph sg){
-    if(c1: classType(Use use1) := atype1 && c2: classType(Use use2) := atype2){
-        //println("isSubtype: <AType2String(c1)>, <AType2String(c2)>");
-        try {
+     //println("isSubType: <atype1>\n\t<atype2>");
+     //iprintln(sg);
+    if(c1: useType(Use use1) := atype1){
+        try { 
             def1 = lookup(sg, use1);
-            def2 = lookup(sg, use2);
-            
-            res = def1 == def2 || existsPath(sg, def1, def2, extendsLabel());
-            //println("isSubtype: <def1>, <def2> ==\> <res>");
-            return res;
+            //println("use1: <use1>, def1: <def1>, <sg.facts[def1]?>");
+            //iprintln(sg.facts);
+            return isSubtype(sg.facts[def1], atype2, sg);
         } catch noKey: {
-            //println("isSubtype:  <use1>, <use2> ==\> false");
             return false;
         }
-    } else
-    if(m1: methodType(AType returnType1, list[AType] argTypes1) := atype1 &&
-       m2: methodType(AType returnType2, list[AType] argTypes2) := atype2){
-        //println("isSubtype: <AType2String(m1)>, <AType2String(m2)>");
+    }
+    if(c2: useType(Use use2) := atype2){
+        try { 
+            def2 = lookup(sg, use2);
+             //println("use2: <use2>, def2: <def2>");
+            return isSubtype(atype1, sg.facts[def2], sg);
+        } catch noKey: {
+            return false;
+        }
+    }
+    
+    if(m1: methodType(AType returnType1, AType argTypes1) := atype1 &&
+       m2: methodType(AType returnType2, AType argTypes2) := atype2){
         return isSubtype(returnType1, returnType2, sg) &&
                isSubtype(argTypes1, argTypes2, sg);
     }
+    if(classType(_, _) := atype1 && classType("Object", _) := atype2){
+        return true;
+    }
+
     return atype1 == atype2;
 }
 
-bool isSubtype(list[AType] atypes1, list[AType] atypes2, ScopeGraph sg)
-    = size(atypes1) <= size(atypes2) &&
+bool isSubtype(listType(list[AType] atypes1), listType(list[AType] atypes2), ScopeGraph sg)
+    = size(atypes1) == size(atypes2) &&
       (isEmpty(atypes1) || all(int i <- index(atypes1), isSubtype(atypes1[i], atypes2[i], sg)));
 
 // ----  Initialize --------------------------------------  
 
-SGBuilder initialize(Tree tree, SGBuilder sgb){
-    sgb.define(tree, "Object", classId(), tree, noDefInfo());
+SGBuilder initializedSGB(Tree scope){
+    SGBuilder sgb = scopeGraphBuilder();
+    // Simulate the definition of the class "Object"
+    object_src = [ClassId] "Object";
+    sgb.define(scope, "Object", classId(), object_src, defInfo(classType(scope, object_src)));
+    super_src = [ClassId] "Super";
+    sgb.define(scope, "super", constructorId(), super_src, defInfo(methodType(useClassType(scope, object_src), listType([]))));
     return sgb;
 } 
 
-// ----  Def/Use -----------------------------------------
+// ----  Define -------------------------------------------------------
 
 Tree define(ClassDecl cd, Tree scope, SGBuilder sgb)     {
-    sgb.define(scope, "<cd.cid>", classId(), cd.cid, noDefInfo());
-    sgb.use_ref(scope, cd.ecid, {classId()}, extendsLabel(), 0);
+    sgb.define(scope, "<cd.cid>", classId(), cd.cid, defInfo(classType(scope, cd.cid)));
+    sgb.use_ref(scope, cd.ecid, {classId()}, extendsLabel(), 0); 
+    sgb.define(scope, "this", fieldId(), cd.cid, defInfo(useClassType(scope, cd.cid)));  
+    
+    consDecl = cd.constructordecl;
+    if(cd.cid != consDecl.cid){
+        sgb.error(consDecl.cid, "Class name `<cd.cid>` differs from constructor name `<consDecl.cid>`");
+    } else {
+        superCall = consDecl.supercall;
+        superType = typeof(cd.ecid, superCall.super, {constructorId()});
+        superArgTypes = listType([ typeof(var) | Variable var <- superCall.vars ]);
+        if("<cd.ecid>" == "Object"){
+           sgb.define(scope, "super", classId(), cd.ecid, defInfo(useClassType(scope, cd.ecid)));
+           if(size(superArgTypes.atypes) != 0){
+              sgb.error(superCall, "Incorrect super arguments");
+           }
+        } else {   
+            sgb.define(scope, "super", classId(), cd.ecid, defInfo(typeof(cd.ecid)));
+            sgb.require("super call in <cd.ecid>", superCall,
+            [ match(methodType(tau(1), tau(2)), superType, onError(superCall, "Wrong constructor type")),
+              subtype(tau(2), superArgTypes, onError(superCall, "Incorrect super arguments"))
+            ]);
+        }
+    }
     return cd;
 }
 
-Tree define(cd: (ConstructorDecl) `<ClassId cid> <Formals formals> {
-                                  '<SuperCall super>
-                                  '<FieldAssignment* fieldAssignments>
-                                  '}`, Tree scope, SGBuilder sgb){
-    argTypes = [classType(scope, f.cid, sgb) | Formal f <- formals.formals];
-    sgb.define(scope, "<cid>", constructorId(), cid, defInfo(methodType(classType(scope, cid, sgb), argTypes)));
-    return cd;                      
+Tree define(ConstructorDecl cons, Tree scope, SGBuilder sgb){
+    tp = methodType(useClassType(scope, cons.cid), listType([useClassType(scope, f.cid) | Formal f <- cons.formals.formals]));
+    sgb.define(scope, "<cons.cid>", constructorId(), cons.cid, defInfo(tp));
+
+    return cons;                      
 }
 
 Tree define(fm: (Formal) `<ClassId cid> <Id id>`, Tree scope, SGBuilder sgb){
-    sgb.define(scope, "<id>", formalId(), id, defInfo(classType(scope, cid, sgb)));
+    sgb.define(scope, "<id>", formalId(), id, defInfo(useClassType(scope, cid)));
     return scope;
 }
 
 Tree define(fd: (FieldDecl) `<ClassId cid> <Id id> ;`, Tree scope, SGBuilder sgb){
-    sgb.define(scope, "<id>", fieldId(), id, defInfo(classType(scope, cid, sgb)));
-    return scope;
+    sgb.define(scope, "<id>", fieldId(), id, defInfo(useClassType(scope, cid)));
+    return scope; 
 }
 
-Tree define(md: (MethodDecl) `<ClassId cid> <Id mid> <Formals formals> { return <Expression exp> ; }`, Tree scope,  SGBuilder sgb){    
-    argTypes = [classType(scope, f.cid, sgb) | Formal f <- formals.formals];
-    resType = classType(scope, cid, sgb);
+Tree define(md: (MethodDecl) `<ClassId cid> <Id mid> <Formals formals> { return <Expression exp> ; }`, Tree scope,  SGBuilder sgb){   
+    resType = useClassType(scope, cid); 
+    argTypes = listType([useClassType(scope, f.cid) | Formal f <- formals.formals]);
+   
     sgb.define(scope, "<mid>", methodId(), mid, defInfo(methodType(resType, argTypes)));
-    sgb.require("method", md,
+    sgb.require("method definition <mid>", md,
         [subtype(typeof(exp), resType, onError(md, "Actual return type should be subtype of declared return type"))
         ]);
     return md;
 }
 
-void use(Class c, Tree scope, SGBuilder sgb){
-    sgb.use(scope, c.id, {classId()}, 0);
-}
+// ----  Collect uses & requirements ------------------------------------
 
-void use(Constructor c, Tree scope, SGBuilder sgb){
-    sgb.use(scope, c.id, {constructorId()}, 0);
-}
-
-void use(Variable var, Tree scope, SGBuilder sgb){
-    sgb.use(scope, var.id, {formalId(), fieldId()}, 0);
-}
-
-void use(Field fld, Tree scope, SGBuilder sgb){
-    sgb.use(scope, fld.id, {fieldId()}, 0);
-}
-
-void use(Method mtd, Tree scope, SGBuilder sgb){
-    sgb.use(scope, mtd.id, {methodId()}, 0);
-}
-
-// ----  Requirements ------------------------------------
-
-void require(e: (Expression) `<Expression exp> . <Field field>`, SGBuilder sgb){
-    if("<exp>" == "this"){
-        sgb.fact(e, typeof(field.id));
+void collect(Class c, Tree scope, SGBuilder sgb){
+    if("<c>" == "super"){
+      sgb.use(scope, c, {classId()}, 0);
     } else {
-        sgb.fact(e, typeof(exp, field.id));
+      sgb.use(scope, c.id, {classId()}, 0);
     }
 }
 
-// add methodCall
+void collect(Constructor c, Tree scope, SGBuilder sgb){
+    sgb.use(scope, c.id, {constructorId()}, 0);
+}
 
-void require(e: (Expression) `new <Constructor cons> <Expressions exps>`, Tree scope, SGBuilder sgb){
-    returnType = classType(scope, cons.id, sgb);
-    argTypes = [ typeof(exp) | exp <- exps.expressions ];
+void collect(Variable var, Tree scope, SGBuilder sgb){
+    sgb.use(scope, var.id, {formalId(), fieldId()}, 0);
+}
+
+void collect(Field fld, Tree scope, SGBuilder sgb){
+    sgb.use(scope, fld.id, {fieldId()}, 0);
+}
+
+void collect(Method mtd, Tree scope, SGBuilder sgb){
+    sgb.use(scope, mtd.id, {methodId()}, 0);
+}
+
+void collect(sc: (SuperCall) `<Class super> ( <{Variable ","}* vars> );`, Tree scope, SGBuilder sgb){
+    sgb.require("super call", sc,
+        [ match(methodType(tau(1), tau(2)), typeof(super, super, {constructorId()}), onError(sc, "Incorrect super call")),
+          fact(sc, tau(1))
+        ]);
+}
+
+void collect(e: (Expression) `<Expression exp> . <Field field>`, Tree scope, SGBuilder sgb){
+    if("<exp>" == "this"){
+        sgb.fact(e, typeof(field.id));
+    } else {
+        sgb.fact(e, typeof(exp, field.id, {fieldId()}));
+    }
+}
+
+void collect(e: (Expression) `<Expression exp> . <Method method> <Expressions exps>`, Tree scope, SGBuilder sgb){
+    argTypes = listType([ typeof(arg) | arg <- exps.expressions ]); 
+    sgb.require("method call `<method>`", e,
+                [ match(methodType(tau(1), tau(2)), typeof(exp, method.id, {methodId()}), onError(e, "Method required")),
+                  subtype(argTypes, tau(2), onError(e, "Incorrect method arguments")),
+                  fact(e, tau(1)) 
+                ]);
+}
+
+void collect(e: (Expression) `new <Constructor cons> <Expressions exps>`, Tree scope, SGBuilder sgb){
+    returnType = useClassType(scope, cons.id);
+    argTypes = listType([ typeof(exp) | exp <- exps.expressions ]);
     
-    sgb.require("new", e,
+    sgb.require("new `<cons>`", e,
         [ subtype(methodType(returnType, argTypes), typeof(cons), onError(e, "Incorrect constructor arguments")),
           fact(e, returnType) 
         ]);
 }
 
-void require(e: (Expression) `( <ClassId cid> ) <Expression exp>`, Tree scope, SGBuilder sgb){
-    castType = classType(scope, cid, sgb);
-    sgb.require("cast", e,
+void collect(e: (Expression) `( <ClassId cid> ) <Expression exp>`, Tree scope, SGBuilder sgb){  // <++++++
+    castType = useClassType(scope, cid);
+    sgb.require("cast `<cid>`", e,
         [ subtype(typeof(exp), castType, onError(e, "Incorrect cast")),
           fact(e, castType) 
         ]);
 }
-/*
-  = Variable var
-    | Expression exp "." Field field
-    | Expression exp "." Method method Expressions exps
-    | "new" ClassId cid Expressions exps
-    | "(" ClassId cid ")" Expression exp
-    | "this"
-*/
-// ----  Examples & Tests --------------------------------
 
-value main(){
-    //p = 
-    //[ClassDecl] "class A extends Object {
-    //        '   A() { super(); }
-    //        '}";
-    p =
-    [ClassDecl] "class Pair extends Object {
-            '   Object fst;
-            '   Object snd;
-            '   Pair(Object fst, Object snd){
-            '       super(); this.fst = fst; this.snd = snd;
-            '   }
-            '   Pair setfst(Object newfst){
-            '       return new Pair(newfst, this.snd);
-            '   }
-            '}";
-    return p;
+void collect(e: (Expression) `this`, Tree scope, SGBuilder sgb){
+     sgb.use(scope, e, {fieldId()}, 0);
 }
+
+// ----  Examples & Tests --------------------------------
 
 private Program sample(str name) = parse(#Program, |project://TypePal/src/fj/<name>.fj|);
 
-set[Message] validateFJ(str name) = validate(extractScopesAndConstraints(sample(name)));
+set[Message] validateFJ(str name) {
+    p = sample(name);
+    return validate(extractScopesAndConstraints(p, initializedSGB(p)), isSubtype=isSubtype);
+}
 
 void testFJ() {
-    runTests(|project://TypePal/src/fj/tests.ttl|, #Program);
+    runTests(|project://TypePal/src/fj/tests.ttl|, #Program, initialSGBuilder = initializedSGB);
 }

@@ -32,7 +32,7 @@ data PathLabel
 // (e.g., one for class and package names, one for variable names etc.)
 data Use(int defLine = 0) 
     = use(Idn id, Key occ, Key scope, set[IdRole] idRoles)
-    | use(list[Idn] ids, Key occ, Key scope, set[IdRole] idRoles, set[IdRole] qualifierRoles)
+    | usen(list[Idn] ids, Key occ, Key scope, set[IdRole] idRoles, set[IdRole] qualifierRoles)
     ;
 alias Uses = list[Use];
 
@@ -89,14 +89,10 @@ void printScopeGraph(ScopeGraph sg){
         println("    <c>");
     }
     println("  },");
+    iprintln(sg.uses);
     println("  uses = [");
-    for(u <- sg.uses){
-        print("    use(");
-        if(u has qualifierRoles){
-            println("<u.ids>, <u.occ>, <u.scope>, <u.idRoles>, <u.qualifierRoles>, <u.defLine>)");
-        } else {
-           println("<u.id>, <u.occ>, <u.scope>, <u.idRoles>, <u.defLine>)");
-        }
+    for(Use u <- sg.uses){
+        print("    use(<u.ids? ? u.ids : u.id>, <u.occ>, <u.scope>, <u.idRoles>, <u.qualifierRoles? ? u.qualifierRoles : "">, <u.defLine>)");
     }
     println("  ]");
     println(");");
@@ -205,7 +201,6 @@ public Key lookup(ScopeGraph sg, Use u){
           return res;
        }
     } else {
-    
        for(id <- u.ids[0..-1]){ 
            context = lookupNest(sg, context, use(id, u.occ, context, u.qualifierRoles));
         }

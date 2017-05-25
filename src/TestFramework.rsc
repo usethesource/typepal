@@ -20,7 +20,7 @@ lexical WhitespaceAndComment
    = [\ \t\n\r]
    | @category="Comment" ws2:
     "%" ![%]+ "%"
-   | @category="Comment" ws3: "%%" ![\n]* $
+   | @category="Comment" ws3: "{" ![\n}]*  "}"$
    ;
    
 start syntax TTL = ttl: TestItem* items;
@@ -37,9 +37,14 @@ syntax Expect
     ;
     
 bool matches(str subject, str pat) =
-    contains(uncapitalize(subject), uncapitalize(pat));
+    contains(toLowerCase(subject), toLowerCase(pat));
 
-bool runTests(loc tests, type[&T<:Tree] begin){
+SGBuilder emptySGBuilder(Tree t) = scopeGraphBuilder();
+
+bool runTests(loc tests, type[&T<:Tree] begin, SGBuilder(Tree) initialSGBuilder = emptySGBuilder,
+                      bool(AType atype1, AType atype2, ScopeGraph sg) isSubtype = noIsSubtype,
+                      AType(AType atype, ScopeGraph sg) getLUB = noGetLUB
+){
     ttlProgram = parse(#TTL, tests);
     ok = true;
     failed = ();
@@ -47,7 +52,7 @@ bool runTests(loc tests, type[&T<:Tree] begin){
     for(ti <- ttlProgram.items){
         ntests += 1;
         p = parse(begin, "<ti.tokens>");
-        messages = validate(extractScopesAndConstraints(p));
+        messages = validate(extractScopesAndConstraints(p, initialSGBuilder(p)), isSubtype=isSubtype, getLUB=getLUB);
         println("runTests: <messages>");
         ok = ok && isEmpty(messages);
         expected = ti.expect is none ? {} : {"<s>"[1..-1] | String s <- ti.expect.messages};

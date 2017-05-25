@@ -6,12 +6,12 @@ test Bool2 [[ false ]]
 test Var1 [[ x ]] expect {"Undefined"}
 
 test Add1 [[ 1 + 2 ]]
-test Add2 [[ 1 + false ]] expect {"rhs of +"}
-test Add3 [[ false + 1 ]] expect {"lhs of +"}
+test Add2 [[ 1 + false ]] expect {"Rhs of +, expected `int`, found `bool`"}
+test Add3 [[ false + 1 ]] expect {"Lhs of +, expected `int`, found `bool`"}
 
 test And1 [[ true && false ]]
-test And2 [[ true && 1 ]] expect {"rhs of &&"}
-test And3 [[ 1 && false ]] expect {"lhs of &&"}
+test And2 [[ true && 1 ]] expect {"Rhs of &&"}
+test And3 [[ 1 && false ]] expect {"Lhs of &&"}
 
 test Bracket1 [[ (1) ]]
 test Bracket2 [[ (true) ]]
@@ -22,7 +22,7 @@ test Id3 [[ fun x { x }(true) ]]
 
 test Inc1 [[ fun x { x + 1 } ]]
 test Inc2 [[ fun x { x + 1 }(2) ]]
-test Inc3 [[ fun x { x + 1 }(true) ]] expect {"actual parameter"}
+test Inc3 [[ fun x { x + 1 }(true) ]] expect {"Incorrect type of actual parameter, expected `int`, found `bool`"}
 
 test If1 [[ if true then 1 else 2 fi ]]
 test If2 [[ if true then true else false fi ]]

@@ -1,5 +1,6 @@
 module modlang::ModLang
 
+extend ExtractScopesAndConstraints;
 extend Constraints;
 extend TestFramework;
 
@@ -18,7 +19,7 @@ lexical WhitespaceAndComment
    = [\ \t\n\r]
    | @category="Comment" ws2:
     "%" ![%]+ "%"
-   | @category="Comment" ws3: "%%" ![\n]* $
+   | @category="Comment" ws3: "{" ![\n}]*  "}"$
    ;
 
 syntax Program 
@@ -69,12 +70,12 @@ data AType
     | functionType(AType from, AType to)            // function type
     ;
     
-str AType2String(intType()) = "`int`";
-str AType2String(strType()) = "`str`";
+str AType2String(intType()) = "int";
+str AType2String(strType()) = "str";
 
-// ----  Def/Use -----------------------------------------
+// ----  Define --------------------------------------------------------
 
-Tree define(ModuleDecl md, Tree scope, SGBuilder sg)     {
+Tree define(ModuleDecl md, Tree scope, SGBuilder sg) {
     sg.define(scope, "<md.mid>", moduleId(), md.mid, noDefInfo());
     return scope;
 }
@@ -93,18 +94,18 @@ Tree define(vd: (VarDecl) `def <Id id> = <Expression expression> ;`, Tree scope,
     return expression;
 }
 
-void use(ImportDecl d, Tree scope, SGBuilder sg){
-    sg.use_ref(scope, "<d.mid>", d.mid, {moduleId()}, importsLabel(), 0);
+// ---- Collect uses & requirements ------------------------------------
+
+void collect(ImportDecl d, Tree scope, SGBuilder sg){
+    sg.use_ref(scope, d.mid, {moduleId()}, importsLabel(), 0);
 }
 
-void use(exp: (Expression) `<Id name>`, Tree scope, SGBuilder sg){
+void collect(exp: (Expression) `<Id name>`, Tree scope,  SGBuilder sg){
     println("Use: <name>, <scope>");
-    sg.use(scope, "<name>", name, {variableId(), parameterId()}, 0);
+    sg.use(scope, name, {variableId(), parameterId()}, 0);
 }
 
-// ----  Requirements ------------------------------------
-
-void require(e: (Expression) `<Expression exp1>(<Expression exp2>)`, SGBuilder sgb) { 
+void collect(e: (Expression) `<Expression exp1>(<Expression exp2>)`, Tree scope, SGBuilder sgb) { 
     sgb.require("application", e, 
                 [ match(functionType(tau(1), tau(2)), typeof(exp1), onError(exp1, "Function type expected")), 
                   equal(typeof(exp2), tau(1), onError(exp2, "Incorrect type of actual parameter")),
@@ -112,13 +113,13 @@ void require(e: (Expression) `<Expression exp1>(<Expression exp2>)`, SGBuilder s
                 ]);
 }
 
-void require(e: (Expression) `<Expression lhs> + <Expression rhs>`, SGBuilder sgb){
+void collect(e: (Expression) `<Expression lhs> + <Expression rhs>`, Tree scope, SGBuilder sgb){
      sgb.overload("addition", e, 
                   [lhs, rhs], [<[intType(), intType()], intType()>, <[strType(), strType()], strType()>],
                   onError(e, "No version of + exists for given argument types"));
 }
 
-void require(e: (Expression) `<Expression lhs> * <Expression rhs>`, SGBuilder sgb){
+void collect(e: (Expression) `<Expression lhs> * <Expression rhs>`, Tree scope, SGBuilder sgb){
      sgb.require("multiplication", e, 
                  [ equal(typeof(lhs), intType(), onError(lhs, "Lhs of *")),
                    equal(typeof(rhs), intType(), onError(rhs, "Rhs of *")),
@@ -126,15 +127,15 @@ void require(e: (Expression) `<Expression lhs> * <Expression rhs>`, SGBuilder sg
                  ]);
 }
 
-void require(e: (Expression) `( <Expression exp> )`, SGBuilder sgb){
+void collect(e: (Expression) `( <Expression exp> )`, Tree scope, SGBuilder sgb){
      sgb.fact(e, typeof(exp));
 }
 
-void require(e: (Expression) `<String string>`, SGBuilder sgb){
+void collect(e: (Expression) `<String string>`, Tree scope, SGBuilder sgb){
     sgb.fact(e, strType());
 }
 
-void require(e: (Expression) `<Integer intcon>`, SGBuilder sgb){
+void collect(e: (Expression) `<Integer intcon>`, Tree scope, SGBuilder sgb){
     sgb.fact(e, intType());
 }
 
@@ -152,7 +153,7 @@ Accept isAcceptableSimple(ScopeGraph sg, Key def, Use use){
 
 private Program sample(str name) = parse(#Program, |project://TypePal/src/modlang/<name>.modlang|);
 
-set[Message] validateModLang(str name) = validate(extractScopesAndConstraints(sample(name)));
+set[Message] validateModLang(str name) = validate(extractScopesAndConstraints(sample(name), scopeGraphBuilder()));
 
 void testModLang() {
     runTests(|project://TypePal/src/modlang/tests.ttl|, #Program);

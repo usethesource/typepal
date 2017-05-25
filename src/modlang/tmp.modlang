@@ -1,3 +1,1 @@
-module A { 
-    def y = fun x { x };
-}
+module A { def x = "a" + 2; }
