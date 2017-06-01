@@ -355,10 +355,13 @@ void collect(e: (EntireVariable) `<EntireVariable var>`, Tree scope, SGBuilder s
 
 void collect(e: (ReferencedVariable) `<Variable var>^`, Tree scope, SGBuilder sgb){
      //sgb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
-     sgb.require("referenced variable <e>", e,
-        [   match(pointerType(tau(1)), typeof(var), onError(var, "Pointer type required")),
-            fact(e, tau(1))
-        ]);
+     sgb.require("referenced variable <e>", e, [var],
+        () { if(pointerType(tau1) := typeof(var)){ 
+               fact(e, tau1);
+             } else {
+               reportError(var, "Pointer type required");
+             }
+           });
 }
 
 void collect((TypeIdentifier) `<TypeIdentifier tvar>`, Tree scope, SGBuilder sgb){
@@ -368,55 +371,74 @@ void collect((TypeIdentifier) `<TypeIdentifier tvar>`, Tree scope, SGBuilder sgb
 void collect(fd: (FieldDesignator) `<RecordVariable var> . <FieldIdentifier field>`, Tree scope, SGBuilder sgb){
     if(var is entire)
         sgb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
-     sgb.fact(fd, typeof(var, field, {fieldId()}));
+     sgb.fact(fd, [field], [], AType() { return typeof(var, field, {fieldId()}); });
 }
 
 void collect(e: (IndexedVariable) `<ArrayVariable var> [ <{Expression ","}+ indices> ]`, Tree scope, SGBuilder sgb){
      sgb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
-     indexTypes = listType([typeof(exp) | exp <- indices]);
-     sgb.require("indexed variable", e,
-            [ match(arrayType(tau(1), tau(2)), typeof(var), onError(e, "Array type required")),
-              subtype(indexTypes, tau(1), onError(e, "Index mismatch")),
-              fact(e, tau(2))
-            ]);
+     Tree tvar = var;
+     sgb.require("indexed variable", e, [tvar] + [exp | Tree exp <- indices],
+              (){  
+                 if(arrayType(tau1, tau2) := typeof(var)){
+                    subtype(listType([typeof(exp) | exp <- indices]), tau1, onError(e, "Index mismatch"));
+                    fact(e, tau2);
+                 } else {
+                   reportError(e, "Array type required");
+                 }
+               });
 }
 
 void collect(f: (Expression) `<UnsignedConstant cons>`, Tree scope, SGBuilder sgb){
-     sgb.fact(cons, getUnsignedConstantType(scope, cons));
+     sgb.atomicFact(cons, getUnsignedConstantType(scope, cons));
 }
 
 void collect(fd: (FunctionDesignator)  `<FunctionIdentifier fid> ( <{ ActualParameter ","}+  actuals> )`, Tree scope, SGBuilder sgb){
      sgb.use(scope, fid, {functionId()}, 0);
-     actualList = [exp | exp <- actuals];
-   
+     actualList = [exp | Tree exp <- actuals];
+     AType iirr() { switch(typeof(actualList[0])){
+                        case integerType: return integerType;
+                        case realType: return realType;
+                        default:
+                            reportError(fd, "Illegal given argument types");
+                      }
+                    };
+     AType irrr() { switch(typeof(actualList[0])){
+                        case integerType: return realType;
+                        case realType: return realType;
+                        default:
+                            reportError(fd, "Illegal given argument types");
+                      }
+                    };
      switch("<fid>"){
      
      case "abs": 
-        sgb.overload("call `abs`", fd,
-            actualList, [<[integerType], integerType>, <[realType], realType>],  onError(fd, "Illegal given argument types"));
+        sgb.overload("call `abs`", fd, actualList, iirr);  
      case "arctan": 
-        sgb.overload("call `arctan`", fd, actualList, [<[integerType], integerType>, <[realType], realType>],  onError(fd, "Illegal given argument types"));
+        sgb.overload("call `arctan`", fd, actualList, iirr);
      case "cos": 
-        sgb.overload("call `cos`", fd, actualList, [<[integerType], realType>, <[realType], realType>],  onError(fd, "Illegal given argument types"));
+        sgb.overload("call `cos`", fd, actualList, irrr);
      case "exp": 
-        sgb.overload("call `exp`", fd, actualList, [<[integerType], integerType>, <[realType], realType>],  onError(fd, "Illegal given argument types"));
+        sgb.overload("call `exp`", fd, actualList, iirr);
      case "ln": 
-        sgb.overload("call `ln`", fd, actualList, [<[integerType], integerType>, <[realType], realType>],  onError(fd, "Illegal given argument types"));
+        sgb.overload("call `ln`", fd, actualList, iirr);
      case "sin": 
-        sgb.overload("call `sin`", fd, actualList, [<[integerType], realType>, <[realType], realType>],  onError(fd, "Illegal given argument types"));
+        sgb.overload("call `sin`", fd, actualList, irrr);
      case "sqr": 
-        sgb.overload("call `sqr`", fd, actualList, [<[integerType], integerType>, <[realType], realType>],  onError(fd, "Illegal given argument types"));
+        sgb.overload("call `sqr`", fd, actualList, iirr);
      case "sqrt": 
-        sgb.overload("call `sqrt`", fd, actualList, [<[integerType], integerType>, <[realType], realType>],  onError(fd, "Illegal given argument types"));
+        sgb.overload("call `sqrt`", fd, actualList, iirr);
  
      default: {
-            actualTypes = listType([typeof(exp) | exp <- actuals]);
-            sgb.require("function designator", fd,
-                [ match(functionType(tau(1), tau(2)), typeof(fid), onError(fd, "Function type required")),
-                subtype(actualTypes, tau(1), onError(fd, "Parameter mismatch")),
-                fact(fd, tau(2))
-                ]);
-            }
+        Tree tfid = fid;
+        sgb.require("function designator", fd, [tfid] + [exp | Tree exp <- actuals],
+            () { if(functionType(tau1, tau2) := typeof(fid)){ 
+                    subtype(listType([typeof(exp) | exp <- actuals]), tau1, onError(fd, "Parameter mismatch"));
+                    fact(fd, tau2);
+                  } else {
+                    reportError(fd, "Function type required");
+                  }
+               });
+        }
       }
 }
 
@@ -438,85 +460,96 @@ void collect(s: (ProcedureStatement) `<ProcedureIdentifier id> ( <{ActualParamet
      case "writeln":;
      
      default: {
-            actualTypes = listType([typeof(exp) | exp <- actuals]);
-            sgb.require("procedure statement", s,
-                [ match(procedureType(tau(1)), typeof(id), onError(s, "Procedure type required")),
-                  subtype(actualTypes, tau(1), onError(s, "Parameter mismatch"))
-                ]);
+        actualTypes = listType([typeof(exp) | exp <- actuals]);
+        Tree tid = id;
+        sgb.require("procedure statement", s, [tid] + [exp | Tree exp <- actuals],
+            () { if(procedureType(tau1) := typeof(id)){ 
+                    subtype(actualTypes, tau1, onError(s, "Parameter mismatch"));
+                  } else {
+                    reportError(s, "Procedure type required");
+                  }
+               });
          }
      }
 }
 
 void collect(e: (Expression) `( <Expression exp> )`, Tree scope, SGBuilder sgb){
-    sgb.fact(e, typeof(exp));
+    sgb.fact(e, [exp], [], AType() { return typeof(exp); } );
 }
 
 void collect(s: (AssignmentStatement) `<Variable var> := <Expression exp>`, Tree scope, SGBuilder sgb){
 //   sgb.use(scope, var, {formalId(), variableId(), functionId()}, 0);
-    sgb.require("assignment", s,
-                [ subtype(typeof(exp), typeof(var), onError(s, "Incorrect assignment"))
-                ]);
+    Tree tvar = var; Tree texp = exp;
+    sgb.require("assignment", s, [tvar, texp],
+                () { subtype(typeof(exp), typeof(var), onError(s, "Incorrect assignment"));
+                   });
 }
 
 void collect(IfStatement s, Tree scope, SGBuilder sgb){
-    sgb.require("condition", s.condition,
-                [ equal(typeof(s.condition), booleanType, onError(s.condition, "Incorrect condition"))
-                ]);
+    sgb.require("condition", s.condition, [s.condition],
+                () { equal(typeof(s.condition), booleanType, onError(s.condition, "Incorrect condition"));
+                   });
 }
 
 void collect(WhileStatement s, Tree scope, SGBuilder sgb){
-    sgb.require("condition", s.condition,
-                [ equal(typeof(s.condition), booleanType, onError(s.condition, "Incorrect condition"))
-                ]);
+    sgb.require("condition", s.condition, [s.condition],
+                () { equal(typeof(s.condition), booleanType, onError(s.condition, "Incorrect condition"));
+                   });
 } 
 
 void collect(RepeatStatement s, Tree scope, SGBuilder sgb){
-    sgb.require("condition", s.condition,
-                [ equal(typeof(s.condition), booleanType, onError(s.condition, "Incorrect condition"))
-                ]);
+    sgb.require("condition", s.condition, [s.condition],
+                () { equal(typeof(s.condition), booleanType, onError(s.condition, "Incorrect condition"));
+                   });
 }
 
 void collect(ForStatement s, Tree scope, SGBuilder sgb){
-    sgb.require("for statement", s,
-                [ subtype(typeof(s.forList.initial), integerType, onError(s.forList.initial, "Initial value should be integer")),
-                  subtype(typeof(s.forList.final), integerType, onError(s.forList.final, "Final value should be integer")),
-                  fact(s.control, integerType)
-                ]);
+    sgb.require("for statement", s, [s.forList.initial, s.forList.final],
+                () { subtype(typeof(s.forList.initial), integerType, onError(s.forList.initial, "Initial value should be integer"));
+                     subtype(typeof(s.forList.final), integerType, onError(s.forList.final, "Final value should be integer"));
+                     fact(s.control, integerType);
+                });
 }
 
 // Case statement
 
 void collect(e: (Set) `{ <{Element ","}* elements> }`, Tree scope, SGBuilder sgb){
      elemTypes = listType([typeof(exp) | exp <- elements]);
-     sgb.require("set", e,
-            [ lub(tau(1), elemTypes, onError(e, "Incompatible elements in set")),
-              fact(e, setType(tau(1)))
-            ]);
+     sgb.require("set", e, [exp | exp <- elements],
+            () { lub(tau1, elemTypes, onError(e, "Incompatible elements in set"));
+                 fact(e, setType(tau1));
+               });
 }
 
 // Operator overloading
 
 void overloadRelational(Expression e, str op, Expression exp1, Expression exp2, Tree scope, SGBuilder sgb){
-    sgb.overload("relational operator `<op>`", e, 
-                  [exp1, exp2], [<[booleanType, booleanType], booleanType>,
-                                <[integerType, integerType], booleanType>,
-                                <[integerType, realType], booleanType>, 
-                                <[realType, integerType], booleanType>, 
-                                <[realType, realType], booleanType>, 
-                                //<[scalarType(tau(1)), scalarType(tau(2))], booleanType>,
-                                <[subrangeType(integerType), realType], realType>,
-                                <[realType, subrangeType(integerType)], realType>,
-                                <[subrangeType(tau(1)), tau(1)], tau(1)>,
-                                <[subrangeType(tau(1)), subrangeType(tau(1))], tau(1)>,
-                                <[tau(1), setType(tau(1))], booleanType>,
-                                <[setType(tau(1)), setType(tau(1))], booleanType>,
-                               *(op != "\<\>" ? [] 
-                                              : [<[pointerType(tau(1)), pointerType(tau(1))], booleanType>,
-                                                 <[pointerType(anyPointerType), pointerType(tau(1))], booleanType>,
-                                                 <[pointerType(tau(1)), pointerType(anyPointerType)], booleanType>
-                                                ])
-                                ],
-                  onError(e, "No version of `<op>` exists for given argument types")); 
+    sgb.overload("relational operator `<op>`", e,  [exp1, exp2], 
+        AType() { switch([typeof(exp1), typeof(exp2)]){
+                  case [booleanType, booleanType]: return booleanType;
+                  case [integerType, integerType]: return booleanType;
+                  case [integerType, realType]: return booleanType;
+                  case [realType, integerType]: return booleanType;
+                  case [realType, realType]: return booleanType;
+                  case [scalarType(tau1), scalarType(tau2)]: booleanType;
+                  case [subrangeType(integerType), realType]: return realType;
+                  case [realType, subrangeType(integerType)]: return realType;
+                  case [subrangeType(tau1), tau1]: return tau1;
+                  case [subrangeType(tau1), subrangeType(tau1)]: return tau1;
+                  case [tau1, setType(tau1)]: return booleanType;
+                  case [setType(tau1), setType(tau1)]: return booleanType;
+                  default: {
+                     if(op == "\<\>"){
+                        switch([typeof(exp1), typeof(exp2)]){
+                            case [pointerType(tau1), pointerType(tau1)]: return booleanType;
+                            case [pointerType(anyPointerType), pointerType(tau1)]: return booleanType;
+                            case [pointerType(tau1), pointerType(anyPointerType)]: return booleanType;
+                        }
+                     }
+                     reportError(e, "No version of `<op>` exists for given argument types"); 
+                   }
+                }
+              });
 }
 
 void collect(e: (Expression) `<Expression exp1> = <Expression exp2>`, Tree scope, SGBuilder sgb)
@@ -538,77 +571,101 @@ void collect(e: (Expression) `<Expression exp1> \> <Expression exp2>`, Tree scop
     = overloadRelational(e, "\>", exp1, exp2, scope, sgb);           
 
 void collect(e: (Expression) `<Expression exp1> in <Expression exp2>`, Tree scope, SGBuilder sgb){
-    sgb.overload("relational operator", e, 
-                  [exp1, exp2], [<[tau(1), setType(tau(1))], booleanType>,
-                                <[tau(1), setType(tau(1))], booleanType>
-                               ],
-                  onError(e, "No version of `in` exists for given argument types"));  
+    sgb.overload("relational operator", e, [exp1, exp2], 
+        AType () { switch([typeof(exp1), typeof(exp2)]){
+                       case [tau1, setType(tau1)]: return booleanType;
+                       case [tau1, setType(tau1)]: return booleanType;
+                       default:
+                            reportError(e, "No version of `in` exists for given argument types");  
+                   }
+                 });
 }
 
 void collect(e: (Expression) `<Expression exp1> * <Expression exp2>`, Tree scope, SGBuilder sgb){
-    sgb.overload("multiplication", e, 
-                  [exp1, exp2], [<[integerType, integerType], integerType>,
-                                <[integerType, realType], realType>, 
-                                <[realType, integerType], realType>, 
-                                <[realType, realType], realType>, 
-                                <[subrangeType(integerType), realType], realType>,
-                                <[realType, subrangeType(integerType)], realType>,
-                                <[subrangeType(tau(1)), tau(1)], tau(1)>,
-                                <[subrangeType(tau(1)), subrangeType(tau(1))], tau(1)>,
-                                <[setType(tau(1)), setType(tau(1))], setType(tau(1))>
-                               ],
-                  onError(e, "No version of `*` exists for given argument types"));  
+    sgb.overload("multiplication", e, [exp1, exp2], 
+        AType() { switch([typeof(exp1), typeof(exp2)]){
+                      case [integerType, integerType]: return integerType;
+                      case [integerType, realType]: return realType;
+                      case [realType, integerType]: return realType;
+                      case [realType, realType]: return realType;
+                      case [subrangeType(integerType), realType]: return realType;
+                      case [realType, subrangeType(integerType)]: realType;
+                      case [subrangeType(tau1), tau1]: return tau1;
+                      case [subrangeType(tau1), subrangeType(tau1)]: return tau1;
+                      case [setType(tau1), setType(tau1)]: return setType(tau1);
+                      default:
+                           reportError(e, "No version of `*` exists for given argument types");
+                   }
+                 }); 
 }
 
 void collect(e: (Expression) `<Expression exp1> / <Expression exp2>`, Tree scope, SGBuilder sgb){
-    sgb.overload("division", e, 
-                  [exp1, exp2], [<[integerType, integerType], realType>,
-                                <[integerType, realType], realType>, 
-                                <[realType, integerType], realType>, 
-                                <[realType, realType], realType>
-                               ],
-                  onError(e, "No version of `/` exists for given argument types"));  
+    sgb.overload("division", e, [exp1, exp2], 
+        AType () { switch([typeof(exp1), typeof(exp2)]){
+                       case [integerType, integerType]: return realType;
+                       case [integerType, realType]: return realType;
+                       case [realType, integerType]: realType;
+                       case [realType, realType]: return realType;
+                       default:
+                            reportError(e, "No version of `/` exists for given argument types");
+                     }
+                   });
 }
 
 void collect(e: (Expression) `<Expression exp1> div <Expression exp2>`, Tree scope, SGBuilder sgb){
-    sgb.overload("div", e, 
-                  [exp1, exp2], [<[integerType, integerType], integerType>
-                               ],
-                  onError(e, "No version of `div` exists for given argument types"));  
+    sgb.overload("div", e, [exp1, exp2],
+        AType () { switch([typeof(exp1), typeof(exp2)]){
+                       case [integerType, integerType]: return integerType;
+                       default:
+                            reportError(e, "No version of `div` exists for given argument types");
+                   }
+                 });  
 }
 
 void collect(e: (Expression) `<Expression exp1> mod <Expression exp2>`, Tree scope, SGBuilder sgb){
-    sgb.overload("mod", e, 
-                  [exp1, exp2], [<[integerType, integerType], realType>
-                               ],
-                  onError(e, "No version of `mod` exists for given argument types"));  
+    sgb.overload("mod", e, [exp1, exp2], 
+        AType () { switch([typeof(exp1), typeof(exp2)]){
+                       case [integerType, integerType]: return realType;
+                       default:
+                            reportError(e, "No version of `mod` exists for given argument types");
+                     }
+                   });  
 }
 
 void collect(e: (Expression) `<Expression exp1> and <Expression exp2>`, Tree scope, SGBuilder sgb){
-    sgb.overload("and", e, 
-                  [exp1, exp2], [<[booleanType, booleanType], booleanType>
-                               ],
-                  onError(e, "No version of `and` exists for given argument types"));  
+    sgb.overload("and", e, [exp1, exp2], 
+        AType () { switch([typeof(exp1), typeof(exp2)]){
+                       case [booleanType, booleanType]: return booleanType;
+                       default:
+                            reportError(e, "No version of `and` exists for given argument types");
+                   }
+                 });  
 }
 void collect(e: (Expression) `not <Expression exp>`, Tree scope, SGBuilder sgb){
-    sgb.overload("not", e, 
-                  [exp], [<[booleanType], booleanType>
-                         ],
-                  onError(e, "No version of `not` exists for given argument type"));  
+    sgb.overload("not", e, [exp], 
+        AType () { switch(typeof(exp)){
+                       case booleanType: return booleanType;
+                       default:
+                            reportError(e, "No version of `not` exists for given argument type");
+                   }
+                 });  
 }
 
 void overloadAdding(Expression e, Expression exp1, Expression exp2, Tree scope, SGBuilder sgb){
- sgb.overload("adding operator", e, 
-                  [exp1, exp2], [<[integerType, integerType], integerType>,
-                                <[integerType, realType], realType>, 
-                                <[realType, integerType], realType>, 
-                                <[realType, realType], realType>, 
-                                <[tau(1), subrangeType(tau(1))], tau(1)>,
-                                <[subrangeType(tau(1)), tau(1)], tau(1)>,
-                                <[subrangeType(tau(1)), subrangeType(tau(1))], tau(1)>,
-                                <[setType(tau(1)), setType(tau(1))], setType(tau(1))>
-                               ],
-                  onError(e, "No version of adding operator exists for given argument types"));  
+ sgb.overload("adding operator", e, [exp1, exp2], 
+     AType() { switch([typeof(exp1), typeof(exp2)]){
+                   case [integerType, integerType]: return integerType;
+                   case [integerType, realType]: return realType;
+                   case [realType, integerType]: return realType;
+                   case [realType, realType]: return realType;
+                   case [tau1, subrangeType(tau1)]:  tau1;
+                   case [subrangeType(tau1), tau1]: tau1;
+                   case [subrangeType(tau1), subrangeType(tau1)]: tau1;
+                   case [setType(tau1), setType(tau1)]: return setType(tau1);
+                   default:
+                        reportError(e, "No version of adding operator exists for given argument types");  
+               }
+             });
 }
 
 void collect(e: (Expression) `<Expression exp1> + <Expression exp2>`, Tree scope, SGBuilder sgb)
@@ -618,9 +675,13 @@ void collect(e: (Expression) `<Expression exp1> - <Expression exp2>`, Tree scope
     = overloadAdding(e, exp1, exp2, scope, sgb);
 
 void collect(e: (Expression) `<Expression exp1> or <Expression exp2>`, Tree scope, SGBuilder sgb){
-    sgb.overload("and", e, 
-                  [exp1, exp2], [<[booleanType, booleanType], booleanType>],
-                  onError(e, "No version of `or` exists for given argument types"));  
+    sgb.overload("and", e, [exp1, exp2], 
+        AType() { switch([typeof(exp1), typeof(exp2)]){
+                      case [booleanType, booleanType]: return booleanType;
+                      default:      
+                            printError(e, "No version of `and` exists for given argument types");
+                  }
+                });  
 }
 
 // ----  Examples & Tests --------------------------------

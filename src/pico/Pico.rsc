@@ -87,40 +87,46 @@ void collect(s: (Statement) `<Id var> := <Expression val>`, Tree scope, SGBuilde
 // ----  Requirements ------------------------------------
 
 void collect(s: (Statement) `<Id var> :=  <Expression val>`, Tree scope, SGBuilder sgb){
-     sgb.require("assignment", s, 
-                 [ equal(typeof(var), typeof(val), onError(s, "Lhs <var> should have same type as rhs")) ]);
+     Tree tvar = var; Tree tval = val;
+     sgb.require("assignment", s, [tvar, tval],
+                 (){ equal(typeof(var), typeof(val), onError(s, "Lhs <var> should have same type as rhs")); });
 }
 
 void collect(s: (Statement) `if <Expression cond> then <{Statement ";"}*  thenPart> else <{Statement ";"}* elsePart> fi`, Tree scope, SGBuilder sgb){
-     sgb.require("int_condition", s, 
-                 [ equal(typeof(s.cond), intType(), onError(s.cond, "Condition")) ]);
+     sgb.require("int_condition", s, [s.cond],
+                 () { equal(typeof(s.cond), intType(), onError(s.cond, "Condition")); });
 }
 
 void collect(s: (Statement) `while <Expression cond> do <{Statement ";"}* body> od`, Tree scope, SGBuilder sgb){
-     sgb.require("int_condition", s, 
-                 [ equal(typeof(s.cond), intType(), onError(s.cond, "Condition")) ]);
+     sgb.require("int_condition", s, [s.cond],
+                 () { equal(typeof(s.cond), intType(), onError(s.cond, "Condition")); } );
 }
 
 void collect(e: (Expression) `<Expression lhs> + <Expression rhs>`, Tree scope, SGBuilder sgb){
-     sgb.overload("addition", e, 
-                  [lhs, rhs], [<[intType(), intType()], intType()>, <[strType(), strType()], strType()>],
-                  onError(e, "No version of + exists for given argument types"));
+     sgb.overload("addition", e, [lhs, rhs], 
+                  () {  switch([typeof(lhs), typeof(rhs)]){
+                            case [intType(), intType()]: return intType();
+                            case [strType(), strType()]: return strType();
+                            default:
+                                reportError(e, "Operator `+` cannot be applied to argument types `<AType2String(typeof(lhs))>` and `<AType2String(typeof(rhs))>`");
+                        }
+                     });
 }
 
 void collect(e: (Expression) `<Expression lhs> - <Expression rhs>`, Tree scope, SGBuilder sgb){
-     sgb.require("subtraction", e, 
-                 [ equal(typeof(lhs), intType(), onError(lhs, "Lhs of -")),
-                   equal(typeof(rhs), intType(), onError(rhs, "Rhs of -")),
-                   fact(e, intType())
-                 ]);
+     sgb.require("subtraction", e, [lhs, rhs],
+                 () { equal(typeof(lhs), intType(), onError(lhs, "Lhs of -"));
+                      equal(typeof(rhs), intType(), onError(rhs, "Rhs of -"));
+                      fact(e, intType());
+                 });
 }
  
 void collect(e: (Expression) `<String string>`, Tree scope, SGBuilder sgb){
-    sgb.fact(e, strType());
+    sgb.atomicFact(e, strType());
 }
 
 void collect(e: (Expression) `<Natural natcon>`, Tree scope, SGBuilder sgb){
-    sgb.fact(e, intType());
+    sgb.atomicFact(e, intType());
 }
 
 // ----  Examples & Tests --------------------------------

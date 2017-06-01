@@ -1,1 +1,1 @@
-x
+fun x : int { x }

@@ -26,23 +26,10 @@ str AType2String(listType(list[AType] atypes)) = size(atypes) == 0 ? "empty list
 default str AType2String(AType tp) = "<tp>";
 
 // Convenience function to avoid the need to fetch source location
-AType typeof(Tree tree) = typeof(tree@\loc);
+//AType typeof(Tree tree) = typeof(tree@\loc);
 AType typeof(Tree scope, Tree tree, set[IdRole] idRoles) = typeof(scope@\loc, tree@\loc, "<tree>", idRoles);
 
-list[AType] typeof(list[Tree] trees) = [typeof(tree) | Tree tree <- trees];
-
-AType tau(int n) = tvar(|typevar:///<right("<n>", 10, "0")>|);
- 
-// Abstract type predicates
-
-data ATypePred
-    = match(AType pattern, AType subject, ErrorHandler onError)
-    | equal(AType left, AType right, ErrorHandler onError)
-    | subtype(AType left, AType right, ErrorHandler onError)
-    | lub(AType left, AType right, ErrorHandler onError)
-    | fact(loc src, AType tp)
-    | error(loc src, str msg)
-    ;
+list[AType] typeof(list[Tree] trees) = [typeof(tree@\loc) | Tree tree <- trees];
 
 data ErrorHandler
     = onError(loc where, str msg)
@@ -51,22 +38,21 @@ data ErrorHandler
 ErrorHandler onError(Tree t, str msg) = onError(t@\loc, msg);
 
 data Fact
-    = openFact(set[loc] dependsOn, set[loc] dependsOnTV, loc src, AType atype)
+    = openFact(set[loc] dependsOn, set[loc] dependsOnTV, loc src, AType() makeType)
     ;
 
 data Requirement
-    = require(str name, loc src, list[ATypePred] preds)
-    | openReq(str name, set[loc] dependsOn, set[loc] dependsOnTV, loc src, list[ATypePred] preds)
-   
+    = //require(str name, loc src, void() preds)
+      openReq(str name, set[loc] dependsOn, set[loc] dependsOnTV, loc src, void() preds)
     ;
      
 data Overload
-    = overload(str name, loc src, list[loc] args, 
-               list[tuple[list[AType] argTypes, AType resType]] alternatives, 
-               ErrorHandler onError)
+    = overload(str name, loc src, list[loc] args, AType() resolve)
     ;
 
-ATypePred fact(Tree t, AType atype) = fact(t@\loc, atype);
+void reportError(Tree t, str msg){
+    throw error(msg, t@\loc);
+}
 
 bool isTypeVariable(loc tv) = tv.scheme == "typevar"; 
 
@@ -82,20 +68,15 @@ bool isTypeofOrTVar(typeof(loc src)) = true;
 bool isTypeofOrTVar(typeof(loc scope, loc src, str id, set[IdRole] idRoles)) = true;
 default bool isTypeofOrTVar(AType atype) = false;
 
-tuple[set[loc] deps, set[loc] typeVars] extractTypeDependencies(typeof(loc l)) = <{}, {}>;
-tuple[set[loc] deps, set[loc] typeVars] extractTypeDependencies(tvar(loc l)) = <{}, {}>;
-default tuple[set[loc] deps, set[loc] typeVars] extractTypeDependencies(AType tp) 
+//tuple[set[loc] deps, set[loc] typeVars] extractTypeDependencies(typeof(loc l)) = <{}, {}>;
+//tuple[set[loc] deps, set[loc] typeVars] extractTypeDependencies(tvar(loc l)) = <{}, {}>;
+tuple[set[loc] deps, set[loc] typeVars] extractTypeDependencies(AType tp) 
     = <{ src | /typeof(loc src) := tp } + { scope /*, src*/ | /typeof(loc scope, loc src, str id, set[IdRole] idRoles) := tp },  
-       { src | /tvar(loc src) := tp, isGlobalTypeVar(src) } 
-      >;
-
-tuple[set[loc] deps, set[loc] typeVars] extractTypeDependencies(ATypePred tpPred) 
-    = <{ src | /typeof(loc src) := tpPred} + { scope /*, src */ | /typeof(loc scope, loc src, str id, set[IdRole] idRoles) := tpPred }, 
-       { src | /tvar(loc src) := tpPred, isGlobalTypeVar(src) }
+       { src | /tvar(loc src) := tp, isGlobalTypeVar(src) }
       >;
 
 bool allDependenciesKnown(set[loc] deps, set[loc] tvdeps, map[loc,AType] facts)
-    = (isEmpty(deps) || all(dep <- deps, facts[dep]?));
+    = (isEmpty(deps) || all(dep <- deps, facts[dep]?)) && (isEmpty(tvdeps) || all(tvdep <- tvdeps, facts[tvdep]?));
 
 data ScopeGraph (
         map[loc,Overload] overloads = (),
@@ -166,9 +147,10 @@ data SGBuilder
         void (Tree scope, list[Idn] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathLabel pathLabel, int defLine) use_qual_ref,   
         void (Tree inner, Tree outer) addScope,
        
-        void (str name, Tree src, list[ATypePred] preds) require,
-        void (Tree src, AType tp) fact,
-        void (str name, Tree src, list[Tree] args, list[tuple[list[AType] argTypes, AType resType]] alternatives, ErrorHandler onError) overload,
+        void (str name, Tree src, list[Tree] dependencies, void() preds) require,
+        void (Tree src, AType tp) atomicFact,
+        void (Tree src, list[Tree] dependencies, list[AType] typeVars, AType() makeType) fact,
+        void (str name, Tree src, list[Tree] args, AType() resolver) overload,
         void (Tree src, str msg) error,
         AType (Tree scope) newTypeVar,
         ScopeGraph () build
@@ -216,50 +198,52 @@ SGBuilder scopeGraphBuilder(){
     
     void _addScope(Tree inner, Tree outer) { if(inner@\loc != outer@\loc) scopes[inner@\loc] = outer@\loc; }
      
-    void _require(str name, Tree src, list[ATypePred] preds){        
-        deps = {};
+    void _require(str name, Tree src, list[Tree] dependencies, void() preds){        
+        deps = {d@\loc | d <- dependencies};
         tvdeps = {};
         
-        for(pred <- preds){
-            <deps1, tvdeps1> = extractTypeDependencies(pred);
-            deps += deps1;
-            tvdeps += tvdeps1;
-        }
-        if(isEmpty(deps + tvdeps)){
-           reqs += { require(name, src@\loc, preds) };
-        } else {
+        //if(isEmpty(deps + tvdeps)){
+        //   reqs += { require(name, src@\loc, preds) };
+        //} else {
            openReqs += { openReq(name, deps, tvdeps, src@\loc, preds) };
-        }
+        //}
     } 
-   
-    void _fact(Tree tree, AType tp){
+    
+    void _fact1(Tree tree, AType tp){
         <deps, tvdeps> = extractTypeDependencies(tp);
         //println("_fact: <tree@\loc>, <tp>, <typeof(loc other) := tp>, <deps>, <tvdeps>");
+        //openFacts += { openFact(deps, tvdeps, tree@\loc, AType() { return tp; }) };
         if(typeof(loc src) := tp){
            //println("add: <openFact({src}, {}, tree@\loc, tp)>");
            if(src != tree@\loc)
-              openFacts += { openFact({src}, {}, tree@\loc, tp) };
+              openFacts += { openFact({src}, {}, tree@\loc, AType() { return tp; }) };
         } else if(typeof(loc scope, loc src, str id, set[IdRole] idRoles) := tp){
            if(src != tree@\loc){
-              //println("_fact add: <openFact({scope}, {}, tree@\loc, tp)>");
-              openFacts += { openFact({scope /*, src */}, {}, tree@\loc, tp) };
+              println("_fact add: <openFact({scope}, {}, tree@\loc, AType() { return tp; })>");
+              openFacts += { openFact({scope /*, src */}, {}, tree@\loc, AType() { return tp; } ) };
            }
         } else if(tvar(loc tv) := tp){
-           openFacts += { openFact({}, {tv}, tree@\loc, tp) };
+           openFacts += { openFact({}, {tv}, tree@\loc, AType() { return tp; }) };
         } else if(isEmpty(deps)){
            //println("add facts[<tree@\loc>] = <tp>");
            facts[tree@\loc] = tp;
         } else {
-           openFacts += { openFact(deps, tvdeps, tree@\loc, tp) };
+           openFacts += { openFact(deps, tvdeps, tree@\loc, AType() { return tp; }) };
         }
     }
     
-    void _overload(str name, Tree src, list[Tree] args, list[tuple[list[AType] argTypes, AType resType]] alternatives, ErrorHandler onError){
-        overloads[src@\loc] = overload(name, src@\loc, [arg@\loc | arg <- args], alternatives, onError);
+    void _fact2(Tree tree, list[Tree] dependencies, list[AType] typeVars, AType() makeType){
+        deps = { d@\loc | d <- dependencies };
+        tvs  = { l | tvar(l) <- typeVars };
+        openFacts += { openFact(deps, tvs, tree@\loc, makeType) };
+    }
+    
+    void _overload(str name, Tree src, list[Tree] args, AType() resolver){
+        overloads[src@\loc] = overload(name, src@\loc, [arg@\loc | arg <- args], resolver);
     }
     
     void _error(Tree src, str msg){
-        openReqs += { openReq("", {}, {}, src@\loc, [error(src@\loc, msg)]) };
+        openReqs += { openReq("", {}, {}, src@\loc, (){ reportError(src, msg); }) };
     }
     
     AType _newTypeVar(Tree scope){
@@ -286,5 +270,5 @@ SGBuilder scopeGraphBuilder(){
        return sg; 
     }
     
-    return sgbuilder(_define, _use, _use_ref, _use_qual, _use_qual_ref, _addScope, _require, _fact, _overload, _error, _newTypeVar, _build); 
+    return sgbuilder(_define, _use, _use_ref, _use_qual, _use_qual_ref, _addScope, _require, _fact1, _fact2, _overload, _error, _newTypeVar, _build); 
 }

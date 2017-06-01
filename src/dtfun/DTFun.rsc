@@ -68,13 +68,13 @@ str AType2String(functionType(AType from, AType to)) = "fun <AType2String(from)>
 
 Tree define(e: (Expression) `fun <Id name> : <Type tp> { <Expression body> }`, Tree scope, SGBuilder sgb) {   
     sgb.define(e, "<name>", variableId(), name, defInfo(transType(tp)));
-    sgb.fact(e, functionType(transType(tp), typeof(body)));
+    sgb.fact(e, [body], [], AType(){ return functionType(transType(tp), typeof(body)); });
     return e;
 }
 
 Tree define(e: (Expression) `let <Id name> : <Type tp> = <Expression exp1> in <Expression exp2> end`, Tree scope, SGBuilder sgb) {  
     sgb.define(e, "<name>", variableId(), name, defInfo(transType(tp)));
-    sgb.fact(e, typeof(exp2));
+    sgb.fact(e, [exp2], [], AType() { return typeof(exp2); } );
     return exp2;  
 }
 
@@ -86,47 +86,50 @@ void collect(e: (Expression) `<Id name>`, Tree scope, SGBuilder sgb){
 }
 
 void collect(e: (Expression) `<Expression exp1> (<Expression exp2>)`, Tree scope, SGBuilder sgb) { 
-    sgb.require("application", e, 
-                [ match(functionType(tau(1), tau(2)), typeof(exp1), onError(exp1, "Function type expected")), 
-                  equal(typeof(exp2), tau(1), onError(exp2, "Incorrect type of actual parameter")),
-                  fact(e, tau(2)) 
-                ]);
+    sgb.require("application", e, [exp1, exp2],
+                () {  if(functionType(tau1, tau2) := typeof(exp1)){
+                        equal(typeof(exp2), tau1, onError(exp2, "Incorrect type of actual parameter"));
+                        fact(e, tau2);
+                      } else {
+                          reportError(exp1, "Function type expected");
+                      }
+                    });
 }
 
 void collect(e: (Expression) `if <Expression cond> then <Expression thenPart> else <Expression elsePart> fi`, Tree scope, SGBuilder sgb){
-    sgb.require("if", e, 
-                [ equal(typeof(cond), boolType(), onError(cond, "Condition")),
-                  equal(typeof(thenPart), typeof(elsePart), onError(e, "thenPart and elsePart should have same type")),
-                  fact(e, typeof(thenPart)) 
-                ]); 
+    sgb.require("if", e, [cond, thenPart, elsePart],
+                () { equal(typeof(cond), boolType(), onError(cond, "Condition"));
+                     equal(typeof(thenPart), typeof(elsePart), onError(e, "thenPart and elsePart should have same type"));
+                     fact(e, typeof(thenPart));
+                   }); 
 }
 
 void collect(e: (Expression) `<Expression lhs> + <Expression rhs>`, Tree scope, SGBuilder sgb){
-     sgb.require("addition", e, 
-                 [ equal(typeof(lhs), intType(), onError(lhs, "Lhs of +")),
-                   equal(typeof(rhs), intType(), onError(rhs, "Rhs of +")),
-                   fact(e, intType()) 
-                 ]);
+     sgb.require("addition", e, [lhs, rhs],
+                 () { equal(typeof(lhs), intType(), onError(lhs, "Lhs of +"));
+                      equal(typeof(rhs), intType(), onError(rhs, "Rhs of +"));
+                      fact(e, intType());
+                    });
 } 
 
 void collect(e: (Expression) `<Expression lhs> && <Expression rhs>`, Tree scope, SGBuilder sgb){
-     sgb.require("and", e, 
-                 [ equal(typeof(lhs), boolType(), onError(lhs, "Lhs of &&")),
-                   equal(typeof(rhs), boolType(), onError(rhs, "Rhs of &&")),
-                   fact(e, intType()) 
-                 ]);
+     sgb.require("and", e, [lhs, rhs],
+                 () { equal(typeof(lhs), boolType(), onError(lhs, "Lhs of &&"));
+                      equal(typeof(rhs), boolType(), onError(rhs, "Rhs of &&"));
+                      fact(e, intType());
+                    });
 } 
 
 void collect(e :(Expression) `( <Expression exp> )`, Tree scope, SGBuilder sgb){
-     sgb.fact(e, typeof(exp));
+     sgb.fact(e, [exp], [], AType(){ return typeof(exp); });
 }
 
 void collect(e: (Expression) `<Boolean boolcon>`, Tree scope, SGBuilder sgb){
-     sgb.fact(e, boolType());
+     sgb.atomicFact(e, boolType());
 }
 
 void collect(e: (Expression) `<Integer intcon>`, Tree scope, SGBuilder sgb){
-     sgb.fact(e, intType());
+     sgb.atomicFact(e, intType());
 }
 
 // ----  Examples & Tests --------------------------------

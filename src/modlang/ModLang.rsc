@@ -84,8 +84,8 @@ Tree define(e: (Expression) `fun <Id id> { <Expression body> }`, Tree scope, SGB
     sigma1 = sgb.newTypeVar(e); 
     sigma2 = sgb.newTypeVar(e);
     sgb.define(scope, "<id>", parameterId(), id, defInfo(sigma1));
-    sgb.fact(e, functionType(sigma1, sigma2));
-    sgb.fact(body, sigma2);
+    sgb.fact(e, [], [sigma1, sigma2], functionType(sigma1, sigma2));
+    sgb.fact(body, [], [sigma2], sigma2);
     return scope;
 }
 
@@ -106,17 +106,25 @@ void collect(exp: (Expression) `<Id name>`, Tree scope,  SGBuilder sg){
 }
 
 void collect(e: (Expression) `<Expression exp1>(<Expression exp2>)`, Tree scope, SGBuilder sgb) { 
-    sgb.require("application", e, 
-                [ match(functionType(tau(1), tau(2)), typeof(exp1), onError(exp1, "Function type expected")), 
-                  equal(typeof(exp2), tau(1), onError(exp2, "Incorrect type of actual parameter")),
-                  fact(e, tau(2)) 
-                ]);
+    sgb.require("application", e, [exp1, exp2],
+        () { if(functionType(tau1, tau2) := typeof(exp1)){
+                  unify(typeof(exp2), tau1, onError(exp2, "Incorrect type of actual parameter"));
+                  fact(e, tau2);   
+              } else {
+                  onError(exp1, "Function type expected");
+              }
+            });
 }
 
 void collect(e: (Expression) `<Expression lhs> + <Expression rhs>`, Tree scope, SGBuilder sgb){
-     sgb.overload("addition", e, 
-                  [lhs, rhs], [<[intType(), intType()], intType()>, <[strType(), strType()], strType()>],
-                  onError(e, "No version of + exists for given argument types"));
+     sgb.overload("addition", e, [lhs, rhs],
+         AType () { switch([typeof(lhs), typeof(rhs)]){
+                        case [intType(), intType()]: return intType();
+                        case [strType(), strType()]: return strType();
+                        default:
+                            reportError(e, "No version of + exists for given argument types");
+                     }
+                   });
 }
 
 void collect(e: (Expression) `<Expression lhs> * <Expression rhs>`, Tree scope, SGBuilder sgb){
@@ -128,15 +136,15 @@ void collect(e: (Expression) `<Expression lhs> * <Expression rhs>`, Tree scope, 
 }
 
 void collect(e: (Expression) `( <Expression exp> )`, Tree scope, SGBuilder sgb){
-     sgb.fact(e, typeof(exp));
+     sgb.fact(e, [exp], [], typeof(exp));
 }
 
 void collect(e: (Expression) `<String string>`, Tree scope, SGBuilder sgb){
-    sgb.fact(e, strType());
+    sgb.atomicFact(e, strType());
 }
 
 void collect(e: (Expression) `<Integer intcon>`, Tree scope, SGBuilder sgb){
-    sgb.fact(e, intType());
+    sgb.atomicFact(e, intType());
 }
 
 // ---- Refine use/def: enforce def before use -----------
