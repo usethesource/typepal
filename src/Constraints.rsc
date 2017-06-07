@@ -7,109 +7,125 @@ import IO;
 import List; 
 import ParseTree;
 extend ScopeGraph;
-extend ExtractScopesAndConstraints;
+extend ExtractFRModel;
 import String;
 import Message;
 
 bool cdebug = true;
 
-bool noIsSubtype(AType atype1, AType atype2, ScopeGraph sg) {
+// Global variables, used by validate and callback (define, require, etc.)
+
+FRModel extractedRequirements;
+map[loc, AType] facts = ();
+set[Fact] openFacts = {};
+set[Requirement] openReqs = {};
+map[loc, AType] bindings = ();
+map[loc, set[Requirement]] triggersRequirement = ();
+map[loc, set[Fact]] triggersFact = ();
+
+set[Requirement] requirementJobs = {};
+
+void printState(){
+    println("facts:");
+        for(Key fact <- facts){
+            println("\t<fact>: <facts[fact]>");
+        }
+   
+    println("openFacts:");
+       for(Fact fact <- openFacts){
+            println("\t<fact>");
+        }
+    println("openReqs:");
+        for(rq <- openReqs){
+            println("\t<rq.name> at <rq.src>:");
+            for(atype <- rq.dependsOn){
+                println("\t  dependsOn: <atype>");
+            }
+        }
+    println("triggersFact:");
+        for(l <- triggersFact){
+            println("\t<l>: <triggersFact[l]>");
+        }
+    println("triggersRequirement:");
+        for(l <- triggersRequirement){
+            println("\t<l>: <triggersRequirement[l]>");
+        }
+}
+
+// defaults for iisSubtype and getLUB
+bool noIsSubtype(AType atype1, AType atype2, FRModel frm) {
     throw "isSubType not defined but used for: <atype1>, <atype2>";
 }
 
-AType noGetLUB(AType atype, ScopeGraph sg){
+AType noGetLUB(AType atype, FRModel frm){
     throw "getLUB not defined but used for: <atype>";
 }
 
-// Substitute top-level type variables in a type first using bindings, then facts
-AType substitute(AType atype, map[loc, AType] bindings, map[loc, AType] facts, ScopeGraph sg)
-    = substituteUsingBindingsAndFacts(atype, bindings, facts, sg);
-   
-AType substituteUsingBindingsAndFacts(AType atype, map[loc, AType] bindings, map[loc, AType] facts, ScopeGraph sg){
-    if(typeof(loc src) := atype || tvar(loc src) := atype){
-       if(bindings[src]?){
-          fct = bindings[src];
-          if(isTypeofOrTVar(fct)){
-             return substituteUsingBindingsAndFacts(fct, bindings, facts, sg);
-          }
-          return substituteUsingFacts(fct, facts, sg);
-        }
-    } else if(typeof(loc scope, loc src, str id, set[IdRole] idRoles) := atype){
-       //println("substituteUsingBindingsAndFacts: <scope>, <src>, <id>");
-       if(bindings[src]?){
-          try {
-            return lookup(sg, use(id, src, scope, idRoles));
-          } catch noKey:
-            return atype;
-        }
-    }
-    return isTypeofOrTVar(atype) ? substituteUsingFacts(atype, facts, sg) : atype;
+bool(AType atype1, AType atype2, FRModel frm) isSubtypeFun = noIsSubtype;
+AType(AType atype, FRModel frm) getLUBFun = noGetLUB;
+
+// Error handling
+
+str intercalateAnd(list[str] strs)
+    = size(strs) == 1 ? strs[0] : intercalate(", ", strs[0..-1]) + " and " + strs[-1];
+
+void reportError(Tree t, str msg, list[Tree] found){
+    throw error("<msg>, found <intercalateAnd(["`<AType2String(typeof(f))>`" | f <- found])>", t@\loc);
 }
 
-AType substituteUsingFacts(AType atype, map[loc, AType] facts, ScopeGraph sg){
-    if(typeof(loc src) := atype || tvar(loc src) := atype){
-       if(facts[src]?){
-          fct = facts[src];
-          if(isTypeofOrTVar(fct)){
-             return substituteUsingFacts(fct, facts, sg);
-          }
-          while(fct has use){
-          
-            defType = lookup(sg, fct.use); 
-            fct1 = facts[defType];
-            if(fct1 != fct){
-                fct = fct1;
-            } else {
-                break;
-            }
-          }
-          return fct;
-        }
-    } else if(typeof(loc utype, loc src, str id, set[IdRole] idRoles) := atype){
-       println("\n@@@ substituteUsingFacts: <utype>, <facts[utype]?> <src> <facts[src]?>, <id>");
-       if(facts[utype]?){
-          println("uType: <utype>, <facts[utype]>\nsrc: <src> <facts[src]?"undefined">, <id>");
-          usedType = facts[utype];
-          println("usedType: <usedType>");
-          try {
-            if(usedType has use){
-                defType = lookup(sg, usedType.use);
-                println("defType = <defType>");
-                println("facts[defType] = <facts[defType]>");
-                res = lookup(sg, use(id, src, facts[defType].use.scope, idRoles));
-                println("returns <res>, <facts[res]>");
-                return substituteUsingFacts(facts[res], facts, sg);
-            } else {
-                throw "substituteUsingFacts cannot handle <usedType>";
-            }
-          } catch noKey: {
-                //println("returns (noKey) <atype>");
-                return atype;
-            }
-        }
+set[Message] filterMostPrecise(set[Message] messages)
+    = { msg | msg <- messages, !any(msg2 <- messages, surrounds(msg, msg2) || 
+                                                      (msg.msg == msg2.msg && msg.at.begin.line > msg2.at.begin.line)) };
+bool surrounds (Message msg1, Message msg2){
+    // TODO: return msg1.at > msg2.at should also work but does not.
+    return msg1.at.offset < msg2.at.offset && msg1.at.offset + msg1.at.length > msg2.at.offset + msg2.at.length;
+}
+
+// Find a (possibly indirect) binding
+AType find(loc src){
+    if(bindings[src]?){
+        v = bindings[src];
+        if(tvar(loc src1) := v) return find(src1);
+        return v;
     }
+    if(facts[src]?){
+        v = facts[src];
+        if(tvar(loc src1) := v) return find(src1);
+        return v;
+    }
+    if(isTypeVariable(src)) return tvar(src);
+    throw NoSuchKey(src);
+}
+
+// Substitute a type variable first using bindings, then facts; return as is when there is no binding
+AType substitute(tv: tvar(loc src)){
+    if(bindings[src]?) return substitute(bindings[src]);
+    if(facts[src]?) return substitute(facts[src]);
+    return tv;
+}
+
+AType substitute(ut: useType(Use u)){
+    try {
+        k = lookup(extractedRequirements, u);
+        println("useType<u> ==\> <k>");
+        fk = facts[k];
+        return fk != ut ? instantiate(facts[k]) : ut;  
+    } catch noKey:
+        return ut;
+}
+
+AType substitute(AType atype){
     return atype;
 }
 
-// Recursively instantiate all type variables in a type
-AType instantiate(AType atype, map[loc, AType] bindings, map[loc, AType] facts, ScopeGraph sg){
+// Recursively instantiate all type variables and useTypes in a type
+AType instantiate(AType atype){
   return
       visit(atype){
-        case to: typeof(loc src): {
-            insert substitute(to, bindings, facts, sg);
-        }
-        case to: typeof(loc scope, loc src, str id, set[IdRole] idRoles): {
-            insert substitute(to, bindings, facts, sg);
-        }
-        case tv: tvar(loc src): {
-            insert substitute(tv, bindings, facts, sg);
-        }
+        case tv: tvar(loc src) => substitute(tv)
+        case ut: useType(Use u) => substitute(ut)
       };
 }
-
-// Instantiate facts    
-//Fact instantiate(Fact fct, map[loc, AType] bindings, map[loc, AType] facts, ScopeGraph sg)
-//    = visit(fct) { case AType atype => instantiate(atype, bindings, facts, sg) };
 
 // Unification of two types, for now, without checks on variables
 tuple[bool, map[loc, AType]] unify(AType t1, AType t2, map[loc, AType] bindings){
@@ -168,80 +184,106 @@ tuple[bool, map[loc, AType]] unify(AType t1, AType t2, map[loc, AType] bindings)
     return <true, bindings>;
 }
 
-set[Message] filterMostPrecise(set[Message] messages)
-    = { msg | msg <- messages, !any(msg2 <- messages, surrounds(msg, msg2) || 
-                                                      (msg.msg == msg2.msg && msg.at.begin.line > msg2.at.begin.line)) };
-
-
-bool surrounds (Message msg1, Message msg2){
-    // TODO: return msg1.at > msg2.at should also work but does not.
-    return msg1.at.offset < msg2.at.offset && msg1.at.offset + msg1.at.length > msg2.at.offset + msg2.at.length;
+void addFact(loc l, AType atype){
+    if(cdebug)println("\naddFact: <l>, <atype>, trigF: <triggersFact[l]?{}>, trigR: <triggersRequirement[l]?{}>");
+  
+    deps = extractTypeDependencies(atype);
+    println("addFact, <l>, <atype>, deps=<deps>");
+    if(allDependenciesKnown(deps, facts)){
+        iatype = instantiate(atype);
+        if(cdebug)println("add2: facts[<l>] = <iatype>");
+        facts[l] = iatype;
+    } else {
+        fct = openFact(deps, l, AType(){ return atype; });
+        if(cdebug)println("add3: <fct>, <atype>");
+        openFacts += fct;
+        for(d <- deps) triggersFact[d] ? {} += fct;
+        
+    }
+    fireTriggers(l);
 }
 
-ScopeGraph extractedRequirements;
-map[loc, AType] facts = ();
-set[Fact] openFacts = {};
-map[loc, AType] bindings = ();
-rel[loc, Requirement] triggersRequirement = {};
-rel[loc, Requirement] tvtriggersRequirement = {};
-   
-rel[loc, Fact] triggersFact = {};
-rel[loc, Fact] tvtriggersFact = {};
+void addFact(loc l, list[Tree] dependsOn, AType() getAType){
+    deps = {dep@\loc | dep <- dependsOn};
+    if(allDependenciesKnown(deps, facts)){
+        try {
+            facts[l] = getAType();
+            fireTriggers(l);
+            return;
+        } catch typeUnavailable(t): /* cannot yet compute type */;
+    }
+    fct = openFact(deps, l, getAType);
+    openFacts += fct;
+    for(d <- deps) triggersFact[d] = triggersFact[d] ? {} + {fct};
+    fireTriggers(l);
+}
 
-set[Requirement] requirementJobs = {};
-
-// defaults for iisSubtype and getLUB
-bool(AType atype1, AType atype2, ScopeGraph sg) isSubtypeFun = noIsSubtype;
-AType(AType atype, ScopeGraph sg) getLUBFun = noGetLUB;
-
-
- void addFact(loc l, AType atype){
-     if(cdebug)println("\naddFact: <l>, <atype>, <triggersFact[l]>, <triggersRequirement[l]>");
-   
-     if(typeof(loc other) := atype){// || tvar(loc other) := atype){
-     // TODO: support typeof(_,_,_) as well
-        if(facts[other]?){
-           if(cdebug)println("add: facts[<l>] = <facts[other]>");
-           facts[l] = facts[other];
-        } else {
-           if(other != l){
-              fct = openFact({other}, {}, l, AType() { return atype; });
-              if(cdebug)println("add1: <fct>");
-              openFacts += fct;
-              triggersFact += <other, fct>;
-           }
-        }
-     } else {
-        <deps, tvvars> = extractTypeDependencies(atype);
-        println("deps=<deps>, tvvars=<tvvars>");
-        if(allDependenciesKnown(deps, tvvars, facts)){
-            iatype = instantiate(atype, (), facts, extractedRequirements);
-            if(cdebug)println("add2: facts[<l>] = <iatype>");
-            facts[l] = iatype;
-        } else {
-            fct = openFact(deps, tvvars, l, AType(){ return atype; });
-            if(cdebug)println("add3: <fct>");
-            openFacts += fct;
-            for(d <- deps) triggersFact += <d, fct>;
-        }
-     }
-     
-     for(req <- triggersRequirement[l]){
-         if(allDependenciesKnown(req.dependsOn, req.dependsOnTV, facts)){
+void fireTriggers(loc l){
+    for(req <- triggersRequirement[l] ? {}){
+        if(allDependenciesKnown(req.dependsOn, facts)){
            requirementJobs += req;
            if(cdebug)println("adding requirementJob: <req.name>, <req.src>");
-         }
-     }
+        }
+    }
      
-     for(fct <- triggersFact[l]){
-         if(allDependenciesKnown(fct.dependsOn, fct.dependsOnTV, facts)){
-            addFact(fct.src, fct.makeType());
-            openFacts -= fct;
-         }
-      }
+    for(fct <- triggersFact[l] ? {}){
+        if(allDependenciesKnown(fct.dependsOn, facts)){
+           try {
+              println("triggerF: <l>, <fct>");
+              addFact(fct.src, fct.getAType());
+              openFacts -= fct;
+           } catch typeUnavailable(t): /* cannot yet compute type */;
+        }
+    }
 }
 
-AType typeof(Tree t) = bindings[t@\loc] ? facts[t@\loc];
+// The binding of a type variable that occurs inside the scope of that type variable can be turned into a fact
+void bindings2facts(map[loc, AType] bindings, loc occ){
+    for(b <- bindings){
+        if(isTypeVariable(b) && !facts[b]? && (!extractedRequirements.tvScopes[b]? || occ <= extractedRequirements.tvScopes[b])){
+           addFact(b, bindings[b]);
+           if(cdebug) println("bindings2facts, added: <b> : <bindings[b]>");
+        }
+    }
+}
+   
+// Check whether a requirement is satisfied
+tuple[bool ok, set[Message] messages, map[loc, AType] bindings] satisfies(Requirement req){
+    bindings = ();
+    try {
+        req.preds();
+        bindings2facts(bindings, req.src);
+        return <true, {}, bindings>;
+    } catch Message e: {
+        return <false, {e}, bindings>;
+    }
+}
+
+data Exception 
+    = typeUnavailable(Tree t)
+    ;
+    
+AType typeof(Tree tree) {
+    try {
+        fct = find(tree@\loc);
+        return instantiate(fct);
+    } catch NoSuchKey(l): {
+        throw typeUnavailable(tree);
+    }
+}
+
+AType typeof(Tree scope, Tree tree, set[IdRole] idRoles) {
+   src = tree@\loc;
+   try {
+     id = "<tree>";
+     res = lookup(extractedRequirements, use(id, src, scope@\loc, idRoles));
+     println("typeof: <scope@\loc>, <src>, <tree> ==\> <res>");
+     return res;
+   } catch noKey: {
+     println("typeof: <scope@\loc>, <src>, <tree> ==\> typeUnavailable1");
+     throw typeUnavailable(tree);
+   }
+}
 
 // Check the standalone "equal" predicate that succeeds or gives error
 void equal(AType given, AType expected, ErrorHandler onError){
@@ -257,18 +299,21 @@ bool equal(AType given, AType expected){
 
 // Check the standalone "unify" predicate that succeeds or gives error
 void unify(AType given, AType expected, ErrorHandler onError){
-    <ok, bindings1> = unify(given, expected, bindings);
-    println("unify(<given>, <expected>) =\> <ok>, <bindings1>");
+    <ok, bindings1> = unify(instantiate(given), instantiate(expected), bindings);
+    if(cdebug)println("unify(<given>, <expected>) =\> <ok>, <bindings1>");
     if(ok){
         bindings += bindings1;
     } else {
-        throw error("<onError.msg>, expected `<AType2String(expected)>`, found `<AType2String(given)>`", onError.where);
+        iexpected = instantiate(expected);
+        igiven = instantiate(given);
+        throw error("<onError.msg>, expected `<AType2String(iexpected)>`, found `<AType2String(igiven)>`", onError.where);
     }
 }
 
 // Check the "unify" predicate
 bool unify(AType given, AType expected){
-    <ok, bindings1> = unify(given, expected, bindings);
+    <ok, bindings1> = unify(instantiate(given), instantiate(expected), bindings);
+    if(cdebug)println("unify(<given>, <expected>) ==\> <ok>, <bindings1>");
     if(ok){
         bindings += bindings1;
         return true;
@@ -278,12 +323,6 @@ bool unify(AType given, AType expected){
 }
 
 void subtype(AType small, AType large, ErrorHandler onError){
-    //ismall = instantiate(small, bindings, facts, extractedRequirements);
-    //ilarge = instantiate(large, bindings, facts, extractedRequirements);
-    //println("small = <small>");
-    //println("ismall = <ismall>");
-    //println("large = <large>");
-    //println("ilarge = <ilarge>");
     extractedRequirements.facts = facts;
     if(!isSubtypeFun(small, large, extractedRequirements)){
         throw error("<onError.msg>, expected subtype of `<AType2String(large)>`, found `<AType2String(small)>`", onError.where);
@@ -293,7 +332,7 @@ void subtype(AType small, AType large, ErrorHandler onError){
 // Check the "lub" predicate
 void lub(AType v, AType types, ErrorHandler onError){
     if(tvar(loc name) := v){
-        itypes = instantiate(types, bindings, facts, extractedRequirements);
+        itypes = instantiate(types);
         try {
             lb = getLUBFun(itypes, extractedRequirements);
             bindings = (name : lb) + bindings;
@@ -312,198 +351,84 @@ void error(loc src, str msg){
     throw Message::error(msg, src);
 }
 
-set[Message] validate(ScopeGraph er,
-                      bool(AType atype1, AType atype2, ScopeGraph sg) isSubtype = noIsSubtype,
-                      AType(AType atype, ScopeGraph sg) getLUB = noGetLUB
+set[Message] validate(FRModel er,
+                      bool(AType atype1, AType atype2, FRModel frm) isSubtype = noIsSubtype,
+                      AType(AType atype, FRModel frm) getLUB = noGetLUB
 ){
-   extractedRequirements = er;
-   overloads = extractedRequirements.overloads;
-   facts = extractedRequirements.facts;
-   openFacts = extractedRequirements.openFacts;
-   openReqs = extractedRequirements.openReqs;
-   tvScopes = extractedRequirements.tvScopes;
-   
-   map[Key, Key] defs = ();
-   
-   triggersRequirement = {};
-   tvtriggersRequirement = {};
-   
-   triggersFact = {};
-   tvtriggersFact = {};
-   
-   set[Use] unresolvedUses = {};
-   requirementJobs = {};
-   
-   isSubtypeFun = isSubtype;
-   getLUBFun = getLUB;
-   
-   if(cdebug){
-      println("overloads: <size(overloads)>; facts: <size(facts)>; openFacts: <size(openFacts)>; openReqs: <size(openReqs)>");
-      printScopeGraph(extractedRequirements);
-   }
-   
-   set[Message] messages = {};
-   iterations = 0;
-   
-   void printState(){
-    println("facts:");
-        for(Key fact <- facts){
-            println("\t<fact>: <facts[fact]>");
-        }
-    //println("triggersFact:");
-    //    for(<loc k, f> <- triggersFact){
-    //        println("<k> ===\> <f.src>, <f.atype>");
-    //    }
-    //println("tvtriggersRequirement:");
-    //    for(<loc k, r> <- tvtriggersRequirement){
-    //        println("<k> ===\> <r.name>, <r.src>");
-    //    }
-    println("openFacts:");
-       for(Fact fact <- openFacts){
-            println("\t<fact>");
-        }
-    println("openReqs:");
-        for(rq <- openReqs){
-            println("\t<rq.name> at <rq.src>:");
-            for(atype <- rq.dependsOn){
-                println("\t  dependsOn: <atype>");
-            }
-            for(atype <- rq.dependsOnTV){
-                println("\t  dependsOnTV: <atype>");
-            }
-            //println("\t  preds:");
-            //for(pred <- rq.preds) println("\t    <pred>");
-        }
-   }
-   
-   // The binding of a type variable that occurs inside the scope of that type variable can be turned into a fact
-   void bindings2facts(map[loc, AType] bindings, loc occ){
-        for(b <- bindings){
-            if(cdebug && !facts[b]? && tvScopes[b]?) println("Consider <b>, <bindings[b]>, <isGlobalTypeVar(b)>, <!facts[b]?>, <occ>, <tvScopes[b]>, <occ <= tvScopes[b]>");
-            if(isGlobalTypeVar(b) && !facts[b]? && (occ <= tvScopes[b])){
-               addFact(b, bindings[b]);
-               if(cdebug) println("Adding type var: <b> : <bindings[b]>");
-            }
-        }
-    }
-   
-    // Check whether all predicates of a requirement are satisfied
-    tuple[bool ok, set[Message] messages, map[loc, AType] bindings] 
-        satisfies(Requirement req, map[loc, loc] tvScopes){
-        preds = req.preds;
-        req_messages = {};
-        bindings = ();
-        try {
-            preds();
-        } catch Message e: {
-            return <false, {e}, bindings>;
-        }
-        bindings2facts(bindings, req.src);
-        return <true, req_messages, bindings>;
-    }
+    // Initialize global state
+    extractedRequirements = er;
+ 
+    facts = extractedRequirements.facts;
+    openFacts = extractedRequirements.openFacts;
+    bindings = ();
+    openReqs = extractedRequirements.openReqs;
+    triggersRequirement = ();
+    triggersFact = ();
+  
+    requirementJobs = {};
     
-    extractedRequirements.defines = 
-        visit(extractedRequirements.defines) {
-        case useType(Use u): { 
-            try {
-                k = lookup(extractedRequirements, u);
-                println("useType<u> ==\> <k>");
-                insert typeof(k);  
-            } catch noKey:
-                messages += error("Undefined `<u.id>`", u.occ);
-         }
-    }
+    isSubtypeFun = isSubtype;
+    getLUBFun = getLUB;
     
-    extractedRequirements.facts = 
-        visit(extractedRequirements.facts) {
-        case useType(Use u): { 
-            try
-                insert typeof(lookup(extractedRequirements, u));  
-            catch noKey:
-                messages += error("Undefined `<u.id>`", u.occ);
-         }
+    // Initialize local state
+    map[Key, Key] defs = ();
+    map[loc, Overload] overloads = extractedRequirements.overloads;
+    set[Use] unresolvedUses = {};
+    set[Message] messages = {};
+    iterations = 0;
+   
+    if(cdebug){
+       println("overloads: <size(overloads)>; facts: <size(facts)>; openFacts: <size(openFacts)>; openReqs: <size(openReqs)>");
+       printScopeGraph(extractedRequirements);
     }
-    
-    extractedRequirements.overloads = 
-        visit(extractedRequirements.overloads) {
-        case useType(Use u): { 
-            try
-                insert typeof(lookup(extractedRequirements, u));  
-            catch noKey:
-                messages += error("Undefined `<u.id>`", u.occ);
-         }
-    }
-    extractedRequirements.openFacts = 
-        visit(extractedRequirements.openFacts) {
-        case useType(Use u): { 
-            try
-                insert typeof(lookup(extractedRequirements, u));  
-            catch noKey:
-                messages += error("Undefined `<u.id>`", u.occ);
-         }
-    }
-    
-    extractedRequirements.openReqs = 
-        visit(extractedRequirements.openReqs) {
-        case useType(Use u): { 
-            try
-                insert typeof(lookup(extractedRequirements, u));  
-            catch noKey:
-                messages += error("Undefined `<u.id>`", u.occ);
-         }
-    }
-    
+   
     for(u <- extractedRequirements.uses){
         try {
-           //println("u = <u>");
            def = lookup(extractedRequirements, u);
-           //println("def = <def>");
            defs[u.occ] = def;
            unresolvedUses += u;
         } catch noKey: {
-            //println("UNDEFINED");
             messages += error("Undefined `<u.id>`", u.occ);
         }
     }
  
-   for(Fact f <- openFacts){
-       if(allDependenciesKnown(f.dependsOn, f.dependsOnTV, facts)){
-          addFact(f.src, f.makeType());
-          openFacts -= f;
+    for(Fact f <- openFacts){
+       if(allDependenciesKnown(f.dependsOn, facts)){
+          try {
+            addFact(f.src, f.getAType());
+            openFacts -= f;
+            //fireTriggers(f.src);
+          } catch typeUnavailable(t): /* cannot yet compute type */;
        } else {
            for(dep <- f.dependsOn){
                if(cdebug)println("add dependency: <dep> ==\> <f>");
-               triggersFact += <dep, f>;
-           }
-           for(tvdep <- f.dependsOnTV){
-               tvtriggersFact += <tvdep, f>;
+               triggersFact[dep] = triggersFact[dep] ? {} + {f};
            }
        }
-   } 
+    } 
     
     for(Define d <- extractedRequirements.defines){
        if(d.defInfo has atype){             // <+++++++
           addFact(d.defined, d.defInfo.atype);
+       } else if(d.defInfo has getAType){
+          addFact(d.defined, d.defInfo.dependsOn, d.defInfo.getAType);
        }
     }
   
     for(oreq <- openReqs){
        for(dep <- oreq.dependsOn){
-           triggersRequirement += {<dep, oreq>};
-       }
-       for(tvdep <- oreq.dependsOnTV){
-           tvtriggersRequirement += {<tvdep, oreq>};
+           triggersRequirement[dep] = triggersRequirement[dep] ? {} + {oreq};
        }
     }
 
     for(oreq <- openReqs){
-        if(allDependenciesKnown(oreq.dependsOn, oreq.dependsOnTV, facts)){
+        if(allDependenciesKnown(oreq.dependsOn, facts)){
            requirementJobs += oreq;
         }
     }
            
-    solve(facts, openReqs, openFacts, unresolvedUses, requirementJobs){
-    //while(!(isEmpty(openFacts) && isEmpty(openReqs)) && iterations < 10){
+    //solve(facts, openReqs, openFacts, unresolvedUses, requirementJobs){
+    while(!(isEmpty(openFacts) && isEmpty(openReqs)) && iterations < 3){
        iterations += 1;
        
        if(cdebug){
@@ -512,14 +437,14 @@ set[Message] validate(ScopeGraph er,
        }
        
        for(u <- unresolvedUses){
-           if(cdebug)println("Consider use: <u>");
+           if(cdebug)println("Consider unresolved use: <u>");
            def = defs[u.occ];
            if(facts[def]?){  // has type of def become available?
               fct1 = facts[def];
-              <deps, tvdeps> = extractTypeDependencies(fct1);
-              if(cdebug)println("fact: <fct1>, deps: <deps>, <tvdeps>");
-              if(allDependenciesKnown(deps, tvdeps, facts)){ 
-                 addFact(u.occ, instantiate(fct1, (), facts, extractedRequirements));
+              deps = extractTypeDependencies(fct1);
+              if(cdebug)println("use is defined as: <fct1>, deps: <deps>");
+              if(allDependenciesKnown(deps, facts)){ 
+                 addFact(u.occ, instantiate(fct1));
                  unresolvedUses -= {u};
                  if(cdebug)println("Resolved use: <u>");
               }
@@ -529,68 +454,70 @@ set[Message] validate(ScopeGraph er,
       }
        
        // eliminate overloads for which argument types are known
-       for(ovlKey <- extractedRequirements.overloads){
-          ovl = extractedRequirements.overloads[ovlKey];
-          args = ovl.args;
-          if(all(p <- args, facts[p]?)){
+       for(ovlKey <- overloads){
+          ovl = overloads[ovlKey];
+          if(all(p <- ovl.args, facts[p]?)){
               try {
                 t = ovl.resolve();
                 addFact(ovlKey, t);
-                bindings2facts(bindings, ovl.src);
-                overloads = delete(overloads, ovlKey);
+                bindings2facts(bindings, ovl.src); 
+              } catch typeUnavailable(t): {
+                continue;
               } catch Message e: {
                 messages += e;
               }
+              overloads = delete(overloads, ovlKey);
           }
        }  
        
-       // Check open requirements when their predicate can be fully instantiated
-       for(oreq <- requirementJobs){
-          if(cdebug)println("\nchecking: <oreq.name>, <oreq.src>\n<oreq>");
-          if(allDependenciesKnown(oreq.dependsOn, oreq.dependsOnTV, facts)){          
-             <ok, messages1, bindings1> = satisfies(oreq, tvScopes); 
-             if(cdebug)println("<ok>, <messages1>, <bindings1>");
-             messages += messages1;
-             if(ok){
-                if(cdebug)println("reqs: bindings: <bindings1>");
-                tvars = domain(bindings1);
-                treqs = tvtriggersRequirement[tvars];
-                tfacts = triggersFact[tvars];
-                for(r <- treqs){
-                    requirementJobs += { r };
-                }
-                for(f <- tfacts){
-                    if(cdebug)println("reqs, adding bound fact: <instantiate(f, bindings1, facts, extractedRequirements)>");
-                    fct = instantiate(f, bindings1, facts, extractedRequirements);
-                    addFact(f.src, fct.makeType()) ;
-                }
-                
-                if(cdebug)println("deleting1: <oreq.name>, <oreq.src>\n<oreq>");
-                //iprintln(openReqs);
-                openReqs -= {oreq};
-                //println("after deleting <oreq>:");
-                //iprintln(openReqs);
-                
-             } else {
-                 if(cdebug)println("!ok: <messages1>");
-                 if(cdebug)println("deleting2: <oreq.name>, <oreq.src>");
-                 openReqs -= oreq;
-             }
+       // Check open requirements when they are known
+       // Sort to force bottom-up evaluation
+       for(oreq <- sort(requirementJobs, bool(Requirement a, Requirement b) { return a.src < b.src; })){
+          if(cdebug)println("\nchecking `<oreq.name>`: <oreq.src>\n<oreq>");
+          if(allDependenciesKnown(oreq.dependsOn, facts)){ 
+             if(cdebug)println("checking `<oreq.name>`: dependencies are available");  
+             try {       
+                 <ok, messages1, bindings1> = satisfies(oreq); 
+                 if(cdebug)println("ok=<ok>, <messages1>, <bindings1>");
+                 messages += messages1;
+                 if(ok){
+                    if(cdebug)println("checking `<oreq.name>`: bindings: <bindings1>");
+                    for(tv <- domain(bindings1), f <- triggersFact[tv] ? {}){
+                        if(allDependenciesKnown(f.dependsOn, facts)){
+                            try {
+                                if(cdebug)println("checking `<oreq.name>`: adding bound fact: <f>");
+                                addFact(f.src, f.getAType());
+                                openFacts -= {f};
+                            } catch typeUnavailable(t): /* cannot yet compute type */;
+                        }
+                    }
+                    
+                    if(cdebug)println("checking `<oreq.name>`: deleting1");
+                    openReqs -= {oreq};
+                 } else {
+                     if(cdebug)println("!ok: <messages1>");
+                     if(cdebug)println("checking `<oreq.name>`: deleting2");
+                     openReqs -= oreq;
+                 }
+             } catch typeUnavailable(t):
+                println("checking `<oreq.name>`: dependencies not yet available");
+          } else {
+            println("checking `<oreq.name>`: dependencies not yet available");
           }
       }
-   }   
+    }   
    
-   if(size(overloads) > 0){
+    if(size(overloads) > 0){
       for(l <- overloads){
           ovl = overloads[l];
           args = overloads[l].args;
           messages += error("Overloaded operator <ovl.name> could not be resolved for <for(int i <- index(args)){><facts[args[i]]? ? "`<AType2String(facts[args[i]])>`" : "unknown"><i < size(args)-1 ? "," : ""> <}>", ovl.src );
       }
-   }
+    }
    
-   messages += { error("Invalid <req.name>", req.src) | req <- openReqs};
+    messages += { error("Invalid <req.name>", req.src) | req <- openReqs};
    
-   if(cdebug){
+    if(cdebug){
        println("------");
        println("iterations: <iterations>; overloads: <size(overloads)>; facts: <size(facts)>; openFacts: <size(openFacts)>; openReqs: <size(openReqs)>");
        printState();
@@ -606,7 +533,7 @@ set[Message] validate(ScopeGraph er,
           if(!isEmpty(openReqs)) println("*** <size(openReqs)> unresolved requirements ***");
           if(!isEmpty(openFacts)) println("*** <size(openFacts)> open facts ***");
        }
-   }
-   return filterMostPrecise(messages);
+    }
+    return filterMostPrecise(messages);
 }
 

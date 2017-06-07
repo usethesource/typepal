@@ -4,7 +4,7 @@ module fj::FJ
 
 extend ScopeGraph;
 extend Constraints;
-extend ExtractScopesAndConstraints;
+extend ExtractFRModel;
 extend TestFramework;
 import ParseTree;
 import String;
@@ -23,7 +23,7 @@ lexical WhitespaceAndComment
    = [\ \t\n\r]
    | @category="Comment" ws2:
     "%" ![%]+ "%"
-   | @category="Comment" ws3: "{" ![\n}]*  "}"$
+//   | @category="Comment" ws3: "{" ![\n}]*  "}"$
    ;
    
 syntax Program
@@ -175,144 +175,151 @@ bool isSubtype(listType(list[AType] atypes1), listType(list[AType] atypes2), Sco
 
 // ----  Initialize --------------------------------------  
 
-SGBuilder initializedSGB(Tree scope){
-    SGBuilder sgb = scopeGraphBuilder();
+FRBuilder initializedFRB(Tree scope){
+    FRBuilder frb = makeFRBuilder();
     // Simulate the definition of the class "Object"
     object_src = [ClassId] "Object";
-    sgb.define(scope, "Object", classId(), object_src, defInfo(classType(scope, object_src)));
+    frb.define(scope, "Object", classId(), object_src, defInfo(classType(scope, object_src)));
     super_src = [ClassId] "Super";
-    sgb.define(scope, "super", constructorId(), super_src, defInfo(methodType(useClassType(scope, object_src), listType([]))));
-    return sgb;
+    frb.define(scope, "super", constructorId(), super_src, defInfo(methodType(useClassType(scope, object_src), listType([]))));
+    return frb;
 } 
 
 // ----  Define -------------------------------------------------------
 
-Tree define(ClassDecl cd, Tree scope, SGBuilder sgb)     {
-    sgb.define(scope, "<cd.cid>", classId(), cd.cid, defInfo(classType(scope, cd.cid)));
-    sgb.use_ref(scope, cd.ecid, {classId()}, extendsLabel(), 0); 
-    sgb.define(scope, "this", fieldId(), cd.cid, defInfo(useClassType(scope, cd.cid)));  
+Tree define(ClassDecl cd, Tree scope, FRBuilder frb)     {
+    frb.define(scope, "<cd.cid>", classId(), cd.cid, defInfo(classType(scope, cd.cid)));
+    frb.use_ref(scope, cd.ecid, {classId()}, extendsLabel(), 0); 
+    frb.define(scope, "this", fieldId(), cd.cid, defInfo(useClassType(scope, cd.cid)));  
     
     consDecl = cd.constructordecl;
     if(cd.cid != consDecl.cid){
-        sgb.error(consDecl.cid, "Class name `<cd.cid>` differs from constructor name `<consDecl.cid>`");
+        frb.error(consDecl.cid, "Class name `<cd.cid>` differs from constructor name `<consDecl.cid>`");
     } else {
         superCall = consDecl.supercall;
         superType = typeof(cd.ecid, superCall.super, {constructorId()});
         superArgTypes = listType([ typeof(var) | Variable var <- superCall.vars ]);
         if("<cd.ecid>" == "Object"){
-           sgb.define(scope, "super", classId(), cd.ecid, defInfo(useClassType(scope, cd.ecid)));
+           frb.define(scope, "super", classId(), cd.ecid, defInfo(useClassType(scope, cd.ecid)));
            if(size(superArgTypes.atypes) != 0){
-              sgb.error(superCall, "Incorrect super arguments");
+              frb.error(superCall, "Incorrect super arguments");
            }
         } else {   
-            sgb.define(scope, "super", classId(), cd.ecid, defInfo(typeof(cd.ecid)));
-            sgb.require("super call in <cd.ecid>", superCall,
-            [ match(methodType(tau(1), tau(2)), superType, onError(superCall, "Wrong constructor type")),
-              subtype(tau(2), superArgTypes, onError(superCall, "Incorrect super arguments"))
-            ]);
+            frb.define(scope, "super", classId(), cd.ecid, defInfo([cd.ecid], AType() { return typeof(cd.ecid); }));
+            frb.require("super call in <cd.ecid>", superCall, [superCall],
+                () { if(methodType(tau1, tau2) := superType){ 
+                        subtype(tau2, superArgTypes, onError(superCall, "Incorrect super arguments"));
+                     } else {
+                        onError(superCall, "Wrong constructor type");
+                     }
+                   });
         }
     }
     return cd;
 }
 
-Tree define(ConstructorDecl cons, Tree scope, SGBuilder sgb){
-    tp = methodType(useClassType(scope, cons.cid), listType([useClassType(scope, f.cid) | Formal f <- cons.formals.formals]));
-    sgb.define(scope, "<cons.cid>", constructorId(), cons.cid, defInfo(tp));
-
-    return cons;                      
+Tree define(ConstructorDecl cons, Tree scope, FRBuilder frb){
+     tp = methodType(useClassType(scope, cons.cid), listType([useClassType(scope, f.cid) | Formal f <- cons.formals.formals]));
+     frb.define(scope, "<cons.cid>", constructorId(), cons.cid, defInfo(tp));
+     return cons;                      
 }
 
-Tree define(fm: (Formal) `<ClassId cid> <Id id>`, Tree scope, SGBuilder sgb){
-    sgb.define(scope, "<id>", formalId(), id, defInfo(useClassType(scope, cid)));
-    return scope;
+Tree define(fm: (Formal) `<ClassId cid> <Id id>`, Tree scope, FRBuilder frb){
+     frb.define(scope, "<id>", formalId(), id, defInfo(useClassType(scope, cid)));
+     return scope;
 }
 
-Tree define(fd: (FieldDecl) `<ClassId cid> <Id id> ;`, Tree scope, SGBuilder sgb){
-    sgb.define(scope, "<id>", fieldId(), id, defInfo(useClassType(scope, cid)));
-    return scope; 
+Tree define(fd: (FieldDecl) `<ClassId cid> <Id id> ;`, Tree scope, FRBuilder frb){
+     frb.define(scope, "<id>", fieldId(), id, defInfo(useClassType(scope, cid)));
+     return scope; 
 }
 
-Tree define(md: (MethodDecl) `<ClassId cid> <Id mid> <Formals formals> { return <Expression exp> ; }`, Tree scope,  SGBuilder sgb){   
-    resType = useClassType(scope, cid); 
-    argTypes = listType([useClassType(scope, f.cid) | Formal f <- formals.formals]);
+Tree define(md: (MethodDecl) `<ClassId cid> <Id mid> <Formals formals> { return <Expression exp> ; }`, Tree scope,  FRBuilder frb){   
+     resType = useClassType(scope, cid); 
+     argTypes = listType([useClassType(scope, f.cid) | Formal f <- formals.formals]);
    
-    sgb.define(scope, "<mid>", methodId(), mid, defInfo(methodType(resType, argTypes)));
-    sgb.require("method definition <mid>", md,
-        [subtype(typeof(exp), resType, onError(md, "Actual return type should be subtype of declared return type"))
-        ]);
-    return md;
+     frb.define(scope, "<mid>", methodId(), mid, defInfo(methodType(resType, argTypes)));
+     frb.require("method definition <mid>", md, [exp],
+         () { subtype(typeof(exp), resType, onError(md, "Actual return type should be subtype of declared return type"));
+            });
+     return md;
 }
 
 // ----  Collect uses & requirements ------------------------------------
 
-void collect(Class c, Tree scope, SGBuilder sgb){
-    if("<c>" == "super"){
-      sgb.use(scope, c, {classId()}, 0);
-    } else {
-      sgb.use(scope, c.id, {classId()}, 0);
-    }
+void collect(Class c, Tree scope, FRBuilder frb){
+     if("<c>" == "super"){
+       frb.use(scope, c, {classId()}, 0);
+     } else {
+       frb.use(scope, c.id, {classId()}, 0);
+     }
 }
 
-void collect(Constructor c, Tree scope, SGBuilder sgb){
-    sgb.use(scope, c.id, {constructorId()}, 0);
+void collect(Constructor c, Tree scope, FRBuilder frb){
+     frb.use(scope, c.id, {constructorId()}, 0);
 }
 
-void collect(Variable var, Tree scope, SGBuilder sgb){
-    sgb.use(scope, var.id, {formalId(), fieldId()}, 0);
+void collect(Variable var, Tree scope, FRBuilder frb){
+     frb.use(scope, var.id, {formalId(), fieldId()}, 0);
 }
 
-void collect(Field fld, Tree scope, SGBuilder sgb){
-    sgb.use(scope, fld.id, {fieldId()}, 0);
+void collect(Field fld, Tree scope, FRBuilder frb){
+     frb.use(scope, fld.id, {fieldId()}, 0);
 }
 
-void collect(Method mtd, Tree scope, SGBuilder sgb){
-    sgb.use(scope, mtd.id, {methodId()}, 0);
+void collect(Method mtd, Tree scope, FRBuilder frb){
+     frb.use(scope, mtd.id, {methodId()}, 0);
 }
 
-void collect(sc: (SuperCall) `<Class super> ( <{Variable ","}* vars> );`, Tree scope, SGBuilder sgb){
-    sgb.require("super call", sc,
-        [ match(methodType(tau(1), tau(2)), typeof(super, super, {constructorId()}), onError(sc, "Incorrect super call")),
-          fact(sc, tau(1))
-        ]);
+void collect(sc: (SuperCall) `<Class super> ( <{Variable ","}* vars> );`, Tree scope, FRBuilder frb){
+     frb.require("super call", sc, [super],
+         () { if(methodType(tau1, tau2) := typeof(super, super, {constructorId()})){
+                 fact(sc, tau1);
+              } else {
+                 reportError(sc, "Incorrect super call");
+              }
+            });
 }
 
-void collect(e: (Expression) `<Expression exp> . <Field field>`, Tree scope, SGBuilder sgb){
-    if("<exp>" == "this"){
-        sgb.fact(e, typeof(field.id));
-    } else {
-        sgb.fact(e, typeof(exp, field.id, {fieldId()}));
-    }
+void collect(e: (Expression) `<Expression exp> . <Field field>`, Tree scope, FRBuilder frb){
+     if("<exp>" == "this"){
+        frb.fact(e, [exp, field.id], [], AType() { return typeof(field.id); } );
+     } else {
+        frb.fact(e, [exp], [], AType() { return typeof(exp, field.id, {fieldId()}); });
+     }
 }
 
-void collect(e: (Expression) `<Expression exp> . <Method method> <Expressions exps>`, Tree scope, SGBuilder sgb){
-    argTypes = listType([ typeof(arg) | arg <- exps.expressions ]); 
-    sgb.require("method call `<method>`", e,
-                [ match(methodType(tau(1), tau(2)), typeof(exp, method.id, {methodId()}), onError(e, "Method required")),
-                  subtype(argTypes, tau(2), onError(e, "Incorrect method arguments")),
-                  fact(e, tau(1)) 
-                ]);
+void collect(e: (Expression) `<Expression exp> . <Method method> <Expressions exps>`, Tree scope, FRBuilder frb){
+     argTypes = listType([ typeof(arg) | arg <- exps.expressions ]); 
+     frb.require("method call `<method>`", e, [exp],
+         () { if(methodType(tau1, tau2) := typeof(exp, method.id, {methodId()})){ 
+                 subtype(argTypes, tau2, onError(e, "Incorrect method arguments"));
+                 fact(e, tau1);
+              } else {
+                 onError(e, "Method required");
+              }
+            });
 }
 
-void collect(e: (Expression) `new <Constructor cons> <Expressions exps>`, Tree scope, SGBuilder sgb){
-    returnType = useClassType(scope, cons.id);
-    argTypes = listType([ typeof(exp) | exp <- exps.expressions ]);
+void collect(e: (Expression) `new <Constructor cons> <Expressions exps>`, Tree scope, FRBuilder frb){
+     returnType = useClassType(scope, cons.id);
     
-    sgb.require("new `<cons>`", e,
-        [ subtype(methodType(returnType, argTypes), typeof(cons), onError(e, "Incorrect constructor arguments")),
-          fact(e, returnType) 
-        ]);
+     frb.require("new `<cons>`", e, [exp | exp <- exps.expressions],
+         () { subtype(methodType(returnType, listType([ typeof(exp) | exp <- exps.expressions ])), typeof(cons), onError(e, "Incorrect constructor arguments"));
+              fact(e, returnType);
+            });
 }
 
-void collect(e: (Expression) `( <ClassId cid> ) <Expression exp>`, Tree scope, SGBuilder sgb){  // <++++++
-    castType = useClassType(scope, cid);
-    sgb.require("cast `<cid>`", e,
-        [ subtype(typeof(exp), castType, onError(e, "Incorrect cast")),
-          fact(e, castType) 
-        ]);
+void collect(e: (Expression) `( <ClassId cid> ) <Expression exp>`, Tree scope, FRBuilder frb){  // <++++++
+     castType = useClassType(scope, cid);
+     frb.require("cast `<cid>`", e,
+         () { subtype(typeof(exp), castType, onError(e, "Incorrect cast"));
+              fact(e, castType);
+            });
 }
 
-void collect(e: (Expression) `this`, Tree scope, SGBuilder sgb){
-     sgb.use(scope, e, {fieldId()}, 0);
+void collect(e: (Expression) `this`, Tree scope, FRBuilder frb){
+     frb.use(scope, e, {fieldId()}, 0);
 }
 
 // ----  Examples & Tests --------------------------------
@@ -321,9 +328,9 @@ private Program sample(str name) = parse(#Program, |project://TypePal/src/fj/<na
 
 set[Message] validateFJ(str name) {
     p = sample(name);
-    return validate(extractScopesAndConstraints(p, initializedSGB(p)), isSubtype=isSubtype);
+    return validate(extractScopesAndConstraints(p, initializedFRB(p)), isSubtype=isSubtype);
 }
 
 void testFJ() {
-    runTests(|project://TypePal/src/fj/tests.ttl|, #Program, initialSGBuilder = initializedSGB);
+    runTests(|project://TypePal/src/fj/tests.ttl|, #Program, initialFRBuilder = initializedFRB);
 }

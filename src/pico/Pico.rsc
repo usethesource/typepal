@@ -3,7 +3,7 @@ module pico::Pico
 // Pico, a trivial language, single scope, no functions
 
 import Prelude;
-extend ExtractScopesAndConstraints;
+extend ExtractFRModel;
 extend Constraints;
 
 // ----  Pico syntax -------------------------------------
@@ -18,7 +18,7 @@ lexical WhitespaceAndComment
    = [\ \t\n\r]
    | @category="Comment" ws2:
     "%" ![%]+ "%"
-   | @category="Comment" ws3: "{" ![\n}]*  "}"$
+//   | @category="Comment" ws3: "{" ![\n}]*  "}"$
    ;
  
 start syntax Program 
@@ -69,64 +69,64 @@ str AType2String(strType()) = "str";
 
 // ----  Define -----------------------------------------
  
-Tree define(d:(Declaration) `<Id id> : <Type tp>`,  Tree scope, SGBuilder sgb) {
-     sgb.define(scope, "<d.id>", variableId(), d, defInfo(transType(tp)));
+Tree define(d:(Declaration) `<Id id> : <Type tp>`,  Tree scope, FRBuilder frb) {
+     frb.define(scope, "<d.id>", variableId(), d, defInfo(transType(tp)));
      return scope; 
 }
 
 // ----  Collect uses and requirements ------------------------------------
 
-void collect(e: (Expression) `<Id name>`, Tree scope, SGBuilder sgb){
-     sgb.use(scope, name, {variableId()}, 0);
+void collect(e: (Expression) `<Id name>`, Tree scope, FRBuilder frb){
+     frb.use(scope, name, {variableId()}, 0);
 }
 
-void collect(s: (Statement) `<Id var> := <Expression val>`, Tree scope, SGBuilder sgb){
-     sgb.use(scope, var, {variableId()}, 0);
+void collect(s: (Statement) `<Id var> := <Expression val>`, Tree scope, FRBuilder frb){
+     frb.use(scope, var, {variableId()}, 0);
 }
 
 // ----  Requirements ------------------------------------
 
-void collect(s: (Statement) `<Id var> :=  <Expression val>`, Tree scope, SGBuilder sgb){
+void collect(s: (Statement) `<Id var> :=  <Expression val>`, Tree scope, FRBuilder frb){
      Tree tvar = var; Tree tval = val;
-     sgb.require("assignment", s, [tvar, tval],
+     frb.require("assignment", s, [tvar, tval],
                  (){ equal(typeof(var), typeof(val), onError(s, "Lhs <var> should have same type as rhs")); });
 }
 
-void collect(s: (Statement) `if <Expression cond> then <{Statement ";"}*  thenPart> else <{Statement ";"}* elsePart> fi`, Tree scope, SGBuilder sgb){
-     sgb.require("int_condition", s, [s.cond],
-                 () { equal(typeof(s.cond), intType(), onError(s.cond, "Condition")); });
+void collect(s: (Statement) `if <Expression cond> then <{Statement ";"}*  thenPart> else <{Statement ";"}* elsePart> fi`, Tree scope, FRBuilder frb){
+     frb.require("int_condition", s, [s.cond],
+         () { equal(typeof(s.cond), intType(), onError(s.cond, "Condition")); });
 }
 
-void collect(s: (Statement) `while <Expression cond> do <{Statement ";"}* body> od`, Tree scope, SGBuilder sgb){
-     sgb.require("int_condition", s, [s.cond],
-                 () { equal(typeof(s.cond), intType(), onError(s.cond, "Condition")); } );
+void collect(s: (Statement) `while <Expression cond> do <{Statement ";"}* body> od`, Tree scope, FRBuilder frb){
+     frb.require("int_condition", s, [s.cond],
+         () { equal(typeof(s.cond), intType(), onError(s.cond, "Condition")); } );
 }
 
-void collect(e: (Expression) `<Expression lhs> + <Expression rhs>`, Tree scope, SGBuilder sgb){
-     sgb.overload("addition", e, [lhs, rhs], 
-                  () {  switch([typeof(lhs), typeof(rhs)]){
-                            case [intType(), intType()]: return intType();
-                            case [strType(), strType()]: return strType();
-                            default:
-                                reportError(e, "Operator `+` cannot be applied to argument types `<AType2String(typeof(lhs))>` and `<AType2String(typeof(rhs))>`");
-                        }
-                     });
+void collect(e: (Expression) `<Expression lhs> + <Expression rhs>`, Tree scope, FRBuilder frb){
+     frb.overload("addition", e, [lhs, rhs], 
+         () { switch([typeof(lhs), typeof(rhs)]){
+                  case [intType(), intType()]: return intType();
+                  case [strType(), strType()]: return strType();
+                  default:
+                       reportError(e, "Operator `+` cannot be applied", [lhs, rhs]);
+               }
+            });
 }
 
-void collect(e: (Expression) `<Expression lhs> - <Expression rhs>`, Tree scope, SGBuilder sgb){
-     sgb.require("subtraction", e, [lhs, rhs],
-                 () { equal(typeof(lhs), intType(), onError(lhs, "Lhs of -"));
-                      equal(typeof(rhs), intType(), onError(rhs, "Rhs of -"));
-                      fact(e, intType());
-                 });
+void collect(e: (Expression) `<Expression lhs> - <Expression rhs>`, Tree scope, FRBuilder frb){
+     frb.require("subtraction", e, [lhs, rhs],
+         () { equal(typeof(lhs), intType(), onError(lhs, "Lhs of -"));
+              equal(typeof(rhs), intType(), onError(rhs, "Rhs of -"));
+              fact(e, intType());
+            });
 }
  
-void collect(e: (Expression) `<String string>`, Tree scope, SGBuilder sgb){
-    sgb.atomicFact(e, strType());
+void collect(e: (Expression) `<String string>`, Tree scope, FRBuilder frb){
+    frb.atomicFact(e, strType());
 }
 
-void collect(e: (Expression) `<Natural natcon>`, Tree scope, SGBuilder sgb){
-    sgb.atomicFact(e, intType());
+void collect(e: (Expression) `<Natural natcon>`, Tree scope, FRBuilder frb){
+    frb.atomicFact(e, intType());
 }
 
 // ----  Examples & Tests --------------------------------
@@ -135,7 +135,7 @@ public Program samplePico(str name) = parse(#Program, |project://TypePal/src/pic
                      
 set[Message] validatePico(str name) {
     Tree p = samplePico(name);
-    ex = extractScopesAndConstraints(p, /*define, collect,*/ scopeGraphBuilder());
+    ex = extractScopesAndConstraints(p, /*define, collect,*/ makeFRBuilder());
     return validate(ex);
 }
  value main() = validatePico("e1");

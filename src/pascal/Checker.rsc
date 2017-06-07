@@ -3,7 +3,7 @@ module pascal::Checker
 import pascal::Pascal;
 import ParseTree;
 
-extend ExtractScopesAndConstraints;
+extend ExtractFRModel;
 extend Constraints;
 extend TestFramework;
 
@@ -209,7 +209,7 @@ AType charType;
 
 Tree mkTree(int n) = [Identifier] "<for(int i <- [0 .. n]){>x<}>"; // A unique tree
 
-SGBuilder initializedSGB(Tree tree){
+FRBuilder initializedFRB(Tree tree){
     booleanType = primitiveType("Boolean");
     integerType = primitiveType("integer");
     realType = primitiveType("real");
@@ -217,314 +217,313 @@ SGBuilder initializedSGB(Tree tree){
     textType = primitiveType("text");
     anyPointerType = primitiveType("anyPointer");
     charType = primitiveType("char");
-    SGBuilder sgb = scopeGraphBuilder();
-    sgb.define(tree, "true",    constantId(),   mkTree(10), defInfo(booleanType));
-    sgb.define(tree, "false",   constantId(),   mkTree(11), defInfo(booleanType));
-    sgb.define(tree, "writeln", procedureId(),  mkTree(12), defInfo(procedureType(listType([]))));
-    sgb.define(tree, "write",   procedureId(),  mkTree(13), defInfo(procedureType(listType([]))));
-    sgb.define(tree, "odd",     functionId(),   mkTree(14), defInfo(functionType(listType([integerType]), booleanType)));
-    sgb.define(tree, "abs",     functionId(),   mkTree(15), defInfo(functionType(listType([integerType]), integerType)));
-    sgb.define(tree, "sqr",     functionId(),   mkTree(16), defInfo(functionType(listType([integerType]), integerType)));
-    sgb.define(tree, "sin",     functionId(),   mkTree(17), defInfo(functionType(listType([realType]), realType)));
-    sgb.define(tree, "cos",     functionId(),   mkTree(18), defInfo(functionType(listType([realType]), realType)));
-    sgb.define(tree, "arctan",  functionId(),   mkTree(19), defInfo(functionType(listType([realType]), realType)));
-    sgb.define(tree, "exp",     functionId(),   mkTree(20), defInfo(functionType(listType([realType]), realType)));
-    sgb.define(tree, "ln",      functionId(),   mkTree(21), defInfo(functionType(listType([realType]), realType)));
-    sgb.define(tree, "sqrt",    functionId(),   mkTree(22), defInfo(functionType(listType([realType]), realType)));
-    sgb.define(tree, "round",   functionId(),   mkTree(23), defInfo(functionType(listType([realType]), integerType)));
-    sgb.define(tree, "read",    procedureId(),  mkTree(24), defInfo(procedureType(listType([]))));
-    sgb.define(tree, "new",     procedureId(),  mkTree(24),  defInfo(procedureType(listType([]))));
-    
-    sgb.define(tree, "Boolean", typeId(),       mkTree(25), defInfo(booleanType));
-    sgb.define(tree, "integer", typeId(),       mkTree(26), defInfo(integerType));
-    sgb.define(tree, "real",    typeId(),       mkTree(27), defInfo(realType));
-    sgb.define(tree, "string",  typeId(),       mkTree(28), defInfo(stringType));
-    sgb.define(tree, "text",    typeId(),       mkTree(29), defInfo(textType));
-    sgb.define(tree, "any",     typeId(),       mkTree(30), defInfo(anyPointerType));
-    sgb.define(tree, "char",    typeId(),       mkTree(31), defInfo(charType));
+    FRBuilder frb = makeFRBuilder();
+    frb.define(tree, "true",    constantId(),   mkTree(10), defInfo(booleanType));
+    frb.define(tree, "false",   constantId(),   mkTree(11), defInfo(booleanType));
+    //frb.define(tree, "writeln", procedureId(),  mkTree(12), defInfo(procedureType(listType([]))));
+    //frb.define(tree, "write",   procedureId(),  mkTree(13), defInfo(procedureType(listType([]))));
+    //frb.define(tree, "odd",     functionId(),   mkTree(14), defInfo(functionType(listType([integerType]), booleanType)));
+    //frb.define(tree, "abs",     functionId(),   mkTree(15), defInfo(functionType(listType([integerType]), integerType)));
+    //frb.define(tree, "sqr",     functionId(),   mkTree(16), defInfo(functionType(listType([integerType]), integerType)));
+    //frb.define(tree, "sin",     functionId(),   mkTree(17), defInfo(functionType(listType([realType]), realType)));
+    //frb.define(tree, "cos",     functionId(),   mkTree(18), defInfo(functionType(listType([realType]), realType)));
+    //frb.define(tree, "arctan",  functionId(),   mkTree(19), defInfo(functionType(listType([realType]), realType)));
+    //frb.define(tree, "exp",     functionId(),   mkTree(20), defInfo(functionType(listType([realType]), realType)));
+    //frb.define(tree, "ln",      functionId(),   mkTree(21), defInfo(functionType(listType([realType]), realType)));
+    //frb.define(tree, "sqrt",    functionId(),   mkTree(22), defInfo(functionType(listType([realType]), realType)));
+    //frb.define(tree, "round",   functionId(),   mkTree(23), defInfo(functionType(listType([realType]), integerType)));
+    //frb.define(tree, "read",    procedureId(),  mkTree(24), defInfo(procedureType(listType([]))));
+    //frb.define(tree, "new",     procedureId(),  mkTree(24), defInfo(procedureType(listType([]))));
+    //
+    frb.define(tree, "Boolean", typeId(),       mkTree(25), defInfo(booleanType));
+    frb.define(tree, "integer", typeId(),       mkTree(26), defInfo(integerType));
+    //frb.define(tree, "real",    typeId(),       mkTree(27), defInfo(realType));
+    //frb.define(tree, "string",  typeId(),       mkTree(28), defInfo(stringType));
+    //frb.define(tree, "text",    typeId(),       mkTree(29), defInfo(textType));
+    //frb.define(tree, "any",     typeId(),       mkTree(30), defInfo(anyPointerType));
+    //frb.define(tree, "char",    typeId(),       mkTree(31), defInfo(charType));
   
-    return sgb;
+    return frb;
 }
 
 // ====  Begin of type checking rules ===================
 
 // ----  Define -----------------------------------------
 
-Tree define(ProgramHeading ph, Tree scope, SGBuilder sgb) {
+Tree define(ProgramHeading ph, Tree scope, FRBuilder frb) {
     for(fid <- ph.fileIdentifiers){
-        sgb.define(scope, "<fid>", fileId(), fid, defInfo(fileType(textType)));
+        frb.define(scope, "<fid>", fileId(), fid, defInfo(fileType(textType)));
     }
     return scope;
 }
 
-Tree define(TypeDefinition td, Tree scope, SGBuilder sgb){
+Tree define(TypeDefinition td, Tree scope, FRBuilder frb){
     if(td.rtype is simple){
-       sgb.define(scope, "<td.id>", typeId(), td.id, defInfo(getType(scope, td.rtype)));
+       frb.define(scope, "<td.id>", typeId(), td.id, defInfo(getType(scope, td.rtype)));
        return scope;
     } else if(td.rtype is structured){
-        sgb.define(scope, "<td.id>", typeId(), td.id, defInfo(definedType(td, td.id)));
+        frb.define(scope, "<td.id>", typeId(), td.id, defInfo(definedType(td, td.id)));
         return td;
     } else {
-       sgb.define(scope, "<td.id>", typeId(), td.id, defInfo(getType(scope, td.rtype)));
+       frb.define(scope, "<td.id>", typeId(), td.id, defInfo(getType(scope, td.rtype)));
        return scope;
     }
 }
 
-Tree define(RecordSection rs, Tree scope, SGBuilder sgb){
+Tree define(RecordSection rs, Tree scope, FRBuilder frb){
     for(fid <- rs.fieldIdentifiers){
-        sgb.define(scope, "<fid>", fieldId(), fid, defInfo(getType(scope, rs.rtype)));
+        frb.define(scope, "<fid>", fieldId(), fid, defInfo(getType(scope, rs.rtype)));
     }
     return scope;
 }
 
-AType handleFormals({FormalParameterSection ";"}+ formals, Tree scope, SGBuilder sgb){
+AType handleFormals({FormalParameterSection ";"}+ formals, Tree scope, FRBuilder frb){
     formalTypes = [];
     for(fps <- formals){
         g = fps.group;
         for(fid <- fps.group.ids){
             t = getType(scope, g.rtype);
             formalTypes += t;
-            sgb.define(scope, "<fid>", formalId(), fid, defInfo(t)); 
+            frb.define(scope, "<fid>", formalId(), fid, defInfo(t)); 
         }
     }
     return listType(formalTypes);
 }
 
-Tree define(FunctionDeclaration fd, Tree scope, SGBuilder sgb){
+Tree define(FunctionDeclaration fd, Tree scope, FRBuilder frb){
     hd = fd.functionHeading;
     if(hd has formals){
-      sgb.define(scope, "<hd.id>", functionId(), hd.id, defInfo(functionType(handleFormals(hd.formals, scope, sgb), useDefinedType(scope, hd.rtype))));
+      frb.define(scope, "<hd.id>", functionId(), hd.id, defInfo(functionType(handleFormals(hd.formals, scope, frb), useDefinedType(scope, hd.rtype))));
     } else {
-       sgb.define(scope, "<hd.id>", functionId(), hd.id, defInfo(functionType(listType([]), useDefinedType(scope, hd.rtype)))); 
+       frb.define(scope, "<hd.id>", functionId(), hd.id, defInfo(functionType(listType([]), useDefinedType(scope, hd.rtype)))); 
     }
     return fd;
 }
 
-Tree define(ProcedureDeclaration pd, Tree scope, SGBuilder sgb){
+Tree define(ProcedureDeclaration pd, Tree scope, FRBuilder frb){
     hd = pd.procedureHeading;
     if(hd has formals){
-       sgb.define(scope, "<hd.id>", procedureId(), hd.id, defInfo(procedureType(handleFormals(hd.formals, scope, sgb)))); 
+       frb.define(scope, "<hd.id>", procedureId(), hd.id, defInfo(procedureType(handleFormals(hd.formals, scope, frb)))); 
     } else {
-       sgb.define(scope, "<hd.id>", procedureId(), hd.id, defInfo(procedureType(listType([])))); 
+       frb.define(scope, "<hd.id>", procedureId(), hd.id, defInfo(procedureType(listType([])))); 
     }
     return pd;
 }
 
-Tree define(LabelDeclarationPart ldp, Tree scope, SGBuilder sgb) {
+Tree define(LabelDeclarationPart ldp, Tree scope, FRBuilder frb) {
     for(lab <- ldp.labels){
-        sgb.define(scope, "<lab>", labelId(), lab, noDefInfo());
+        frb.define(scope, "<lab>", labelId(), lab, noDefInfo());
     }
     return scope;
 }
 
-Tree define(Block b, Tree scope, SGBuilder sgb) {
+Tree define(Block b, Tree scope, FRBuilder frb) {
     return b;
 }
 
-Tree define(ConstantDefinition cd, Tree scope, SGBuilder sgb) {
-   sgb.define(scope, "<cd.id>", constantId(), cd.id, defInfo(getConstantType(scope, cd.constant)));
+Tree define(ConstantDefinition cd, Tree scope, FRBuilder frb) {
+   frb.define(scope, "<cd.id>", constantId(), cd.id, defInfo(getConstantType(scope, cd.constant)));
     return scope;
 }
 
-Tree define(TypeDefinition td, Tree scope, SGBuilder sgb) {
-    sgb.define(scope, "<td.id>", typeId(), td.id, defInfo(getType(scope, td.rtype)));
+Tree define(TypeDefinition td, Tree scope, FRBuilder frb) {
+    frb.define(scope, "<td.id>", typeId(), td.id, defInfo(getType(scope, td.rtype)));
     return scope;
 }
 
-Tree define(VariableDeclaration vd, Tree scope, SGBuilder sgb) {
+Tree define(VariableDeclaration vd, Tree scope, FRBuilder frb) {
     for(id <- vd.ids){
-        sgb.define(scope, "<id>", variableId(), id, defInfo(getType(scope, vd.\type)));
+        frb.define(scope, "<id>", variableId(), id, defInfo(getType(scope, vd.\type)));
     }
     return scope;
 }
 
-Tree define(s: (Statement) `<Label label>: <UnlabelledStatement us>`, Tree scope, SGBuilder sgb) {
-    sgb.define(scope, "<label>", labelId(), label, noDefInfo());
+Tree define(s: (Statement) `<Label label>: <UnlabelledStatement us>`, Tree scope, FRBuilder frb) {
+    frb.define(scope, "<label>", labelId(), label, noDefInfo());
     return s;
 }
 
 // ---- Collect uses and requirements -----------------------------------
 
-void collect(GoToStatement s, Tree scope, SGBuilder sgb){
-     sgb.use(scope, s.label, {labelId()}, 0);
+void collect(GoToStatement s, Tree scope, FRBuilder frb){
+     frb.use(scope, s.label, {labelId()}, 0);
 }
 
-void collect(e: (EntireVariable) `<EntireVariable var>`, Tree scope, SGBuilder sgb){
-     sgb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
+void collect(e: (EntireVariable) `<EntireVariable var>`, Tree scope, FRBuilder frb){
+     frb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
 }
 
-void collect(e: (ReferencedVariable) `<Variable var>^`, Tree scope, SGBuilder sgb){
-     //sgb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
-     sgb.require("referenced variable <e>", e, [var],
-        () { if(pointerType(tau1) := typeof(var)){ 
-               fact(e, tau1);
-             } else {
-               reportError(var, "Pointer type required");
-             }
+void collect(e: (ReferencedVariable) `<Variable var>^`, Tree scope, FRBuilder frb){
+     //frb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
+     frb.require("referenced variable <e>", e, [var],
+         () { println("typeof <var>: <typeof(var)>");
+              if(pointerType(tau1) := typeof(var)){ 
+                fact(e, tau1);
+              } else {
+                reportError(var, "Pointer type required", [var]);
+              }
+            });
+}
+
+void collect((TypeIdentifier) `<TypeIdentifier tvar>`, Tree scope, FRBuilder frb){
+     frb.use(scope, tvar, {typeId()}, 0);
+}
+
+void collect(fd: (FieldDesignator) `<RecordVariable var> . <FieldIdentifier field>`, Tree scope, FRBuilder frb){
+    if(var is entire)
+        frb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
+     frb.fact(fd, [var], AType() { return typeof(var, field, {fieldId()}); });
+}
+
+void collect(e: (IndexedVariable) `<ArrayVariable var> [ <{Expression ","}+ indices> ]`, Tree scope, FRBuilder frb){
+     frb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
+     Tree tvar = var;
+     frb.require("indexed variable", e, [tvar] + [exp | Tree exp <- indices],
+         (){ if(arrayType(tau1, tau2) := typeof(var)){
+                subtype(listType([typeof(exp) | exp <- indices]), tau1, onError(e, "Index mismatch"));
+                fact(e, tau2);
+              } else {
+                reportError(e, "Array type required", [var]);
+              }
            });
 }
 
-void collect((TypeIdentifier) `<TypeIdentifier tvar>`, Tree scope, SGBuilder sgb){
-     sgb.use(scope, tvar, {typeId()}, 0);
+void collect(f: (Expression) `<UnsignedConstant cons>`, Tree scope, FRBuilder frb){
+     frb.atomicFact(cons, getUnsignedConstantType(scope, cons));
 }
 
-void collect(fd: (FieldDesignator) `<RecordVariable var> . <FieldIdentifier field>`, Tree scope, SGBuilder sgb){
-    if(var is entire)
-        sgb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
-     sgb.fact(fd, [field], [], AType() { return typeof(var, field, {fieldId()}); });
-}
-
-void collect(e: (IndexedVariable) `<ArrayVariable var> [ <{Expression ","}+ indices> ]`, Tree scope, SGBuilder sgb){
-     sgb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
-     Tree tvar = var;
-     sgb.require("indexed variable", e, [tvar] + [exp | Tree exp <- indices],
-              (){  
-                 if(arrayType(tau1, tau2) := typeof(var)){
-                    subtype(listType([typeof(exp) | exp <- indices]), tau1, onError(e, "Index mismatch"));
-                    fact(e, tau2);
-                 } else {
-                   reportError(e, "Array type required");
-                 }
-               });
-}
-
-void collect(f: (Expression) `<UnsignedConstant cons>`, Tree scope, SGBuilder sgb){
-     sgb.atomicFact(cons, getUnsignedConstantType(scope, cons));
-}
-
-void collect(fd: (FunctionDesignator)  `<FunctionIdentifier fid> ( <{ ActualParameter ","}+  actuals> )`, Tree scope, SGBuilder sgb){
-     sgb.use(scope, fid, {functionId()}, 0);
+void collect(fd: (FunctionDesignator)  `<FunctionIdentifier fid> ( <{ ActualParameter ","}+  actuals> )`, Tree scope, FRBuilder frb){
+     frb.use(scope, fid, {functionId()}, 0);
      actualList = [exp | Tree exp <- actuals];
      AType iirr() { switch(typeof(actualList[0])){
                         case integerType: return integerType;
                         case realType: return realType;
                         default:
-                            reportError(fd, "Illegal given argument types");
+                            reportError(fd, "Illegal call", actualList);
                       }
                     };
      AType irrr() { switch(typeof(actualList[0])){
                         case integerType: return realType;
                         case realType: return realType;
                         default:
-                            reportError(fd, "Illegal given argument types");
+                            reportError(fd, "Illegal call", actualList);
                       }
                     };
      switch("<fid>"){
      
      case "abs": 
-        sgb.overload("call `abs`", fd, actualList, iirr);  
+        frb.overload("call `abs`", fd, actualList, iirr);  
      case "arctan": 
-        sgb.overload("call `arctan`", fd, actualList, iirr);
+        frb.overload("call `arctan`", fd, actualList, iirr);
      case "cos": 
-        sgb.overload("call `cos`", fd, actualList, irrr);
+        frb.overload("call `cos`", fd, actualList, irrr);
      case "exp": 
-        sgb.overload("call `exp`", fd, actualList, iirr);
+        frb.overload("call `exp`", fd, actualList, iirr);
      case "ln": 
-        sgb.overload("call `ln`", fd, actualList, iirr);
+        frb.overload("call `ln`", fd, actualList, iirr);
      case "sin": 
-        sgb.overload("call `sin`", fd, actualList, irrr);
+        frb.overload("call `sin`", fd, actualList, irrr);
      case "sqr": 
-        sgb.overload("call `sqr`", fd, actualList, iirr);
+        frb.overload("call `sqr`", fd, actualList, iirr);
      case "sqrt": 
-        sgb.overload("call `sqrt`", fd, actualList, iirr);
+        frb.overload("call `sqrt`", fd, actualList, iirr);
  
      default: {
         Tree tfid = fid;
-        sgb.require("function designator", fd, [tfid] + [exp | Tree exp <- actuals],
+        frb.require("function designator", fd, [tfid] + [exp | Tree exp <- actuals],
             () { if(functionType(tau1, tau2) := typeof(fid)){ 
                     subtype(listType([typeof(exp) | exp <- actuals]), tau1, onError(fd, "Parameter mismatch"));
                     fact(fd, tau2);
                   } else {
-                    reportError(fd, "Function type required");
+                    reportError(fd, "Function type required", [fid]);
                   }
                });
         }
       }
 }
 
-void collect(s: (ProcedureStatement)  `<ProcedureIdentifier fid>`, Tree scope, SGBuilder sgb){
-     sgb.use(scope, fid, {procedureId(), functionId()}, 0);
+void collect(s: (ProcedureStatement)  `<ProcedureIdentifier fid>`, Tree scope, FRBuilder frb){
+     frb.use(scope, fid, {procedureId(), functionId()}, 0);
 }
 
-void collect(s: (ProcedureStatement) `<ProcedureIdentifier id> ( <{ActualParameter ","}+ actuals> )`, Tree scope, SGBuilder sgb){
-     sgb.use(scope, id, {procedureId(), functionId()}, 0);
+void collect(s: (ProcedureStatement) `<ProcedureIdentifier id> ( <{ActualParameter ","}+ actuals> )`, Tree scope, FRBuilder frb){
+     frb.use(scope, id, {procedureId(), functionId()}, 0);
      actualList = [exp | exp <- actuals];
          
      switch("<id>"){
      case "new":
         if(size(actualList) != 1){
-            sgb.error(s, "One argument required");
+            frb.error(s, "One argument required");
         }
      case "read":;
      case "write":;
      case "writeln":;
      
      default: {
-        actualTypes = listType([typeof(exp) | exp <- actuals]);
         Tree tid = id;
-        sgb.require("procedure statement", s, [tid] + [exp | Tree exp <- actuals],
+        frb.require("procedure statement", s, [tid] + [exp | Tree exp <- actuals],
             () { if(procedureType(tau1) := typeof(id)){ 
-                    subtype(actualTypes, tau1, onError(s, "Parameter mismatch"));
+                    subtype(listType([typeof(exp) | exp <- actuals]), tau1, onError(s, "Parameter mismatch"));
                   } else {
-                    reportError(s, "Procedure type required");
+                    reportError(s, "Procedure type required", [id]);
                   }
                });
          }
      }
 }
 
-void collect(e: (Expression) `( <Expression exp> )`, Tree scope, SGBuilder sgb){
-    sgb.fact(e, [exp], [], AType() { return typeof(exp); } );
+void collect(e: (Expression) `( <Expression exp> )`, Tree scope, FRBuilder frb){
+    frb.fact(e, [exp], AType() { return typeof(exp); } );
 }
 
-void collect(s: (AssignmentStatement) `<Variable var> := <Expression exp>`, Tree scope, SGBuilder sgb){
-//   sgb.use(scope, var, {formalId(), variableId(), functionId()}, 0);
+void collect(s: (AssignmentStatement) `<Variable var> := <Expression exp>`, Tree scope, FRBuilder frb){
+//   frb.use(scope, var, {formalId(), variableId(), functionId()}, 0);
     Tree tvar = var; Tree texp = exp;
-    sgb.require("assignment", s, [tvar, texp],
-                () { subtype(typeof(exp), typeof(var), onError(s, "Incorrect assignment"));
-                   });
+    frb.require("assignment", s, [tvar, texp],
+        () { subtype(typeof(exp), typeof(var), onError(s, "Incorrect assignment"));
+           });
 }
 
-void collect(IfStatement s, Tree scope, SGBuilder sgb){
-    sgb.require("condition", s.condition, [s.condition],
-                () { equal(typeof(s.condition), booleanType, onError(s.condition, "Incorrect condition"));
-                   });
+void collect(IfStatement s, Tree scope, FRBuilder frb){
+    frb.require("condition", s.condition, [s.condition],
+        () { equal(typeof(s.condition), booleanType, onError(s.condition, "Incorrect condition"));
+           });
 }
 
-void collect(WhileStatement s, Tree scope, SGBuilder sgb){
-    sgb.require("condition", s.condition, [s.condition],
-                () { equal(typeof(s.condition), booleanType, onError(s.condition, "Incorrect condition"));
-                   });
+void collect(WhileStatement s, Tree scope, FRBuilder frb){
+    frb.require("condition", s.condition, [s.condition],
+        () { equal(typeof(s.condition), booleanType, onError(s.condition, "Incorrect condition"));
+           });
 } 
 
-void collect(RepeatStatement s, Tree scope, SGBuilder sgb){
-    sgb.require("condition", s.condition, [s.condition],
-                () { equal(typeof(s.condition), booleanType, onError(s.condition, "Incorrect condition"));
-                   });
+void collect(RepeatStatement s, Tree scope, FRBuilder frb){
+    frb.require("condition", s.condition, [s.condition],
+        () { equal(typeof(s.condition), booleanType, onError(s.condition, "Incorrect condition"));
+           });
 }
 
-void collect(ForStatement s, Tree scope, SGBuilder sgb){
-    sgb.require("for statement", s, [s.forList.initial, s.forList.final],
-                () { subtype(typeof(s.forList.initial), integerType, onError(s.forList.initial, "Initial value should be integer"));
-                     subtype(typeof(s.forList.final), integerType, onError(s.forList.final, "Final value should be integer"));
-                     fact(s.control, integerType);
-                });
+void collect(ForStatement s, Tree scope, FRBuilder frb){
+    frb.require("for statement", s, [s.forList.initial, s.forList.final],
+        () { subtype(typeof(s.forList.initial), integerType, onError(s.forList.initial, "Initial value should be integer"));
+             subtype(typeof(s.forList.final), integerType, onError(s.forList.final, "Final value should be integer"));
+             fact(s.control, integerType);
+           });
 }
 
 // Case statement
 
-void collect(e: (Set) `{ <{Element ","}* elements> }`, Tree scope, SGBuilder sgb){
-     elemTypes = listType([typeof(exp) | exp <- elements]);
-     sgb.require("set", e, [exp | exp <- elements],
-            () { lub(tau1, elemTypes, onError(e, "Incompatible elements in set"));
-                 fact(e, setType(tau1));
-               });
-}
+//void collect(e: (Set) `{ <{Element ","}* elements> }`, Tree scope, FRBuilder frb){
+//     elemTypes = listType([typeof(exp) | exp <- elements]);
+//     frb.require("set", e, [exp | exp <- elements],
+//            () { lub(tau1, elemTypes, onError(e, "Incompatible elements in set"));
+//                 fact(e, setType(tau1));
+//               });
+//}
 
 // Operator overloading
 
-void overloadRelational(Expression e, str op, Expression exp1, Expression exp2, Tree scope, SGBuilder sgb){
-    sgb.overload("relational operator `<op>`", e,  [exp1, exp2], 
+void overloadRelational(Expression e, str op, Expression exp1, Expression exp2, Tree scope, FRBuilder frb){
+    frb.overload("relational operator `<op>`", e,  [exp1, exp2], 
         AType() { switch([typeof(exp1), typeof(exp2)]){
                   case [booleanType, booleanType]: return booleanType;
                   case [integerType, integerType]: return booleanType;
@@ -546,43 +545,43 @@ void overloadRelational(Expression e, str op, Expression exp1, Expression exp2, 
                             case [pointerType(tau1), pointerType(anyPointerType)]: return booleanType;
                         }
                      }
-                     reportError(e, "No version of `<op>` exists for given argument types"); 
+                     reportError(e, "No version of `<op>` is applicable", [exp1, exp2]); 
                    }
                 }
               });
 }
 
-void collect(e: (Expression) `<Expression exp1> = <Expression exp2>`, Tree scope, SGBuilder sgb)
-    = overloadRelational(e, "=", exp1, exp2, scope, sgb);
+void collect(e: (Expression) `<Expression exp1> = <Expression exp2>`, Tree scope, FRBuilder frb)
+    = overloadRelational(e, "=", exp1, exp2, scope, frb);
 
-void collect(e: (Expression) `<Expression exp1> \<\> <Expression exp2>`, Tree scope, SGBuilder sgb)
-    = overloadRelational(e, "\<\>", exp1, exp2, scope, sgb);
+void collect(e: (Expression) `<Expression exp1> \<\> <Expression exp2>`, Tree scope, FRBuilder frb)
+    = overloadRelational(e, "\<\>", exp1, exp2, scope, frb);
 
-void collect(e: (Expression) `<Expression exp1> \< <Expression exp2>`, Tree scope, SGBuilder sgb)
-    = overloadRelational(e, "\<", exp1, exp2, scope, sgb);
+void collect(e: (Expression) `<Expression exp1> \< <Expression exp2>`, Tree scope, FRBuilder frb)
+    = overloadRelational(e, "\<", exp1, exp2, scope, frb);
     
-void collect(e: (Expression) `<Expression exp1> \<= <Expression exp2>`, Tree scope, SGBuilder sgb)
-    = overloadRelational(e, "\<=", exp1, exp2, scope, sgb); 
+void collect(e: (Expression) `<Expression exp1> \<= <Expression exp2>`, Tree scope, FRBuilder frb)
+    = overloadRelational(e, "\<=", exp1, exp2, scope, frb); 
     
-void collect(e: (Expression) `<Expression exp1> \>= <Expression exp2>`, Tree scope, SGBuilder sgb)
-    = overloadRelational(e, "\>=", exp1, exp2, scope, sgb); 
+void collect(e: (Expression) `<Expression exp1> \>= <Expression exp2>`, Tree scope, FRBuilder frb)
+    = overloadRelational(e, "\>=", exp1, exp2, scope, frb); 
      
-void collect(e: (Expression) `<Expression exp1> \> <Expression exp2>`, Tree scope, SGBuilder sgb)
-    = overloadRelational(e, "\>", exp1, exp2, scope, sgb);           
+void collect(e: (Expression) `<Expression exp1> \> <Expression exp2>`, Tree scope, FRBuilder frb)
+    = overloadRelational(e, "\>", exp1, exp2, scope, frb);           
 
-void collect(e: (Expression) `<Expression exp1> in <Expression exp2>`, Tree scope, SGBuilder sgb){
-    sgb.overload("relational operator", e, [exp1, exp2], 
+void collect(e: (Expression) `<Expression exp1> in <Expression exp2>`, Tree scope, FRBuilder frb){
+    frb.overload("relational operator", e, [exp1, exp2], 
         AType () { switch([typeof(exp1), typeof(exp2)]){
                        case [tau1, setType(tau1)]: return booleanType;
                        case [tau1, setType(tau1)]: return booleanType;
                        default:
-                            reportError(e, "No version of `in` exists for given argument types");  
+                            reportError(e, "No version of `in` is applicable", [exp1, exp2]);  
                    }
                  });
 }
 
-void collect(e: (Expression) `<Expression exp1> * <Expression exp2>`, Tree scope, SGBuilder sgb){
-    sgb.overload("multiplication", e, [exp1, exp2], 
+void collect(e: (Expression) `<Expression exp1> * <Expression exp2>`, Tree scope, FRBuilder frb){
+    frb.overload("multiplication", e, [exp1, exp2], 
         AType() { switch([typeof(exp1), typeof(exp2)]){
                       case [integerType, integerType]: return integerType;
                       case [integerType, realType]: return realType;
@@ -594,65 +593,66 @@ void collect(e: (Expression) `<Expression exp1> * <Expression exp2>`, Tree scope
                       case [subrangeType(tau1), subrangeType(tau1)]: return tau1;
                       case [setType(tau1), setType(tau1)]: return setType(tau1);
                       default:
-                           reportError(e, "No version of `*` exists for given argument types");
+                           reportError(e, "No version of `*` is applicable", [exp1, exp2]);
                    }
                  }); 
 }
 
-void collect(e: (Expression) `<Expression exp1> / <Expression exp2>`, Tree scope, SGBuilder sgb){
-    sgb.overload("division", e, [exp1, exp2], 
+void collect(e: (Expression) `<Expression exp1> / <Expression exp2>`, Tree scope, FRBuilder frb){
+    frb.overload("division", e, [exp1, exp2], 
         AType () { switch([typeof(exp1), typeof(exp2)]){
                        case [integerType, integerType]: return realType;
                        case [integerType, realType]: return realType;
                        case [realType, integerType]: realType;
                        case [realType, realType]: return realType;
                        default:
-                            reportError(e, "No version of `/` exists for given argument types");
+                            reportError(e, "No version of `/` is applicable", [exp1, exp2]);
                      }
                    });
 }
 
-void collect(e: (Expression) `<Expression exp1> div <Expression exp2>`, Tree scope, SGBuilder sgb){
-    sgb.overload("div", e, [exp1, exp2],
+void collect(e: (Expression) `<Expression exp1> div <Expression exp2>`, Tree scope, FRBuilder frb){
+    frb.overload("div", e, [exp1, exp2],
         AType () { switch([typeof(exp1), typeof(exp2)]){
                        case [integerType, integerType]: return integerType;
                        default:
-                            reportError(e, "No version of `div` exists for given argument types");
+                            reportError(e, "No version of `div` is applicable", [exp1, exp2]);
                    }
                  });  
 }
 
-void collect(e: (Expression) `<Expression exp1> mod <Expression exp2>`, Tree scope, SGBuilder sgb){
-    sgb.overload("mod", e, [exp1, exp2], 
+void collect(e: (Expression) `<Expression exp1> mod <Expression exp2>`, Tree scope, FRBuilder frb){
+    frb.overload("mod", e, [exp1, exp2], 
         AType () { switch([typeof(exp1), typeof(exp2)]){
                        case [integerType, integerType]: return realType;
                        default:
-                            reportError(e, "No version of `mod` exists for given argument types");
+                            reportError(e, "No version of `mod` is applicable", [exp1, exp2]);
                      }
                    });  
 }
 
-void collect(e: (Expression) `<Expression exp1> and <Expression exp2>`, Tree scope, SGBuilder sgb){
-    sgb.overload("and", e, [exp1, exp2], 
+void collect(e: (Expression) `<Expression exp1> and <Expression exp2>`, Tree scope, FRBuilder frb){
+    frb.overload("and", e, [exp1, exp2], 
         AType () { switch([typeof(exp1), typeof(exp2)]){
                        case [booleanType, booleanType]: return booleanType;
                        default:
-                            reportError(e, "No version of `and` exists for given argument types");
-                   }
-                 });  
-}
-void collect(e: (Expression) `not <Expression exp>`, Tree scope, SGBuilder sgb){
-    sgb.overload("not", e, [exp], 
-        AType () { switch(typeof(exp)){
-                       case booleanType: return booleanType;
-                       default:
-                            reportError(e, "No version of `not` exists for given argument type");
+                            reportError(e, "No version of `and` is applicable", [exp1, exp2]);
                    }
                  });  
 }
 
-void overloadAdding(Expression e, Expression exp1, Expression exp2, Tree scope, SGBuilder sgb){
- sgb.overload("adding operator", e, [exp1, exp2], 
+void collect(e: (Expression) `not <Expression exp>`, Tree scope, FRBuilder frb){
+    frb.overload("not", e, [exp], 
+        AType () { switch(typeof(exp)){
+                       case booleanType: return booleanType;
+                       default:
+                            reportError(e, "No version of `not` is applicable", [exp]);
+                   }
+                 });  
+}
+
+void overloadAdding(Expression e, str op, Expression exp1, Expression exp2, Tree scope, FRBuilder frb){
+ frb.overload("adding operator", e, [exp1, exp2], 
      AType() { switch([typeof(exp1), typeof(exp2)]){
                    case [integerType, integerType]: return integerType;
                    case [integerType, realType]: return realType;
@@ -663,23 +663,23 @@ void overloadAdding(Expression e, Expression exp1, Expression exp2, Tree scope, 
                    case [subrangeType(tau1), subrangeType(tau1)]: tau1;
                    case [setType(tau1), setType(tau1)]: return setType(tau1);
                    default:
-                        reportError(e, "No version of adding operator exists for given argument types");  
+                        reportError(e, "No version of `<op>` is applicable", [exp1, exp2]);  
                }
              });
 }
 
-void collect(e: (Expression) `<Expression exp1> + <Expression exp2>`, Tree scope, SGBuilder sgb)
-    = overloadAdding(e, exp1, exp2, scope, sgb);
+void collect(e: (Expression) `<Expression exp1> + <Expression exp2>`, Tree scope, FRBuilder frb)
+    = overloadAdding(e, "+", exp1, exp2, scope, frb);
 
-void collect(e: (Expression) `<Expression exp1> - <Expression exp2>`, Tree scope, SGBuilder sgb)
-    = overloadAdding(e, exp1, exp2, scope, sgb);
+void collect(e: (Expression) `<Expression exp1> - <Expression exp2>`, Tree scope, FRBuilder frb)
+    = overloadAdding(e, "-", exp1, exp2, scope, frb);
 
-void collect(e: (Expression) `<Expression exp1> or <Expression exp2>`, Tree scope, SGBuilder sgb){
-    sgb.overload("and", e, [exp1, exp2], 
+void collect(e: (Expression) `<Expression exp1> or <Expression exp2>`, Tree scope, FRBuilder frb){
+    frb.overload("and", e, [exp1, exp2], 
         AType() { switch([typeof(exp1), typeof(exp2)]){
                       case [booleanType, booleanType]: return booleanType;
                       default:      
-                            printError(e, "No version of `and` exists for given argument types");
+                            reportError(e, "No version of `and` is applicable", [exp1, exp2]);
                   }
                 });  
 }
@@ -691,15 +691,14 @@ private Program sampleProgram(str name) = parse(#Program, |project://TypePal/src
  
 set[Message] validatePascalBlock(str name) {
     b = sampleBlock(name);
-    return validate(extractScopesAndConstraints(b, initializedSGB(b)) , isSubtype=isSubtype, getLUB=getLUB);
+    return validate(extractScopesAndConstraints(b, initializedFRB(b)) , isSubtype=isSubtype, getLUB=getLUB);
 }
 
 set[Message] validatePascalProgram(str name) {
     p = sampleProgram(name);
-    return validate(extractScopesAndConstraints(p, initializedSGB(p)), isSubtype=isSubtype, getLUB=getLUB);
+    return validate(extractScopesAndConstraints(p, initializedFRB(p)), isSubtype=isSubtype, getLUB=getLUB);
 }
 
 void testPascalBlock() {
-    runTests(|project://TypePal/src/pascal/blocktests.ttl|, #Block, initialSGBuilder=initializedSGB,isSubtype=isSubtype, getLUB=getLUB);
+    runTests(|project://TypePal/src/pascal/blocktests.ttl|, #Block, initialFRBuilder=initializedFRB,isSubtype=isSubtype, getLUB=getLUB);
 }
-

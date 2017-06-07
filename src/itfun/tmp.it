@@ -1,1 +1,2 @@
-let x = 1 in x && true end
+let inc1 = fun x { x + 1 } in 
+             let inc2 = fun x2 { inc1(x2) } in inc2(false) end end

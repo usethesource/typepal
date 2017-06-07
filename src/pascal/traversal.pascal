@@ -12,7 +12,7 @@ begin if p <> nil then
         preorder(p^.llink);
         preorder(p^.rlink);
       end
-end; {preorder}
+end;
 
 begin
     preorder(root)

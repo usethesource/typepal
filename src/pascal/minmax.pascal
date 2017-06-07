@@ -17,7 +17,7 @@ begin
         i := i + 2
     end;
     if i = n then
-       begin %% this begin end is needed to get this parsed
+       begin
        if a[n] > max then max := a[n]
        else if a[n] < min then min := a[n]
        end;

@@ -2,7 +2,7 @@ module dtfun::DTFun
 
 // Functional language with declared types
 
-extend ExtractScopesAndConstraints;
+extend ExtractFRModel;
 extend Constraints;
 extend TestFramework;
 
@@ -66,70 +66,70 @@ str AType2String(functionType(AType from, AType to)) = "fun <AType2String(from)>
 
 // ----  Define --------------------------------------------------------
 
-Tree define(e: (Expression) `fun <Id name> : <Type tp> { <Expression body> }`, Tree scope, SGBuilder sgb) {   
-    sgb.define(e, "<name>", variableId(), name, defInfo(transType(tp)));
-    sgb.fact(e, [body], [], AType(){ return functionType(transType(tp), typeof(body)); });
-    return e;
+Tree define(e: (Expression) `fun <Id name> : <Type tp> { <Expression body> }`, Tree scope, FRBuilder frb) {   
+     frb.define(e, "<name>", variableId(), name, defInfo(transType(tp)));
+     frb.fact(e, [body], AType(){ return functionType(transType(tp), typeof(body)); });
+     return e;
 }
 
-Tree define(e: (Expression) `let <Id name> : <Type tp> = <Expression exp1> in <Expression exp2> end`, Tree scope, SGBuilder sgb) {  
-    sgb.define(e, "<name>", variableId(), name, defInfo(transType(tp)));
-    sgb.fact(e, [exp2], [], AType() { return typeof(exp2); } );
-    return exp2;  
+Tree define(e: (Expression) `let <Id name> : <Type tp> = <Expression exp1> in <Expression exp2> end`, Tree scope, FRBuilder frb) {  
+     frb.define(e, "<name>", variableId(), name, defInfo(transType(tp)));
+     frb.fact(e, [exp2], AType() { return typeof(exp2); } );
+     return exp2;  
 }
 
 // ----  Collect uses & requirements ------------------------------------
 
  
-void collect(e: (Expression) `<Id name>`, Tree scope, SGBuilder sgb){
-    sgb.use(scope, name, {variableId()}, 0);
+void collect(e: (Expression) `<Id name>`, Tree scope, FRBuilder frb){
+     frb.use(scope, name, {variableId()}, 0);
 }
 
-void collect(e: (Expression) `<Expression exp1> (<Expression exp2>)`, Tree scope, SGBuilder sgb) { 
-    sgb.require("application", e, [exp1, exp2],
-                () {  if(functionType(tau1, tau2) := typeof(exp1)){
-                        equal(typeof(exp2), tau1, onError(exp2, "Incorrect type of actual parameter"));
-                        fact(e, tau2);
-                      } else {
-                          reportError(exp1, "Function type expected");
-                      }
-                    });
+void collect(e: (Expression) `<Expression exp1> (<Expression exp2>)`, Tree scope, FRBuilder frb) { 
+     frb.require("application", e, [exp1, exp2],
+         () {  if(functionType(tau1, tau2) := typeof(exp1)){
+                  equal(typeof(exp2), tau1, onError(exp2, "Incorrect type of actual parameter"));
+                  fact(e, tau2);
+               } else {
+                  reportError(exp1, "Function type expected");
+               }
+            });
 }
 
-void collect(e: (Expression) `if <Expression cond> then <Expression thenPart> else <Expression elsePart> fi`, Tree scope, SGBuilder sgb){
-    sgb.require("if", e, [cond, thenPart, elsePart],
-                () { equal(typeof(cond), boolType(), onError(cond, "Condition"));
-                     equal(typeof(thenPart), typeof(elsePart), onError(e, "thenPart and elsePart should have same type"));
-                     fact(e, typeof(thenPart));
-                   }); 
+void collect(e: (Expression) `if <Expression cond> then <Expression thenPart> else <Expression elsePart> fi`, Tree scope, FRBuilder frb){
+     frb.require("if", e, [cond, thenPart, elsePart],
+         () { equal(typeof(cond), boolType(), onError(cond, "Condition"));
+              equal(typeof(thenPart), typeof(elsePart), onError(e, "thenPart and elsePart should have same type"));
+              fact(e, typeof(thenPart));
+            }); 
 }
 
-void collect(e: (Expression) `<Expression lhs> + <Expression rhs>`, Tree scope, SGBuilder sgb){
-     sgb.require("addition", e, [lhs, rhs],
-                 () { equal(typeof(lhs), intType(), onError(lhs, "Lhs of +"));
-                      equal(typeof(rhs), intType(), onError(rhs, "Rhs of +"));
-                      fact(e, intType());
-                    });
+void collect(e: (Expression) `<Expression lhs> + <Expression rhs>`, Tree scope, FRBuilder frb){
+     frb.require("addition", e, [lhs, rhs],
+         () { equal(typeof(lhs), intType(), onError(lhs, "Lhs of +"));
+              equal(typeof(rhs), intType(), onError(rhs, "Rhs of +"));
+              fact(e, intType());
+            });
 } 
 
-void collect(e: (Expression) `<Expression lhs> && <Expression rhs>`, Tree scope, SGBuilder sgb){
-     sgb.require("and", e, [lhs, rhs],
-                 () { equal(typeof(lhs), boolType(), onError(lhs, "Lhs of &&"));
-                      equal(typeof(rhs), boolType(), onError(rhs, "Rhs of &&"));
-                      fact(e, intType());
-                    });
+void collect(e: (Expression) `<Expression lhs> && <Expression rhs>`, Tree scope, FRBuilder frb){
+     frb.require("and", e, [lhs, rhs],
+         () { equal(typeof(lhs), boolType(), onError(lhs, "Lhs of &&"));
+              equal(typeof(rhs), boolType(), onError(rhs, "Rhs of &&"));
+              fact(e, intType());
+            });
 } 
 
-void collect(e :(Expression) `( <Expression exp> )`, Tree scope, SGBuilder sgb){
-     sgb.fact(e, [exp], [], AType(){ return typeof(exp); });
+void collect(e :(Expression) `( <Expression exp> )`, Tree scope, FRBuilder frb){
+     frb.fact(e, [exp], AType(){ return typeof(exp); });
 }
 
-void collect(e: (Expression) `<Boolean boolcon>`, Tree scope, SGBuilder sgb){
-     sgb.atomicFact(e, boolType());
+void collect(e: (Expression) `<Boolean boolcon>`, Tree scope, FRBuilder frb){
+     frb.atomicFact(e, boolType());
 }
 
-void collect(e: (Expression) `<Integer intcon>`, Tree scope, SGBuilder sgb){
-     sgb.atomicFact(e, intType());
+void collect(e: (Expression) `<Integer intcon>`, Tree scope, FRBuilder frb){
+     frb.atomicFact(e, intType());
 }
 
 // ----  Examples & Tests --------------------------------
@@ -137,8 +137,8 @@ void collect(e: (Expression) `<Integer intcon>`, Tree scope, SGBuilder sgb){
 private Expression sample(str name) = parse(#Expression, |project://TypePal/src/dtfun/<name>.dt|);
 
 set[Message] validateDT(str name) =
-    validate(extractScopesAndConstraints(sample(name), scopeGraphBuilder()));
+    validate(extractScopesAndConstraints(sample(name), makeFRBuilder()));
 
 void testDT() {
-    runTests(|project://TypePal/src/dtfun/tests.ttl|, #Expression);
+     runTests(|project://TypePal/src/dtfun/tests.ttl|, #Expression);
 }
