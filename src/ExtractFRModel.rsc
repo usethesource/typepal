@@ -120,10 +120,10 @@ default void extract2(Tree root, Tree currentScope, FRBuilder frb) {
 data FRBuilder 
     = frbuilder(
         void (Tree scope, Idn id, IdRole idRole, Tree root, DefInfo info) define,
-        void (Tree scope, Tree occ, set[IdRole] idRoles, int defLine) use,
-        void (Tree scope, Tree occ, set[IdRole] idRoles, PathLabel pathLabel, int defLine) use_ref,
-        void (Tree scope, list[Idn] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, int defLine) use_qual,
-        void (Tree scope, list[Idn] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathLabel pathLabel, int defLine) use_qual_ref,   
+        void (Tree scope, Tree occ, set[IdRole] idRoles) use,
+        void (Tree scope, Tree occ, set[IdRole] idRoles, PathLabel pathLabel) use_ref,
+        void (Tree scope, list[Idn] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) use_qual,
+        void (Tree scope, list[Idn] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathLabel pathLabel) use_qual_ref,   
         void (Tree inner, Tree outer) addScope,
        
         void (str name, Tree src, list[Tree] dependencies, void() preds) require,
@@ -157,21 +157,21 @@ FRBuilder makeFRBuilder(){
         defines += {<scope@\loc, id, idRole, d@\loc, info>};
     }
        
-    void _use(Tree scope, Tree occ, set[IdRole] idRoles, int defLine) {
-        uses += [use("<occ>", occ@\loc, scope@\loc, idRoles, defLine=defLine)];
+    void _use(Tree scope, Tree occ, set[IdRole] idRoles) {
+        uses += [use("<occ>", occ@\loc, scope@\loc, idRoles)];
     }
     
-    void _use_ref(Tree scope, Tree occ, set[IdRole] idRoles, PathLabel pathLabel, int defLine) {
-        u = use("<occ>", occ@\loc, scope@\loc, idRoles, defLine=defLine);
+    void _use_ref(Tree scope, Tree occ, set[IdRole] idRoles, PathLabel pathLabel) {
+        u = use("<occ>", occ@\loc, scope@\loc, idRoles);
         uses += [u];
         referPaths += {refer(u, pathLabel)};
     }
     
-    void _use_qual(Tree scope, list[Idn] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, int defLine){
-        uses += [usen(ids, occ@\loc, scope@\loc, idRoles, qualifierRoles, defLine=defLine)];
+    void _use_qual(Tree scope, list[Idn] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles){
+        uses += [usen(ids, occ@\loc, scope@\loc, idRoles, qualifierRoles)];
     }
-     void _use_qual_ref(Tree scope, list[Idn] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathLabel pathLabel, int defLine){
-        u = usen(ids, occ@\loc, scope@\loc, idRoles, qualifierRoles, defLine=defLine);
+     void _use_qual_ref(Tree scope, list[Idn] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathLabel pathLabel){
+        u = usen(ids, occ@\loc, scope@\loc, idRoles, qualifierRoles);
         uses += [u];
         referPaths += {refer(u, pathLabel)};
     }
