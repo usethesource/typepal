@@ -77,11 +77,11 @@ Tree define(d:(Declaration) `<Id id> : <Type tp>`,  Tree scope, FRBuilder frb) {
 // ----  Collect uses and requirements ------------------------------------
 
 void collect(e: (Expression) `<Id name>`, Tree scope, FRBuilder frb){
-     frb.use(scope, name, {variableId()}, 0);
+     frb.use(scope, name, {variableId()});;
 }
 
 void collect(s: (Statement) `<Id var> := <Expression val>`, Tree scope, FRBuilder frb){
-     frb.use(scope, var, {variableId()}, 0);
+     frb.use(scope, var, {variableId()});
 }
 
 // ----  Requirements ------------------------------------

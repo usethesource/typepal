@@ -97,12 +97,12 @@ Tree define(vd: (VarDecl) `def <Id id> = <Expression expression> ;`, Tree scope,
 // ---- Collect uses & requirements ------------------------------------
 
 void collect(ImportDecl d, Tree scope, FRBuilder sg){
-     sg.use_ref(scope, d.mid, {moduleId()}, importsLabel(), 0);
+     sg.use_ref(scope, d.mid, {moduleId()}, importsLabel());
 }
 
 void collect(exp: (Expression) `<Id name>`, Tree scope,  FRBuilder sg){
      println("Use: <name>, <scope>");
-     sg.use(scope, name, {variableId(), parameterId()}, 0);
+     sg.use(scope, name, {variableId(), parameterId()});
 }
 
 void collect(e: (Expression) `<Expression exp1>(<Expression exp2>)`, Tree scope, FRBuilder frb) { 

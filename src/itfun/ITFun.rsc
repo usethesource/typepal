@@ -73,7 +73,7 @@ Tree define(e: (Expression) `let <Id name> = <Expression exp1> in <Expression ex
 // ----  Collect uses & requirements ------------------------------------
 
 void collect(e: (Expression) `<Id name>`, Tree scope, FRBuilder frb){
-     frb.use(scope, name, {variableId()}, 0);
+     frb.use(scope, name, {variableId()});
 }
 
 void collect(e: (Expression) `<Expression exp1>(<Expression exp2>)`, Tree scope, FRBuilder frb) { 

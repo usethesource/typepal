@@ -189,7 +189,7 @@ FRBuilder initializedFRB(Tree scope){
 
 Tree define(ClassDecl cd, Tree scope, FRBuilder frb)     {
     frb.define(scope, "<cd.cid>", classId(), cd.cid, defInfo(classType(scope, cd.cid)));
-    frb.use_ref(scope, cd.ecid, {classId()}, extendsLabel(), 0); 
+    frb.use_ref(scope, cd.ecid, {classId()}, extendsLabel()); 
     frb.define(scope, "this", fieldId(), cd.cid, defInfo(useClassType(scope, cd.cid)));  
     
     consDecl = cd.constructordecl;
@@ -249,26 +249,26 @@ Tree define(md: (MethodDecl) `<ClassId cid> <Id mid> <Formals formals> { return 
 
 void collect(Class c, Tree scope, FRBuilder frb){
      if("<c>" == "super"){
-       frb.use(scope, c, {classId()}, 0);
+       frb.use(scope, c, {classId()});
      } else {
-       frb.use(scope, c.id, {classId()}, 0);
+       frb.use(scope, c.id, {classId()});
      }
 }
 
 void collect(Constructor c, Tree scope, FRBuilder frb){
-     frb.use(scope, c.id, {constructorId()}, 0);
+     frb.use(scope, c.id, {constructorId()});
 }
 
 void collect(Variable var, Tree scope, FRBuilder frb){
-     frb.use(scope, var.id, {formalId(), fieldId()}, 0);
+     frb.use(scope, var.id, {formalId(), fieldId()});
 }
 
 void collect(Field fld, Tree scope, FRBuilder frb){
-     frb.use(scope, fld.id, {fieldId()}, 0);
+     frb.use(scope, fld.id, {fieldId()});
 }
 
 void collect(Method mtd, Tree scope, FRBuilder frb){
-     frb.use(scope, mtd.id, {methodId()}, 0);
+     frb.use(scope, mtd.id, {methodId()});
 }
 
 void collect(sc: (SuperCall) `<Class super> ( <{Variable ","}* vars> );`, Tree scope, FRBuilder frb){
@@ -319,7 +319,7 @@ void collect(e: (Expression) `( <ClassId cid> ) <Expression exp>`, Tree scope, F
 }
 
 void collect(e: (Expression) `this`, Tree scope, FRBuilder frb){
-     frb.use(scope, e, {fieldId()}, 0);
+     frb.use(scope, e, {fieldId()});
 }
 
 // ----  Examples & Tests --------------------------------

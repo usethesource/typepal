@@ -356,15 +356,15 @@ Tree define(s: (Statement) `<Label label>: <UnlabelledStatement us>`, Tree scope
 // ---- Collect uses and requirements -----------------------------------
 
 void collect(GoToStatement s, Tree scope, FRBuilder frb){
-     frb.use(scope, s.label, {labelId()}, 0);
+     frb.use(scope, s.label, {labelId()});
 }
 
 void collect(e: (EntireVariable) `<EntireVariable var>`, Tree scope, FRBuilder frb){
-     frb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
+     frb.use(scope, var, {formalId(), variableId(), constantId()});
 }
 
 void collect(e: (ReferencedVariable) `<Variable var>^`, Tree scope, FRBuilder frb){
-     //frb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
+     //frb.use(scope, var, {formalId(), variableId(), constantId()});
      frb.require("referenced variable <e>", e, [var],
          () { //println("typeof <var>: <typeof(var)>");
               //println("normalize typeof <var>: <normalize(typeof(var))>");
@@ -377,17 +377,17 @@ void collect(e: (ReferencedVariable) `<Variable var>^`, Tree scope, FRBuilder fr
 }
 
 void collect((TypeIdentifier) `<TypeIdentifier tvar>`, Tree scope, FRBuilder frb){
-     frb.use(scope, tvar, {typeId()}, 0);
+     frb.use(scope, tvar, {typeId()});
 }
 
 void collect(fd: (FieldDesignator) `<RecordVariable var> . <FieldIdentifier field>`, Tree scope, FRBuilder frb){
     if(var is entire)
-        frb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
+        frb.use(scope, var, {formalId(), variableId(), constantId()});
      frb.fact(fd, [var], AType() { return typeof(var, field, {fieldId()}); });
 }
 
 void collect(e: (IndexedVariable) `<ArrayVariable var> [ <{Expression ","}+ indices> ]`, Tree scope, FRBuilder frb){
-     frb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
+     frb.use(scope, var, {formalId(), variableId(), constantId()});
      Tree tvar = var;
      frb.require("indexed variable", e, [tvar] + [exp | Tree exp <- indices],
          (){ if(arrayType(tau1, tau2) := typeof(var)){
@@ -404,7 +404,7 @@ void collect(f: (Expression) `<UnsignedConstant cons>`, Tree scope, FRBuilder fr
 }
 
 void collect(fd: (FunctionDesignator)  `<FunctionIdentifier fid> ( <{ ActualParameter ","}+  actuals> )`, Tree scope, FRBuilder frb){
-     frb.use(scope, fid, {functionId()}, 0);
+     frb.use(scope, fid, {functionId()});
      actualList = [exp | Tree exp <- actuals];
      AType iirr() { switch(typeof(actualList[0])){
                         case integerType: return integerType;
@@ -454,11 +454,11 @@ void collect(fd: (FunctionDesignator)  `<FunctionIdentifier fid> ( <{ ActualPara
 }
 
 void collect(s: (ProcedureStatement)  `<ProcedureIdentifier fid>`, Tree scope, FRBuilder frb){
-     frb.use(scope, fid, {procedureId(), functionId()}, 0);
+     frb.use(scope, fid, {procedureId(), functionId()});
 }
 
 void collect(s: (ProcedureStatement) `<ProcedureIdentifier id> ( <{ActualParameter ","}+ actuals> )`, Tree scope, FRBuilder frb){
-     frb.use(scope, id, {procedureId(), functionId()}, 0);
+     frb.use(scope, id, {procedureId(), functionId()});
      actualList = [exp | exp <- actuals];
          
      switch("<id>"){
@@ -488,7 +488,7 @@ void collect(e: (Expression) `( <Expression exp> )`, Tree scope, FRBuilder frb){
 }
 
 void collect(s: (AssignmentStatement) `<Variable var> := <Expression exp>`, Tree scope, FRBuilder frb){
-//   frb.use(scope, var, {formalId(), variableId(), functionId()}, 0);
+//   frb.use(scope, var, {formalId(), variableId(), functionId()});
     Tree tvar = var; Tree texp = exp;
     frb.require("assignment", s, [tvar, texp],
         () { subtype(typeof(exp), typeof(var), onError(s, "Incorrect assignment"));
