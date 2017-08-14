@@ -52,7 +52,7 @@ bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder 
     for(ti <- ttlProgram.items){
         ntests += 1;
         p = parse(begin, "<ti.tokens>");
-        messages = validate(extractScopesAndConstraints(p, initialFRBuilder(p)), isSubtype=isSubtype, getLUB=getLUB);
+        <messages, model> = validate(extractScopesAndConstraints(p, initialFRBuilder(p)), isSubtype=isSubtype, getLUB=getLUB);
         println("runTests: <messages>");
         ok = ok && isEmpty(messages);
         expected = ti.expect is none ? {} : {"<s>"[1..-1] | TTL_String s <- ti.expect.messages};

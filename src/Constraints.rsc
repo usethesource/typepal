@@ -414,7 +414,7 @@ void error(loc src, str msg){
     throw Message::error(msg, src);
 }
 
-set[Message] validate(FRModel er,
+tuple[set[Message], FRModel] validate(FRModel er,
                       bool(AType atype1, AType atype2, FRModel frm) isSubtype = noIsSubtype,
                       AType(AType atype, FRModel frm) getLUB = noGetLUB
 ){
@@ -598,6 +598,23 @@ set[Message] validate(FRModel er,
           if(!isEmpty(openFacts)) println("*** <size(openFacts)> open facts ***");
        }
     }
-    return filterMostPrecise(messages);
+    er.facts = facts;
+    return <filterMostPrecise(messages), er>;
+}
+
+rel[loc, loc] getUseDef(FRModel frm){
+    res = {};
+    for(Use u <- frm.uses){
+        try {
+           res += <u.occ, lookup(frm, u)>;
+        } catch noKey: {
+            throw error("Undefined use `<u.id>`", u.occ);
+        }
+    };
+    return res;
+}
+
+map[loc, AType] getFacts(FRModel frm){
+    return frm.facts;
 }
 
