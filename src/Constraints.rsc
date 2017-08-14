@@ -614,6 +614,18 @@ rel[loc, loc] getUseDef(FRModel frm){
     return res;
 }
 
+set[str] getVocabulary(FRModel frm){
+    res = {};
+    for(Use u <- frm.uses){
+        try {
+           res += u.id;
+        } catch noKey: {
+            throw error("Undefined use `<u.id>`", u.occ);
+        }
+    };
+    return res;
+}
+
 map[loc, AType] getFacts(FRModel frm){
     return frm.facts;
 }
