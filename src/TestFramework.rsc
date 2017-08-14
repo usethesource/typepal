@@ -8,32 +8,32 @@ import Map;
 import List;
 import Constraints;
 
-lexical Id = ([A-Z][a-zA-Z0-9]* !>> [a-zA-Z0-9]) \ Reserved;
-lexical Natural = [0-9]+ ;
-lexical String = "\"" ![\"]*  "\"";
+lexical TTL_id = ([A-Z][a-zA-Z0-9]* !>> [a-zA-Z0-9]) \ TTL_Reserved;
+lexical TTL_Natural = [0-9]+ ;
+lexical TTL_String = "\"" ![\"]*  "\"";
 
-keyword Reserved = "test" | "expect" ;
+keyword TTL_Reserved = "test" | "expect" ;
 
-layout Layout = WhitespaceAndComment* !>> [\ \t\n\r%];
+layout TTL_Layout = TTL_WhitespaceAndComment* !>> [\ \t\n\r%];
 
-lexical WhitespaceAndComment 
+lexical TTL_WhitespaceAndComment 
    = [\ \t\n\r]
    | @category="Comment" ws2:
     "%" ![%]+ "%"
    //| @category="Comment" ws3: "{" ![\n}]*  "}"$
    ;
    
-start syntax TTL = ttl: TestItem* items;
+start syntax TTL = ttl: TTL_TestItem* items;
 
-lexical Token = ![\[\]] | "[" ![\[]* "]";
+lexical TTL_Token = ![\[\]] | "[" ![\[]* "]";
 
-start syntax TestItem
-    = "test" Id name "[[" Token* tokens "]]" Expect expect
+start syntax TTL_TestItem
+    = "test" TTL_id name "[[" TTL_Token* tokens "]]" TTL_Expect expect
     ;
 
-syntax Expect
+syntax TTL_Expect
     = none: ()
-    | "expect" "{" {String ","}* messages "}"
+    | "expect" "{" {TTL_String ","}* messages "}"
     ;
     
 bool matches(str subject, str pat) =
@@ -55,7 +55,7 @@ bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder 
         messages = validate(extractScopesAndConstraints(p, initialFRBuilder(p)), isSubtype=isSubtype, getLUB=getLUB);
         println("runTests: <messages>");
         ok = ok && isEmpty(messages);
-        expected = ti.expect is none ? {} : {"<s>"[1..-1] | String s <- ti.expect.messages};
+        expected = ti.expect is none ? {} : {"<s>"[1..-1] | TTL_String s <- ti.expect.messages};
         result = (isEmpty(messages) && isEmpty(expected)) || all(emsg <- expected, any(eitem <- messages, matches(eitem.msg, emsg)));
         println("Test <ti.name>: <result>");
         if(!result) failed["<ti.name>"] = result;     

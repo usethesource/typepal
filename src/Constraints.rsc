@@ -11,11 +11,11 @@ extend ExtractFRModel;
 import String;
 import Message;
 
-bool cdebug = true;
+bool cdebug = false;
 
 // Global variables, used by validate and callback (define, require, etc.)
 
-FRModel extractedRequirements;
+FRModel extractedFRModel;
 map[loc, AType] facts = ();
 set[Fact] openFacts = {};
 set[Requirement] openReqs = {};
@@ -42,14 +42,14 @@ void printState(){
                 println("\t  dependsOn: <atype>");
             }
         }
-    println("triggersFact:");
-        for(l <- triggersFact){
-            println("\t<l>: <triggersFact[l]>");
-        }
-    println("triggersRequirement:");
-        for(l <- triggersRequirement){
-            println("\t<l>: <triggersRequirement[l]>");
-        }
+    //println("triggersFact:");
+    //    for(l <- triggersFact){
+    //        println("\t<l>: <triggersFact[l]>");
+    //    }
+    //println("triggersRequirement:");
+    //    for(l <- triggersRequirement){
+    //        println("\t<l>: <triggersRequirement[l]>");
+    //    }
 }
 
 // defaults for iisSubtype and getLUB
@@ -106,7 +106,7 @@ AType substitute(tv: tvar(loc src)){
 
 AType substitute(ut: useType(Use u)){
     try {
-        k = lookup(extractedRequirements, u);
+        k = lookup(extractedFRModel, u);
         println("useType<u> ==\> <k>");
         fk = facts[k];
         return fk != ut ? instantiate(facts[k]) : ut;  
@@ -115,7 +115,36 @@ AType substitute(ut: useType(Use u)){
 }
 
 AType substitute(AType atype){
-    return atype;
+    if(atype has use){
+        try {
+            k = lookup(extractedFRModel, atype.use);
+            println("<atype> ==\> <k>");
+            fk = facts[k];
+            return fk != atype ? instantiate(fk) : atype;  
+        } catch noKey:
+            return atype;
+          catch NoSuchKey(k):
+            return atype;
+    } else {
+        return atype;
+    }
+}
+
+AType normalize(AType atype){
+    if(atype has use){
+        println("normalize: <atype> has use");
+        try {
+            k = lookup(extractedFRModel, atype.use);
+            println("<atype> ==\> <k>");
+            fk = facts[k];
+            return fk != atype ? normalize(fk) : atype;  
+        } catch noKey:
+            throw typeUnavailable(atype.use.occ);
+          catch NoSuchKey(k):
+            throw typeUnavailable(atype.use.occ);
+    } else {
+        return atype;
+    }
 }
 
 // Recursively instantiate all type variables and useTypes in a type
@@ -123,7 +152,7 @@ AType instantiate(AType atype){
   return
       visit(atype){
         case tv: tvar(loc src) => substitute(tv)
-        case ut: useType(Use u) => substitute(ut)
+        case AType ut => substitute(ut) when ut has use
       };
 }
 
@@ -188,7 +217,6 @@ void addFact(loc l, AType atype){
     if(cdebug)println("\naddFact: <l>, <atype>, trigF: <triggersFact[l]?{}>, trigR: <triggersRequirement[l]?{}>");
   
     deps = extractTypeDependencies(atype);
-    println("addFact, <l>, <atype>, deps=<deps>");
     if(allDependenciesKnown(deps, facts)){
         iatype = instantiate(atype);
         if(cdebug)println("add2: facts[<l>] = <iatype>");
@@ -197,7 +225,7 @@ void addFact(loc l, AType atype){
         fct = openFact(deps, l, AType(){ return atype; });
         if(cdebug)println("add3: <fct>, <atype>");
         openFacts += fct;
-        for(d <- deps) triggersFact[d] ? {} += fct;
+        for(d <- deps) triggersFact[d] = triggersFact[d] ? {} + {fct};
         
     }
     fireTriggers(l);
@@ -229,7 +257,6 @@ void fireTriggers(loc l){
     for(fct <- triggersFact[l] ? {}){
         if(allDependenciesKnown(fct.dependsOn, facts)){
            try {
-              println("triggerF: <l>, <fct>");
               addFact(fct.src, fct.getAType());
               openFacts -= fct;
            } catch typeUnavailable(t): /* cannot yet compute type */;
@@ -240,7 +267,7 @@ void fireTriggers(loc l){
 // The binding of a type variable that occurs inside the scope of that type variable can be turned into a fact
 void bindings2facts(map[loc, AType] bindings, loc occ){
     for(b <- bindings){
-        if(isTypeVariable(b) && !facts[b]? && (!extractedRequirements.tvScopes[b]? || occ <= extractedRequirements.tvScopes[b])){
+        if(isTypeVariable(b) && !facts[b]? && (!extractedFRModel.tvScopes[b]? || occ <= extractedFRModel.tvScopes[b])){
            addFact(b, bindings[b]);
            if(cdebug) println("bindings2facts, added: <b> : <bindings[b]>");
         }
@@ -260,30 +287,66 @@ tuple[bool ok, set[Message] messages, map[loc, AType] bindings] satisfies(Requir
 }
 
 data Exception 
-    = typeUnavailable(Tree t)
+    = typeUnavailable(Key k)
     ;
-    
+
+@doc{
+.Synopsis
+Get type of a tree as inferred by specified type checker
+
+.Description
+xxx
+}    
 AType typeof(Tree tree) {
     try {
         fct = find(tree@\loc);
         return instantiate(fct);
     } catch NoSuchKey(l): {
-        throw typeUnavailable(tree);
+        throw typeUnavailable(tree@\loc);
     }
 }
 
-AType typeof(Tree scope, Tree tree, set[IdRole] idRoles) {
-   src = tree@\loc;
+AType typeof(Tree utype, Tree tree, set[IdRole] idRoles) {
    try {
-     id = "<tree>";
-     res = lookup(extractedRequirements, use(id, src, scope@\loc, idRoles));
-     println("typeof: <scope@\loc>, <src>, <tree> ==\> <res>");
-     return res;
+     usedType = facts[utype@\loc];
+     
+     if(usedType has use){
+        defType = lookup(extractedFRModel, usedType.use);
+        res = lookup(extractedFRModel, use("<tree>", tree@\loc, facts[defType].use.scope, idRoles));
+        return instantiate(facts[res]);
+     } else {
+        throw "typeof cannot handle <usedType>";
+     }
    } catch noKey: {
-     println("typeof: <scope@\loc>, <src>, <tree> ==\> typeUnavailable1");
-     throw typeUnavailable(tree);
+        println("typeof: <utype@\loc>, <tree> ==\> typeUnavailable1");
+        throw typeUnavailable(tree@\loc);
    }
 }
+
+/*
+ } else if(typeof(loc utype, loc src, str id, set[IdRole] idRoles) := atype){
+       println("\n@@@ substituteUsingFacts: <utype>, <facts[utype]?> <src> <facts[src]?>, <id>");
+       if(facts[utype]?){
+          println("uType: <utype>, <facts[utype]>\nsrc: <src> <facts[src]?"undefined">, <id>");
+          usedType = facts[utype];
+          println("usedType: <usedType>");
+          try {
+            if(usedType has use){
+                defType = lookup(sg, usedType.use);
+                println("defType = <defType>");
+                println("facts[defType] = <facts[defType]>");
+                res = lookup(sg, use(id, src, facts[defType].use.scope, idRoles));
+                println("returns <res>, <facts[res]>");
+                return substituteUsingFacts(facts[res], facts, sg);
+            } else {
+                throw "substituteUsingFacts cannot handle <usedType>";
+            }
+          } catch noKey: {
+                //println("returns (noKey) <atype>");
+                return atype;
+            }
+        }
+        */
 
 // Check the standalone "equal" predicate that succeeds or gives error
 void equal(AType given, AType expected, ErrorHandler onError){
@@ -323,8 +386,8 @@ bool unify(AType given, AType expected){
 }
 
 void subtype(AType small, AType large, ErrorHandler onError){
-    extractedRequirements.facts = facts;
-    if(!isSubtypeFun(small, large, extractedRequirements)){
+    extractedFRModel.facts = facts;
+    if(!isSubtypeFun(small, large, extractedFRModel)){
         throw error("<onError.msg>, expected subtype of `<AType2String(large)>`, found `<AType2String(small)>`", onError.where);
     }
 }
@@ -334,7 +397,7 @@ void lub(AType v, AType types, ErrorHandler onError){
     if(tvar(loc name) := v){
         itypes = instantiate(types);
         try {
-            lb = getLUBFun(itypes, extractedRequirements);
+            lb = getLUBFun(itypes, extractedFRModel);
             bindings = (name : lb) + bindings;
         } catch e:
              throw error("<onError.msg>, found `<AType2String(itypes)>`", onError.where); 
@@ -356,12 +419,12 @@ set[Message] validate(FRModel er,
                       AType(AType atype, FRModel frm) getLUB = noGetLUB
 ){
     // Initialize global state
-    extractedRequirements = er;
+    extractedFRModel = er;
  
-    facts = extractedRequirements.facts;
-    openFacts = extractedRequirements.openFacts;
+    facts = extractedFRModel.facts;
+    openFacts = extractedFRModel.openFacts;
     bindings = ();
-    openReqs = extractedRequirements.openReqs;
+    openReqs = extractedFRModel.openReqs;
     triggersRequirement = ();
     triggersFact = ();
   
@@ -372,19 +435,19 @@ set[Message] validate(FRModel er,
     
     // Initialize local state
     map[Key, Key] defs = ();
-    map[loc, Overload] overloads = extractedRequirements.overloads;
+    map[loc, Overload] overloads = extractedFRModel.overloads;
     set[Use] unresolvedUses = {};
     set[Message] messages = {};
     iterations = 0;
    
     if(cdebug){
        println("overloads: <size(overloads)>; facts: <size(facts)>; openFacts: <size(openFacts)>; openReqs: <size(openReqs)>");
-       printScopeGraph(extractedRequirements);
+       printScopeGraph(extractedFRModel);
     }
    
-    for(u <- extractedRequirements.uses){
+    for(u <- extractedFRModel.uses){
         try {
-           def = lookup(extractedRequirements, u);
+           def = lookup(extractedFRModel, u);
            defs[u.occ] = def;
            unresolvedUses += u;
         } catch noKey: {
@@ -407,7 +470,7 @@ set[Message] validate(FRModel er,
        }
     } 
     
-    for(Define d <- extractedRequirements.defines){
+    for(Define d <- extractedFRModel.defines){
        if(d.defInfo has atype){             // <+++++++
           addFact(d.defined, d.defInfo.atype);
        } else if(d.defInfo has getAType){
@@ -437,8 +500,9 @@ set[Message] validate(FRModel er,
        }
        
        for(u <- unresolvedUses){
-           if(cdebug)println("Consider unresolved use: <u>");
            def = defs[u.occ];
+           if(cdebug)println("Consider unresolved use: <u>, def=<def>");
+          
            if(facts[def]?){  // has type of def become available?
               fct1 = facts[def];
               deps = extractTypeDependencies(fct1);
@@ -452,7 +516,7 @@ set[Message] validate(FRModel er,
               if(cdebug) println("not yet known: <def>");
            }
       }
-       
+
        // eliminate overloads for which argument types are known
        for(ovlKey <- overloads){
           ovl = overloads[ovlKey];

@@ -126,51 +126,61 @@ AType getConstantType(Tree scope, Constant c){
 
 // ---- isSubtype
 
-bool isSubtype(listType(list[AType] elems1), listType(list[AType] elems2), ScopeGraph sg)
-    = size(elems1) == size(elems2) && all(int i <- index(elems1), isSubtype(elems1[i], elems2[i], sg));
+bool isSubtype(AType atype1, AType atype2, FRModel frm) {
+    res = isSubtype1(normalize(atype1), normalize(atype2), frm);
+    //println("isSubtype(<atype1>, <atype2>) ==\> <res>");
+    return res;
+}
+    
+bool isSubtype1(listType(list[AType] elems1), listType(list[AType] elems2), FRModel frm)
+    = size(elems1) == size(elems2) && all(int i <- index(elems1), isSubtype1(elems1[i], elems2[i], frm));
 
-bool isSubtype(primitiveType(str tname1), primitiveType(str tname2), ScopeGraph sg)
+bool isSubtype1(primitiveType(str tname1), primitiveType(str tname2), FRModel frm)
     = tname1 == "integer" && tname2 == "real" || tname1 == tname2;
 
-bool isSubtype(t1: definedType(tname1, use1), AType t2, ScopeGraph sg){
-    println("isSubtype: <t1>, <t2>");
+bool isSubtype1(t1: definedType(tname1, use1), AType t2, FRModel frm){
+    //println("isSubtype1: <t1>, <t2>");
     if(t1 == t2)
         return true;
     try { 
-            def1 = lookup(sg, use1);
-            println("sg.facts[def1]: <sg.facts[def1]>");
-            return isSubtype(sg.facts[def1], t2, sg);
+            def1 = lookup(frm, use1);
+            println("frm.facts[def1]: <frm.facts[def1]>");
+            return isSubtype1(frm.facts[def1], t2, frm);
     } catch noKey: {
             return false;
+    } catch NoSuchKey(k): {
+           throw typeUnavailable(use1.occ);
     }
 }
-bool isSubtype(AType t1, t2: definedType(tname2, use2), ScopeGraph sg){  
+bool isSubtype1(AType t1, t2: definedType(tname2, use2), FRModel frm){  
     if(t1 == t2)
         return true;  
     try { 
-            def2 = lookup(sg, use2);
-            return isSubtype(t1, sg.facts[def2], sg);
+            def2 = lookup(frm, use2);
+            return isSubtype1(t1, frm.facts[def2], frm);
     } catch noKey: {
            return false;
+    } catch NoSuchKey(k): {
+           throw typeUnavailable(use2.occ);
     }
 }
 
-bool isSubtype(subrangeType(AType associatedType), AType other, ScopeGraph sg)
-    = isSubtype(associatedType, other, sg);
+bool isSubtype1(subrangeType(AType associatedType), AType other, FRModel frm)
+    = isSubtype1(associatedType, other, frm);
      
-bool isSubtype(AType other, subrangeType(AType associatedType), ScopeGraph sg)
-    = isSubtype(other, associatedType, sg);
+bool isSubtype1(AType other, subrangeType(AType associatedType), FRModel frm)
+    = isSubtype1(other, associatedType, frm);
 
-bool isSubtype(pointerType(AType t1), pointerType(AType t2), ScopeGraph sg)
-    = t1 == anyPointerType || isSubtype(t1, t2, sg);
+bool isSubtype1(pointerType(AType t1), pointerType(AType t2), FRModel frm)
+    = t1 == anyPointerType || isSubtype1(t1, t2, frm);
     
-bool isSubtype(AType atype, functionType(_, atype), ScopeGraph sg) = true;  // for assignment to function id
+bool isSubtype1(AType atype, functionType(_, atype), FRModel frm) = true;  // for assignment to function id
 
-default bool isSubtype(AType atype1, AType atype2, ScopeGraph sg) = atype1 == atype2;
+default bool isSubtype1(AType atype1, AType atype2, FRModel frm) = atype1 == atype2;
 
 // ---- getLUB
 
-AType getLUB(t1: definedType(tname1,use1), t2: definedType(tname2,use2), ScopeGraph sg){
+AType getLUB(t1: definedType(tname1,use1), t2: definedType(tname2,use2), FRModel frm){
     if(tname1 == "integer" && tname2 == "real"){
        return t2;
     } else if(tname1 == "real" && tname2 == "integer"){
@@ -179,9 +189,9 @@ AType getLUB(t1: definedType(tname1,use1), t2: definedType(tname2,use2), ScopeGr
         return t1;
     } else {
        try {
-        def1 = lookup(sg, use1);
-        def2 = lookup(sg, use2);
-        return isSubtype(sg.facts[def2], sg.facts[def2], sg);
+        def1 = lookup(frm, use1);
+        def2 = lookup(frm, use2);
+        return isSubtype(frm.facts[def2], frm.facts[def2], frm);
        } catch noKey: {
             throw "NoLUB";
        }
@@ -189,7 +199,7 @@ AType getLUB(t1: definedType(tname1,use1), t2: definedType(tname2,use2), ScopeGr
     throw "NoLUB";
 }
 
-default AType getLUB(AType atype, ScopeGraph sg){
+default AType getLUB(AType atype, FRModel frm){
     if(listType(atypes) := atype){
         if(all(int i <- [0 .. size(atypes)-1], atypes[i] == atypes[i+1]))
             return atypes[0];
@@ -218,30 +228,30 @@ FRBuilder initializedFRB(Tree tree){
     anyPointerType = primitiveType("anyPointer");
     charType = primitiveType("char");
     FRBuilder frb = makeFRBuilder();
-    frb.define(tree, "true",    constantId(),   mkTree(10), defInfo(booleanType));
-    frb.define(tree, "false",   constantId(),   mkTree(11), defInfo(booleanType));
-    //frb.define(tree, "writeln", procedureId(),  mkTree(12), defInfo(procedureType(listType([]))));
-    //frb.define(tree, "write",   procedureId(),  mkTree(13), defInfo(procedureType(listType([]))));
-    //frb.define(tree, "odd",     functionId(),   mkTree(14), defInfo(functionType(listType([integerType]), booleanType)));
-    //frb.define(tree, "abs",     functionId(),   mkTree(15), defInfo(functionType(listType([integerType]), integerType)));
-    //frb.define(tree, "sqr",     functionId(),   mkTree(16), defInfo(functionType(listType([integerType]), integerType)));
-    //frb.define(tree, "sin",     functionId(),   mkTree(17), defInfo(functionType(listType([realType]), realType)));
-    //frb.define(tree, "cos",     functionId(),   mkTree(18), defInfo(functionType(listType([realType]), realType)));
-    //frb.define(tree, "arctan",  functionId(),   mkTree(19), defInfo(functionType(listType([realType]), realType)));
-    //frb.define(tree, "exp",     functionId(),   mkTree(20), defInfo(functionType(listType([realType]), realType)));
-    //frb.define(tree, "ln",      functionId(),   mkTree(21), defInfo(functionType(listType([realType]), realType)));
-    //frb.define(tree, "sqrt",    functionId(),   mkTree(22), defInfo(functionType(listType([realType]), realType)));
-    //frb.define(tree, "round",   functionId(),   mkTree(23), defInfo(functionType(listType([realType]), integerType)));
-    //frb.define(tree, "read",    procedureId(),  mkTree(24), defInfo(procedureType(listType([]))));
-    //frb.define(tree, "new",     procedureId(),  mkTree(24), defInfo(procedureType(listType([]))));
-    //
-    frb.define(tree, "Boolean", typeId(),       mkTree(25), defInfo(booleanType));
-    frb.define(tree, "integer", typeId(),       mkTree(26), defInfo(integerType));
-    //frb.define(tree, "real",    typeId(),       mkTree(27), defInfo(realType));
-    //frb.define(tree, "string",  typeId(),       mkTree(28), defInfo(stringType));
-    //frb.define(tree, "text",    typeId(),       mkTree(29), defInfo(textType));
-    //frb.define(tree, "any",     typeId(),       mkTree(30), defInfo(anyPointerType));
-    //frb.define(tree, "char",    typeId(),       mkTree(31), defInfo(charType));
+    frb.define(tree, "true",    constantId(),   mkTree(1), defInfo(booleanType));
+    frb.define(tree, "false",   constantId(),   mkTree(2), defInfo(booleanType));
+    frb.define(tree, "writeln", procedureId(),  mkTree(3), defInfo(procedureType(listType([]))));
+    frb.define(tree, "write",   procedureId(),  mkTree(4), defInfo(procedureType(listType([]))));
+    frb.define(tree, "odd",     functionId(),   mkTree(5), defInfo(functionType(listType([integerType]), booleanType)));
+    frb.define(tree, "abs",     functionId(),   mkTree(6), defInfo(functionType(listType([integerType]), integerType)));
+    frb.define(tree, "sqr",     functionId(),   mkTree(7), defInfo(functionType(listType([integerType]), integerType)));
+    frb.define(tree, "sin",     functionId(),   mkTree(8), defInfo(functionType(listType([realType]), realType)));
+    frb.define(tree, "cos",     functionId(),   mkTree(9), defInfo(functionType(listType([realType]), realType)));
+    frb.define(tree, "arctan",  functionId(),   mkTree(10), defInfo(functionType(listType([realType]), realType)));
+    frb.define(tree, "exp",     functionId(),   mkTree(11), defInfo(functionType(listType([realType]), realType)));
+    frb.define(tree, "ln",      functionId(),   mkTree(12), defInfo(functionType(listType([realType]), realType)));
+    frb.define(tree, "sqrt",    functionId(),   mkTree(13), defInfo(functionType(listType([realType]), realType)));
+    frb.define(tree, "round",   functionId(),   mkTree(14), defInfo(functionType(listType([realType]), integerType)));
+    frb.define(tree, "read",    procedureId(),  mkTree(15), defInfo(procedureType(listType([]))));
+    frb.define(tree, "new",     procedureId(),  mkTree(16), defInfo(procedureType(listType([]))));
+    
+    frb.define(tree, "Boolean", typeId(),       mkTree(17), defInfo(booleanType));
+    frb.define(tree, "integer", typeId(),       mkTree(18), defInfo(integerType));
+    frb.define(tree, "real",    typeId(),       mkTree(19), defInfo(realType));
+    frb.define(tree, "string",  typeId(),       mkTree(20), defInfo(stringType));
+    frb.define(tree, "text",    typeId(),       mkTree(21), defInfo(textType));
+    frb.define(tree, "any",     typeId(),       mkTree(22), defInfo(anyPointerType));
+    frb.define(tree, "char",    typeId(),       mkTree(23), defInfo(charType));
   
     return frb;
 }
@@ -356,8 +366,9 @@ void collect(e: (EntireVariable) `<EntireVariable var>`, Tree scope, FRBuilder f
 void collect(e: (ReferencedVariable) `<Variable var>^`, Tree scope, FRBuilder frb){
      //frb.use(scope, var, {formalId(), variableId(), constantId()}, 0);
      frb.require("referenced variable <e>", e, [var],
-         () { println("typeof <var>: <typeof(var)>");
-              if(pointerType(tau1) := typeof(var)){ 
+         () { //println("typeof <var>: <typeof(var)>");
+              //println("normalize typeof <var>: <normalize(typeof(var))>");
+              if(pointerType(tau1) := normalize(typeof(var))){ 
                 fact(e, tau1);
               } else {
                 reportError(var, "Pointer type required", [var]);
@@ -524,13 +535,20 @@ void collect(ForStatement s, Tree scope, FRBuilder frb){
 
 void overloadRelational(Expression e, str op, Expression exp1, Expression exp2, Tree scope, FRBuilder frb){
     frb.overload("relational operator `<op>`", e,  [exp1, exp2], 
-        AType() { switch([typeof(exp1), typeof(exp2)]){
+        AType() { //println("overloadRelational: <typeof(exp1)>, <typeof(exp2)>");
+        //          println("<[typeof(exp1), typeof(exp2)]>");
+        //          println("integerType = <integerType>");
+        //          if(typeof(exp1) == integerType && typeof(exp2) == integerType){
+        //            println("About to return <booleanType>");
+        //            return booleanType;
+        //          }
+                  switch([typeof(exp1), typeof(exp2)]){
                   case [booleanType, booleanType]: return booleanType;
                   case [integerType, integerType]: return booleanType;
                   case [integerType, realType]: return booleanType;
                   case [realType, integerType]: return booleanType;
                   case [realType, realType]: return booleanType;
-                  case [scalarType(tau1), scalarType(tau2)]: booleanType;
+                  case [scalarType(tau1), scalarType(tau2)]: return booleanType;
                   case [subrangeType(integerType), realType]: return realType;
                   case [realType, subrangeType(integerType)]: return realType;
                   case [subrangeType(tau1), tau1]: return tau1;
@@ -588,7 +606,7 @@ void collect(e: (Expression) `<Expression exp1> * <Expression exp2>`, Tree scope
                       case [realType, integerType]: return realType;
                       case [realType, realType]: return realType;
                       case [subrangeType(integerType), realType]: return realType;
-                      case [realType, subrangeType(integerType)]: realType;
+                      case [realType, subrangeType(integerType)]: return realType;
                       case [subrangeType(tau1), tau1]: return tau1;
                       case [subrangeType(tau1), subrangeType(tau1)]: return tau1;
                       case [setType(tau1), setType(tau1)]: return setType(tau1);
@@ -603,7 +621,7 @@ void collect(e: (Expression) `<Expression exp1> / <Expression exp2>`, Tree scope
         AType () { switch([typeof(exp1), typeof(exp2)]){
                        case [integerType, integerType]: return realType;
                        case [integerType, realType]: return realType;
-                       case [realType, integerType]: realType;
+                       case [realType, integerType]: return realType;
                        case [realType, realType]: return realType;
                        default:
                             reportError(e, "No version of `/` is applicable", [exp1, exp2]);
@@ -653,14 +671,19 @@ void collect(e: (Expression) `not <Expression exp>`, Tree scope, FRBuilder frb){
 
 void overloadAdding(Expression e, str op, Expression exp1, Expression exp2, Tree scope, FRBuilder frb){
  frb.overload("adding operator", e, [exp1, exp2], 
-     AType() { switch([typeof(exp1), typeof(exp2)]){
+     AType() { 
+        //if(typeof(exp1) == integerType && typeof(exp2) == integerType){
+        //            return integerType;
+        //        }
+     
+                switch([typeof(exp1), typeof(exp2)]){
                    case [integerType, integerType]: return integerType;
                    case [integerType, realType]: return realType;
                    case [realType, integerType]: return realType;
                    case [realType, realType]: return realType;
-                   case [tau1, subrangeType(tau1)]:  tau1;
-                   case [subrangeType(tau1), tau1]: tau1;
-                   case [subrangeType(tau1), subrangeType(tau1)]: tau1;
+                   case [tau1, subrangeType(tau1)]:  return tau1;
+                   case [subrangeType(tau1), tau1]: return tau1;
+                   case [subrangeType(tau1), subrangeType(tau1)]: return tau1;
                    case [setType(tau1), setType(tau1)]: return setType(tau1);
                    default:
                         reportError(e, "No version of `<op>` is applicable", [exp1, exp2]);  
@@ -686,8 +709,8 @@ void collect(e: (Expression) `<Expression exp1> or <Expression exp2>`, Tree scop
 
 // ----  Examples & Tests --------------------------------
 
-private Block sampleBlock(str name) = parse(#Block, |project://TypePal/src/pascal/<name>.pascal|);
-private Program sampleProgram(str name) = parse(#Program, |project://TypePal/src/pascal/<name>.pascal|);
+private Block sampleBlock(str name) = parse(#Block, |home:///git/TypePal/srcpascal/<name>.pascal|);
+private Program sampleProgram(str name) = parse(#Program, |home:///git/TypePal/src/pascal/<name>.pascal|);
  
 set[Message] validatePascalBlock(str name) {
     b = sampleBlock(name);

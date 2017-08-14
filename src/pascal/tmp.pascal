@@ -1,6 +1,7 @@
-program complex(output);
-type complex = record re, im : integer end;
-var x : complex;
+program person(input,output);
+type link = ^person;
+     person = record name : string; ss : integer; next : link end;
+var first, p : link;      
 begin
-    x.re := 2
+    first := nil
 end.

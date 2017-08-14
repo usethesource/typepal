@@ -131,7 +131,7 @@ void collect(e: (Expression) `<Natural natcon>`, Tree scope, FRBuilder frb){
 
 // ----  Examples & Tests --------------------------------
 
-public Program samplePico(str name) = parse(#Program, |project://TypePal/src/pico/<name>.pico|);
+public Program samplePico(str name) = parse(#Program, |home:///git/TypePal/src/pico/<name>.pico|);
                      
 set[Message] validatePico(str name) {
     Tree p = samplePico(name);

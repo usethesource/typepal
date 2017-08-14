@@ -101,7 +101,7 @@ ScopeGraph extractScopesAndConstraints(Tree root, FRBuilder frb){
     return sg;
 }
 
-void extract2(currentTree: appl(Production prod, list[Tree] args), Tree currentScope, FRBuilder frb){
+void extract2(currentTree: appl(Production _, list[Tree] args), Tree currentScope, FRBuilder frb){
    newScope = define(currentTree, currentScope, frb);
    frb.addScope(newScope, currentScope);
    collect(currentTree, newScope, frb);
