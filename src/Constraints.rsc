@@ -608,7 +608,7 @@ rel[loc, loc] getUseDef(FRModel frm){
         try {
            res += <u.occ, lookup(frm, u)>;
         } catch noKey: {
-            throw error("Undefined use `<u.id>`", u.occ);
+            ;// ignore it
         }
     };
     return res;
