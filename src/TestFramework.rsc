@@ -41,6 +41,18 @@ bool matches(str subject, str pat) =
 
 FRBuilder emptyFRBuilder(Tree t) = makeFRBuilder();
 
+str deescape(str s)  {  // copied from RascalExpression, belongs in library
+    res = visit(s) { 
+        case /^\\<c: [\" \' \< \> \\]>/ => c
+        case /^\\t/ => "\t"
+        case /^\\n/ => "\n"
+        case /^\\u<hex:[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]>/ => stringChar(toInt("0x<hex>"))
+        case /^\\U<hex:[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]>/ => stringChar(toInt("0x<hex>"))
+        case /^\\a<hex:[0-7][0-9a-fA-F]>/ => stringChar(toInt("0x<hex>"))
+        }; 
+    return res;
+}
+
 bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder = emptyFRBuilder,
                       bool(AType atype1, AType atype2, ScopeGraph sg) isSubtype = noIsSubtype,
                       AType(AType atype, ScopeGraph sg) getLUB = noGetLUB
@@ -55,7 +67,7 @@ bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder 
         <messages, model> = validate(extractScopesAndConstraints(p, initialFRBuilder(p)), isSubtype=isSubtype, getLUB=getLUB);
         println("runTests: <messages>");
         ok = ok && isEmpty(messages);
-        expected = ti.expect is none ? {} : {"<s>"[1..-1] | TTL_String s <- ti.expect.messages};
+        expected = ti.expect is none ? {} : {deescape("<s>"[1..-1]) | TTL_String s <- ti.expect.messages};
         result = (isEmpty(messages) && isEmpty(expected)) || all(emsg <- expected, any(eitem <- messages, matches(eitem.msg, emsg)));
         println("Test <ti.name>: <result>");
         if(!result) failed["<ti.name>"] = result;     
