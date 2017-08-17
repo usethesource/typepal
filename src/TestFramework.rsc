@@ -22,7 +22,7 @@ lexical TTL_WhitespaceAndComment
    = [\ \t\n\r]
    | @category="Comment" ws2:
     "@@" ![\n]+
-   | @category="Comment" ws3: "\<@@" ![]*  "@@\>"$
+   | @category="Comment" ws3: "\<@@" ![]*  "@@\>"
    ;
    
 start syntax TTL = ttl: TTL_TestItem* items;
@@ -57,28 +57,34 @@ str deescape(str s)  {  // copied from RascalExpression, belongs in library
 
 bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder = emptyFRBuilder,
                       bool(AType atype1, AType atype2, ScopeGraph sg) isSubtype = noIsSubtype,
-                      AType(AType atype, ScopeGraph sg) getLUB = noGetLUB
+                      AType(AType atype, ScopeGraph sg) getLUB = noGetLUB,
+                      bool verbose = false
 ){
     ttlProgram = parse(#start[TTL], tests).top;
     ok = true;
-    failed = ();
+    failedTests = ();
     ntests = 0;
     for(ti <- ttlProgram.items){
         ntests += 1;
         p = parse(begin, "<ti.tokens>");
         <messages, model> = validate(extractScopesAndConstraints(p, initialFRBuilder(p)), isSubtype=isSubtype, getLUB=getLUB);
-        println("runTests: <messages>");
+        if(verbose) println("runTests: <messages>");
         ok = ok && isEmpty(messages);
         expected = ti.expect is none ? {} : {deescape("<s>"[1..-1]) | TTL_String s <- ti.expect.messages};
         result = (isEmpty(messages) && isEmpty(expected)) || all(emsg <- expected, any(eitem <- messages, matches(eitem.msg, emsg)));
         println("Test <ti.name>: <result>");
-        if(!result) failed["<ti.name>"] = result;     
+        if(!result) failedTests["<ti.name>"] = messages;     
     }
-    nfailed = size(failed);
+    nfailed = size(failedTests);
     println("Test summary: <ntests> tests executed, <ntests - nfailed> succeeded, <nfailed> failed");
-    if(!isEmpty(failed)){
+    if(!isEmpty(failedTests)){
         println("Failed tests:");
-        iprintln(failed);
+        for(failed <- failedTests){
+            println("<failed>:");
+            for(msg <- failedTests[failed]){
+                println("\t<msg>");
+            }
+        }
     }
     return ok;
 }
