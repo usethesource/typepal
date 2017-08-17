@@ -8,6 +8,8 @@ import Map;
 import List;
 import Constraints;
 
+import util::IDE;
+
 lexical TTL_id = ([A-Z][a-zA-Z0-9]* !>> [a-zA-Z0-9]) \ TTL_Reserved;
 lexical TTL_Natural = [0-9]+ ;
 lexical TTL_String = "\"" ![\"]*  "\"";
@@ -19,8 +21,8 @@ layout TTL_Layout = TTL_WhitespaceAndComment* !>> [\ \t\n\r%];
 lexical TTL_WhitespaceAndComment 
    = [\ \t\n\r]
    | @category="Comment" ws2:
-    "%" ![%]+ "%"
-   //| @category="Comment" ws3: "{" ![\n}]*  "}"$
+    "@@" ![\n]+
+   | @category="Comment" ws3: "\<@@" ![]*  "@@\>"$
    ;
    
 start syntax TTL = ttl: TTL_TestItem* items;
@@ -57,7 +59,7 @@ bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder 
                       bool(AType atype1, AType atype2, ScopeGraph sg) isSubtype = noIsSubtype,
                       AType(AType atype, ScopeGraph sg) getLUB = noGetLUB
 ){
-    ttlProgram = parse(#TTL, tests);
+    ttlProgram = parse(#start[TTL], tests).top;
     ok = true;
     failed = ();
     ntests = 0;
@@ -80,3 +82,15 @@ bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder 
     }
     return ok;
 }
+
+
+void register() {
+    registerLanguage("TTL", "ttl", Tree (str x, loc l) { return parse(#start[TTL], x, l, allowAmbiguity=true); });
+    registerContributions("TTL", {
+      syntaxProperties(
+         fences = {<"{","}">,<"[[","]]">} ,
+         lineComment = "@@",
+         blockComment = <"\<@@"," *","@@\>">
+         )
+    });
+}    
