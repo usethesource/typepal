@@ -1,4 +1,4 @@
-module ScopeGraph
+module typepal::ScopeGraph
 
 // ScopeGraphs inspired by Kastens & Waite, Name analysis for modern languages: a general solution, SP&E, 2017
 
@@ -12,6 +12,10 @@ alias Idn = str;    // an identifier
 
 alias Key = loc;    // a syntactic range in the source code
 Key noKey = |nokey:///|;
+
+data Exception
+    = NoKey()
+    ;
 
 // Various kinds of (language-specific) identifier declarations
 // Extended in language-specific module
@@ -110,7 +114,7 @@ private Key bind(ScopeGraph sg, Key context, Idn id, set[IdRole] idRoles){
        println("bind: <context>, <id> is ambiguous: <defs>");
     }
     //if(debug)println("bind: <context>, <id>, <bindingLabels> =\> noKey");
-    throw noKey;
+    throw NoKey();
 }
 
 // Lookup use in given syntactic context
@@ -122,7 +126,7 @@ private Key lookupScope(ScopeGraph sg, Key context, Use use){
           return def;
        }
     } 
-    throw noKey;
+    throw NoKey();
 }
 
 // Find all (semantics induced) bindings for use in given syntactic context via pathLabel
@@ -139,7 +143,7 @@ private list[Key] lookupPaths(ScopeGraph sg, Key context, Use use, PathLabel pat
              case ignoreSkipPath():
                   break; 
             }
-        } catch noKey:
+        } catch NoKey():
             context = parent;
     }
 }
@@ -154,7 +158,7 @@ private set[PathLabel] pathLabels(ScopeGraph sg){
 private Key lookupQual(ScopeGraph sg, Key context, Use u){
      try 
         return lookupScope(sg, context, u);
-    catch noKey: {
+    catch NoKey(): {
         nextPath:
         for(PathLabel pathLabel <- pathLabels(sg)){
            candidates = lookupPaths(sg, context, u, pathLabel);
@@ -173,7 +177,7 @@ private Key lookupQual(ScopeGraph sg, Key context, Use u){
             }
         }
     }
-    throw noKey;
+    throw NoKey();
 }
 
 // Lookup use in syntactic context and via all semantic paths,
@@ -182,13 +186,13 @@ private Key lookupNest(ScopeGraph sg, Key context, Use u){
     if(debug)println("lookupNest: <context>, <u>");
     try 
         return lookupQual(sg, context, u);
-    catch noKey: {
+    catch NoKey(): {
         if(sg.scopes[context] ?){
            parent = sg.scopes[context] ? noKey;
            if(debug)println("lookupNest: <context>, <u> move up to <parent>");
            return lookupNest(sg, parent, u);
         }
-        throw noKey;
+        throw NoKey();
     }
 }
 
@@ -209,7 +213,7 @@ public Key lookup(ScopeGraph sg, Use u){
            return res;
         }
      }
-     throw noKey;
+     throw NoKey();
 }
 
 // Language-specific acceptance in case of multiple outcomes

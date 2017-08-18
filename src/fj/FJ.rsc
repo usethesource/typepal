@@ -2,10 +2,9 @@ module fj::FJ
 
 // Featherweight Java
 
-extend ScopeGraph;
-extend Constraints;
-extend ExtractFRModel;
-extend TestFramework;
+extend typepal::TypePal;
+extend typepal::TestFramework;
+
 import ParseTree;
 import String;
 
@@ -143,7 +142,7 @@ bool isSubtype(AType atype1, AType atype2, ScopeGraph sg){
             //println("use1: <use1>, def1: <def1>, <sg.facts[def1]?>");
             //iprintln(sg.facts);
             return isSubtype(sg.facts[def1], atype2, sg);
-        } catch noKey: {
+        } catch NoKey(): {
             return false;
         }
     }
@@ -152,7 +151,7 @@ bool isSubtype(AType atype1, AType atype2, ScopeGraph sg){
             def2 = lookup(sg, use2);
              //println("use2: <use2>, def2: <def2>");
             return isSubtype(atype1, sg.facts[def2], sg);
-        } catch noKey: {
+        } catch NoKey(): {
             return false;
         }
     }
@@ -312,7 +311,7 @@ void collect(e: (Expression) `new <Constructor cons> <Expressions exps>`, Tree s
 
 void collect(e: (Expression) `( <ClassId cid> ) <Expression exp>`, Tree scope, FRBuilder frb){  // <++++++
      castType = useClassType(scope, cid);
-     frb.require("cast `<cid>`", e,
+     frb.require("cast `<cid>`", e, [exp],
          () { subtype(typeof(exp), castType, onError(e, "Incorrect cast"));
               fact(e, castType);
             });

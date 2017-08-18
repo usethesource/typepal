@@ -1,4 +1,4 @@
-module Constraints
+module typepal::TypePal
 
 import Set; 
 import Node;
@@ -6,10 +6,11 @@ import Map;
 import IO;
 import List; 
 import ParseTree;
-extend ScopeGraph;
-extend ExtractFRModel;
 import String;
 import Message;
+
+extend typepal::ScopeGraph;
+extend typepal::ExtractFRModel;
 
 bool cdebug = false;
 
@@ -52,13 +53,20 @@ void printState(){
     //    }
 }
 
-// defaults for iisSubtype and getLUB
+data Exception
+    = UnspecifiedIsSubtype(AType atype1, AType atype2)
+    | UnspecifiedGetLUB(AType atype)
+    | UndefinedLUB(AType atype1, AType atype2)
+    | TypeUnavailable(Key k)
+    ;
+
+// defaults for isSubtype and getLUB
 bool noIsSubtype(AType atype1, AType atype2, FRModel frm) {
-    throw "isSubType not defined but used for: <atype1>, <atype2>";
+    throw UnspecifiedIsSubtype(atype1, atype2);
 }
 
 AType noGetLUB(AType atype, FRModel frm){
-    throw "getLUB not defined but used for: <atype>";
+    throw UnspecifiedGetLUB(atype);
 }
 
 bool(AType atype1, AType atype2, FRModel frm) isSubtypeFun = noIsSubtype;
@@ -78,7 +86,7 @@ set[Message] filterMostPrecise(set[Message] messages)
                                                       (msg.msg == msg2.msg && msg.at.begin.line > msg2.at.begin.line)) };
 bool surrounds (Message msg1, Message msg2){
     // TODO: return msg1.at > msg2.at should also work but does not.
-    return msg1.at.offset < msg2.at.offset && msg1.at.offset + msg1.at.length > msg2.at.offset + msg2.at.length;
+    return msg1.at.offset < msg2.at.offset && msg1.at.offset + msg1.at.length >= msg2.at.offset + msg2.at.length;
 }
 
 // Find a (possibly indirect) binding
@@ -110,7 +118,7 @@ AType substitute(ut: useType(Use u)){
         println("useType<u> ==\> <k>");
         fk = facts[k];
         return fk != ut ? instantiate(facts[k]) : ut;  
-    } catch noKey:
+    } catch NoKey():
         return ut;
 }
 
@@ -121,7 +129,7 @@ AType substitute(AType atype){
             println("<atype> ==\> <k>");
             fk = facts[k];
             return fk != atype ? instantiate(fk) : atype;  
-        } catch noKey:
+        } catch NoKey():
             return atype;
           catch NoSuchKey(k):
             return atype;
@@ -138,10 +146,10 @@ AType normalize(AType atype){
             println("<atype> ==\> <k>");
             fk = facts[k];
             return fk != atype ? normalize(fk) : atype;  
-        } catch noKey:
-            throw typeUnavailable(atype.use.occ);
+        } catch NoKey():
+            throw TypeUnavailable(atype.use.occ);
           catch NoSuchKey(k):
-            throw typeUnavailable(atype.use.occ);
+            throw TypeUnavailable(atype.use.occ);
     } else {
         return atype;
     }
@@ -238,7 +246,7 @@ void addFact(loc l, list[Tree] dependsOn, AType() getAType){
             facts[l] = getAType();
             fireTriggers(l);
             return;
-        } catch typeUnavailable(t): /* cannot yet compute type */;
+        } catch TypeUnavailable(t): /* cannot yet compute type */;
     }
     fct = openFact(deps, l, getAType);
     openFacts += fct;
@@ -259,7 +267,7 @@ void fireTriggers(loc l){
            try {
               addFact(fct.src, fct.getAType());
               openFacts -= fct;
-           } catch typeUnavailable(t): /* cannot yet compute type */;
+           } catch TypeUnavailable(t): /* cannot yet compute type */;
         }
     }
 }
@@ -286,10 +294,6 @@ tuple[bool ok, set[Message] messages, map[loc, AType] bindings] satisfies(Requir
     }
 }
 
-data Exception 
-    = typeUnavailable(Key k)
-    ;
-
 @doc{
 .Synopsis
 Get type of a tree as inferred by specified type checker
@@ -302,7 +306,7 @@ AType typeof(Tree tree) {
         fct = find(tree@\loc);
         return instantiate(fct);
     } catch NoSuchKey(l): {
-        throw typeUnavailable(tree@\loc);
+        throw TypeUnavailable(tree@\loc);
     }
 }
 
@@ -317,36 +321,11 @@ AType typeof(Tree utype, Tree tree, set[IdRole] idRoles) {
      } else {
         throw "typeof cannot handle <usedType>";
      }
-   } catch noKey: {
-        println("typeof: <utype@\loc>, <tree> ==\> typeUnavailable1");
-        throw typeUnavailable(tree@\loc);
+   } catch NoKey(): {
+        println("typeof: <utype@\loc>, <tree> ==\> TypeUnavailable1");
+        throw TypeUnavailable(tree@\loc);
    }
 }
-
-/*
- } else if(typeof(loc utype, loc src, str id, set[IdRole] idRoles) := atype){
-       println("\n@@@ substituteUsingFacts: <utype>, <facts[utype]?> <src> <facts[src]?>, <id>");
-       if(facts[utype]?){
-          println("uType: <utype>, <facts[utype]>\nsrc: <src> <facts[src]?"undefined">, <id>");
-          usedType = facts[utype];
-          println("usedType: <usedType>");
-          try {
-            if(usedType has use){
-                defType = lookup(sg, usedType.use);
-                println("defType = <defType>");
-                println("facts[defType] = <facts[defType]>");
-                res = lookup(sg, use(id, src, facts[defType].use.scope, idRoles));
-                println("returns <res>, <facts[res]>");
-                return substituteUsingFacts(facts[res], facts, sg);
-            } else {
-                throw "substituteUsingFacts cannot handle <usedType>";
-            }
-          } catch noKey: {
-                //println("returns (noKey) <atype>");
-                return atype;
-            }
-        }
-        */
 
 // Check the standalone "equal" predicate that succeeds or gives error
 void equal(AType given, AType expected, ErrorHandler onError){
@@ -414,7 +393,7 @@ void error(loc src, str msg){
     throw Message::error(msg, src);
 }
 
-tuple[set[Message], FRModel] validate(FRModel er,
+tuple[set[Message] messages, FRModel frmodel] validate(FRModel er,
                       bool(AType atype1, AType atype2, FRModel frm) isSubtype = noIsSubtype,
                       AType(AType atype, FRModel frm) getLUB = noGetLUB
 ){
@@ -450,7 +429,7 @@ tuple[set[Message], FRModel] validate(FRModel er,
            def = lookup(extractedFRModel, u);
            defs[u.occ] = def;
            unresolvedUses += u;
-        } catch noKey: {
+        } catch NoKey(): {
             messages += error("Undefined `<u.id>`", u.occ);
         }
     }
@@ -461,7 +440,7 @@ tuple[set[Message], FRModel] validate(FRModel er,
             addFact(f.src, f.getAType());
             openFacts -= f;
             //fireTriggers(f.src);
-          } catch typeUnavailable(t): /* cannot yet compute type */;
+          } catch TypeUnavailable(t): /* cannot yet compute type */;
        } else {
            for(dep <- f.dependsOn){
                if(cdebug)println("add dependency: <dep> ==\> <f>");
@@ -525,7 +504,7 @@ tuple[set[Message], FRModel] validate(FRModel er,
                 t = ovl.resolve();
                 addFact(ovlKey, t);
                 bindings2facts(bindings, ovl.src); 
-              } catch typeUnavailable(t): {
+              } catch TypeUnavailable(t): {
                 continue;
               } catch Message e: {
                 messages += e;
@@ -552,7 +531,7 @@ tuple[set[Message], FRModel] validate(FRModel er,
                                 if(cdebug)println("checking `<oreq.name>`: adding bound fact: <f>");
                                 addFact(f.src, f.getAType());
                                 openFacts -= {f};
-                            } catch typeUnavailable(t): /* cannot yet compute type */;
+                            } catch TypeUnavailable(t): /* cannot yet compute type */;
                         }
                     }
                     
@@ -563,7 +542,7 @@ tuple[set[Message], FRModel] validate(FRModel er,
                      if(cdebug)println("checking `<oreq.name>`: deleting2");
                      openReqs -= oreq;
                  }
-             } catch typeUnavailable(t):
+             } catch TypeUnavailable(t):
                 println("checking `<oreq.name>`: dependencies not yet available");
           } else {
             println("checking `<oreq.name>`: dependencies not yet available");
@@ -607,7 +586,7 @@ rel[loc, loc] getUseDef(FRModel frm){
     for(Use u <- frm.uses){
         try {
            res += <u.occ, lookup(frm, u)>;
-        } catch noKey: {
+        } catch NoKey(): {
             ;// ignore it
         }
     };

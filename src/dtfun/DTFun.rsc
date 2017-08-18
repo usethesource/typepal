@@ -2,9 +2,8 @@ module dtfun::DTFun
 
 // Functional language with declared types
 
-extend ExtractFRModel;
-extend Constraints;
-extend TestFramework;
+extend typepal::TypePal;
+extend typepal::TestFramework;
 
 // ----  DTFun syntax ------------------------------------
 
@@ -136,8 +135,8 @@ void collect(e: (Expression) `<Integer intcon>`, Tree scope, FRBuilder frb){
 
 private Expression sample(str name) = parse(#Expression, |project://TypePal/src/dtfun/<name>.dt|);
 
-set[Message] validateDT(str name) =
-    validate(extractScopesAndConstraints(sample(name), makeFRBuilder()));
+set[Message] validateDT(str name)
+    = validate(extractScopesAndConstraints(sample(name), makeFRBuilder())).messages;
 
 void testDT() {
      runTests(|project://TypePal/src/dtfun/tests.ttl|, #Expression);

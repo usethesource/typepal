@@ -1,4 +1,4 @@
-module TestFramework
+module typepal::TestFramework
 
 import ParseTree;
 import IO;
@@ -6,7 +6,8 @@ import String;
 import Set;
 import Map;
 import List;
-import Constraints;
+
+extend typepal::TypePal;
 
 import util::IDE;
 
@@ -16,12 +17,11 @@ lexical TTL_String = "\"" ![\"]*  "\"";
 
 keyword TTL_Reserved = "test" | "expect" ;
 
-layout TTL_Layout = TTL_WhitespaceAndComment* !>> [\ \t\n\r%];
+layout TTL_Layout = TTL_WhitespaceAndComment* !>> [\ \t\n\r];
 
 lexical TTL_WhitespaceAndComment 
    = [\ \t\n\r]
-   | @category="Comment" ws2:
-    "@@" ![\n]+
+   | @category="Comment" ws2: "@@" ![\n]+
    | @category="Comment" ws3: "\<@@" ![]*  "@@\>"
    ;
    

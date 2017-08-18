@@ -1,8 +1,7 @@
 module modlang::ModLang
 
-extend ExtractFRModel;
-extend Constraints;
-extend TestFramework;
+extend typepal::TypePal;
+extend typepal::TestFramework;
 
 // ----  ModLang syntax ----------------------------------
 
@@ -161,7 +160,7 @@ Accept isAcceptableSimple(ScopeGraph sg, Key def, Use use){
 
 private Program sample(str name) = parse(#Program, |project://TypePal/src/modlang/<name>.modlang|);
 
-set[Message] validateModLang(str name) = validate(extractScopesAndConstraints(sample(name), makeFRBuilder()));
+set[Message] validateModLang(str name) = validate(extractScopesAndConstraints(sample(name), makeFRBuilder())).messages;
 
 void testModLang() {
     runTests(|project://TypePal/src/modlang/tests.ttl|, #Program);

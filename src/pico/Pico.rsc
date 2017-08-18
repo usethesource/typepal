@@ -3,8 +3,8 @@ module pico::Pico
 // Pico, a trivial language, single scope, no functions
 
 import Prelude;
-extend ExtractFRModel;
-extend Constraints;
+
+extend typepal::TypePal;
 
 // ----  Pico syntax -------------------------------------
 
@@ -104,7 +104,7 @@ void collect(s: (Statement) `while <Expression cond> do <{Statement ";"}* body> 
 
 void collect(e: (Expression) `<Expression lhs> + <Expression rhs>`, Tree scope, FRBuilder frb){
      frb.overload("addition", e, [lhs, rhs], 
-         () { switch([typeof(lhs), typeof(rhs)]){
+         AType () { switch([typeof(lhs), typeof(rhs)]){
                   case [intType(), intType()]: return intType();
                   case [strType(), strType()]: return strType();
                   default:
@@ -136,6 +136,6 @@ public Program samplePico(str name) = parse(#Program, |home:///git/TypePal/src/p
 set[Message] validatePico(str name) {
     Tree p = samplePico(name);
     ex = extractScopesAndConstraints(p, /*define, collect,*/ makeFRBuilder());
-    return validate(ex);
+    return validate(ex).messages;
 }
  value main() = validatePico("e1");

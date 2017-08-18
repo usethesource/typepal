@@ -1,9 +1,8 @@
 module itfun::ITFun
 // Functional language with inferred types (MiniML-like)
 
-extend ExtractFRModel;
-extend Constraints;
-extend TestFramework;
+extend typepal::TypePal;
+extend typepal::TestFramework;
 
 // ----  ITFun syntax ------------------------------------
 
@@ -131,7 +130,7 @@ private Expression sample(str name) = parse(#Expression, |project://TypePal/src/
 
 set[Message] validateIT(str name) {
     p = sample(name);
-    return validate(extractScopesAndConstraints(p, makeFRBuilder()));
+    return validate(extractScopesAndConstraints(p, makeFRBuilder())).messages;
 }
 
 void testIT() {

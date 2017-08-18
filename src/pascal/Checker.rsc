@@ -3,10 +3,8 @@ module pascal::Checker
 import pascal::Pascal;
 import ParseTree;
 
-extend ExtractFRModel;
-extend Constraints;
-extend TestFramework;
-
+extend typepal::TypePal;
+extend typepal::TestFramework;
 
 // ----  IdRoles, PathLabels and AType ------------------- 
 
@@ -146,10 +144,10 @@ bool isSubtype1(t1: definedType(tname1, use1), AType t2, FRModel frm){
             def1 = lookup(frm, use1);
             println("frm.facts[def1]: <frm.facts[def1]>");
             return isSubtype1(frm.facts[def1], t2, frm);
-    } catch noKey: {
+    } catch NoKey(): {
             return false;
     } catch NoSuchKey(k): {
-           throw typeUnavailable(use1.occ);
+           throw TypeUnavailable(use1.occ);
     }
 }
 bool isSubtype1(AType t1, t2: definedType(tname2, use2), FRModel frm){  
@@ -158,10 +156,10 @@ bool isSubtype1(AType t1, t2: definedType(tname2, use2), FRModel frm){
     try { 
             def2 = lookup(frm, use2);
             return isSubtype1(t1, frm.facts[def2], frm);
-    } catch noKey: {
+    } catch NoKey(): {
            return false;
     } catch NoSuchKey(k): {
-           throw typeUnavailable(use2.occ);
+           throw TypeUnavailable(use2.occ);
     }
 }
 
@@ -192,7 +190,7 @@ AType getLUB(t1: definedType(tname1,use1), t2: definedType(tname2,use2), FRModel
         def1 = lookup(frm, use1);
         def2 = lookup(frm, use2);
         return isSubtype(frm.facts[def2], frm.facts[def2], frm);
-       } catch noKey: {
+       } catch NoKey(): {
             throw "NoLUB";
        }
     }
@@ -714,12 +712,12 @@ private Program sampleProgram(str name) = parse(#Program, |home:///git/TypePal/s
  
 set[Message] validatePascalBlock(str name) {
     b = sampleBlock(name);
-    return validate(extractScopesAndConstraints(b, initializedFRB(b)) , isSubtype=isSubtype, getLUB=getLUB);
+    return validate(extractScopesAndConstraints(b, initializedFRB(b)) , isSubtype=isSubtype, getLUB=getLUB).messages;
 }
 
 set[Message] validatePascalProgram(str name) {
     p = sampleProgram(name);
-    return validate(extractScopesAndConstraints(p, initializedFRB(p)), isSubtype=isSubtype, getLUB=getLUB);
+    return validate(extractScopesAndConstraints(p, initializedFRB(p)), isSubtype=isSubtype, getLUB=getLUB).messages;
 }
 
 void testPascalBlock() {

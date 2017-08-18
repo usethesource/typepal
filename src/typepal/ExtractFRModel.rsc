@@ -1,9 +1,9 @@
-module ExtractFRModel
+module typepal::ExtractFRModel
 
 import Node;
 import ParseTree;
 import String;
-extend ScopeGraph;
+extend typepal::ScopeGraph;
 
 alias FRModel = ScopeGraph;
 
