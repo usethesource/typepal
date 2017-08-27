@@ -1,0 +1,95 @@
+test P1 [[
+    package H {
+        int y;
+        class A {
+           bool y; 
+           int h() {bool h1 = y;}
+        }
+    }
+]]
+
+test P2 [[
+    package H {
+        int y;
+        class A {
+           bool y; 
+           int h() {int h1 = H.y;}
+        }
+    }
+]]
+
+test P3 [[
+    package H {
+        class A {
+            void x()
+                { bool j = i;
+                  int i = 1;
+                }
+            bool i = true;
+        }
+    }
+]]
+
+test P4 [[
+    package p1 {
+        public class A {}
+    }
+    package p2 {
+        class B extends p1.A {}
+    }
+]]
+
+test P5 [[
+    package p1 {
+        interface A {
+            class D {}
+        }
+        class B extends C.D {}
+        class C implements A {}
+    }
+]]
+
+test P6 [[ 
+    package H {
+        class C { 
+            class A { int x; }
+            class B extends A {
+                int g() { int xx = x; }
+            }
+        }
+    }
+]] 
+
+test P7 [[
+    package H {
+        class C { 
+            int i;
+            class Z {}
+            class A {
+                int x; 
+                int h() { int ii = i;}
+                class Y extends Z {}
+            }
+            class B extends A {
+                int j;
+                int g() { int xx = x; 
+                          int xxx = B.x; }
+                        }
+            }
+    }
+]]
+
+test P8 [[
+    package p1 {
+        public class A {
+            public class p1 {}
+        }
+        class C extends p2.B {
+            p1.C p = 0;
+        }
+    }
+    package p2 {
+        public class B extends p1.A {}
+        private class p1 {}
+    }
+]]
