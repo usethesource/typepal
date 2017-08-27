@@ -1,0 +1,31 @@
+@@test E1 [[ 1 + 2 ]]
+@@test E2 [[ 1 + 2.5 ]]
+@@test E3 [[ 1 + true ]] expect { "No version of `+` is applicable" }
+
+@@test Lst1 [[ [] ]]
+@@test Lst2 [[ [1,2] + 1 ]]
+@@test Lst3 [[ 1 + [2,3] ]]
+@@test Lst4 [[ 1 + [] ]]
+@@test Lst5 [[ [] + 1 ]]
+@@test Lst6 [[ 1 + [1.5] ]]
+@@test Lst7 [[ 1 + [true] ]]
+
+@@test Set1 [[ {} ]]
+@@test Set2 [[ {1,2} + 1 ]]
+@@test Set3 [[ 1 + {2,3} ]]
+@@test Set4 [[ 1 + {} ]]
+@@test Set5 [[ {} + 1 ]]
+@@test Set6 [[ 1 + {1.5} ]]
+@@test Set7 [[ 1 + {true} ]]
+
+@@test Stat1 [[ 1 + {true, 2} ]]
+@@test Stat2 [[ {int n = 1;} ]]
+@@test Stat3 [[ { n = 1; n = true; } ]]
+test Stat4 [[ { n = 1; n = 1.5; n + 2;} ]]
+
+test Stat5 [[ { n = 1; m = n; n + 2;} ]]
+test Stat6 [[ { n = 1; m = n;  m = 1.5; n + 2;} ]]
+test Stat7 [[ { l = []; l = l + 1.5; } ]]
+test Stat8 [[ { l = []; m = l; l = m + 1.5; } ]]
+test Stat9 [[ { l = []; m = l; l = l + 1.5; } ]]
+test Stat10 [[ { l = []; m = l; m = m + 1.5; } ]] @@ should not fail (note: also breaks current tc)
