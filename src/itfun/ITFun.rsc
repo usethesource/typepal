@@ -57,14 +57,14 @@ str AType2String(functionType(AType from, AType to)) = "fun <AType2String(from)>
 Tree define(e: (Expression) `fun <Id name> { <Expression body> }`, Tree scope, FRBuilder frb) {   
      sigma1 = frb.newTypeVar(e); 
      sigma2 = frb.newTypeVar(e);
-     frb.define(e, "<name>", variableId(), name, defInfo(sigma1));
+     frb.define(e, "<name>", variableId(), name, defType(sigma1));
      frb.fact(e, [], AType() { return functionType(sigma1, sigma2); } );
      frb.fact(body, [], AType(){ return sigma2; } );
      return e;
 }
 
 Tree define(e: (Expression) `let <Id name> = <Expression exp1> in <Expression exp2> end`, Tree scope, FRBuilder frb) {  
-     frb.define(e, "<name>", variableId(), name, defInfo([exp1], AType() { return typeof(exp1); })); // <<<
+     frb.define(e, "<name>", variableId(), name, defType([exp1], AType() { return typeof(exp1); })); // <<<
      frb.fact(e, [exp2], AType() { return typeof(exp2); });
      return exp2;  
 }
@@ -130,7 +130,7 @@ private Expression sample(str name) = parse(#Expression, |project://TypePal/src/
 
 set[Message] validateIT(str name) {
     p = sample(name);
-    return validate(extractScopesAndConstraints(p, makeFRBuilder())).messages;
+    return validate(extractFRModel(p, newFRBuilder())).messages;
 }
 
 void testIT() {

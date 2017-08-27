@@ -66,13 +66,13 @@ str AType2String(functionType(AType from, AType to)) = "fun <AType2String(from)>
 // ----  Define --------------------------------------------------------
 
 Tree define(e: (Expression) `fun <Id name> : <Type tp> { <Expression body> }`, Tree scope, FRBuilder frb) {   
-     frb.define(e, "<name>", variableId(), name, defInfo(transType(tp)));
+     frb.define(e, "<name>", variableId(), name, defType(transType(tp)));
      frb.fact(e, [body], AType(){ return functionType(transType(tp), typeof(body)); });
      return e;
 }
 
 Tree define(e: (Expression) `let <Id name> : <Type tp> = <Expression exp1> in <Expression exp2> end`, Tree scope, FRBuilder frb) {  
-     frb.define(e, "<name>", variableId(), name, defInfo(transType(tp)));
+     frb.define(e, "<name>", variableId(), name, defType(transType(tp)));
      frb.fact(e, [exp2], AType() { return typeof(exp2); } );
      return exp2;  
 }
@@ -136,7 +136,7 @@ void collect(e: (Expression) `<Integer intcon>`, Tree scope, FRBuilder frb){
 private Expression sample(str name) = parse(#Expression, |project://TypePal/src/dtfun/<name>.dt|);
 
 set[Message] validateDT(str name)
-    = validate(extractScopesAndConstraints(sample(name), makeFRBuilder())).messages;
+    = validate(extractFRModel(sample(name), newFRBuilder())).messages;
 
 void testDT() {
      runTests(|project://TypePal/src/dtfun/tests.ttl|, #Expression);

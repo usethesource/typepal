@@ -5,8 +5,6 @@ import ParseTree;
 import String;
 extend typepal::ScopeGraph;
 
-alias FRModel = ScopeGraph;
-
 // Extend AType for type checking purposes
 data AType
     = tvar(loc name)                  // type variable, used for type inference
@@ -16,7 +14,7 @@ data AType
 
 // Pretty print ATypes
 str AType2String(tvar(loc name))    = "<name>";
-str AType2String(useType(Use use)) = "<use.id>";
+str AType2String(useType(Use use)) = "<getId(use)>";
 str AType2String(listType(list[AType] atypes)) = size(atypes) == 0 ? "empty list of types" : intercalate(", ", [AType2String(a) | a <- atypes]);
 default str AType2String(AType tp) = "<tp>";
 
@@ -29,15 +27,47 @@ set[loc] extractTypeDependencies(AType tp)
 bool allDependenciesKnown(set[loc] deps, map[loc,AType] facts)
     = (isEmpty(deps) || all(dep <- deps, facts[dep]?));
 
+//void dependenciesAreTree(list[value] dependencies){
+//        for(d <- dependencies){
+//            if(Tree t !:= d){
+//                throw "Dependency should be a tree, found <d>";
+//            }
+//        }    
+//    }
+
+list[Key] dependenciesAsKeyList(list[value] dependencies){
+    return 
+        for(d <- dependencies){
+        if(Tree t := d){
+            append t@\loc;
+        } else {
+            throw "Dependency should be a tree, found <d>";
+        }
+    };
+} 
+
+set[Key] dependenciesAsKeys(list[value] dependencies)
+    = toSet(dependenciesAsKeyList(dependencies));
+
 // Definition info used during type checking
 data DefInfo
-    = defInfo(AType atype)                              // Explicitly given AType
-    | defInfo(list[Tree] dependsOn, AType() getAType)   // AType given as callback.
+    = defType(AType atype)                              // Explicitly given AType
+    | defType(set[Key] dependsOn, AType() getAType)     // AType given as callback.
+    | defLub(list[AType] atypes)                                              // redefine previous definition
+    | defLub(set[Key] dependsOn, set[Key] defines, list[AType()] getATypes)   // redefine previous definition
     ;
- 
+
+DefInfo defType(list[value] dependsOn, AType() getAType)
+    = defType(dependenciesAsKeys(dependsOn), getAType);
+    
+DefInfo defLub(list[value] dependsOn, AType() getAType)
+    = defLub(dependenciesAsKeys(dependsOn), {}, [getAType]);
+    
 // Errors found during type checking  
 data ErrorHandler
-    = onError(loc where, str msg);
+    = onError(loc where, str msg)
+    | noError()
+    ;
    
 ErrorHandler onError(Tree t, str msg) = onError(t@\loc, msg);
 
@@ -49,18 +79,20 @@ void reportError(Tree t, str msg){
 
 // Fact about location src, given dependencies and an AType callback
 data Fact
-    = openFact(set[loc] dependsOn, loc src, AType() getAType);
+    = openFact(loc src, set[loc] dependsOn, AType() getAType)
+    | openFact(set[loc] srcs, set[loc] dependsOn, list[AType()] getATypes)
+    ;
 
 // A named requirement for location src, given dependencies and a callback predicate
 data Requirement
-    = openReq(str name, set[loc] dependsOn, loc src, void() preds);
+    = openReq(str name, loc src, set[loc] dependsOn,  void() preds);
 
-// Named overloading resolver for location src, given args, and resolve callback    
-data Overload
-    = overload(str name, list[loc] args, loc src,  AType() resolve);
+// Named type calculator for location src, given args, and resolve callback    
+data Calculator
+    = calculate(str name, loc src, list[loc] dependsOn, AType() calculator);
 
-data ScopeGraph (
-        map[loc,Overload] overloads = (),
+data FRModel (
+        map[loc,Calculator] calculators = (),
         map[loc,AType] facts = (), 
         set[Fact] openFacts = {},
         set[Requirement] openReqs = {},
@@ -78,27 +110,33 @@ default void collect(Tree tree, Tree scope, FRBuilder frb) {
     //println("Default collect <tree>");
 }
 
-ScopeGraph extractScopesAndConstraints(Tree root, FRBuilder frb){
+default FRModel initializeFRModel(FRModel frm) = frm;
+
+default FRModel enhanceFRModel(FRModel frm) = frm;
+
+FRModel extractFRModel(Tree root, FRBuilder frb){
     extract2(root, root, frb);
-    sg = frb.build();
-    if(debug) printScopeGraph(sg);
+    frm = enhanceFRModel(frb.build());
+    if(debug) printFRModel(frm);
     int n = 0;
-    while(!isEmpty(sg.referPaths) && n < 3){    // explain this iteration count
+    if(debug) println("&&&&&&&&&&&&&&&&&&&&& resolving referPath &&&&&&&&&&&&&&&&&&&&");
+    while(!isEmpty(frm.referPaths) && n < 3){    // explain this iteration count
         n += 1;
-        for(c <- sg.referPaths){
+        for(c <- frm.referPaths){
             try {
-                def = lookup(sg, c.use);
-                if(debug) println("extract1: resolve <c.use> to <def>");
-                sg.paths += {<c.use.scope, c.pathLabel, def>};
-                sg.referPaths -= {c}; 
+                def = lookup(frm, c.use);
+                /*if(debug)*/ println("extractFRModel: resolve <c.use> to <def>");
+                frm.paths += {<c.use.scope, c.pathLabel, def>};
+                frm.referPaths -= {c}; 
             }
-            catch:; 
+            catch:
+                println("Lookup for <c> fails"); 
         }
     }
-    if(!isEmpty(sg.referPaths)){
-        println("Could not solve path contributions");
+    if(!isEmpty(frm.referPaths)){
+        println("&&&&&&&&&&&&&&&&&&& Could not solve path contributions");
     }
-    return sg;
+    return frm;
 }
 
 void extract2(currentTree: appl(Production _, list[Tree] args), Tree currentScope, FRBuilder frb){
@@ -119,17 +157,17 @@ default void extract2(Tree root, Tree currentScope, FRBuilder frb) {
 
 data FRBuilder 
     = frbuilder(
-        void (Tree scope, Idn id, IdRole idRole, Tree root, DefInfo info) define,
+        Tree (Tree scope, str id, IdRole idRole, Tree def, DefInfo info) define,
         void (Tree scope, Tree occ, set[IdRole] idRoles) use,
         void (Tree scope, Tree occ, set[IdRole] idRoles, PathLabel pathLabel) use_ref,
-        void (Tree scope, list[Idn] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) use_qual,
-        void (Tree scope, list[Idn] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathLabel pathLabel) use_qual_ref,   
+        void (Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) use_qual,
+        void (Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathLabel pathLabel) use_qual_ref,   
         void (Tree inner, Tree outer) addScope,
        
-        void (str name, Tree src, list[Tree] dependencies, void() preds) require,
+        void (str name, Tree src, list[value] dependencies, void() preds) require,
         void (Tree src, AType tp) atomicFact,
-        void (Tree src, list[Tree] dependencies, AType() getAType) fact,
-        void (str name, Tree src, list[Tree] args, AType() resolver) overload,
+        void (Tree src, list[value] dependencies, AType() getAType) fact,
+        void (str name, Tree src, list[value] dependencies, AType() calculator) calculate,
         void (Tree src, str msg) error,
         AType (Tree scope) newTypeVar,
         FRModel () build
@@ -138,23 +176,30 @@ data FRBuilder
 AType() makeClos1(AType tp) = AType (){ return tp; };                   // TODO: workaround for compiler glitch
 void() makeClos2(Tree src, str msg) = void(){ reportError(src, msg); };
                           
-FRBuilder makeFRBuilder(){
+FRBuilder newFRBuilder(){
         
     Defines defines = {};
+    Defines lubDefines = {};
+    rel[loc, str, IdRole] lubKeys = {};
     Scopes scopes = ();
     Paths paths = {};
     ReferPaths referPaths = {};
     Uses uses = [];
     
-    map[loc,Overload]overloads = ();
+    map[loc,Calculator] calculators = ();
     map[loc,AType] facts = ();
     set[Fact] openFacts = {};
     set[Requirement] openReqs = {};
     int ntypevar = -1;
     map[loc,loc] tvScopes = ();
     
-    void _define(Tree scope, Idn id, IdRole idRole, Tree d, DefInfo info){
-        defines += {<scope@\loc, id, idRole, d@\loc, info>};
+    void _define(Tree scope, str id, IdRole idRole, Tree def, DefInfo info){
+        if(info is defLub){
+            lubDefines += {<scope@\loc, id, idRole, def@\loc, info>};
+            lubKeys += <scope@\loc, id, idRole>;
+        } else {
+            defines += {<scope@\loc, id, idRole, def@\loc, info>};
+        }
     }
        
     void _use(Tree scope, Tree occ, set[IdRole] idRoles) {
@@ -167,38 +212,37 @@ FRBuilder makeFRBuilder(){
         referPaths += {refer(u, pathLabel)};
     }
     
-    void _use_qual(Tree scope, list[Idn] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles){
-        uses += [usen(ids, occ@\loc, scope@\loc, idRoles, qualifierRoles)];
+    void _use_qual(Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles){
+        uses += [useq(ids, occ@\loc, scope@\loc, idRoles, qualifierRoles)];
     }
-     void _use_qual_ref(Tree scope, list[Idn] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathLabel pathLabel){
-        u = usen(ids, occ@\loc, scope@\loc, idRoles, qualifierRoles);
+     void _use_qual_ref(Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathLabel pathLabel){
+        u = useq(ids, occ@\loc, scope@\loc, idRoles, qualifierRoles);
         uses += [u];
         referPaths += {refer(u, pathLabel)};
     }
     
     void _addScope(Tree inner, Tree outer) { if(inner@\loc != outer@\loc) scopes[inner@\loc] = outer@\loc; }
      
-    void _require(str name, Tree src, list[Tree] dependencies, void() preds){        
-        deps = {d@\loc | d <- dependencies};        
-        openReqs += { openReq(name, deps, src@\loc, preds) };
+    
+    void _require(str name, Tree src, list[value] dependencies, void() preds){ 
+        openReqs += { openReq(name, src@\loc, dependenciesAsKeys(dependencies),  preds) };
     } 
     
-    void _fact1(Tree tree, AType tp){
+    void _fact1(Tree tree, AType tp){  
         deps = extractTypeDependencies(tp);
-        openFacts += { openFact(deps, tree@\loc, makeClos1(tp)) };
+        openFacts += { openFact(tree@\loc, deps, makeClos1(tp)) };
     }
     
-    void _fact2(Tree tree, list[Tree] dependencies, AType() getAType){
-        deps = { d@\loc | d <- dependencies };
-        openFacts += { openFact(deps, tree@\loc, getAType) };
+    void _fact2(Tree tree, list[value] dependencies, AType() getAType){
+        openFacts += { openFact( tree@\loc, dependenciesAsKeys(dependencies), getAType) };
     }
     
-    void _overload(str name, Tree src, list[Tree] args, AType() resolver){
-        overloads[src@\loc] = overload(name, [arg@\loc | arg <- args], src@\loc, resolver);
+    void _calculate(str name, Tree src, list[value] dependencies, AType() calculator){
+        calculators[src@\loc] = calculate(name, src@\loc, dependenciesAsKeyList(dependencies),  calculator);
     }
     
     void _error(Tree src, str msg){
-        openReqs += { openReq("", {}, src@\loc, makeClos2(src, msg)) };
+        openReqs += { openReq("error", src@\loc, {}, makeClos2(src, msg)) };
     }
     
     AType _newTypeVar(Tree scope){
@@ -209,21 +253,53 @@ FRBuilder makeFRBuilder(){
         return tvar(tv);
     }
     
+    void finalizeDefines(){
+        set[Define] extra_defines = {};
+        for(<scope, id, role> <- lubKeys){
+            if({fixedDef} := defines[scope, id, role]){
+                for(<Key defined, DefInfo defInfo> <- lubDefines[scope, id, role]){
+                    res = use(id, defined, scope, {role});
+                    //println("add use: <res>");
+                    uses += res;
+                }
+            } else { // No definition with fixed type
+                deps = {}; getATypes = [];
+                defineds = {};
+                loc firstDefined;
+                for(tuple[Key defined, DefInfo defInfo] info <- lubDefines[scope, id, role]){
+                    defineds += info.defined;
+                    if(!firstDefined? || info.defined.begin.line < firstDefined.begin.line){
+                        firstDefined = info.defined;
+                    }
+                    deps += info.defInfo.dependsOn;
+                    getATypes += info.defInfo.getATypes;
+                }
+              
+                res = <scope, id, role, firstDefined, defLub(deps - defineds, defineds, getATypes)>;
+                //println("add define: <res>");
+                extra_defines += res;
+            }
+        }
+        defines += extra_defines;
+    }
+    
     FRModel _build(){
-       frm = scopeGraph();
+       frm = frModel();
+       finalizeDefines();
        frm.defines = defines;
        frm.scopes = scopes;
        frm.paths = paths;
        frm.referPaths = referPaths;
        frm.uses = uses;
        
-       frm.overloads = overloads;
+       frm.calculators = calculators;
        frm.facts = facts;
        frm.openFacts = openFacts;
        frm.openReqs = openReqs;
        frm.tvScopes = tvScopes;
+       
        return frm; 
     }
     
-    return frbuilder(_define, _use, _use_ref, _use_qual, _use_qual_ref, _addScope, _require, _fact1, _fact2, _overload, _error,  _newTypeVar, _build); 
+    return frbuilder(_define, _use, _use_ref, _use_qual, _use_qual_ref, _addScope, _require, _fact1, _fact2, _calculate, _error,  _newTypeVar, _build); 
 }

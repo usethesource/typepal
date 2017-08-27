@@ -175,7 +175,7 @@ bool isSubtype(listType(list[AType] atypes1), listType(list[AType] atypes2), Sco
 // ----  Initialize --------------------------------------  
 
 FRBuilder initializedFRB(Tree scope){
-    FRBuilder frb = makeFRBuilder();
+    FRBuilder frb = newFRBuilder();
     // Simulate the definition of the class "Object"
     object_src = [ClassId] "Object";
     frb.define(scope, "Object", classId(), object_src, defInfo(classType(scope, object_src)));
@@ -327,7 +327,7 @@ private Program sample(str name) = parse(#Program, |project://TypePal/src/fj/<na
 
 set[Message] validateFJ(str name) {
     p = sample(name);
-    return validate(extractScopesAndConstraints(p, initializedFRB(p)), isSubtype=isSubtype);
+    return validate(extractFRModel(p, initializedFRB(p)), isSubtype=isSubtype);
 }
 
 void testFJ() {

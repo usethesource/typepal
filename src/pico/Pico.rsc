@@ -70,7 +70,7 @@ str AType2String(strType()) = "str";
 // ----  Define -----------------------------------------
  
 Tree define(d:(Declaration) `<Id id> : <Type tp>`,  Tree scope, FRBuilder frb) {
-     frb.define(scope, "<d.id>", variableId(), d, defInfo(transType(tp)));
+     frb.define(scope, "<d.id>", variableId(), d, defType(transType(tp)));
      return scope; 
 }
 
@@ -103,7 +103,7 @@ void collect(s: (Statement) `while <Expression cond> do <{Statement ";"}* body> 
 }
 
 void collect(e: (Expression) `<Expression lhs> + <Expression rhs>`, Tree scope, FRBuilder frb){
-     frb.overload("addition", e, [lhs, rhs], 
+     frb.calculate("addition", e, [lhs, rhs], 
          AType () { switch([typeof(lhs), typeof(rhs)]){
                   case [intType(), intType()]: return intType();
                   case [strType(), strType()]: return strType();
@@ -135,7 +135,7 @@ public Program samplePico(str name) = parse(#Program, |home:///git/TypePal/src/p
                      
 set[Message] validatePico(str name) {
     Tree p = samplePico(name);
-    ex = extractScopesAndConstraints(p, /*define, collect,*/ makeFRBuilder());
+    ex = extractFRModel(p, newFRBuilder());
     return validate(ex).messages;
 }
  value main() = validatePico("e1");

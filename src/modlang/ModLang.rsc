@@ -82,14 +82,14 @@ Tree define(ModuleDecl md, Tree scope, FRBuilder sg) {
 Tree define(e: (Expression) `fun <Id id> { <Expression body> }`, Tree scope, FRBuilder frb) {   
      sigma1 = frb.newTypeVar(e); 
      sigma2 = frb.newTypeVar(e);
-     frb.define(scope, "<id>", parameterId(), id, defInfo(sigma1));
+     frb.define(scope, "<id>", parameterId(), id, defType(sigma1));
      frb.atomicFact(e, functionType(sigma1, sigma2));
      frb.atomicFact(body, sigma2);
      return scope;
 }
 
 Tree define(vd: (VarDecl) `def <Id id> = <Expression expression> ;`, Tree scope, FRBuilder sg)     {
-     sg.define(scope, "<id>", variableId(), id, defInfo([expression], AType(){ return typeof(expression); })); // <<<
+     sg.define(scope, "<id>", variableId(), id, defType([expression], AType(){ return typeof(expression); })); // <<<
      return expression;
 }
 
@@ -118,7 +118,7 @@ void collect(e: (Expression) `<Expression exp1>(<Expression exp2>)`, Tree scope,
 }
 
 void collect(e: (Expression) `<Expression lhs> + <Expression rhs>`, Tree scope, FRBuilder frb){
-     frb.overload("addition", e, [lhs, rhs],
+     frb.calculate("addition", e, [lhs, rhs],
          AType () { targs = listType([typeof(lhs), typeof(rhs)]);
                     if(unify(targs, listType([intType(), intType()]))) return intType();
                     if(unify(targs, listType([strType(), strType()]))) return strType();
@@ -148,7 +148,7 @@ void collect(e: (Expression) `<Integer intcon>`, Tree scope, FRBuilder frb){
 
 // ---- Refine use/def: enforce def before use -----------
 
-Accept isAcceptableSimple(ScopeGraph sg, Key def, Use use){
+Accept isAcceptableSimple(FRModel frm, Key def, Use use){
     return variableId() in use.idRoles
            && def < use.scope 
            && !(use.occ.offset >= def.offset)
@@ -160,7 +160,7 @@ Accept isAcceptableSimple(ScopeGraph sg, Key def, Use use){
 
 private Program sample(str name) = parse(#Program, |project://TypePal/src/modlang/<name>.modlang|);
 
-set[Message] validateModLang(str name) = validate(extractScopesAndConstraints(sample(name), makeFRBuilder())).messages;
+set[Message] validateModLang(str name) = validate(extractFRModel(sample(name), newFRBuilder())).messages;
 
 void testModLang() {
     runTests(|project://TypePal/src/modlang/tests.ttl|, #Program);

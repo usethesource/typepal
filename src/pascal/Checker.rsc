@@ -122,40 +122,40 @@ AType getConstantType(Tree scope, Constant c){
     return stringType;
 }
 
-// ---- isSubtype
+// ---- isSubType
 
-bool isSubtype(AType atype1, AType atype2, FRModel frm) {
-    res = isSubtype1(normalize(atype1), normalize(atype2), frm);
+bool isSubType(AType atype1, AType atype2, FRModel frm) {
+    res = isSubType1(normalize(atype1), normalize(atype2), frm);
     //println("isSubtype(<atype1>, <atype2>) ==\> <res>");
     return res;
 }
     
-bool isSubtype1(listType(list[AType] elems1), listType(list[AType] elems2), FRModel frm)
-    = size(elems1) == size(elems2) && all(int i <- index(elems1), isSubtype1(elems1[i], elems2[i], frm));
+bool isSubType1(listType(list[AType] elems1), listType(list[AType] elems2), FRModel frm)
+    = size(elems1) == size(elems2) && all(int i <- index(elems1), isSubType1(elems1[i], elems2[i], frm));
 
-bool isSubtype1(primitiveType(str tname1), primitiveType(str tname2), FRModel frm)
+bool isSubType1(primitiveType(str tname1), primitiveType(str tname2), FRModel frm)
     = tname1 == "integer" && tname2 == "real" || tname1 == tname2;
 
-bool isSubtype1(t1: definedType(tname1, use1), AType t2, FRModel frm){
-    //println("isSubtype1: <t1>, <t2>");
+bool isSubType1(t1: definedType(tname1, use1), AType t2, FRModel frm){
+    //println("isSubType1: <t1>, <t2>");
     if(t1 == t2)
         return true;
     try { 
             def1 = lookup(frm, use1);
             println("frm.facts[def1]: <frm.facts[def1]>");
-            return isSubtype1(frm.facts[def1], t2, frm);
+            return isSubType1(frm.facts[def1], t2, frm);
     } catch NoKey(): {
             return false;
     } catch NoSuchKey(k): {
            throw TypeUnavailable(use1.occ);
     }
 }
-bool isSubtype1(AType t1, t2: definedType(tname2, use2), FRModel frm){  
+bool isSubType1(AType t1, t2: definedType(tname2, use2), FRModel frm){  
     if(t1 == t2)
         return true;  
     try { 
             def2 = lookup(frm, use2);
-            return isSubtype1(t1, frm.facts[def2], frm);
+            return isSubType1(t1, frm.facts[def2], frm);
     } catch NoKey(): {
            return false;
     } catch NoSuchKey(k): {
@@ -163,18 +163,18 @@ bool isSubtype1(AType t1, t2: definedType(tname2, use2), FRModel frm){
     }
 }
 
-bool isSubtype1(subrangeType(AType associatedType), AType other, FRModel frm)
-    = isSubtype1(associatedType, other, frm);
+bool isSubType1(subrangeType(AType associatedType), AType other, FRModel frm)
+    = isSubType1(associatedType, other, frm);
      
-bool isSubtype1(AType other, subrangeType(AType associatedType), FRModel frm)
-    = isSubtype1(other, associatedType, frm);
+bool isSubType1(AType other, subrangeType(AType associatedType), FRModel frm)
+    = isSubType1(other, associatedType, frm);
 
-bool isSubtype1(pointerType(AType t1), pointerType(AType t2), FRModel frm)
-    = t1 == anyPointerType || isSubtype1(t1, t2, frm);
+bool isSubType1(pointerType(AType t1), pointerType(AType t2), FRModel frm)
+    = t1 == anyPointerType || isSubType1(t1, t2, frm);
     
-bool isSubtype1(AType atype, functionType(_, atype), FRModel frm) = true;  // for assignment to function id
+bool isSubType1(AType atype, functionType(_, atype), FRModel frm) = true;  // for assignment to function id
 
-default bool isSubtype1(AType atype1, AType atype2, FRModel frm) = atype1 == atype2;
+default bool isSubType1(AType atype1, AType atype2, FRModel frm) = atype1 == atype2;
 
 // ---- getLUB
 
@@ -189,7 +189,7 @@ AType getLUB(t1: definedType(tname1,use1), t2: definedType(tname2,use2), FRModel
        try {
         def1 = lookup(frm, use1);
         def2 = lookup(frm, use2);
-        return isSubtype(frm.facts[def2], frm.facts[def2], frm);
+        return isSubType(frm.facts[def2], frm.facts[def2], frm);
        } catch NoKey(): {
             throw "NoLUB";
        }
@@ -225,31 +225,31 @@ FRBuilder initializedFRB(Tree tree){
     textType = primitiveType("text");
     anyPointerType = primitiveType("anyPointer");
     charType = primitiveType("char");
-    FRBuilder frb = makeFRBuilder();
-    frb.define(tree, "true",    constantId(),   mkTree(1), defInfo(booleanType));
-    frb.define(tree, "false",   constantId(),   mkTree(2), defInfo(booleanType));
-    frb.define(tree, "writeln", procedureId(),  mkTree(3), defInfo(procedureType(listType([]))));
-    frb.define(tree, "write",   procedureId(),  mkTree(4), defInfo(procedureType(listType([]))));
-    frb.define(tree, "odd",     functionId(),   mkTree(5), defInfo(functionType(listType([integerType]), booleanType)));
-    frb.define(tree, "abs",     functionId(),   mkTree(6), defInfo(functionType(listType([integerType]), integerType)));
-    frb.define(tree, "sqr",     functionId(),   mkTree(7), defInfo(functionType(listType([integerType]), integerType)));
-    frb.define(tree, "sin",     functionId(),   mkTree(8), defInfo(functionType(listType([realType]), realType)));
-    frb.define(tree, "cos",     functionId(),   mkTree(9), defInfo(functionType(listType([realType]), realType)));
-    frb.define(tree, "arctan",  functionId(),   mkTree(10), defInfo(functionType(listType([realType]), realType)));
-    frb.define(tree, "exp",     functionId(),   mkTree(11), defInfo(functionType(listType([realType]), realType)));
-    frb.define(tree, "ln",      functionId(),   mkTree(12), defInfo(functionType(listType([realType]), realType)));
-    frb.define(tree, "sqrt",    functionId(),   mkTree(13), defInfo(functionType(listType([realType]), realType)));
-    frb.define(tree, "round",   functionId(),   mkTree(14), defInfo(functionType(listType([realType]), integerType)));
-    frb.define(tree, "read",    procedureId(),  mkTree(15), defInfo(procedureType(listType([]))));
-    frb.define(tree, "new",     procedureId(),  mkTree(16), defInfo(procedureType(listType([]))));
+    FRBuilder frb = newFRBuilder();
+    frb.define(tree, "true",    constantId(),   mkTree(1), defType(booleanType));
+    frb.define(tree, "false",   constantId(),   mkTree(2), defType(booleanType));
+    frb.define(tree, "writeln", procedureId(),  mkTree(3), defType(procedureType(listType([]))));
+    frb.define(tree, "write",   procedureId(),  mkTree(4), defType(procedureType(listType([]))));
+    frb.define(tree, "odd",     functionId(),   mkTree(5), defType(functionType(listType([integerType]), booleanType)));
+    frb.define(tree, "abs",     functionId(),   mkTree(6), defType(functionType(listType([integerType]), integerType)));
+    frb.define(tree, "sqr",     functionId(),   mkTree(7), defType(functionType(listType([integerType]), integerType)));
+    frb.define(tree, "sin",     functionId(),   mkTree(8), defType(functionType(listType([realType]), realType)));
+    frb.define(tree, "cos",     functionId(),   mkTree(9), defType(functionType(listType([realType]), realType)));
+    frb.define(tree, "arctan",  functionId(),   mkTree(10), defType(functionType(listType([realType]), realType)));
+    frb.define(tree, "exp",     functionId(),   mkTree(11), defType(functionType(listType([realType]), realType)));
+    frb.define(tree, "ln",      functionId(),   mkTree(12), defType(functionType(listType([realType]), realType)));
+    frb.define(tree, "sqrt",    functionId(),   mkTree(13), defType(functionType(listType([realType]), realType)));
+    frb.define(tree, "round",   functionId(),   mkTree(14), defType(functionType(listType([realType]), integerType)));
+    frb.define(tree, "read",    procedureId(),  mkTree(15), defType(procedureType(listType([]))));
+    frb.define(tree, "new",     procedureId(),  mkTree(16), defType(procedureType(listType([]))));
     
-    frb.define(tree, "Boolean", typeId(),       mkTree(17), defInfo(booleanType));
-    frb.define(tree, "integer", typeId(),       mkTree(18), defInfo(integerType));
-    frb.define(tree, "real",    typeId(),       mkTree(19), defInfo(realType));
-    frb.define(tree, "string",  typeId(),       mkTree(20), defInfo(stringType));
-    frb.define(tree, "text",    typeId(),       mkTree(21), defInfo(textType));
-    frb.define(tree, "any",     typeId(),       mkTree(22), defInfo(anyPointerType));
-    frb.define(tree, "char",    typeId(),       mkTree(23), defInfo(charType));
+    frb.define(tree, "Boolean", typeId(),       mkTree(17), defType(booleanType));
+    frb.define(tree, "integer", typeId(),       mkTree(18), defType(integerType));
+    frb.define(tree, "real",    typeId(),       mkTree(19), defType(realType));
+    frb.define(tree, "string",  typeId(),       mkTree(20), defType(stringType));
+    frb.define(tree, "text",    typeId(),       mkTree(21), defType(textType));
+    frb.define(tree, "any",     typeId(),       mkTree(22), defType(anyPointerType));
+    frb.define(tree, "char",    typeId(),       mkTree(23), defType(charType));
   
     return frb;
 }
@@ -260,27 +260,27 @@ FRBuilder initializedFRB(Tree tree){
 
 Tree define(ProgramHeading ph, Tree scope, FRBuilder frb) {
     for(fid <- ph.fileIdentifiers){
-        frb.define(scope, "<fid>", fileId(), fid, defInfo(fileType(textType)));
+        frb.define(scope, "<fid>", fileId(), fid, defType(fileType(textType)));
     }
     return scope;
 }
 
 Tree define(TypeDefinition td, Tree scope, FRBuilder frb){
     if(td.rtype is simple){
-       frb.define(scope, "<td.id>", typeId(), td.id, defInfo(getType(scope, td.rtype)));
+       frb.define(scope, "<td.id>", typeId(), td.id, defType(getType(scope, td.rtype)));
        return scope;
     } else if(td.rtype is structured){
-        frb.define(scope, "<td.id>", typeId(), td.id, defInfo(definedType(td, td.id)));
+        frb.define(scope, "<td.id>", typeId(), td.id, defType(definedType(td, td.id)));
         return td;
     } else {
-       frb.define(scope, "<td.id>", typeId(), td.id, defInfo(getType(scope, td.rtype)));
+       frb.define(scope, "<td.id>", typeId(), td.id, defType(getType(scope, td.rtype)));
        return scope;
     }
 }
 
 Tree define(RecordSection rs, Tree scope, FRBuilder frb){
     for(fid <- rs.fieldIdentifiers){
-        frb.define(scope, "<fid>", fieldId(), fid, defInfo(getType(scope, rs.rtype)));
+        frb.define(scope, "<fid>", fieldId(), fid, defType(getType(scope, rs.rtype)));
     }
     return scope;
 }
@@ -292,7 +292,7 @@ AType handleFormals({FormalParameterSection ";"}+ formals, Tree scope, FRBuilder
         for(fid <- fps.group.ids){
             t = getType(scope, g.rtype);
             formalTypes += t;
-            frb.define(scope, "<fid>", formalId(), fid, defInfo(t)); 
+            frb.define(scope, "<fid>", formalId(), fid, defType(t)); 
         }
     }
     return listType(formalTypes);
@@ -301,9 +301,9 @@ AType handleFormals({FormalParameterSection ";"}+ formals, Tree scope, FRBuilder
 Tree define(FunctionDeclaration fd, Tree scope, FRBuilder frb){
     hd = fd.functionHeading;
     if(hd has formals){
-      frb.define(scope, "<hd.id>", functionId(), hd.id, defInfo(functionType(handleFormals(hd.formals, scope, frb), useDefinedType(scope, hd.rtype))));
+      frb.define(scope, "<hd.id>", functionId(), hd.id, defType(functionType(handleFormals(hd.formals, scope, frb), useDefinedType(scope, hd.rtype))));
     } else {
-       frb.define(scope, "<hd.id>", functionId(), hd.id, defInfo(functionType(listType([]), useDefinedType(scope, hd.rtype)))); 
+       frb.define(scope, "<hd.id>", functionId(), hd.id, defType(functionType(listType([]), useDefinedType(scope, hd.rtype)))); 
     }
     return fd;
 }
@@ -311,9 +311,9 @@ Tree define(FunctionDeclaration fd, Tree scope, FRBuilder frb){
 Tree define(ProcedureDeclaration pd, Tree scope, FRBuilder frb){
     hd = pd.procedureHeading;
     if(hd has formals){
-       frb.define(scope, "<hd.id>", procedureId(), hd.id, defInfo(procedureType(handleFormals(hd.formals, scope, frb)))); 
+       frb.define(scope, "<hd.id>", procedureId(), hd.id, defType(procedureType(handleFormals(hd.formals, scope, frb)))); 
     } else {
-       frb.define(scope, "<hd.id>", procedureId(), hd.id, defInfo(procedureType(listType([])))); 
+       frb.define(scope, "<hd.id>", procedureId(), hd.id, defType(procedureType(listType([])))); 
     }
     return pd;
 }
@@ -330,18 +330,18 @@ Tree define(Block b, Tree scope, FRBuilder frb) {
 }
 
 Tree define(ConstantDefinition cd, Tree scope, FRBuilder frb) {
-   frb.define(scope, "<cd.id>", constantId(), cd.id, defInfo(getConstantType(scope, cd.constant)));
+   frb.define(scope, "<cd.id>", constantId(), cd.id, defType(getConstantType(scope, cd.constant)));
     return scope;
 }
 
 Tree define(TypeDefinition td, Tree scope, FRBuilder frb) {
-    frb.define(scope, "<td.id>", typeId(), td.id, defInfo(getType(scope, td.rtype)));
+    frb.define(scope, "<td.id>", typeId(), td.id, defType(getType(scope, td.rtype)));
     return scope;
 }
 
 Tree define(VariableDeclaration vd, Tree scope, FRBuilder frb) {
     for(id <- vd.ids){
-        frb.define(scope, "<id>", variableId(), id, defInfo(getType(scope, vd.\type)));
+        frb.define(scope, "<id>", variableId(), id, defType(getType(scope, vd.\type)));
     }
     return scope;
 }
@@ -421,21 +421,21 @@ void collect(fd: (FunctionDesignator)  `<FunctionIdentifier fid> ( <{ ActualPara
      switch("<fid>"){
      
      case "abs": 
-        frb.overload("call `abs`", fd, actualList, iirr);  
+        frb.calculate("call `abs`", fd, actualList, iirr);  
      case "arctan": 
-        frb.overload("call `arctan`", fd, actualList, iirr);
+        frb.calculate("call `arctan`", fd, actualList, iirr);
      case "cos": 
-        frb.overload("call `cos`", fd, actualList, irrr);
+        frb.calculate("call `cos`", fd, actualList, irrr);
      case "exp": 
-        frb.overload("call `exp`", fd, actualList, iirr);
+        frb.calculate("call `exp`", fd, actualList, iirr);
      case "ln": 
-        frb.overload("call `ln`", fd, actualList, iirr);
+        frb.calculate("call `ln`", fd, actualList, iirr);
      case "sin": 
-        frb.overload("call `sin`", fd, actualList, irrr);
+        frb.calculate("call `sin`", fd, actualList, irrr);
      case "sqr": 
-        frb.overload("call `sqr`", fd, actualList, iirr);
+        frb.calculate("call `sqr`", fd, actualList, iirr);
      case "sqrt": 
-        frb.overload("call `sqrt`", fd, actualList, iirr);
+        frb.calculate("call `sqrt`", fd, actualList, iirr);
  
      default: {
         Tree tfid = fid;
@@ -532,7 +532,7 @@ void collect(ForStatement s, Tree scope, FRBuilder frb){
 // Operator overloading
 
 void overloadRelational(Expression e, str op, Expression exp1, Expression exp2, Tree scope, FRBuilder frb){
-    frb.overload("relational operator `<op>`", e,  [exp1, exp2], 
+    frb.calculate("relational operator `<op>`", e,  [exp1, exp2], 
         AType() { //println("overloadRelational: <typeof(exp1)>, <typeof(exp2)>");
         //          println("<[typeof(exp1), typeof(exp2)]>");
         //          println("integerType = <integerType>");
@@ -586,7 +586,7 @@ void collect(e: (Expression) `<Expression exp1> \> <Expression exp2>`, Tree scop
     = overloadRelational(e, "\>", exp1, exp2, scope, frb);           
 
 void collect(e: (Expression) `<Expression exp1> in <Expression exp2>`, Tree scope, FRBuilder frb){
-    frb.overload("relational operator", e, [exp1, exp2], 
+    frb.calculate("relational operator", e, [exp1, exp2], 
         AType () { switch([typeof(exp1), typeof(exp2)]){
                        case [tau1, setType(tau1)]: return booleanType;
                        case [tau1, setType(tau1)]: return booleanType;
@@ -597,7 +597,7 @@ void collect(e: (Expression) `<Expression exp1> in <Expression exp2>`, Tree scop
 }
 
 void collect(e: (Expression) `<Expression exp1> * <Expression exp2>`, Tree scope, FRBuilder frb){
-    frb.overload("multiplication", e, [exp1, exp2], 
+    frb.calculate("multiplication", e, [exp1, exp2], 
         AType() { switch([typeof(exp1), typeof(exp2)]){
                       case [integerType, integerType]: return integerType;
                       case [integerType, realType]: return realType;
@@ -615,7 +615,7 @@ void collect(e: (Expression) `<Expression exp1> * <Expression exp2>`, Tree scope
 }
 
 void collect(e: (Expression) `<Expression exp1> / <Expression exp2>`, Tree scope, FRBuilder frb){
-    frb.overload("division", e, [exp1, exp2], 
+    frb.calculate("division", e, [exp1, exp2], 
         AType () { switch([typeof(exp1), typeof(exp2)]){
                        case [integerType, integerType]: return realType;
                        case [integerType, realType]: return realType;
@@ -628,7 +628,7 @@ void collect(e: (Expression) `<Expression exp1> / <Expression exp2>`, Tree scope
 }
 
 void collect(e: (Expression) `<Expression exp1> div <Expression exp2>`, Tree scope, FRBuilder frb){
-    frb.overload("div", e, [exp1, exp2],
+    frb.calculate("div", e, [exp1, exp2],
         AType () { switch([typeof(exp1), typeof(exp2)]){
                        case [integerType, integerType]: return integerType;
                        default:
@@ -638,7 +638,7 @@ void collect(e: (Expression) `<Expression exp1> div <Expression exp2>`, Tree sco
 }
 
 void collect(e: (Expression) `<Expression exp1> mod <Expression exp2>`, Tree scope, FRBuilder frb){
-    frb.overload("mod", e, [exp1, exp2], 
+    frb.calculate("mod", e, [exp1, exp2], 
         AType () { switch([typeof(exp1), typeof(exp2)]){
                        case [integerType, integerType]: return realType;
                        default:
@@ -648,7 +648,7 @@ void collect(e: (Expression) `<Expression exp1> mod <Expression exp2>`, Tree sco
 }
 
 void collect(e: (Expression) `<Expression exp1> and <Expression exp2>`, Tree scope, FRBuilder frb){
-    frb.overload("and", e, [exp1, exp2], 
+    frb.calculate("and", e, [exp1, exp2], 
         AType () { switch([typeof(exp1), typeof(exp2)]){
                        case [booleanType, booleanType]: return booleanType;
                        default:
@@ -658,7 +658,7 @@ void collect(e: (Expression) `<Expression exp1> and <Expression exp2>`, Tree sco
 }
 
 void collect(e: (Expression) `not <Expression exp>`, Tree scope, FRBuilder frb){
-    frb.overload("not", e, [exp], 
+    frb.calculate("not", e, [exp], 
         AType () { switch(typeof(exp)){
                        case booleanType: return booleanType;
                        default:
@@ -668,7 +668,7 @@ void collect(e: (Expression) `not <Expression exp>`, Tree scope, FRBuilder frb){
 }
 
 void overloadAdding(Expression e, str op, Expression exp1, Expression exp2, Tree scope, FRBuilder frb){
- frb.overload("adding operator", e, [exp1, exp2], 
+ frb.calculate("adding operator", e, [exp1, exp2], 
      AType() { 
         //if(typeof(exp1) == integerType && typeof(exp2) == integerType){
         //            return integerType;
@@ -696,7 +696,7 @@ void collect(e: (Expression) `<Expression exp1> - <Expression exp2>`, Tree scope
     = overloadAdding(e, "-", exp1, exp2, scope, frb);
 
 void collect(e: (Expression) `<Expression exp1> or <Expression exp2>`, Tree scope, FRBuilder frb){
-    frb.overload("and", e, [exp1, exp2], 
+    frb.calculate("and", e, [exp1, exp2], 
         AType() { switch([typeof(exp1), typeof(exp2)]){
                       case [booleanType, booleanType]: return booleanType;
                       default:      
@@ -712,14 +712,14 @@ private Program sampleProgram(str name) = parse(#Program, |home:///git/TypePal/s
  
 set[Message] validatePascalBlock(str name) {
     b = sampleBlock(name);
-    return validate(extractScopesAndConstraints(b, initializedFRB(b)) , isSubtype=isSubtype, getLUB=getLUB).messages;
+    return validate(extractFRModel(b, initializedFRB(b)) , isSubType=isSubType, getLUB=getLUB).messages;
 }
 
 set[Message] validatePascalProgram(str name) {
     p = sampleProgram(name);
-    return validate(extractScopesAndConstraints(p, initializedFRB(p)), isSubtype=isSubtype, getLUB=getLUB).messages;
+    return validate(extractFRModel(p, initializedFRB(p)), isSubType=isSubType, getLUB=getLUB).messages;
 }
 
 void testPascalBlock() {
-    runTests(|project://TypePal/src/pascal/blocktests.ttl|, #Block, initialFRBuilder=initializedFRB,isSubtype=isSubtype, getLUB=getLUB);
+    runTests(|project://TypePal/src/pascal/blocktests.ttl|, #Block, initialFRBuilder=initializedFRB,isSubType=isSubType, getLUB=getLUB);
 }
