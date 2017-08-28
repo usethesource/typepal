@@ -12,7 +12,7 @@ import Message;
 extend typepal::ScopeGraph;
 extend typepal::ExtractFRModel;
 
-bool cdebug = true;
+bool cdebug = false;
 
 // Global variables, used by validate and callback (define, require, etc.)
 
@@ -86,7 +86,7 @@ set[Message] filterMostPrecise(set[Message] messages)
                                                       (msg.msg == msg2.msg && msg.at.begin.line > msg2.at.begin.line)*/) };
 bool surrounds (Message msg1, Message msg2){
     // TODO: return msg1.at > msg2.at should also work but does not.
-    return msg1.at.offset < msg2.at.offset && msg1.at.offset + msg1.at.length >= msg2.at.offset + msg2.at.length;
+    return msg1.at.offset <= msg2.at.offset && msg1.at.offset + msg1.at.length > msg2.at.offset + msg2.at.length;
 }
 
 // Find a (possibly indirect) binding
