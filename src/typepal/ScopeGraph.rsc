@@ -6,7 +6,7 @@ import IO;
 import Set;
 import List;
 
-bool debug = false;
+bool luDebug = false;
 
 alias Key = loc;    // a syntactic range in the source code
 
@@ -101,36 +101,36 @@ void printFRModel(FRModel frm){
 private Key bind(FRModel frm, Key scope, str id, set[IdRole] idRoles){
     defs = frm.defines[scope, id, idRoles];
     
-    if(debug) println("\tbind: <scope>, <id>, <idRoles>
+    if(luDebug) println("\tbind: <scope>, <id>, <idRoles>
                        '\tbind: <defs>");
     
     if({<Key res, DefInfo dinfo>} := defs){
-        if(debug) println("\tbind: <scope>, <id>, <idRoles> =\> <res>");
+        if(luDebug) println("\tbind: <scope>, <id>, <idRoles> =\> <res>");
         return res;
     }
     if(size(defs) > 1){
        println("\tbind: <scope>, <id> is ambiguous: <defs>");
     }
     
-    if(debug) println("\t---- bind, NoKey: <scope>, <id>");
+    if(luDebug) println("\t---- bind, NoKey: <scope>, <id>");
     throw NoKey();
 }
 
 // Lookup use in given syntactic scope
 private Key lookupScope(FRModel frm, Key scope, Use use){
-    if(debug) println("\tlookupScope: <scope>, <use>");
+    if(luDebug) println("\tlookupScope: <scope>, <use>");
     def = bind(frm, scope, use.id, use.idRoles);
     if(isAcceptableSimple(frm, def, use) == acceptBinding()){
-       if(debug) println("\tlookupScope, <scope>. <use> ==\> <def>");
+       if(luDebug) println("\tlookupScope, <scope>. <use> ==\> <def>");
        return def;
     }
-    if(debug) println("\tlookupScope, NoKey: <use>");
+    if(luDebug) println("\tlookupScope, NoKey: <use>");
     throw NoKey();
 }
 
 // Find all (semantics induced) bindings for use in given syntactic scope via pathLabel
 private list[Key] lookupPaths(FRModel frm, Key scope, Use use, PathLabel pathLabel){
-    if(debug) println("\tlookupPaths: <scope>, <use>, <pathLabel>");
+    if(luDebug) println("\tlookupPaths: <scope>, <use>, <pathLabel>");
     res = 
       for(<scope, pathLabel, Key parent> <- frm.paths){
         try {
@@ -163,7 +163,7 @@ private Key lookupQual(FRModel frm, Key scope, Use u){
         return lookupScope(frm, scope, u);
     catch NoKey(): {
         
-        if(debug) println("\tlookupQual: loop over <pathLabels(frm)>");
+        if(luDebug) println("\tlookupQual: loop over <pathLabels(frm)>");
         nextPath:
         for(PathLabel pathLabel <- pathLabels(frm)){
            candidates = lookupPaths(frm, scope, u, pathLabel);
@@ -182,34 +182,34 @@ private Key lookupQual(FRModel frm, Key scope, Use u){
             }
         }
     }
-    if(debug) println("\t---- lookupQual, NoKey: <u>");
+    if(luDebug) println("\t---- lookupQual, NoKey: <u>");
     throw NoKey();
 }
 
 // Lookup use in syntactic scope and via all semantic paths,
 // recur to syntactic parent until found
 private Key lookupNest(FRModel frm, Key scope, Use u){
-    if(debug)println("\tlookupNest: <scope>, <u>");
+    if(luDebug)println("\tlookupNest: <scope>, <u>");
     try 
         return lookupQual(frm, scope, u);
     catch NoKey(): {
         if(frm.scopes[scope] ?){
            parent = frm.scopes[scope];
-           if(debug)println("\tlookupNest: <scope>, <u> move up to <parent>");
+           if(luDebug)println("\tlookupNest: <scope>, <u> move up to <parent>");
            return lookupNest(frm, parent, u);
         }
-        if(debug) println("\t---- lookupNest, NoKey: <u>");
+        if(luDebug) println("\t---- lookupNest, NoKey: <u>");
         throw NoKey();
     }
 }
 
 public Key lookup(FRModel frm, Use u){
     scope = u.scope;
-    if(debug) println("lookup: <u>");
+    if(luDebug) println("lookup: <u>");
     if(!(u has qualifierRoles)){
        res = lookupNest(frm, scope, u);
        if(isAcceptableSimple(frm, res, u) == acceptBinding()){
-          if(debug) println("lookup: <u> ==\> <res>");
+          if(luDebug) println("lookup: <u> ==\> <res>");
           return res;
        }
     } else {
@@ -224,20 +224,20 @@ public Key lookup(FRModel frm, Use u){
             try {
                 res = lookupNest(frm, scope, use(u.ids[-1], u.occ, scope, u.idRoles));
                 if(isAcceptableQualified(frm, res, u) == acceptBinding()){
-                   if(debug) println("lookup: <u> ==\> <res>");
+                   if(luDebug) println("lookup: <u> ==\> <res>");
                    return res;
                 }
             } catch NoKey(): {
                   if(frm.scopes[startScope]?){
                      startScope = frm.scopes[startScope];
-                     if(debug)println("^^^^ lookup move to scope <startScope>");
+                     if(luDebug)println("^^^^ lookup move to scope <startScope>");
                   } else {
                      throw NoKey();
                   }
             }
         }
      }
-     if(debug) println("---- lookup, NoKey: <u>");
+     if(luDebug) println("---- lookup, NoKey: <u>");
      throw NoKey();
 }
 

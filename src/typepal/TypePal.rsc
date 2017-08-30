@@ -447,7 +447,8 @@ void error(loc src, str msg){
 
 tuple[set[Message] messages, FRModel frmodel] validate(FRModel er,
                       bool(AType atype1, AType atype2, FRModel frm) isSubType = noIsSubType,
-                      AType(AType atype1, AType atype2, FRModel frm) getLUB = noGetLUB
+                      AType(AType atype1, AType atype2, FRModel frm) getLUB = noGetLUB,
+                      bool debug = false
 ){
     // Initialize global state
     extractedFRModel = er;
@@ -463,6 +464,7 @@ tuple[set[Message] messages, FRModel frmodel] validate(FRModel er,
     
     isSubTypeFun = isSubType;
     getLUBFun = getLUB;
+    cdebug = debug;
     
     // Initialize local state
     map[Key, Key] defs = ();
@@ -543,7 +545,7 @@ tuple[set[Message] messages, FRModel frmodel] validate(FRModel er,
     }
            
     //solve(facts, openReqs, openFacts, unresolvedUses, requirementJobs){
-    while(!(isEmpty(openFacts) && isEmpty(openReqs) && isEmpty(calculators)) && iterations < 3){
+    while(!(isEmpty(openFacts) && isEmpty(openReqs) && isEmpty(calculators)) && iterations < 10){
        iterations += 1;
        
        if(cdebug){

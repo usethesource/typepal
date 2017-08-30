@@ -117,9 +117,9 @@ default FRModel enhanceFRModel(FRModel frm) = frm;
 FRModel extractFRModel(Tree root, FRBuilder frb){
     extract2(root, root, frb);
     frm = enhanceFRModel(frb.build());
-    if(debug) printFRModel(frm);
+    if(luDebug) printFRModel(frm);
     int n = 0;
-    if(debug) println("&&&&&&&&&&&&&&&&&&&&& resolving referPath &&&&&&&&&&&&&&&&&&&&");
+    if(luDebug) println("&&&&&&&&&&&&&&&&&&&&& resolving referPath &&&&&&&&&&&&&&&&&&&&");
     while(!isEmpty(frm.referPaths) && n < 3){    // explain this iteration count
         n += 1;
         for(c <- frm.referPaths){
@@ -176,7 +176,7 @@ data FRBuilder
 AType() makeClos1(AType tp) = AType (){ return tp; };                   // TODO: workaround for compiler glitch
 void() makeClos2(Tree src, str msg) = void(){ reportError(src, msg); };
                           
-FRBuilder newFRBuilder(){
+FRBuilder newFRBuilder(bool debug = false){
         
     Defines defines = {};
     Defines lubDefines = {};
@@ -192,6 +192,7 @@ FRBuilder newFRBuilder(){
     set[Requirement] openReqs = {};
     int ntypevar = -1;
     map[loc,loc] tvScopes = ();
+    luDebug = debug;
     
     void _define(Tree scope, str id, IdRole idRole, Tree def, DefInfo info){
         if(info is defLub){
