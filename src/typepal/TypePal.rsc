@@ -26,6 +26,12 @@ map[loc, set[Fact]] triggersFact = ();
 
 set[Requirement] requirementJobs = {};
 
+
+
+FRModel getFRModel(){
+    return extractedFRModel[facts=facts];
+}
+
 void printState(){
     println("facts:");
         for(Key fact <- facts){
@@ -61,16 +67,16 @@ data Exception
     ;
 
 // defaults for isSubType and getLUB
-bool noIsSubType(AType atype1, AType atype2, FRModel frm) {
+bool noIsSubType(AType atype1, AType atype2) {
     throw UnspecifiedIsSubType(atype1, atype2);
 }
 
-AType noGetLUB(AType atype1, AType atype2, FRModel frm){
+AType noGetLUB(AType atype1, AType atype2){
     throw UnspecifiedGetLUB(atype1, atype2);
 }
 
-bool(AType atype1, AType type2, FRModel frm) isSubTypeFun = noIsSubType;
-AType(AType atype1, AType atype2, FRModel frm) getLUBFun = noGetLUB;
+bool(AType atype1, AType type2) isSubTypeFun = noIsSubType;
+AType(AType atype1, AType atype2) getLUBFun = noGetLUB;
 
 // Error handling
 
@@ -161,6 +167,7 @@ AType instantiate(AType atype){
       visit(atype){
         case tv: tvar(loc src) => substitute(tv)
         case AType ut => substitute(ut) when ut has use
+        case lub(atype1, atype2) => getLUBFun(substitute(atype1), substitute(atype2))
       };
 }
 
@@ -221,7 +228,7 @@ tuple[bool, map[loc, AType]] unify(AType t1, AType t2, map[loc, AType] bindings)
     return <true, bindings>;
 }
 
-void addFact(loc l, AType atype){
+bool addFact(loc l, AType atype){
     if(cdebug)println("\naddFact1: <l>, <atype>, 
                       '\ttrigF: <triggersFact[l]?{}>, 
                       '\ttrigR: <triggersRequirement[l]?{}>");
@@ -231,49 +238,52 @@ void addFact(loc l, AType atype){
         iatype = instantiate(atype);
         if(cdebug)println("\tadd2: facts[<l>] = <iatype>");
         facts[l] = iatype;
+        fireTriggers(l);
+        return true;
     } else {
         fct = openFact(l, deps, AType(){ return atype; });
         if(cdebug)println("\tadd3: <fct>, <atype>");
         openFacts += fct;
         for(d <- deps) triggersFact[d] = (triggersFact[d] ? {}) + {fct};
+        return false;
     }
-    fireTriggers(l);
 }
 
-void addFact(fct:openFact(loc src, set[loc] dependsOn,  AType() getAType)){
+bool addFact(fct:openFact(loc src, set[loc] dependsOn,  AType() getAType)){
     if(cdebug)println("addFact2: <fct>");
     if(allDependenciesKnown(dependsOn, facts)){
         try {
             facts[src] = getAType();
             fireTriggers(src);
-            return;
+            return true;
         } catch TypeUnavailable(t): /* cannot yet compute type */;
     }
     openFacts += fct;
     for(d <- dependsOn) triggersFact[d] = (triggersFact[d] ? {}) + {fct};
     fireTriggers(src);
+    return false;
 }
 
-void addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType()] getATypes)){
+bool addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType()] getATypes)){
     if(cdebug)println("addFact3: <fct>");
     if(allDependenciesKnown(dependsOn, facts)){
         try {    
-            tp =  (getATypes[0]() | getLUBFun(it, gat(), extractedFRModel) | gat <- getATypes[1..]);    
+            tp =  (getATypes[0]() | getLUBFun(it, gat()) | gat <- getATypes[1..]);    
             for(def <- defines){ facts[def] = tp;  }
             for(def <- defines) { fireTriggers(def); }
-            if(cdebug)println("\tlub computed: <tp> for <defines>");
-            return;
+            if(cdebug)println("\taddFact3: lub computed: <tp> for <defines>");
+            return true;
         } catch TypeUnavailable(t): /* cannot yet compute type */;
     }
-    // try to partially compute the lub;
     
+    // try to partially compute the lub;
     knownTypes = ();
     solve(knownTypes){
         AType currentLub;
         for(int i <- index(getATypes)){
             try {
                 knownTypes[i] = getATypes[i]();
-                currentLub = currentLub? ? getLUBFun(currentLub, knownTypes[i], extractedFRModel) : knownTypes[i];
+                currentLub = currentLub? ? getLUBFun(currentLub, knownTypes[i]) : knownTypes[i];
             } catch TypeUnavailable(t): /*println("unavailable: <i>")*/;
         }
         
@@ -286,12 +296,15 @@ void addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType()] ge
             }
         }
     }
+    if(size(knownTypes) == size(getATypes))
+        return true;
     
     // last resort
     openFacts += fct;
-    if(cdebug)println("\tadding dependencies: <dependsOn>");
+    if(cdebug)println("\taddFact3: adding dependencies: <dependsOn>");
     for(d <- dependsOn) triggersFact[d] = (triggersFact[d] ? {}) + {fct};
     for(def <- defines) fireTriggers(def);
+    return false;
 }
 
 default void addFact(Fact fct) {
@@ -362,6 +375,15 @@ AType typeof(Tree tree) {
     }
 }
 
+AType typeof(tvar(loc l)){
+    try {
+        tp = facts[l];
+        return tp;
+    } catch NoSuchKey(k): {
+        throw TypeUnavailable(l);
+    }
+}
+
 AType typeof(Tree utype, Tree tree, set[IdRole] idRoles) {
    try {
      usedType = facts[utype@\loc];
@@ -418,7 +440,7 @@ bool unify(AType given, AType expected){
 
 void subtype(AType small, AType large, ErrorHandler onError){
     extractedFRModel.facts = facts;
-    if(!isSubTypeFun(small, large, extractedFRModel)){
+    if(!isSubTypeFun(small, large)){
         throw error("<onError.msg>, expected subtype of `<AType2String(large)>`, found `<AType2String(small)>`", onError.where);
     }
 }
@@ -446,8 +468,8 @@ void error(loc src, str msg){
 }
 
 tuple[set[Message] messages, FRModel frmodel] validate(FRModel er,
-                      bool(AType atype1, AType atype2, FRModel frm) isSubType = noIsSubType,
-                      AType(AType atype1, AType atype2, FRModel frm) getLUB = noGetLUB,
+                      bool(AType atype1, AType atype2) isSubType = noIsSubType,
+                      AType(AType atype1, AType atype2) getLUB = noGetLUB,
                       bool debug = false
 ){
     // Initialize global state
@@ -488,22 +510,6 @@ tuple[set[Message] messages, FRModel frmodel] validate(FRModel er,
             messages += error("Undefined `<getId(u)>`", u.occ);
         }
     }
- 
-    if(cdebug) println("==== consider open facts ====");
-    for(Fact f <- openFacts){
-       if(allDependenciesKnown(f.dependsOn, facts)){
-          try {
-            addFact(f.src, f.getAType());
-            openFacts -= f;
-            //fireTriggers(f.src);
-          } catch TypeUnavailable(t): /* cannot yet compute type */;
-       } else {
-           for(dep <- f.dependsOn){
-               if(cdebug)println("add dependency: <dep> ==\> <f>");
-               triggersFact[dep] = (triggersFact[dep] ? {}) + {f};
-           }
-       }
-    } 
     
     if(cdebug) println("==== handle defines ====");
     for(Define d <- extractedFRModel.defines){
@@ -519,7 +525,14 @@ tuple[set[Message] messages, FRModel frmodel] validate(FRModel er,
             throw "Cannot handle <d>";
        }
     }
-  
+ 
+    if(cdebug) println("==== consider open facts ====");
+    for(Fact f <- openFacts){
+        if(addFact(f)){
+            openFacts -= f;
+        }
+    } 
+    
     if(cdebug) println("==== handle open requirements ===");
     for(oreq <- openReqs){
        for(dep <- oreq.dependsOn){
@@ -545,13 +558,19 @@ tuple[set[Message] messages, FRModel frmodel] validate(FRModel er,
     }
            
     //solve(facts, openReqs, openFacts, unresolvedUses, requirementJobs){
-    while(!(isEmpty(openFacts) && isEmpty(openReqs) && isEmpty(calculators)) && iterations < 10){
+    while(!(isEmpty(openFacts) && isEmpty(openReqs) && isEmpty(calculators)) && iterations < 4){
        iterations += 1;
        
        if(cdebug){
           println("======================== iteration <iterations>");
           printState();
        }
+       
+        for(Fact f <- openFacts){
+            if(addFact(f)){
+                openFacts -= f;
+            }
+        }
        
        for(u <- unresolvedUses){
            def = defs[u.occ];

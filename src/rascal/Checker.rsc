@@ -43,8 +43,8 @@ data DefInfo(Vis vis = publicVis());
 
 str AType2String(rascalType(Symbol s)) = prettyPrintType(s);
 
-bool isSubType(rascalType(Symbol s1), rascalType(Symbol s2), FRModel frm) = subtype(s1, s2);
-AType getLUB(rascalType(t1), rascalType(t2), FRModel frm) = rascalType(lub(t1, t2));
+bool isSubType(rascalType(Symbol s1), rascalType(Symbol s2)) = subtype(s1, s2);
+AType getLUB(rascalType(t1), rascalType(t2)) = rascalType(lub(t1, t2));
 
 set[Symbol] numericTypes = { Symbol::\int(), Symbol::\real(), Symbol::\rat(), Symbol::\num() };
 
@@ -148,10 +148,18 @@ void collect(exp: (Expression) `{ <{Expression ","}* elements0> }`, Tree scope, 
     }
 }
 
+void collect(exp: (Expression) `\< <{Expression ","}* elements1> \>`, Tree scope, FRBuilder frb){
+    elms = [ e | Expression e <- elements1 ];
+    frb.calculate("tuple expression", exp, elms,
+        AType() {
+                return rascalType(\tuple([ t | elm <- elms, rascalType(t) := typeof(elm) ]));
+        });
+}
+
 void collect(exp: (Expression) `<Pattern pat> := <Expression expression>`, Tree scope, FRBuilder frb){
-    frb.fact(exp, [expression], AType(){ return typeof(expression); });
+    frb.fact(exp, [expression], AType(){ return typeof(expression); });//bool
     frb.require("match operator", exp, [pat, expression],
-        () { equal(typeof(expression), typeof(pat), onError(exp, "Incompatible type in match"));
+        () { subtype(typeof(pat), typeof(expression), onError(exp, "Incompatible type of pattern"));
              fact(pat, typeof(expression));
            });
 }
@@ -162,35 +170,36 @@ void collect(Pattern pat:(Literal)`<IntegerLiteral il>`, Tree scope, FRBuilder f
     frb.atomicFact(pat, rascalType(Symbol::\int()));
 }
 
-void collect(Patternpat:(Literal)`<RealLiteral rl>`, Tree scope, FRBuilder frb){
+void collect(Pattern pat:(Literal)`<RealLiteral rl>`, Tree scope, FRBuilder frb){
     frb.atomicFact(pat, rascalType(Symbol::\real()));
 }
 
-void collect(Patternpat:(Literal)`<BooleanLiteral bl>`, Tree scope, FRBuilder frb){
+void collect(Pattern pat:(Literal)`<BooleanLiteral bl>`, Tree scope, FRBuilder frb){
     frb.atomicFact(pat, rascalType(Symbol::\bool()));
  }
 
-void collect(Patternpat:(Literal)`<DateTimeLiteral dtl>`, Tree scope, FRBuilder frb){
+void collect(Pattern pat:(Literal)`<DateTimeLiteral dtl>`, Tree scope, FRBuilder frb){
     frb.atomicFact(pat, rascalType(Symbol::\datetime()));
 }
 
-void collect(Patternpat:(Literal)`<RationalLiteral rl>`, Tree scope, FRBuilder frb){
+void collect(Pattern pat:(Literal)`<RationalLiteral rl>`, Tree scope, FRBuilder frb){
     frb.atomicFact(pat, rascalType(Symbol::\rat()));
 }
 
 //void collect(Literalpat:(Literal)`<RegExpLiteral rl>`, Configuration c) {
 
-void collect(Patternpat:(Literal)`<StringLiteral sl>`, Tree scope, FRBuilder frb){
+void collect(Pattern pat:(Literal)`<StringLiteral sl>`, Tree scope, FRBuilder frb){
     frb.atomicFact(pat, rascalType(Symbol::\str()));
 }
 
-void collect(Patternpat:(Literal)`<LocationLiteral ll>`, Tree scope, FRBuilder frb){
+void collect(Pattern pat:(Literal)`<LocationLiteral ll>`, Tree scope, FRBuilder frb){
     frb.atomicFact(pat, rascalType(Symbol::\loc()));
 }
             
 void collect(Pattern pat: (Pattern) `<QualifiedName name>`, Tree scope, FRBuilder frb){
     tau = frb.newTypeVar(scope);
-    frb.atomicFact(name, tau);
+    frb.define(scope, "<name>", variableId(), name, defLub([], AType() { return typeof(tau); }));
+    //frb.atomicFact(name, tau);
 }
 
 Tree define(Pattern pat: (Pattern) `<Type tp> <Name name>`, Tree scope, FRBuilder frb){
@@ -205,11 +214,14 @@ void collect(pat: (Pattern) `[ <{Pattern ","}* elements0> ]`, Tree scope, FRBuil
     if(isEmpty(elms)){
         frb.atomicFact(pat, rascalType(\list(Symbol::\void())));    // TODO: some trigger missing: we cannot use the calculate only
     } else {
-        frb.calculate("list pattern", pat, elms,
-            AType() {
-                return rascalType(\list((Symbol::\void() | lub(it, t) | elm <- elms, rascalType(t) := typeof(elm))));
-            });
+        for(int i <- index(elms)){
+            frb.atomicFact(elms[i], frb.newTypeVar(scope));
         }
+        frb.calculate("list pattern", pat, elms, AType() { 
+                ltype = (Symbol::\void() | lub(it, t) | elm <- elms, rascalType(t) := typeof(elm));
+                return rascalType(\list(ltype)); 
+            });
+    }
 }
 
 void collect(pat: (Pattern) `{ <{Pattern ","}* elements0> }`, Tree scope, FRBuilder frb){
@@ -222,6 +234,14 @@ void collect(pat: (Pattern) `{ <{Pattern ","}* elements0> }`, Tree scope, FRBuil
                 return rascalType(\set((Symbol::\void() | lub(it, t) | elm <- elms, rascalType(t) := typeof(elm))));
             });
         }
+}
+
+void collect(pat: (Pattern) `\< <{Pattern ","}+ elements1> \>`, Tree scope, FRBuilder frb){
+    elms = [ p | Pattern p <- elements1 ];
+    frb.calculate("tuple pattern", pat, elms,
+        AType() {
+                return rascalType(\tuple([ t | elm <- elms, rascalType(t) := typeof(elm) ]));
+        });
 }
 
 // A few statements
@@ -252,6 +272,21 @@ Tree define(stat: (Statement) `<Type tp> <{Variable ","}+ variables>;`, Tree sco
     return scope;
 }
 
+Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> ) <Statement statement>`,  Tree scope, FRBuilder frb){
+    if(label is \default){
+        frb.define(stat, "<label.name>", labelId(), label.name, noDefInfo());
+    }
+    return statement;    // TODO: this is too narrow, include remaining conditions
+}
+
+Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> ) <Statement thenStatement> else <Statement elseStatement>`,  Tree scope, FRBuilder frb){
+    if(label is \default){
+        frb.define(stat, "<label.name>", labelId(), label.name, noDefInfo());
+    }
+    return statement;    // TODO: this is too narrow, include remaining conditions
+}
+
+
 // ----  Examples & Tests --------------------------------
 
 private Expression sampleExpression(str name) = parse(#Expression, |home:///git/TypePal/src/rascal/<name>.rsc-exp|);
@@ -274,11 +309,15 @@ set[Message] validateModule(str name) {
 
 set[Message] validateExpression(str name) {
     b = sampleExpression(name);
-    m = extractFRModel(b, newFRBuilder());
-    return validate(m, isSubType=isSubType, getLUB=getLUB).messages;
+    m = extractFRModel(b, newFRBuilder(),debug=true);
+    return validate(m, isSubType=isSubType, getLUB=getLUB,debug=true).messages;
 }
 
 
 void testExp() {
     runTests(|project://TypePal/src/rascal/exp.ttl|, #Expression, isSubType=isSubType, getLUB=getLUB);
+}
+
+void testPat() {
+    runTests(|project://TypePal/src/rascal/pat.ttl|, #Expression, isSubType=isSubType, getLUB=getLUB);
 }

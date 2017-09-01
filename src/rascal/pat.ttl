@@ -1,0 +1,35 @@
+test P1 [[ 1 := 1 ]]
+test P2 [[ 1 := true ]] expect { "Incompatible type of pattern, expected subtype of `bool`, found `int`"}
+
+test P3 [[ "a" := "b" ]]
+test P4 [[ 1.5 := 1.6 ]]
+test P5 [[ 2r3 := 2r4 ]]
+
+test Lst1 [[ [] := [1] ]]
+test Lst2 [[ [1] := [1] ]]
+test Lst3 [[ [1,2] := [1] ]]
+test Lst4 [[ [1,2] := [1, 1.5] ]]
+test Lst5 [[ [1,2.5] := [1, 2] ]] expect {"Incompatible type of pattern, expected subtype of `list[int]`, found `list[num]`"}
+test Lst6 [[ [1] := ["a"] ]] expect {"Incompatible type of pattern, expected subtype of `list[str]`, found `list[int]`"}
+
+
+test Set1 [[ {} := {1} ]]
+test Set2 [[ {1} := {1} ]]
+test Set3 [[ {1,2} := {1} ]]
+test Set4 [[ {1,2} := {1, 1.5} ]]
+test Set5 [[ {1,2.5} := {1, 2} ]] expect {"Incompatible type of pattern, expected subtype of `set[int]`, found `set[num]`"}
+test Set6 [[ {1} := {"a"} ]] expect {"Incompatible type of pattern, expected subtype of `set[str]`, found `set[int]`"}
+
+test Tup1 [[ <1> := <1> ]]
+test Tup2 [[ <1> := <"a"> ]] expect {"Incompatible type of pattern, expected subtype of `tuple[str]`, found `tuple[int]`"}
+test Tup3 [[ <1, "a"> := <2, "b"> ]]
+test Tup4 [[ <1> := <2, "b"> ]] expect { "Incompatible type of pattern, expected subtype of `tuple[int, str]`, found `tuple[int]`"}
+
+test Var1 [[ x := 1 ]]
+test Var1 [[ x := 1 && x == 1 ]]
+
+test If1 [[ { if(int x := 1) x + 1; } ]]
+
+
+
+

@@ -9,6 +9,7 @@ extend typepal::ScopeGraph;
 data AType
     = tvar(loc name)                  // type variable, used for type inference
     | useType(Use use)                // Use a type defined elsewhere
+    | lub(AType atype1, AType atype2)
     | listType(list[AType] atypes)
     ;
 
@@ -22,28 +23,20 @@ default str AType2String(AType tp) = "<tp>";
 bool isTypeVariable(loc tv) = tv.scheme == "typevar"; 
 
 set[loc] extractTypeDependencies(AType tp) 
-    = { use.scope | /useType(Use use) := tp };
+    = { use.occ | /useType(Use use) := tp };
 
 bool allDependenciesKnown(set[loc] deps, map[loc,AType] facts)
     = (isEmpty(deps) || all(dep <- deps, facts[dep]?));
 
-//void dependenciesAreTree(list[value] dependencies){
-//        for(d <- dependencies){
-//            if(Tree t !:= d){
-//                throw "Dependency should be a tree, found <d>";
-//            }
-//        }    
-//    }
-
 list[Key] dependenciesAsKeyList(list[value] dependencies){
     return 
         for(d <- dependencies){
-        if(Tree t := d){
-            append t@\loc;
-        } else {
-            throw "Dependency should be a tree, found <d>";
-        }
-    };
+            if(Tree t := d){
+                append t@\loc;
+            } else {
+                throw "Dependency should be a tree, found <d>";
+            }
+        };
 } 
 
 set[Key] dependenciesAsKeys(list[value] dependencies)
@@ -256,7 +249,9 @@ FRBuilder newFRBuilder(bool debug = false){
     
     void finalizeDefines(){
         set[Define] extra_defines = {};
+       
         for(<scope, id, role> <- lubKeys){
+            //println("<scope>, <id>, <role>");
             if({fixedDef} := defines[scope, id, role]){
                 for(<Key defined, DefInfo defInfo> <- lubDefines[scope, id, role]){
                     res = use(id, defined, scope, {role});

@@ -57,8 +57,8 @@ str deescape(str s)  {  // copied from RascalExpression, belongs in library
 }
 
 bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder = emptyFRBuilder,
-                      bool(AType atype1, AType atype2, FRModel frm) isSubType = noIsSubType,
-                      AType(AType atype1, AType atype2, FRModel frm) getLUB = noGetLUB,
+                      bool(AType atype1, AType atype2) isSubType = noIsSubType,
+                      AType(AType atype1, AType atype2) getLUB = noGetLUB,
                       bool verbose = false
 ){
     TTL ttlProgram;
