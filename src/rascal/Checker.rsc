@@ -124,6 +124,22 @@ void collect(exp: (Expression) `<Expression exp1> + <Expression exp2>`, Tree sco
       }); 
 }
 
+void collect(exp: (Expression) `<Expression exp1> || <Expression exp2>`, Tree scope, FRBuilder frb){
+    frb.atomicFact(exp, rascalType(\bool()));
+    frb.require("or operator", exp, [exp1, exp2],
+        (){ if(rascalType(\bool()) != typeof(exp1)) reportError(exp1, "Argument of || should be `bool`", [exp1]);
+            if(rascalType(\bool()) != typeof(exp2)) reportError(exp2, "Argument of || should be `bool`", [exp2]);
+          });
+}
+
+void collect(exp: (Expression) `<Expression exp1> && <Expression exp2>`, Tree scope, FRBuilder frb){
+    frb.atomicFact(exp, rascalType(\bool()));
+    frb.require("and operator", exp, [exp1, exp2],
+        (){ if(rascalType(\bool()) != typeof(exp1)) reportError(exp1, "Argument of && should be `bool`", [exp1]);
+            if(rascalType(\bool()) != typeof(exp2)) reportError(exp2, "Argument of && should be `bool`", [exp2]);
+          });
+}
+
 void collect(exp: (Expression) `[ <{Expression ","}* elements0> ]`, Tree scope, FRBuilder frb){
     elms = [ e | Expression e <- elements0 ];
     if(isEmpty(elms)){
@@ -276,6 +292,7 @@ Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> 
     if(label is \default){
         frb.define(stat, "<label.name>", labelId(), label.name, noDefInfo());
     }
+    frb.atomicFact(stat, rascalType(\value()));
     return statement;    // TODO: this is too narrow, include remaining conditions
 }
 
@@ -283,7 +300,15 @@ Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> 
     if(label is \default){
         frb.define(stat, "<label.name>", labelId(), label.name, noDefInfo());
     }
-    return statement;    // TODO: this is too narrow, include remaining conditions
+    condList = [cond | cond <- conditions];
+    frb.require("if then else", stat, condList + [thenStatement, elseStatement],
+        (){
+            for(cond <- condList){
+                if(rascalType(\bool()) != typeof(cond)) reportError(cond, "Condition should be `bool`", [cond]);
+            }  
+            fact(stat, lub(typeof(thenStatement), typeof(elseStatement)));
+        });
+    return thenStatement;    // TODO: this is too narrow, include remaining conditions
 }
 
 

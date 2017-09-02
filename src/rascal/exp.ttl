@@ -2,6 +2,14 @@ test E1 [[ 1 + 2 ]]
 test E2 [[ 1 + 2.5 ]]
 test E3 [[ 1 + true ]] expect { "No version of `+` is applicable" }
 
+test And1 [[ true && false ]]
+test And2 [[ 1 && false ]] expect { "Argument of && should be `bool`, found `int`"}
+test And3 [[ true && "abc" ]] expect { "Argument of && should be `bool`, found `str`"}
+
+test Or1 [[ true || false ]]
+test Or2 [[ 1 || false ]] expect { "Argument of || should be `bool`, found `int`"}
+test Or3 [[ true || "abc" ]] expect { "Argument of || should be `bool`, found `str`"}
+
 test Lst1 [[ [] ]]
 test Lst2 [[ [1,2] + 1 ]]
 test Lst3 [[ 1 + [2,3] ]]
@@ -30,3 +38,10 @@ test Stat8 [[ { l = []; m = l; l = m + 1.5; } ]]
 test Stat9 [[ { l = []; m = l; l = l + 1.5; } ]]
 test Stat10 [[ { l = []; m = l; m = m + 1.5; } ]]
 test Stat11 [[ { l = []; m = l; n = m; m = m + 1.5; n = n + 2r3; } ]]
+
+test IfElse1 [[ { if(true) 10; else 11; } ]]
+test IfElse2 [[ { if(1) 10; else 11; } ]] expect {"Condition should be `bool`, found `int`"}
+
+test IfThen1 [[ { if(true) 10;} ]]
+test IfThen2 [[ { if(1) 10; } ]] expect {"Condition should be `bool`, found `int`"}
+
