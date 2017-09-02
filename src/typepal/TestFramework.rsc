@@ -81,7 +81,8 @@ bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder 
         ntests += 1;
         try {
            p = parse(begin, "<ti.tokens>");
-          <messages, model> = validate(enhanceFRModel(extractFRModel(p, initialFRBuilder(p))), isSubType=isSubType, getLUB=getLUB);
+          model = validate(enhanceFRModel(extractFRModel(p, initialFRBuilder(p))), isSubType=isSubType, getLUB=getLUB);
+          messages = model.messages;
           if(verbose) println("runTests: <messages>");
           ok = ok && isEmpty(messages);
           expected = ti.expect is none ? {} : {deescape("<s>"[1..-1]) | TTL_String s <- ti.expect.messages};

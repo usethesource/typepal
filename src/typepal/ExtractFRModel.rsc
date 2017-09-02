@@ -89,7 +89,8 @@ data FRModel (
         map[loc,AType] facts = (), 
         set[Fact] openFacts = {},
         set[Requirement] openReqs = {},
-        map[loc,loc] tvScopes = ()
+        map[loc,loc] tvScopes = (),
+        set[Message] messages = {}
         );
 
 alias Key = loc;

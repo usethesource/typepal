@@ -359,6 +359,8 @@ tuple[bool ok, set[Message] messages, map[loc, AType] bindings] satisfies(Requir
     }
 }
 
+// The "run-time" functions that can be called from requirements and calculators
+
 @doc{
 .Synopsis
 Get type of a tree as inferred by specified type checker
@@ -401,7 +403,7 @@ AType typeof(Tree utype, Tree tree, set[IdRole] idRoles) {
    }
 }
 
-// Check the standalone "equal" predicate that succeeds or gives error
+// The "equal" predicate that succeeds or gives error
 void equal(AType given, AType expected, ErrorHandler onError){
     if(given != expected){
         throw error("<onError.msg>, expected `<AType2String(expected)>`, found `<AType2String(given)>`", onError.where);
@@ -413,7 +415,7 @@ bool equal(AType given, AType expected){
     return given == expected;
 }
 
-// Check the standalone "unify" predicate that succeeds or gives error
+// The "unify" predicate that succeeds or gives error
 void unify(AType given, AType expected, ErrorHandler onError){
     <ok, bindings1> = unify(instantiate(given), instantiate(expected), bindings);
     if(cdebug)println("unify(<given>, <expected>) =\> <ok>, <bindings1>");
@@ -438,36 +440,38 @@ bool unify(AType given, AType expected){
     }
 }
 
+// The "subtype" predicate
 void subtype(AType small, AType large, ErrorHandler onError){
     extractedFRModel.facts = facts;
     if(!isSubTypeFun(small, large)){
         throw error("<onError.msg>, expected subtype of `<AType2String(large)>`, found `<AType2String(small)>`", onError.where);
     }
 }
-    
-// Check the "lub" predicate
-//void lub(AType v, AType types, ErrorHandler onError){
-//    if(tvar(loc name) := v){
-//        itypes = instantiate(types);
-//        try {
-//            lb = getLUBFun(itypes, extractedFRModel);
-//            bindings = (name : lb) + bindings;
-//        } catch e:
-//             throw error("<onError.msg>, found `<AType2String(itypes)>`", onError.where); 
-//    }
-//    throw error("type variable expected, found `<v>`", onError.where); 
-//}
 
-// Check the "fact" predicate
+// The "comparable" predicate
+void comparable(AType atype1, AType atype2, ErrorHandler onError){
+    extractedFRModel.facts = facts;
+    if(!(isSubTypeFun(atype1, atype2) || isSubTypeFun(atype2, atype1))){
+        throw error("<onError.msg>, `<AType2String(atype1)>` and `<AType2String(atype2)>` are not comparable", onError.where);
+    }
+}
+
+// The "fact" assertion
 void fact(Tree t, AType atype){
         addFact(t@\loc, atype);
 }
-    
+
+// The "error" assertion 
 void error(loc src, str msg){
     throw Message::error(msg, src);
 }
 
-tuple[set[Message] messages, FRModel frmodel] validate(FRModel er,
+/*
+ *  validate: validates an extracted FRModel via constraint solving
+ *  
+ */
+
+FRModel validate(FRModel er,
                       bool(AType atype1, AType atype2) isSubType = noIsSubType,
                       AType(AType atype1, AType atype2) getLUB = noGetLUB,
                       bool debug = false
@@ -674,7 +678,8 @@ tuple[set[Message] messages, FRModel frmodel] validate(FRModel er,
        }
     }
     er.facts = facts;
-    return <filterMostPrecise(messages), er>;
+    er.messages = filterMostPrecise(messages);
+    return er;
 }
 
 rel[loc, loc] getUseDef(FRModel frm){
@@ -695,3 +700,5 @@ set[str] getVocabulary(FRModel frm)
 map[loc, AType] getFacts(FRModel frm)
     = frm.facts;
 
+set[Message] getMessages(FRModel frm)
+    = frm.messages;
