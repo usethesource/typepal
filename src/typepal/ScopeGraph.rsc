@@ -73,7 +73,7 @@ void printFRModel(FRModel frm){
         println("    \<<d.scope>, <d.id>, <d.idRole>, <d.defined>\>"); 
     }
     println("  },");
-    println("  parents = (");
+    println("  scopes = (");
     for(Key inner <- frm.scopes){
         println("    <inner>: <frm.scopes[inner]>");
     }
@@ -91,7 +91,7 @@ void printFRModel(FRModel frm){
     //iprintln(frm.uses);
     println("  uses = [");
     for(Use u <- frm.uses){
-        print("    use(<u.ids? ? u.ids : u.id>, <u.occ>, <u.scope>, <u.idRoles>, <u.qualifierRoles? ? u.qualifierRoles : "">, <u.defLine>)");
+        print("    use(<u.ids? ? u.ids : u.id>, <u.occ>, <u.scope>, <u.idRoles>, <u.qualifierRoles? ? u.qualifierRoles : "">)");
     }
     println("  ]");
     println(");");

@@ -220,7 +220,7 @@ FRBuilder newFRBuilder(bool debug = false){
      
     
     void _require(str name, Tree src, list[value] dependencies, void() preds){ 
-        openReqs += { openReq(name, src@\loc, dependenciesAsKeys(dependencies),  preds) };
+        openReqs += { openReq(name, src@\loc, dependenciesAsKeys(dependencies), preds) };
     } 
     
     void _fact1(Tree tree, AType tp){  
@@ -265,7 +265,7 @@ FRBuilder newFRBuilder(bool debug = false){
                 loc firstDefined;
                 for(tuple[Key defined, DefInfo defInfo] info <- lubDefines[scope, id, role]){
                     defineds += info.defined;
-                    if(!firstDefined? || info.defined.begin.line < firstDefined.begin.line){
+                    if(!firstDefined? || info.defined.offset < firstDefined.offset){
                         firstDefined = info.defined;
                     }
                     deps += info.defInfo.dependsOn;
@@ -273,7 +273,7 @@ FRBuilder newFRBuilder(bool debug = false){
                 }
               
                 res = <scope, id, role, firstDefined, defLub(deps - defineds, defineds, getATypes)>;
-                //println("add define: <res>");
+               println("add define: <res>");
                 extra_defines += res;
             }
         }

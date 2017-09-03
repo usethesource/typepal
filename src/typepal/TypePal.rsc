@@ -510,8 +510,11 @@ FRModel validate(FRModel er,
            def = lookup(extractedFRModel, u);
            defs[u.occ] = def;
            unresolvedUses += u;
+           //println("Handled: <u>");
         } catch NoKey(): {
-            messages += error("Undefined `<getId(u)>`", u.occ);
+            //messages += error("Undefined `<getId(u)>`", u.occ);
+            unresolvedUses += u;
+            //println("Not handled: <u>");
         }
     }
     
@@ -577,20 +580,31 @@ FRModel validate(FRModel er,
         }
        
        for(u <- unresolvedUses){
-           def = defs[u.occ];
-           if(cdebug)println("Consider unresolved use: <u>, def=<def>");
-          
-           if(facts[def]?){  // has type of def become available?
-              fct1 = facts[def];
-              deps = extractTypeDependencies(fct1);
-              if(cdebug)println("use is defined as: <fct1>, deps: <deps>");
-              if(allDependenciesKnown(deps, facts)){ 
-                 addFact(u.occ, instantiate(fct1));
-                 unresolvedUses -= u;
-                 if(cdebug)println("Resolved use: <u>");
-              }
-           } else {
-              if(cdebug) println("not yet known: <def>");
+           try {
+               Key def;
+               if(defs[u.occ]?){
+                    def = defs[u.occ];
+               } else {
+                    def = lookup(extractedFRModel, u);
+                    defs[u.occ] = def;
+               }
+              
+               if(cdebug)println("Consider unresolved use: <u>, def=<def>");
+              
+               if(facts[def]?){  // has type of def become available?
+                  fct1 = facts[def];
+                  deps = extractTypeDependencies(fct1);
+                  if(cdebug)println("use is defined as: <fct1>, deps: <deps>");
+                  if(allDependenciesKnown(deps, facts)){ 
+                     addFact(u.occ, instantiate(fct1));
+                     unresolvedUses -= u;
+                     if(cdebug)println("Resolved use: <u>");
+                  }
+               } else {
+                  if(cdebug) println("not yet known: <def>");
+               }
+           } catch NoKey(): {
+                if(cdebug) println("not yet known: <u>");;
            }
       }
       
@@ -648,7 +662,11 @@ FRModel validate(FRModel er,
             println("\tchecking `<oreq.name>`: dependencies not yet available");
           }
       }
-    }   
+    } 
+    
+    for(u <- unresolvedUses){
+        messages += { error("Undefined `<u.id>`", u.occ) };
+    }
    
     if(size(calculators) > 0){
       for(l <- calculators){
