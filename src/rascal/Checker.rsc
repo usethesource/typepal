@@ -81,6 +81,8 @@ Accept isAcceptableSimple(FRModel frm, Key def, Use use){
 // Rascal-specific defines
 
 Tree declare(FunctionDeclaration fd, Tree scope, FRBuilder frb){
+    println("<fd>");
+    return scope;
 
 }
 
@@ -267,7 +269,6 @@ Tree define(Pattern pat: (Pattern) `<Type tp> <Name name>`, Tree scope, FRBuilde
     return scope;
 }
 
-
 void collect(pat: (Pattern) `[ <{Pattern ","}* elements0> ]`, Tree scope, FRBuilder frb){
     elms = [ p | Pattern p <- elements0 ];
     if(isEmpty(elms)){
@@ -340,6 +341,7 @@ Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> 
     addConditionalScope(thenPart, condList[0]);
     println("$$$$$$$$$$$$$ thenPart");
     iprintln(thenPart);
+    println("thenPart@\\loc: <thenPart@\loc>");
     frb.addScope(thenPart, condList[0]);
     
     frb.require("if then", stat, condList + [thenPart],
@@ -355,8 +357,10 @@ Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> 
     if(label is \default){
         frb.define(stat, "<label.name>", labelId(), label.name, noDefInfo());
     }
-    addConditionalScope(thenPart, stat);
     condList = [cond | cond <- conditions];
+    //addConditionalScope(thenPart, stat);
+    //frb.addScope(thenPart, stat);
+    
     frb.require("if then else", stat, condList + [thenPart, elsePart],
         (){
             for(cond <- condList){
@@ -364,27 +368,27 @@ Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> 
             }  
             fact(stat, lub(typeof(thenPart), typeof(elsePart)));
         });
-    return stat;
+    return conditions;
 }
 
 
 // ----  Examples & Tests --------------------------------
 
-private Expression sampleExpression(str name) = parse(#Expression, |home:///git/TypePal/src/rascal/<name>.rsc-exp|);
+private start[Expression] sampleExpression(str name) = parse(#start[Expression], |home:///git/TypePal/src/rascal/<name>.rsc-exp|);
 private Module sampleModule(str name) = parse(#Module, |home:///git/TypePal/src/rascal/<name>.rsc|);
 
 set[Message] validateModule(str name) {
     startTime = cpuTime();
     b = sampleModule(name);
     afterParseTime = cpuTime();
-    m = extractFRModel(b, newFRBuilder());
+    m = extractFRModel(b, newFRBuilder(), debug=true);
     afterExtractTime = cpuTime();
-    msgs = validate(m, isSubType=isSubType, getLUB=getLUB).messages;
+    msgs = validate(m, isSubType=isSubType, getLUB=getLUB, debug=true).messages;
     afterValidateTime = cpuTime();
-    println("parse:    <(afterParseTime - startTime)/1000000> ms
-            'extract:  <(afterExtractTime - afterParseTime)/1000000> ms
-            'validate: <(afterValidateTime - afterExtractTime)/1000000> ms
-            'total:    <(afterValidateTime - startTime)/1000000> ms");
+    //println("parse:    <(afterParseTime - startTime)/1000000> ms
+    //        'extract:  <(afterExtractTime - afterParseTime)/1000000> ms
+    //        'validate: <(afterValidateTime - afterExtractTime)/1000000> ms
+    //        'total:    <(afterValidateTime - startTime)/1000000> ms");
     return msgs;
 }
 

@@ -12,6 +12,7 @@ alias Key = loc;    // a syntactic range in the source code
 
 data Exception
     = NoKey()
+    | AmbiguousDefinition(Key scope, str id, set[IdRole] idRoles, set[Key] definitions)
     ;
 
 // IdRole: the various (language-specific) roles identifiers can play.
@@ -109,7 +110,7 @@ private Key bind(FRModel frm, Key scope, str id, set[IdRole] idRoles){
         return res;
     }
     if(size(defs) > 1){
-       println("\tbind: <scope>, <id> is ambiguous: <defs>");
+       throw AmbiguousDefinition(scope, id, idRoles, defs<0>);
     }
     
     if(luDebug) println("\t---- bind, NoKey: <scope>, <id>");

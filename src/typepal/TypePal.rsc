@@ -26,8 +26,6 @@ map[loc, set[Fact]] triggersFact = ();
 
 set[Requirement] requirementJobs = {};
 
-
-
 FRModel getFRModel(){
     return extractedFRModel[facts=facts];
 }
@@ -474,6 +472,7 @@ void error(loc src, str msg){
 FRModel validate(FRModel er,
                       bool(AType atype1, AType atype2) isSubType = noIsSubType,
                       AType(AType atype1, AType atype2) getLUB = noGetLUB,
+                      set[IdRole] mayBeOverloaded = {},
                       bool debug = false
 ){
     // Initialize global state
@@ -515,6 +514,12 @@ FRModel validate(FRModel er,
             //messages += error("Undefined `<getId(u)>`", u.occ);
             unresolvedUses += u;
             //println("Not handled: <u>");
+        } catch AmbiguousDefinition(Key scope, str id, set[IdRole] idRoles, set[Key] definitions):{
+            if(idRoles <= mayBeOverloaded){
+                unresolvedUses += u;
+            } else {
+                messages += {error("Double declaration", d) | d <- definitions} + error("Undefined `<getId(u)>`due to double declaration", u.occ);
+            }
         }
     }
     
@@ -585,8 +590,16 @@ FRModel validate(FRModel er,
                if(defs[u.occ]?){
                     def = defs[u.occ];
                } else {
-                    def = lookup(extractedFRModel, u);
-                    defs[u.occ] = def;
+                    try {
+                        def = lookup(extractedFRModel, u);
+                        defs[u.occ] = def;
+                    } catch AmbiguousDefinition(Key scope, str id, set[IdRole] idRoles, set[Key] definitions):{
+                        if(all(d <- definitions, facts[d]?)){
+                            addFact(u.occ, overloadedType({<d, facts[d]> | d <- definitions}));
+                            unresolvedUses -= u;
+                            continue;
+                        }
+                    }
                }
               
                if(cdebug)println("Consider unresolved use: <u>, def=<def>");
@@ -706,6 +719,8 @@ rel[loc, loc] getUseDef(FRModel frm){
         try {
            res += <u.occ, lookup(frm, u)>;
         } catch NoKey(): {
+            ;// ignore it
+        } catch AmbiguousDefinition(_,_,_,_):{
             ;// ignore it
         }
     };

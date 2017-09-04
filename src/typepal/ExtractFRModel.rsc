@@ -11,6 +11,7 @@ data AType
     | useType(Use use)                // Use a type defined elsewhere
     | lub(AType atype1, AType atype2)
     | listType(list[AType] atypes)
+    | overloadedType(rel[Key, AType] overloads)
     ;
 
 // Pretty print ATypes
@@ -109,6 +110,7 @@ default FRModel initializeFRModel(FRModel frm) = frm;
 default FRModel enhanceFRModel(FRModel frm) = frm;
 
 FRModel extractFRModel(Tree root, FRBuilder frb){
+    //println("extractFRModel: <root>");
     extract2(root, root, frb);
     frm = enhanceFRModel(frb.build());
     if(luDebug) printFRModel(frm);
@@ -134,6 +136,7 @@ FRModel extractFRModel(Tree root, FRBuilder frb){
 }
 
 void extract2(currentTree: appl(Production _, list[Tree] args), Tree currentScope, FRBuilder frb){
+   //println("extract2: <currentTree>");
    newScope = define(currentTree, currentScope, frb);
    frb.addScope(newScope, currentScope);
    collect(currentTree, newScope, frb);
@@ -216,7 +219,12 @@ FRBuilder newFRBuilder(bool debug = false){
         referPaths += {refer(u, pathLabel)};
     }
     
-    void _addScope(Tree inner, Tree outer) { if(inner@\loc != outer@\loc) scopes[inner@\loc] = outer@\loc; }
+    void _addScope(Tree inner, Tree outer) { 
+        //println("_addScope: inner: <inner>");
+        //println("_addScope: outer: <outer>");
+        //println("_addScope: <inner@\loc?>, <outer@\loc?>");
+        if(inner@\loc != outer@\loc) scopes[inner@\loc] = outer@\loc; 
+    }
      
     
     void _require(str name, Tree src, list[value] dependencies, void() preds){ 
