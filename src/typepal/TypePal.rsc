@@ -677,8 +677,11 @@ FRModel validate(FRModel er,
       }
     } 
     
-    for(u <- unresolvedUses){
-        messages += { error("Undefined `<u.id>`", u.occ) };
+    for(u <- unresolvedUses) {
+        if (defs[u.occ]?)
+          messages += { error("Unresolved dependencies for `<u.id>`", u.occ) };
+        else 
+          messages += { error("Undefined `<u.id>`", u.occ) };  
     }
    
     if(size(calculators) > 0){
