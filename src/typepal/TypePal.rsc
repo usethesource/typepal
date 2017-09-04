@@ -678,8 +678,12 @@ FRModel validate(FRModel er,
     } 
     
     for(u <- unresolvedUses) {
-        if (defs[u.occ]?)
-          messages += { error("Unresolved dependencies for `<u.id>`", u.occ) };
+        if (defs[u.occ]?) {
+          if (!(facts[defs[u.occ]]?)) 
+            messages += { error("Unresolved type for `<u.id>`", u.occ)};
+          else   
+            messages += { error("Unresolved dependencies for `<u.id>`: <extractTypeDependencies(facts[defs[u.occ]])>", u.occ) };
+        }
         else 
           messages += { error("Undefined `<u.id>`", u.occ) };  
     }
