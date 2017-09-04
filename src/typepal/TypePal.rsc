@@ -78,8 +78,14 @@ AType(AType atype1, AType atype2) getLUBFun = noGetLUB;
 
 // Error handling
 
-str intercalateAnd(list[str] strs)
-    = size(strs) == 1 ? strs[0] : intercalate(", ", strs[0..-1]) + " and " + strs[-1];
+str intercalateAnd(list[str] strs){
+    switch(size(strs)){
+      case 0: return "";
+      case 1: return strs[0];
+      default: 
+              return intercalate(", ", strs[0..-1]) + " and " + strs[-1];
+      };
+}
 
 void reportError(Tree t, str msg, list[Tree] found){
     throw error("<msg>, found <intercalateAnd(["`<AType2String(typeof(f))>`" | f <- found])>", t@\loc);
