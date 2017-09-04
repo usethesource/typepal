@@ -59,6 +59,7 @@ str deescape(str s)  {  // copied from RascalExpression, belongs in library
 bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder = emptyFRBuilder,
                       bool(AType atype1, AType atype2) isSubType = noIsSubType,
                       AType(AType atype1, AType atype2) getLUB = noGetLUB,
+                      set[IdRole] mayBeOverloaded = {},
                       bool verbose = false
 ){
     TTL ttlProgram;
@@ -81,7 +82,7 @@ bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder 
         ntests += 1;
         try {
            p = parse(begin, "<ti.tokens>");
-          model = validate(enhanceFRModel(extractFRModel(p, initialFRBuilder(p))), isSubType=isSubType, getLUB=getLUB);
+          model = validate(enhanceFRModel(extractFRModel(p, initialFRBuilder(p))), isSubType=isSubType, getLUB=getLUB, mayBeOverloaded=mayBeOverloaded);
           messages = model.messages;
           if(verbose) println("runTests: <messages>");
           ok = ok && isEmpty(messages);
