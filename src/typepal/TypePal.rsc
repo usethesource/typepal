@@ -575,8 +575,8 @@ FRModel validate(FRModel er,
         }
     }
            
-    //solve(facts, openReqs, openFacts, unresolvedUses, requirementJobs){
-    while(!(isEmpty(openFacts) && isEmpty(openReqs) && isEmpty(calculators)) && iterations < 4){
+    solve(facts, openReqs, openFacts, unresolvedUses, requirementJobs){
+    //while(!(isEmpty(openFacts) && isEmpty(openReqs) && isEmpty(calculators)) && iterations < 5){
        iterations += 1;
        
        if(cdebug){
