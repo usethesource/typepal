@@ -12,7 +12,7 @@ import Message;
 extend typepal::ScopeGraph;
 extend typepal::ExtractFRModel;
 
-bool cdebug = false;
+public bool cdebug = false;
 
 // Global variables, used by validate and callback (define, require, etc.)
 
@@ -595,12 +595,16 @@ FRModel validate(FRModel er,
                Key def;
                if(defs[u.occ]?){
                     def = defs[u.occ];
+                    if (cdebug) println("Found previous definition for <u>: def <def>");
                } else {
                     try {
+                     if (cdebug) println("Looking up definition for use: <u>");
                         def = lookup(extractedFRModel, u);
+                        if (cdebug) println("Definitions found for <u>: <defs[u.occ]>"); 
                         defs[u.occ] = def;
-                    } catch AmbiguousDefinition(Key scope, str id, set[IdRole] idRoles, set[Key] definitions):{
-                        if(all(d <- definitions, facts[d]?)){
+                    } 
+                    catch AmbiguousDefinition(Key scope, str id, set[IdRole] idRoles, set[Key] definitions):{
+                        if(isEmpty(definitions) || all(d <- definitions, facts[d]?)){ 
                             addFact(u.occ, overloadedType({<d, facts[d]> | d <- definitions}));
                             unresolvedUses -= u;
                             continue;
@@ -608,22 +612,23 @@ FRModel validate(FRModel er,
                     }
                }
               
-               if(cdebug)println("Consider unresolved use: <u>, def=<def>");
+               if (cdebug) println("Consider unresolved use: <u>, def=<def>");
               
                if(facts[def]?){  // has type of def become available?
                   fct1 = facts[def];
                   deps = extractTypeDependencies(fct1);
-                  if(cdebug)println("use is defined as: <fct1>, deps: <deps>");
+                  if (cdebug) println("Use is defined as: <fct1>, deps: <deps>");
                   if(allDependenciesKnown(deps, facts)){ 
                      addFact(u.occ, instantiate(fct1));
                      unresolvedUses -= u;
-                     if(cdebug)println("Resolved use: <u>");
+                     if (cdebug) println("Resolved use: <u>");
                   }
+                  else if (cdebug) println("Not all deps known for <u>: <deps>");
                } else {
-                  if(cdebug) println("not yet known: <def>");
+                   if (cdebug) println("Definition for <u> not resolved yet: <def>");
                }
            } catch NoKey(): {
-                if(cdebug) println("not yet known: <u>");;
+                 if (cdebug) println("No key yet: <u>");;
            }
       }
       
@@ -683,15 +688,25 @@ FRModel validate(FRModel er,
       }
     } 
     
-    for(u <- unresolvedUses) {
+    for (u <- unresolvedUses) {
         if (defs[u.occ]?) {
-          if (!(facts[defs[u.occ]]?)) 
+          def = defs[u.occ];
+          if (facts[def]?) {
+            deps = extractTypeDependencies(facts[def]);
+            if (!allDependenciesKnown(deps, facts)) {
+              messages += { error("Unresolved dependencies for `<u.id>`: <deps>", u.occ) };
+            }
+            else {
+              messages += { error("Undefined `<u.id>` for unknown reason; points to <def> with type <facts[def]> and dependencies <deps>", u.occ)};
+              //throw "unexpected: <u.id>";
+            }
+          } else {   
             messages += { error("Unresolved type for `<u.id>`", u.occ)};
-          else   
-            messages += { error("Unresolved dependencies for `<u.id>`: <extractTypeDependencies(facts[defs[u.occ]])>", u.occ) };
+          }
         }
-        else 
-          messages += { error("Undefined `<u.id>`", u.occ) };  
+        else {
+          messages += { error("Undefined `<u.id>`", u.occ) };
+        }  
     }
    
     if(size(calculators) > 0){
