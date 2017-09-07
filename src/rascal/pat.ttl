@@ -17,7 +17,7 @@ test Set1 [[ {} := {1} ]]
 test Set2 [[ {1} := {1} ]]
 test Set3 [[ {1,2} := {1} ]]
 test Set4 [[ {1,2} := {1, 1.5} ]]
-test Set5 [[ {1,2.5} := {1, 2} ]] expect {"Incompatible type of pattern, expected subtype of `set[int]`, found `set[num]`"}
+test Set5 [[ {1,2.5} := {1, 2} ]]
 test Set6 [[ {1} := {"a"} ]] expect {"Match operator `:=`, `set[int]` and `set[str]` are not comparable"}
 
 test Tup1 [[ <1> := <1> ]]
@@ -26,13 +26,15 @@ test Tup3 [[ <1, "a"> := <2, "b"> ]]
 test Tup4 [[ <1> := <2, "b"> ]] expect { "Match operator `:=`, `tuple[int]` and `tuple[int, str]` are not comparable"}
 
 test Var1 [[ int x := 1 ]]
-test Var1 [[ int x := 1 && x == 1 ]]
-test Var1 [[ int x := 1 && x == "a" ]] expect { "`==` operator, `int` and `str` are not comparable"}
+test Var2 [[ int x := 1 && x == 1 ]]
+test Var3 [[ int x := 1 && x == "a" ]] expect { "`==` operator, `int` and `str` are not comparable"}
 
 test If1 [[ { if(int x := 1) x + 1; } ]]
-test If1 [[ { if(int x := 1) x + 1; else x + 2; } ]] expect { "Undefined `x`" }
-test If1 [[ { if(int x := 1 && x == 1 ) x + 1; } ]]
+test If2 [[ { if(int x := 1) x + 1; else x + 2; } ]] expect { "Undefined `x`" }
+test If3 [[ { if(int x := 1 && x == 1 ) x + 1; } ]]
+test If4 [[ { if(int x := 1 && int x := 2 && x == 1 ) x + 1; } ]] expect { "Double declaration of `x`" }
+test If5 [[ { if(int x := 1 && int y := 2 && x == 1 ) x + y; } ]]
+test If5 [[ { if(int x := 1 && int y := 2 && x == 1 ) x + y; else y;} ]] expect { "Undefined `y`" }
 
 
-
-
+test IfU1 [[ { if(x := 1) x + 1; } ]]

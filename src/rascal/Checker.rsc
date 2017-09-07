@@ -43,10 +43,10 @@ data Modifier
 data DefInfo(Vis vis = publicVis());
 
 // Maintain conditionalScopes: map to subrange where definitions are valid
-map[Key,Key] conditionalScopes = ();
+map[Key,Key] elseScopes = ();
 
-void addConditionalScope(Tree inner, Tree outer){
-    conditionalScopes[outer@\loc] = inner@\loc;
+void addElseScope(Tree cond, Tree elsePart){
+    elseScopes[getLoc(cond)] = getLoc(elsePart);
 }
 
 str AType2String(rascalType(Symbol s)) = prettyPrintType(s);
@@ -60,21 +60,26 @@ set[Symbol] numericTypes = { Symbol::\int(), Symbol::\real(), Symbol::\rat(), Sy
 
 Accept isAcceptableSimple(FRModel frm, Key def, Use use){
     
-    println("isAcceptableSimple: id=<use.id> def=<def>, use=<use>");
+    //println("isAcceptableSimple: id=<use.id> def=<def>, use=<use>");
     res = acceptBinding();
 
     if(variableId() in use.idRoles){
        // enforce definition before use
-       if(def < use.scope){
-           res = use.occ.offset > def.offset ?  acceptBinding() : ignoreContinue();
+       if(def < use.scope && use.occ.offset < def.offset){
+           res = ignoreContinue();
+           //println("isAcceptableSimple =\> <res>");
+           return res;
        }
        // restrict when in conditional scope
-       if(conditionalScopes[use.scope]? && !(use.occ < conditionalScopes[use.scope])){
-        println("use.scope: <use.scope>; conditionalScopes[use.scope]: <conditionalScopes[use.scope]>");
-        res = ignoreContinue();
-       } 
+       if(elseScopes[use.scope]?){
+          if(use.occ < elseScopes[use.scope]){
+             res = ignoreContinue();
+             //println("isAcceptableSimple =\> <res>");
+             return res;
+          }
+       }
     }
-    println("isAcceptableSimple =\> <res>");
+    //println("isAcceptableSimple =\> <res>");
     return res;
 }
 
@@ -158,24 +163,23 @@ void collect(exp: (Expression) `<Expression exp1> + <Expression exp2>`, Tree sco
 
 Tree define(exp: (Expression) `<Expression exp1> || <Expression exp2>`, Tree scope, FRBuilder frb){
     frb.atomicFact(exp, rascalType(\bool()));
-    addConditionalScope(exp2, exp);
-   
+      
     frb.require("`||` operator", exp, [exp1, exp2],
         (){ if(rascalType(\bool()) != typeof(exp1)) reportError(exp1, "Argument of || should be `bool`", [exp1]);
             if(rascalType(\bool()) != typeof(exp2)) reportError(exp2, "Argument of || should be `bool`", [exp2]);
+            // TODO: check that exp1 and exp2 introduce the same set of variables
           });
-    return exp;
+    return scope;
 }
 
 Tree define(exp: (Expression) `<Expression exp1> && <Expression exp2>`, Tree scope, FRBuilder frb){
     frb.atomicFact(exp, rascalType(\bool()));
-    addConditionalScope(exp2, exp);
    
     frb.require("`&&` operator", exp, [exp1, exp2],
         (){ if(rascalType(\bool()) != typeof(exp1)) reportError(exp1, "Argument of && should be `bool`", [exp1]);
             if(rascalType(\bool()) != typeof(exp2)) reportError(exp2, "Argument of && should be `bool`", [exp2]);
           });
-    return exp;
+    return scope;
 }
 
 void collect(exp: (Expression) `<Expression exp1> == <Expression exp2>`, Tree scope, FRBuilder frb){
@@ -219,10 +223,21 @@ void collect(exp: (Expression) `\< <{Expression ","}* elements1> \>`, Tree scope
 
 void collect(exp: (Expression) `<Pattern pat> := <Expression expression>`, Tree scope, FRBuilder frb){
     frb.atomicFact(exp, rascalType(\bool()));
-    frb.require("`:=` operator", exp, [pat, expression],
-        () { comparable(typeof(pat), typeof(expression), onError(exp, "Match operator `:=`"));
-             fact(pat, typeof(expression));
-           });
+    if(pat is  qualifiedName){
+        name = pat.qualifiedName;
+        frb.define(scope, "<name>", variableId(), name, defLub([expression], AType(){ return typeof(expression); }));
+        frb.require("match variable `<name>`", exp, [name, expression],
+                () { comparable(typeof(expression), typeof(name), onError(exp, "Incompatible type in match using `<name>`")); });  
+    } else {
+        frb.require("`:=` operator", exp, [expression],
+            () { println("typeof(pat): <typeof(pat)>; typeof(expression): <typeof(expression)>");
+                 if(rascalType(ptype) := typeof(pat) && rascalType(psubj) := typeof(expression) && !comparable(ptype, psubj)){
+                    unify(typeof(pat), typeof(expression), onError(exp, "Match operator `:=`"));
+                 }
+                 //comparable(typeof(pat), typeof(expression), onError(exp, "Match operator `:=`"));
+                 fact(pat, typeof(pat));
+               });
+    }
 }
 
 // A few patterns
@@ -278,8 +293,11 @@ void collect(pat: (Pattern) `[ <{Pattern ","}* elements0> ]`, Tree scope, FRBuil
             frb.atomicFact(elms[i], frb.newTypeVar(scope));
         }
         frb.calculate("list pattern", pat, elms, AType() { 
-                ltype = (Symbol::\void() | lub(it, t) | elm <- elms, rascalType(t) := typeof(elm));
-                return rascalType(\list(ltype)); 
+                lubbedType = (Symbol::\void() | lub(it, t) | elm <- elms, rascalType(t) := typeof(elm));
+                elmType = (rascalType(lubbedType) | lub(it, t) | elm <- elms, rascalType(t) !:= typeof(elm));
+                res = 
+                println("list pattern: <res>");
+                return res;
             });
     }
 }
@@ -338,11 +356,6 @@ Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> 
     }
     condList = [cond | Expression cond <- conditions];
     frb.atomicFact(stat, rascalType(\value()));
-    addConditionalScope(thenPart, condList[0]);
-    println("$$$$$$$$$$$$$ thenPart");
-    iprintln(thenPart);
-    println("thenPart@\\loc: <thenPart@\loc>");
-    frb.addScope(thenPart, condList[0]);
     
     frb.require("if then", stat, condList + [thenPart],
         (){
@@ -350,7 +363,7 @@ Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> 
                 if(rascalType(\bool()) != typeof(cond)) reportError(cond, "Condition should be `bool`", [cond]);
             }
         });
-    return conditions;
+    return conditions; // thenPart may refer to variables defined in conditions
 }
 
 Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> ) <Statement thenPart> else <Statement elsePart>`,  Tree scope, FRBuilder frb){
@@ -358,8 +371,7 @@ Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> 
         frb.define(stat, "<label.name>", labelId(), label.name, noDefInfo());
     }
     condList = [cond | cond <- conditions];
-    //addConditionalScope(thenPart, stat);
-    //frb.addScope(thenPart, stat);
+    addElseScope(conditions, elsePart); // variable occurrences in elsePart may not refer to variables defined in conditions
     
     frb.require("if then else", stat, condList + [thenPart, elsePart],
         (){
@@ -368,20 +380,20 @@ Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> 
             }  
             fact(stat, lub(typeof(thenPart), typeof(elsePart)));
         });
-    return conditions;
+    return conditions; // thenPart may refer to variables defined in conditions; elsePart may not
 }
 
 
 // ----  Examples & Tests --------------------------------
 
 private start[Expression] sampleExpression(str name) = parse(#start[Expression], |home:///git/TypePal/src/rascal/<name>.rsc-exp|);
-private Module sampleModule(str name) = parse(#Module, |home:///git/TypePal/src/rascal/<name>.rsc|);
+private start[Module] sampleModule(str name) = parse(#start[Module], |home:///git/TypePal/src/rascal/<name>.rsc|);
 
 set[Message] validateModule(str name) {
     startTime = cpuTime();
-    b = sampleModule(name);
+    b = sampleModule(name).top;
     afterParseTime = cpuTime();
-    m = extractFRModel(b, newFRBuilder(), debug=true);
+    m = extractFRModel(b, newFRBuilder(debug=false));
     afterExtractTime = cpuTime();
     msgs = validate(m, isSubType=isSubType, getLUB=getLUB, debug=true).messages;
     afterValidateTime = cpuTime();

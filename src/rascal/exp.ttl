@@ -13,7 +13,6 @@ test Or3 [[ true || "abc" ]] expect { "Argument of || should be `bool`, found `s
 test Eq1 [[ 1 == 1 ]]
 test Eq1 [[ 1 == "a" ]] expect { "`==` operator, `int` and `str` are not comparable" }
 
-
 test Lst1 [[ [] ]]
 test Lst2 [[ [1,2] + 1 ]]
 test Lst3 [[ 1 + [2,3] ]]
@@ -41,7 +40,7 @@ test Stat7 [[ { l = []; l = l + 1.5; } ]]
 test Stat8 [[ { l = []; m = l; l = m + 1.5; } ]]
 test Stat9 [[ { l = []; m = l; l = l + 1.5; } ]]
 test Stat10 [[ { l = []; m = l; m = m + 1.5; } ]]
-test Stat11 [[ { l = []; m = l; n = m; m = m + 1.5; n = n + 2r3; } ]]
+test Stat11 [[{ l = []; m = l; n = m; m = m + 1.5; n = n + 2r3; }]]
 
 test IfElse1 [[ { if(true) 10; else 11; } ]]
 test IfElse2 [[ { if(1) 10; else 11; } ]] expect {"Condition should be `bool`, found `int`"}
