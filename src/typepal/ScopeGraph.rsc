@@ -110,6 +110,7 @@ private Key bind(FRModel frm, Key scope, str id, set[IdRole] idRoles){
         return res;
     }
     if(size(defs) > 1){
+       //println("Ambiguous: <scope>, <id>, <idRoles>");
        throw AmbiguousDefinition(scope, id, idRoles, defs<0>);
     }
     

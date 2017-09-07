@@ -9,7 +9,7 @@ extend typepal::ScopeGraph;
 data AType
     = tvar(loc name)                  // type variable, used for type inference
     | useType(Use use)                // Use a type defined elsewhere
-    | lub(AType atype1, AType atype2)
+    | lub(list[AType] atypes)
     | listType(list[AType] atypes)
     | overloadedType(rel[Key, AType] overloads)
     ;
@@ -23,6 +23,8 @@ default str AType2String(AType tp) = "<tp>";
 // AType utilities
 bool isTypeVariable(loc tv) = tv.scheme == "typevar"; 
 
+loc getLoc(Tree t) = t@\loc ? t.args[0]@\loc;
+    
 set[loc] extractTypeDependencies(AType tp) 
     = { use.occ | /useType(Use use) := tp };
 
@@ -33,7 +35,7 @@ list[Key] dependenciesAsKeyList(list[value] dependencies){
     return 
         for(d <- dependencies){
             if(Tree t := d){
-                append t@\loc;
+                append getLoc(t);
             } else {
                 throw "Dependency should be a tree, found <d>";
             }
@@ -63,10 +65,18 @@ data ErrorHandler
     | noError()
     ;
    
-ErrorHandler onError(Tree t, str msg) = onError(t@\loc, msg);
+ErrorHandler onError(Tree t, str msg) = onError(getLoc(t), msg);
 
 void reportError(Tree t, str msg){
-    throw error(msg, t@\loc);
+    throw error(msg, getLoc(t));
+}
+
+void reportWarning(Tree t, str msg){
+    throw warning(msg, getLoc(t));
+}
+
+void reportInfo(Tree t, str msg){
+    throw info(msg, getLoc(t));
 }
 
 // The basic ingredients for type checking: facts, requirements and overloads
@@ -165,13 +175,17 @@ data FRBuilder
         void (Tree src, AType tp) atomicFact,
         void (Tree src, list[value] dependencies, AType() getAType) fact,
         void (str name, Tree src, list[value] dependencies, AType() calculator) calculate,
-        void (Tree src, str msg) error,
+        void (Tree src, str msg) reportError,
+        void (Tree src, str msg) reportWarning,
+        void (Tree src, str msg) reportInfo,
         AType (Tree scope) newTypeVar,
         FRModel () build
       ); 
 
 AType() makeClos1(AType tp) = AType (){ return tp; };                   // TODO: workaround for compiler glitch
-void() makeClos2(Tree src, str msg) = void(){ reportError(src, msg); };
+void() makeClosError(Tree src, str msg) = void(){ reportError(src, msg); };
+void() makeClosWarning(Tree src, str msg) = void(){ reportWarning(src, msg); };
+void() makeClosInfo(Tree src, str msg) = void(){ reportInfo(src, msg); };
                           
 FRBuilder newFRBuilder(bool debug = false){
         
@@ -191,68 +205,77 @@ FRBuilder newFRBuilder(bool debug = false){
     map[loc,loc] tvScopes = ();
     luDebug = debug;
     
+
+    
     void _define(Tree scope, str id, IdRole idRole, Tree def, DefInfo info){
         if(info is defLub){
-            lubDefines += {<scope@\loc, id, idRole, def@\loc, info>};
-            lubKeys += <scope@\loc, id, idRole>;
+            lubDefines += {<getLoc(scope), id, idRole, getLoc(def), info>};
+            lubKeys += <getLoc(scope), id, idRole>;
         } else {
-            defines += {<scope@\loc, id, idRole, def@\loc, info>};
+            defines += {<getLoc(scope), id, idRole, getLoc(def), info>};
         }
     }
        
     void _use(Tree scope, Tree occ, set[IdRole] idRoles) {
-        uses += [use("<occ>", occ@\loc, scope@\loc, idRoles)];
+        uses += [use("<occ>", getLoc(occ), getLoc(scope), idRoles)];
     }
     
     void _use_ref(Tree scope, Tree occ, set[IdRole] idRoles, PathLabel pathLabel) {
-        u = use("<occ>", occ@\loc, scope@\loc, idRoles);
+        u = use("<occ>", getLoc(occ), getLoc(scope), idRoles);
         uses += [u];
         referPaths += {refer(u, pathLabel)};
     }
     
     void _use_qual(Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles){
-        uses += [useq(ids, occ@\loc, scope@\loc, idRoles, qualifierRoles)];
+        uses += [useq(ids, getLoc(occ), getLoc(scope), idRoles, qualifierRoles)];
     }
      void _use_qual_ref(Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathLabel pathLabel){
-        u = useq(ids, occ@\loc, scope@\loc, idRoles, qualifierRoles);
+        u = useq(ids, getLoc(occ), getLoc(scope), idRoles, qualifierRoles);
         uses += [u];
         referPaths += {refer(u, pathLabel)};
     }
     
     void _addScope(Tree inner, Tree outer) { 
-        //println("_addScope: inner: <inner>");
-        //println("_addScope: outer: <outer>");
-        //println("_addScope: <inner@\loc?>, <outer@\loc?>");
-        if(inner@\loc != outer@\loc) scopes[inner@\loc] = outer@\loc; 
+        innerLoc = getLoc(inner);
+        outerLoc = getLoc(outer);
+        if(innerLoc != outerLoc) scopes[innerLoc] = outerLoc; 
     }
      
     
     void _require(str name, Tree src, list[value] dependencies, void() preds){ 
-        openReqs += { openReq(name, src@\loc, dependenciesAsKeys(dependencies), preds) };
+        openReqs += { openReq(name, getLoc(src), dependenciesAsKeys(dependencies), preds) };
     } 
     
     void _fact1(Tree tree, AType tp){  
         deps = extractTypeDependencies(tp);
-        openFacts += { openFact(tree@\loc, deps, makeClos1(tp)) };
+        openFacts += { openFact(getLoc(tree), deps, makeClos1(tp)) };
     }
     
     void _fact2(Tree tree, list[value] dependencies, AType() getAType){
-        openFacts += { openFact( tree@\loc, dependenciesAsKeys(dependencies), getAType) };
+        openFacts += { openFact(getLoc(tree), dependenciesAsKeys(dependencies), getAType) };
     }
     
     void _calculate(str name, Tree src, list[value] dependencies, AType() calculator){
-        calculators[src@\loc] = calculate(name, src@\loc, dependenciesAsKeyList(dependencies),  calculator);
+        calculators[getLoc(src)] = calculate(name, getLoc(src), dependenciesAsKeyList(dependencies),  calculator);
     }
     
-    void _error(Tree src, str msg){
-        openReqs += { openReq("error", src@\loc, {}, makeClos2(src, msg)) };
+    void _reportError(Tree src, str msg){
+        openReqs += { openReq("error", getLoc(src), {}, makeClosError(src, msg)) };
+    }
+    
+    void _reportWarning(Tree src, str msg){
+        openReqs += { openReq("warning", getLoc(src), {}, makeClosWarning(src, msg)) };
+    }
+    
+    void _reportInfo(Tree src, str msg){
+        openReqs += { openReq("info", getLoc(src), {}, makeClosInfo(src, msg)) };
     }
     
     AType _newTypeVar(Tree scope){
         ntypevar += 1;
         s = right("<ntypevar>", 10, "0");
         tv = |typevar:///<s>|;
-        tvScopes[tv] = scope@\loc;
+        tvScopes[tv] = getLoc(scope);
         return tvar(tv);
     }
     
@@ -281,7 +304,7 @@ FRBuilder newFRBuilder(bool debug = false){
                 }
               
                 res = <scope, id, role, firstDefined, defLub(deps - defineds, defineds, getATypes)>;
-               println("add define: <res>");
+                //println("add define: <res>");
                 extra_defines += res;
             }
         }
@@ -306,5 +329,19 @@ FRBuilder newFRBuilder(bool debug = false){
        return frm; 
     }
     
-    return frbuilder(_define, _use, _use_ref, _use_qual, _use_qual_ref, _addScope, _require, _fact1, _fact2, _calculate, _error,  _newTypeVar, _build); 
+    return frbuilder(_define, 
+                     _use, 
+                     _use_ref, 
+                     _use_qual, 
+                     _use_qual_ref, 
+                     _addScope, 
+                     _require, 
+                     _fact1, 
+                     _fact2, 
+                     _calculate, 
+                     _reportError, 
+                     _reportWarning, 
+                     _reportInfo, 
+                     _newTypeVar, 
+                     _build); 
 }

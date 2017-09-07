@@ -12,7 +12,7 @@ import Message;
 extend typepal::ScopeGraph;
 extend typepal::ExtractFRModel;
 
-public bool cdebug = false;
+bool cdebug = false;
 
 // Global variables, used by validate and callback (define, require, etc.)
 
@@ -465,9 +465,14 @@ void fact(Tree t, AType atype){
         addFact(t@\loc, atype);
 }
 
-// The "error" assertion 
-void error(loc src, str msg){
+// The "reportError" assertion 
+void reportError(loc src, str msg){
     throw Message::error(msg, src);
+}
+
+// The "reportWarning" assertion 
+void reportWarning(loc src, str msg){
+    throw Message::warning(msg, src);
 }
 
 /*
@@ -508,6 +513,19 @@ FRModel validate(FRModel er,
        println("calculators: <size(calculators)>; facts: <size(facts)>; openFacts: <size(openFacts)>; openReqs: <size(openReqs)>");
        printFRModel(extractedFRModel);
     }
+    
+    if(cdebug) println("==== filter double declarations ====");
+    alreadyDefined = ();
+    for(<Key scope, str id, IdRole idRole, Key defined, DefInfo defInfo> <- extractedFRModel.defines){
+        if(idRole notin mayBeOverloaded){
+            if(alreadyDefined[<scope, id>]?){
+               messages += {error("Double declaration of `<id>`", defined), error("Double declaration of `<id>`", alreadyDefined[<scope, id>])};
+            } else {
+               alreadyDefined[<scope, id>] = defined;
+            }
+        }
+    }
+    alreadyDefined = ();
    
     if(cdebug) println("==== lookup uses ====");
     for(u <- extractedFRModel.uses){
@@ -521,6 +539,7 @@ FRModel validate(FRModel er,
             unresolvedUses += u;
             //println("Not handled: <u>");
         } catch AmbiguousDefinition(Key scope, str id, set[IdRole] idRoles, set[Key] definitions):{
+            //println("Ambiguous: <u>");
             if(idRoles <= mayBeOverloaded){
                 unresolvedUses += u;
             } else {
@@ -563,17 +582,17 @@ FRModel validate(FRModel er,
            requirementJobs += oreq;
         }
     }
-    if(cdebug){
-        println("Fact triggers:");
-        for(dep <- triggersFact){
-            println("<dep> triggers\n\t<triggersFact[dep]>\n");
-        }
-        
-        println("Requirement triggers:");
-        for(dep <- triggersRequirement){
-            println("<dep> triggers\n\t<triggersRequirement[dep]>\n");
-        }
-    }
+    //if(cdebug){
+    //    println("Fact triggers:");
+    //    for(dep <- triggersFact){
+    //        println("<dep> triggers\n\t<triggersFact[dep]>\n");
+    //    }
+    //    
+    //    println("Requirement triggers:");
+    //    for(dep <- triggersRequirement){
+    //        println("<dep> triggers\n\t<triggersRequirement[dep]>\n");
+    //    }
+    //}
            
     solve(facts, openReqs, openFacts, unresolvedUses, requirementJobs){
     //while(!(isEmpty(openFacts) && isEmpty(openReqs) && isEmpty(calculators)) && iterations < 5){
@@ -602,9 +621,8 @@ FRModel validate(FRModel er,
                         def = lookup(extractedFRModel, u);
                         if (cdebug) println("Definitions found for <u>: <defs[u.occ]>"); 
                         defs[u.occ] = def;
-                    } 
-                    catch AmbiguousDefinition(Key scope, str id, set[IdRole] idRoles, set[Key] definitions):{
-                        if(isEmpty(definitions) || all(d <- definitions, facts[d]?)){ 
+                    } catch AmbiguousDefinition(Key scope, str id, set[IdRole] idRoles, set[Key] definitions):{
+                        if(all(d <- definitions, facts[d]?)){
                             addFact(u.occ, overloadedType({<d, facts[d]> | d <- definitions}));
                             unresolvedUses -= u;
                             continue;
@@ -617,7 +635,7 @@ FRModel validate(FRModel er,
                if(facts[def]?){  // has type of def become available?
                   fct1 = facts[def];
                   deps = extractTypeDependencies(fct1);
-                  if (cdebug) println("Use is defined as: <fct1>, deps: <deps>");
+                  if(cdebug)println("use is defined as: <fct1>, deps: <deps>");
                   if(allDependenciesKnown(deps, facts)){ 
                      addFact(u.occ, instantiate(fct1));
                      unresolvedUses -= u;
@@ -625,10 +643,10 @@ FRModel validate(FRModel er,
                   }
                   else if (cdebug) println("Not all deps known for <u>: <deps>");
                } else {
-                   if (cdebug) println("Definition for <u> not resolved yet: <def>");
+                  if(cdebug) println("not yet known: <def>");
                }
            } catch NoKey(): {
-                 if (cdebug) println("No key yet: <u>");;
+                if(cdebug) println("not yet known: <u>");;
            }
       }
       
@@ -709,15 +727,14 @@ FRModel validate(FRModel er,
         }  
     }
    
-    if(size(calculators) > 0){
-      for(l <- calculators){
-          calc = calculators[l];
-          deps = calculators[l].dependsOn;
-          messages += error("Type of <calc.name> could not be computed for <for(int i <- index(deps)){><facts[deps[i]]? ? "`<AType2String(facts[deps[i]])>`" : "`unknown type`"><i < size(deps)-1 ? "," : ""> <}>", calc.src );
-      }
+    
+    for(l <- calculators){
+        calc = calculators[l];
+        deps = calculators[l].dependsOn;
+        messages += error("Type of <calc.name> could not be computed for <for(int i <- index(deps)){><facts[deps[i]]? ? "`<AType2String(facts[deps[i]])>`" : "`unknown type`"><i < size(deps)-1 ? "," : ""> <}>", calc.src );
     }
-   
-    messages += { error("Invalid <req.name>", req.src) | req <- openReqs};
+  
+    messages += { error("Invalid <req.name>; type of one or more subparts could not be inferred", req.src) | req <- openReqs};
    
     if(cdebug){
        println("------");
