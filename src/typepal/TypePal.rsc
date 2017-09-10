@@ -91,9 +91,15 @@ void reportError(Tree t, str msg, list[Tree] found){
     throw error("<msg>, found <intercalateAnd(["`<AType2String(typeof(f))>`" | f <- found])>", t@\loc);
 }
 
-set[Message] filterMostPrecise(set[Message] messages)
-    = { msg | msg <- messages, !any(msg2 <- messages, surrounds(msg, msg2) /*|| 
-                                                      (msg.msg == msg2.msg && msg.at.begin.line > msg2.at.begin.line)*/) };
+set[Message] filterMostPrecise(set[Message] messages){
+    //res = { msg | msg <- messages, !any(msg2 <- messages, surrounds(msg, msg2)) };
+    //println("filtered messages:"); iprintln(messages - res);
+    return messages;
+}
+    
+    // (msg.msg == msg2.msg && msg.at.begin.line > msg2.at.begin.line)) };
+    
+    
 bool surrounds (Message msg1, Message msg2){
     // TODO: return msg1.at > msg2.at should also work but does not.
     return msg1.at.offset <= msg2.at.offset && msg1.at.offset + msg1.at.length > msg2.at.offset + msg2.at.length;
@@ -474,6 +480,54 @@ void reportError(loc src, str msg){
 void reportWarning(loc src, str msg){
     throw Message::warning(msg, src);
 }
+
+// Experimental: The "enclosingDefinition" function
+
+//Define enclosingDefine(Tree tscope, Tree tocc, set[IdRole] idRoles){
+//    scope = orgScope = tscope@\loc;
+//    occ = tocc@\loc;
+//    println("enclosingDefine: <scope>, <occ>, <idRoles>");
+//    scopes = extractedFRModel.scopes;
+//    defines = extractedFRModel.defines;
+//    initial = true;
+//    //Define result;
+//    //for(def <- defines){
+//    //    println("<def.id>: <def.defined>, <occ <= def.scope>");
+//    //    if(def.idRole in idRoles && occ <= def.defined){
+//    //        println("<def.id>: <def.defined>");
+//    //       if(!result? || def.scope <= result.scope){
+//    //          println("set result to: <def>");
+//    //          result = def;
+//    //       }
+//    //    }
+//    // }
+//    // if(result?){
+//    //        println("enclosingDefine =\> <result>");
+//    //        return result;
+//    //     }
+//    
+//    do {
+//        if(initial){
+//           initial = false;
+//        } else {
+//           scope = scopes[scope];
+//        }
+//        Define result;
+//        for(def <- defines){
+//            if(def.scope == scope && def.idRole in idRoles){
+//               if(!result? || result.defined < def.defined){
+//                  result = def;
+//               }
+//            }
+//         }
+//         if(result?){
+//            println("enclosingDefine =\> <result>");
+//            return result;
+//         }
+//     } while (scopes[scope]?);
+//     throw "No Definition found"; 
+//    //tuple[Key scope, str id, IdRole idRole, Key defined, DefInfo defInfo];
+//}
 
 /*
  *  validate: validates an extracted FRModel via constraint solving

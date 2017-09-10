@@ -7,11 +7,11 @@ extend typepal::ScopeGraph;
 
 // Extend AType for type checking purposes
 data AType
-    = tvar(loc name)                  // type variable, used for type inference
-    | useType(Use use)                // Use a type defined elsewhere
-    | lub(list[AType] atypes)
-    | listType(list[AType] atypes)
-    | overloadedType(rel[Key, AType] overloads)
+    = tvar(loc name)                            // type variable, used for type inference
+    | useType(Use use)                          // Use a type defined elsewhere
+    | lub(list[AType] atypes)                   // LUB of a list of types
+    | listType(list[AType] atypes)              // built-in list-of-ATypes type
+    | overloadedType(rel[Key, AType] overloads) // built-in-overloaded type; each key provides an alternative type
     ;
 
 // Pretty print ATypes
@@ -47,8 +47,8 @@ set[Key] dependenciesAsKeys(list[value] dependencies)
 
 // Definition info used during type checking
 data DefInfo
-    = defType(AType atype)                              // Explicitly given AType
-    | defType(set[Key] dependsOn, AType() getAType)     // AType given as callback.
+    = defType(AType atype)                                                    // Explicitly given AType
+    | defType(set[Key] dependsOn, AType() getAType)                           // AType given as callback.
     | defLub(list[AType] atypes)                                              // redefine previous definition
     | defLub(set[Key] dependsOn, set[Key] defines, list[AType()] getATypes)   // redefine previous definition
     ;
@@ -95,6 +95,7 @@ data Requirement
 data Calculator
     = calculate(str name, loc src, list[loc] dependsOn, AType() calculator);
 
+// The basic Fact & Requirement Model; can be extended in specific type checkers
 data FRModel (
         map[loc,Calculator] calculators = (),
         map[loc,AType] facts = (), 
@@ -106,17 +107,22 @@ data FRModel (
 
 alias Key = loc;
 
+// Default definition for define; to be overridden in speicific type checker
 default Tree define(Tree tree, Tree scope, FRBuilder frb) {
    //println("Default define <tree>");
    return scope;
 }
 
+// Default definition for collect; to be overridden in specific type checker
 default void collect(Tree tree, Tree scope, FRBuilder frb) { 
     //println("Default collect <tree>");
 }
 
+// Default definition for initializeFRModel; may be overridden in specific type checker to add initial type info
 default FRModel initializeFRModel(FRModel frm) = frm;
 
+// Default definition for enhanceFRModel; 
+// may be overridden in specific type checker to enhance extracted facts and requirements before validation
 default FRModel enhanceFRModel(FRModel frm) = frm;
 
 FRModel extractFRModel(Tree root, FRBuilder frb){
@@ -205,78 +211,134 @@ FRBuilder newFRBuilder(bool debug = false){
     map[loc,loc] tvScopes = ();
     luDebug = debug;
     
-
+    bool building = true;
     
     void _define(Tree scope, str id, IdRole idRole, Tree def, DefInfo info){
-        if(info is defLub){
-            lubDefines += {<getLoc(scope), id, idRole, getLoc(def), info>};
-            lubKeys += <getLoc(scope), id, idRole>;
+        if(building){
+            if(info is defLub){
+                lubDefines += {<getLoc(scope), id, idRole, getLoc(def), info>};
+                lubKeys += <getLoc(scope), id, idRole>;
+            } else {
+                defines += {<getLoc(scope), id, idRole, getLoc(def), info>};
+            }
         } else {
-            defines += {<getLoc(scope), id, idRole, getLoc(def), info>};
+            throw "Cannot call `define` on FRBuilder after `build`";
         }
     }
        
     void _use(Tree scope, Tree occ, set[IdRole] idRoles) {
-        uses += [use("<occ>", getLoc(occ), getLoc(scope), idRoles)];
+        if(building){
+           uses += [use("<occ>", getLoc(occ), getLoc(scope), idRoles)];
+        } else {
+            throw "Cannot call `use` on FRBuilder after `build`";
+        }
     }
     
     void _use_ref(Tree scope, Tree occ, set[IdRole] idRoles, PathLabel pathLabel) {
-        u = use("<occ>", getLoc(occ), getLoc(scope), idRoles);
-        uses += [u];
-        referPaths += {refer(u, pathLabel)};
+        if(building){
+            u = use("<occ>", getLoc(occ), getLoc(scope), idRoles);
+            uses += [u];
+            referPaths += {refer(u, pathLabel)};
+        } else {
+            throw "Cannot call `use_ref` on FRBuilder after `build`";
+        }
     }
     
     void _use_qual(Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles){
-        uses += [useq(ids, getLoc(occ), getLoc(scope), idRoles, qualifierRoles)];
-    }
+        if(building){
+           uses += [useq(ids, getLoc(occ), getLoc(scope), idRoles, qualifierRoles)];
+        } else {
+            throw "Cannot call `use_qual` on FRBuilder after `build`";
+        }  
+     }
      void _use_qual_ref(Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathLabel pathLabel){
-        u = useq(ids, getLoc(occ), getLoc(scope), idRoles, qualifierRoles);
-        uses += [u];
-        referPaths += {refer(u, pathLabel)};
+        if(building){
+            u = useq(ids, getLoc(occ), getLoc(scope), idRoles, qualifierRoles);
+            uses += [u];
+            referPaths += {refer(u, pathLabel)};
+        } else {
+            throw "Cannot call `use_qual_ref` on FRBuilder after `build`";
+        } 
     }
     
     void _addScope(Tree inner, Tree outer) { 
-        innerLoc = getLoc(inner);
-        outerLoc = getLoc(outer);
-        if(innerLoc != outerLoc) scopes[innerLoc] = outerLoc; 
+        if(building){
+            innerLoc = getLoc(inner);
+            outerLoc = getLoc(outer);
+            if(innerLoc != outerLoc) scopes[innerLoc] = outerLoc; 
+        } else {
+            throw "Cannot call `addScope` on FRBuilder after `build`";
+        }
     }
      
     
     void _require(str name, Tree src, list[value] dependencies, void() preds){ 
-        openReqs += { openReq(name, getLoc(src), dependenciesAsKeys(dependencies), preds) };
+        if(building){
+           openReqs += { openReq(name, getLoc(src), dependenciesAsKeys(dependencies), preds) };
+        } else {
+            throw "Cannot call `require` on FRBuilder after `build`";
+        }
     } 
     
     void _fact1(Tree tree, AType tp){  
-        deps = extractTypeDependencies(tp);
-        openFacts += { openFact(getLoc(tree), deps, makeClos1(tp)) };
+        if(building){
+           deps = extractTypeDependencies(tp);
+           openFacts += { openFact(getLoc(tree), deps, makeClos1(tp)) };
+        } else {
+            throw "Cannot call `atomicFact` on FRBuilder after `build`";
+        }
     }
     
     void _fact2(Tree tree, list[value] dependencies, AType() getAType){
-        openFacts += { openFact(getLoc(tree), dependenciesAsKeys(dependencies), getAType) };
+        if(building){
+           openFacts += { openFact(getLoc(tree), dependenciesAsKeys(dependencies), getAType) };
+        } else {
+            throw "Cannot call `fact` on FRBuilder after `build`";
+        }
     }
     
     void _calculate(str name, Tree src, list[value] dependencies, AType() calculator){
-        calculators[getLoc(src)] = calculate(name, getLoc(src), dependenciesAsKeyList(dependencies),  calculator);
+        if(building){
+           calculators[getLoc(src)] = calculate(name, getLoc(src), dependenciesAsKeyList(dependencies),  calculator);
+        } else {
+            throw "Cannot call `calculate` on FRBuilder after `build`";
+        }
     }
     
     void _reportError(Tree src, str msg){
-        openReqs += { openReq("error", getLoc(src), {}, makeClosError(src, msg)) };
+       if(building){
+          openReqs += { openReq("error", getLoc(src), {}, makeClosError(src, msg)) };
+       } else {
+            throw "Cannot call `reportError` on FRBuilder after `build`";
+       }
     }
     
     void _reportWarning(Tree src, str msg){
-        openReqs += { openReq("warning", getLoc(src), {}, makeClosWarning(src, msg)) };
+        if(building){
+           openReqs += { openReq("warning", getLoc(src), {}, makeClosWarning(src, msg)) };
+        } else {
+            throw "Cannot call `reportWarning` on FRBuilder after `build`";
+        }
     }
     
     void _reportInfo(Tree src, str msg){
-        openReqs += { openReq("info", getLoc(src), {}, makeClosInfo(src, msg)) };
+        if(building){
+           openReqs += { openReq("info", getLoc(src), {}, makeClosInfo(src, msg)) };
+        } else {
+            throw "Cannot call `reportInfo` on FRBuilder after `build`";
+        }
     }
     
     AType _newTypeVar(Tree scope){
-        ntypevar += 1;
-        s = right("<ntypevar>", 10, "0");
-        tv = |typevar:///<s>|;
-        tvScopes[tv] = getLoc(scope);
-        return tvar(tv);
+        if(building){
+            ntypevar += 1;
+            s = right("<ntypevar>", 10, "0");
+            tv = |typevar:///<s>|;
+            tvScopes[tv] = getLoc(scope);
+            return tvar(tv);
+        } else {
+            throw "Cannot call `newTypeVar` on FRBuilder after `build`";
+        }
     }
     
     void finalizeDefines(){
@@ -312,21 +374,26 @@ FRBuilder newFRBuilder(bool debug = false){
     }
     
     FRModel _build(){
-       frm = frModel();
-       finalizeDefines();
-       frm.defines = defines;
-       frm.scopes = scopes;
-       frm.paths = paths;
-       frm.referPaths = referPaths;
-       frm.uses = uses;
-       
-       frm.calculators = calculators;
-       frm.facts = facts;
-       frm.openFacts = openFacts;
-       frm.openReqs = openReqs;
-       frm.tvScopes = tvScopes;
-       
-       return frm; 
+        if(building){
+           building = false;
+           frm = frModel();
+           finalizeDefines();
+           frm.defines = defines;
+           frm.scopes = scopes;
+           frm.paths = paths;
+           frm.referPaths = referPaths;
+           frm.uses = uses;
+           
+           frm.calculators = calculators;
+           frm.facts = facts;
+           frm.openFacts = openFacts;
+           frm.openReqs = openReqs;
+           frm.tvScopes = tvScopes;
+           
+           return frm; 
+        } else {
+           throw "Cannot call `build` on FRBuilder after `build`";
+        }
     }
     
     return frbuilder(_define, 
