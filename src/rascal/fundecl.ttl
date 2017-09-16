@@ -1,0 +1,57 @@
+test F1 [[ module rascal::F1
+    int f(int n, int k = 0) { return n; }
+    void main(){ int x = f(1); }
+]]
+
+test F2 [[ module rascal::F2
+    int f(int n, int k = 0) { return n; }
+    void main(){ int x = f(true); }
+]] expect { "Argument of `f` should have type `int`, found `bool`"}
+
+test F3 [[ module rascal::F3
+    int f(int n, int k = 0) { return n; }
+    void main(){ int x = f(); }
+]] expect { "Expected 1 argument for `f`, found 0"}
+
+test F4 [[ module rascal::F4
+    int f(int n, int k = 0) { return n; }
+    void main(){ int x = f(1, "a"); }
+]] expect { "Expected 1 argument for `f`, found 2" }
+
+test F5 [[ module rascal::F5
+    int f(int n, int k = 0) { return n; }
+    void main(){ int x = f(1, k=3); }
+]]
+
+test F6 [[ module rascal::F6
+    int f(int n, int k = 0) { return n; }
+    void main(){ int x = f(1, k="a"); }
+]] expect { "Keyword argument `k` has type `str`, expected `int`" }
+
+test F7 [[ module rascal::F7
+    int f(int n, int k = 0) { return n; }
+    void main(){ int x = f(1, kkk="a"); }
+]] expect { "Undefined keyword argument `kkk`" }
+
+test F8 [[ module rascal::F8
+    int f(int n, int k = 0) { return n; }
+    void main(){ int x = g(1, kkk="a"); }
+]] expect { "Undefined `g`" }
+
+test O1 [[ module rascal::O1
+    int f(int n, int k = 0) { return n; }
+    str f(str s, bool b = false) { return s; }
+    
+    void main(){ int x = f(1, k=1); str y = f("a"); }
+]]
+
+test O2 [[ module rascal::O2
+    data D
+        = f(bool n, str s, int z = 0)
+        | f(str q, bool b);
+    int f(int n, int k = 0) { return n; }
+    str f(str s, bool b = false) { return s; }
+    
+    void main(){ int x = f(1, k=1); str y = f("a"); z = f(true, "a"); z = f("a", false); }
+]]
+

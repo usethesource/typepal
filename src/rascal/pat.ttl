@@ -1,5 +1,5 @@
 test P1 [[ 1 := 1 ]]
-test P2 [[ 1 := true ]] expect { "Match operator `:=`, `int` and `bool` are not comparable"}
+test P2 [[ 1 := true ]] expect { "Cannot match `int` pattern with `bool` subject"}
 
 test P3 [[ "a" := "b" ]]
 test P4 [[ 1.5 := 1.6 ]]
@@ -10,24 +10,36 @@ test Lst2 [[ [1] := [1] ]]
 test Lst3 [[ [1,2] := [1] ]]
 test Lst4 [[ [1,2] := [1, 1.5] ]]
 test Lst5 [[ [1,2.5] := [1, 2] ]]
-test Lst6 [[ [1] := ["a"] ]] expect {"Match operator `:=`, `list[int]` and `list[str]` are not comparable"}
-
+test Lst6 [[ [1] := ["a"] ]] expect {"Cannot match `list[int]` pattern with `list[str]` subject"}
+test Lst7 [[ [x] := ["a"] ]]
+test Lst8 [[ [x] := ["a"] && x == "a" ]]
+test Lst9 [[ { x = 1; [x] := ["a"] && x == "a";} ]] expect {"Cannot match `list[int]` pattern with `list[str]` subject"}
+test Lst10 [[ { x = "a"; [x] := ["a"] && x == "a";} ]] 
 
 test Set1 [[ {} := {1} ]]
 test Set2 [[ {1} := {1} ]]
 test Set3 [[ {1,2} := {1} ]]
 test Set4 [[ {1,2} := {1, 1.5} ]]
 test Set5 [[ {1,2.5} := {1, 2} ]]
-test Set6 [[ {1} := {"a"} ]] expect {"Match operator `:=`, `set[int]` and `set[str]` are not comparable"}
+test Set6 [[ {1} := {"a"} ]] expect {"Cannot match `set[int]` pattern with `set[str]` subject"}
+test Set7 [[ {x} := {"a"} ]]
+test Set8 [[ {x} := {"a"} && x == "a" ]]
+test Set9 [[ { x = 1; {x} := {"a"} && x == "a";} ]] expect {"Cannot match `set[int]` pattern with `set[str]` subject"}
+test Set10 [[ { x = "a"; {x} := {"a"} && x == "a";} ]] 
 
 test Tup1 [[ <1> := <1> ]]
-test Tup2 [[ <1> := <"a"> ]] expect {"Match operator `:=`, `tuple[int]` and `tuple[str]` are not comparable"}
+test Tup2 [[ <1> := <"a"> ]] expect {"Cannot match `tuple[int]` pattern with `tuple[str]` subject"}
 test Tup3 [[ <1, "a"> := <2, "b"> ]]
-test Tup4 [[ <1> := <2, "b"> ]] expect { "Match operator `:=`, `tuple[int]` and `tuple[int, str]` are not comparable"}
+test Tup4 [[ <1> := <2, "b"> ]] expect { "Cannot match `tuple[int]` pattern with `tuple[int, str]` subject"}
+test Tup5 [[ <1> := <"a"> ]] expect {"Cannot match `tuple[int]` pattern with `tuple[str]` subject"}
+test Tup6 [[ <x> := <"a"> ]]
+test Tup7 [[ <x> := <"a"> && x == "a" ]]
+test Tup8 [[ { x = 1; <x> := <"a"> && x == "a";} ]] expect {"Cannot match `tuple[int]` pattern with `tuple[str]` subject"}
+test Tup9 [[ { x = "a"; <x> := <"a"> && x == "a";} ]] 
 
 test Var1 [[ int x := 1 ]]
 test Var2 [[ int x := 1 && x == 1 ]]
-test Var3 [[ int x := 1 && x == "a" ]] expect { "`==` operator, `int` and `str` are not comparable"}
+test Var3 [[ int x := 1 && x == "a" ]] expect { "`==` operator not defined for `int` and `str`"}
 
 test If1 [[ { if(int x := 1) x + 1; } ]]
 test If2 [[ { if(int x := 1) x + 1; else x + 2; } ]] expect { "Undefined `x`" }
@@ -36,5 +48,8 @@ test If4 [[ { if(int x := 1 && int x := 2 && x == 1 ) x + 1; } ]] expect { "Doub
 test If5 [[ { if(int x := 1 && int y := 2 && x == 1 ) x + y; } ]]
 test If5 [[ { if(int x := 1 && int y := 2 && x == 1 ) x + y; else y;} ]] expect { "Undefined `y`" }
 
-
 test IfU1 [[ { if(x := 1) x + 1; } ]]
+test IfU2 [[ { if(x := 1) x + 1; else x + 2;} ]] expect { "Undefined `x`" }
+test IfU3 [[ { if(x := 1 && x == 1 ) x + 1; } ]]
+
+

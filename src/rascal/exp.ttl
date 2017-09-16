@@ -11,7 +11,7 @@ test Or2 [[ 1 || false ]] expect { "Argument of || should be `bool`, found `int`
 test Or3 [[ true || "abc" ]] expect { "Argument of || should be `bool`, found `str`"}
 
 test Eq1 [[ 1 == 1 ]]
-test Eq1 [[ 1 == "a" ]] expect { "`==` operator, `int` and `str` are not comparable" }
+test Eq1 [[ 1 == "a" ]] expect { "`==` operator not defined for `int` and `str`" }
 
 test Lst1 [[ [] ]]
 test Lst2 [[ [1,2] + 1 ]]
