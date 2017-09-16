@@ -42,6 +42,27 @@ FRModel getFRModel(){
     return extractedFRModel[facts=facts];
 }
 
+AType lub(list[AType] atypes) {
+    minType = getATypeMinFun();
+    lubbedType = (minType | getLUBFun(it, t) | t <- atypes, isFullyInstantiated(t));
+    tvs =  [ t | t <- atypes, tvar(v) := t ];
+    other = [t | t <- atypes - tvs, !isFullyInstantiated(t) ];
+    lubArgs = (lubbedType == minType ? [] : [lubbedType]) + [ t | t <- atypes, !isFullyInstantiated(t) ];
+    if(size(tvs) >= 1 && size(other) == 0){
+        for(tvar(v) <- tvs){
+            addFact(v, lubbedType);
+            return lubbedType;
+        }
+    }
+    lubArgs = lubbedType + tvs + other;
+    switch(size(lubArgs)){
+        case 0: return minType;
+        case 1: return lubArgs[0];
+        default:
+                return lazyLub(lubArgs);
+    }
+}
+
 void printState(){
     println("facts:");
         for(Key fact <- facts){
@@ -59,6 +80,7 @@ void printState(){
                 println("\t  dependsOn: <atype>");
             }
         }
+   
     //println("triggersFact:");
     //    for(l <- triggersFact){
     //        println("\t<l>: <triggersFact[l]>");
@@ -72,8 +94,10 @@ void printState(){
 data Exception
     = UnspecifiedIsSubType(AType atype1, AType atype2)
     | UnspecifiedGetLUB(AType atype1, AType atype2)
+    | UnspecifiedATypeMin()
+    | UnspecifiedATypeMax()
     | UndefinedLUB(AType atype1, AType atype2)
-    | TypeUnavailable(Key k)
+    | TypeUnavailable()
     ;
 
 // defaults for isSubType and getLUB
@@ -85,28 +109,89 @@ AType noGetLUB(AType atype1, AType atype2){
     throw UnspecifiedGetLUB(atype1, atype2);
 }
 
+AType noATypeMin(){
+    throw UnspecifiedATypeMin();
+}
+
+AType noATypeMax(){
+    throw UnspecifiedATypeMax();
+}
+
 bool(AType atype1, AType type2) isSubTypeFun = noIsSubType;
 AType(AType atype1, AType atype2) getLUBFun = noGetLUB;
 
+AType() getATypeMinFun = noATypeMin;
+AType() getATypeMaxFun = noATypeMax;
+
 // Error handling
 
-str intercalateAnd(list[str] strs){
-    switch(size(strs)){
-      case 0: return "";
-      case 1: return strs[0];
-      default: 
-              return intercalate(", ", strs[0..-1]) + " and " + strs[-1];
-      };
-}
+//str v2s(AType t)            = "`<AType2String(t)>`";
+str v2s(Tree t)             = "`<AType2String(typeof(t))>`";
+//str v2s(str s)              = "`<s>`";
+//str v2s(int n)              = "<n>";
+//str v2s(list[value] vals)   = intercalateAnd([v2s(vl) | vl <- vals]);
+//default str v2s(value v)    = "`<v>`";
 
-void reportError(Tree t, str msg, list[Tree] found){
-    throw error("<msg>, found <intercalateAnd(["`<AType2String(typeof(f))>`" | f <- found])>", t@\loc);
+//str v2s(value v){
+//    if(AType t := v){
+//        return "`<AType2String(t)>`";
+//    }
+//    if(Tree t := v){
+//        return "`<AType2String(typeof(t))>`";
+//    }
+//    if(str s := v) return "`<s>`";
+//    if(int n := v) return "<n>";
+//    if(list[value] vals := v){
+//        return intercalateAnd([v2s(vl) | vl <- vals]);
+//    }
+//    return "`<v>`";
+//
+//}
+
+//str intercalateAnd(list[str] strs){
+//    switch(size(strs)){
+//      case 0: return "";
+//      case 1: return strs[0];
+//      default: 
+//              return intercalate(", ", strs[0..-1]) + " and " + strs[-1];
+//      };
+//}
+//
+//str interpolate(str msg, value args...){
+//    parts = split("%", msg);
+//    nparts = size(parts);
+//    int iargs = 0;
+//    int nargs = size(args);
+//    interpolated =
+//        for(int i <- index(parts)){
+//            append parts[i];
+//            if(i > 0 && isEmpty(parts[i])) { 
+//                append "%";
+//            } else {
+//                if(i < nparts-1 && !isEmpty(parts[i+1])){
+//                    if( iargs < nargs){
+//                        append v2s(args[iargs]);
+//                        iargs += 1;
+//                    } else {
+//                        throw "Interpolation: too few args for <msg>";
+//                    }
+//                }
+//            }
+//        }
+//    if(iargs < nargs){
+//        interpolated += [v2s(a) | a <- args[iargs..]];
+//    }
+//    return intercalate("", interpolated);
+//}
+
+void reportError(Tree t, str msg, value args...){
+    //throw error("<msg>, found <intercalateAnd(["`<AType2String(typeof(f))>`" | f <- args])>", t@\loc);
+    throw error(interpolate(msg, args), getLoc(t));
 }
 
 set[Message] filterMostPrecise(set[Message] messages){
-    //res = { msg | msg <- messages, !any(msg2 <- messages, surrounds(msg, msg2)) };
-    //println("filtered messages:"); iprintln(messages - res);
-    return messages;
+    res = { msg | msg <- messages, !any(msg2 <- messages, surrounds(msg, msg2)) };
+    return res;
 }
     
     // (msg.msg == msg2.msg && msg.at.begin.line > msg2.at.begin.line)) };
@@ -117,8 +202,22 @@ bool surrounds (Message msg1, Message msg2){
     return msg1.at.offset <= msg2.at.offset && msg1.at.offset + msg1.at.length > msg2.at.offset + msg2.at.length;
 }
 
+bool allDependenciesKnown(set[loc] deps, bool eager)
+    = isEmpty(deps) || (eager ? all(dep <- deps, facts[dep]?)
+                             : all(dep <- deps, facts[dep]?, isFullyInstantiated(facts[dep])));
+
+bool isFullyInstantiated(AType atype){
+    visit(atype){
+        case tvar(name): return facts[name]?;
+        case useType(Use use): return false;
+        case lazyLub(atypes): return isEmpty(atypes) || all(AType t <- atype, isFullyInstantiated(t));
+        case overloadedType(overloads): return false;
+    }
+    return true;
+}
 // Find a (possibly indirect) binding
 AType find(loc src){
+    //println("find: <src>");
     if(bindings[src]?){
         v = bindings[src];
         if(tvar(loc src1) := v) return find(src1);
@@ -166,30 +265,13 @@ AType substitute(AType atype){
     }
 }
 
-AType normalize(AType atype){
-    if(atype has use){
-        println("normalize: <atype> has use");
-        try {
-            k = lookup(extractedFRModel, atype.use);
-            println("<atype> ==\> <k>");
-            fk = facts[k];
-            return fk != atype ? normalize(fk) : atype;  
-        } catch NoKey():
-            throw TypeUnavailable(atype.use.occ);
-          catch NoSuchKey(k):
-            throw TypeUnavailable(atype.use.occ);
-    } else {
-        return atype;
-    }
-}
-
 // Recursively instantiate all type variables and useTypes in a type
 AType instantiate(AType atype){
   return
       visit(atype){
         case tv: tvar(loc src) => substitute(tv)
         case AType ut => substitute(ut) when ut has use
-        case lub(atype1, atype2) => getLUBFun(substitute(atype1), substitute(atype2))
+        case lazyLub(list[AType] atypes) => lazyLub([substitute(tp) | tp <- atypes])
       };
 }
 
@@ -213,8 +295,8 @@ tuple[bool, map[loc, AType]] unify(AType t1, AType t2, map[loc, AType] bindings)
       }
     }
     
-    if(listType(atypes1) := t1){
-       if(listType(atypes2) := t2){
+    if(atypeList(atypes1) := t1){
+       if(atypeList(atypes2) := t2){
           if(size(atypes1) == size(atypes2)){
             for(int i <- index(atypes1)){
                 <res, bindings1> = unify(atypes1[i], atypes2[i], bindings);
@@ -226,7 +308,6 @@ tuple[bool, map[loc, AType]] unify(AType t1, AType t2, map[loc, AType] bindings)
        }
        return <false, ()>;
     }
-   
     c1 = getName(t1); c2 = getName(t2);
     a1 = arity(t1); a2 = arity(t2);
     if(c1 != c2 || a1 != a2) return <false, bindings>;
@@ -234,8 +315,9 @@ tuple[bool, map[loc, AType]] unify(AType t1, AType t2, map[loc, AType] bindings)
     if(c1 == "use"){
        return <true, bindings>;
     }
-    
+   
     kids1 = getChildren(t1); kids2 = getChildren(t2);
+  
     for(int i <- [0 .. a1]){
         if(AType k1 := kids1[i], AType k2 := kids2[i]){
             <res, bindings1> = unify(k1, k2, bindings);
@@ -256,7 +338,7 @@ bool addFact(loc l, AType atype){
                       '\ttrigR: <triggersRequirement[l]?{}>");
   
     deps = extractTypeDependencies(atype);
-    if(allDependenciesKnown(deps, facts)){
+    if(allDependenciesKnown(deps, true)){
         iatype = instantiate(atype);
         if(cdebug)println("\tadd2: facts[<l>] = <iatype>");
         facts[l] = iatype;
@@ -273,12 +355,12 @@ bool addFact(loc l, AType atype){
 
 bool addFact(fct:openFact(loc src, set[loc] dependsOn,  AType() getAType)){
     if(cdebug)println("addFact2: <fct>");
-    if(allDependenciesKnown(dependsOn, facts)){
+    if(allDependenciesKnown(dependsOn, true)){
         try {
             facts[src] = getAType();
             fireTriggers(src);
             return true;
-        } catch TypeUnavailable(t): /* cannot yet compute type */;
+        } catch TypeUnavailable(): /* cannot yet compute type */;
     }
     openFacts += fct;
     for(d <- dependsOn) triggersFact[d] = (triggersFact[d] ? {}) + {fct};
@@ -288,14 +370,14 @@ bool addFact(fct:openFact(loc src, set[loc] dependsOn,  AType() getAType)){
 
 bool addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType()] getATypes)){
     if(cdebug)println("addFact3: <fct>");
-    if(allDependenciesKnown(dependsOn, facts)){
+    if(allDependenciesKnown(dependsOn, true)){
         try {    
-            tp =  (getATypes[0]() | getLUBFun(it, gat()) | gat <- getATypes[1..]);    
+            tp =  (getATypes[0]() | getLUBFun(it, getAType()) | getAType <- getATypes[1..]);    
             for(def <- defines){ facts[def] = tp;  }
             for(def <- defines) { fireTriggers(def); }
             if(cdebug)println("\taddFact3: lub computed: <tp> for <defines>");
             return true;
-        } catch TypeUnavailable(t): /* cannot yet compute type */;
+        } catch TypeUnavailable(): /* cannot yet compute type */;
     }
     
     // try to partially compute the lub;
@@ -306,14 +388,14 @@ bool addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType()] ge
             try {
                 knownTypes[i] = getATypes[i]();
                 currentLub = currentLub? ? getLUBFun(currentLub, knownTypes[i]) : knownTypes[i];
-            } catch TypeUnavailable(t): /*println("unavailable: <i>")*/;
+            } catch TypeUnavailable(): /*println("unavailable: <i>")*/;
         }
         
         if(currentLub?){
             for(def <- defines){ facts[def] = currentLub;  }
             for(def <- defines) { 
                 try fireTriggers(def, protected=false); 
-                catch TypeUnavailable(t):
+                catch TypeUnavailable():
                     facts = delete(facts, def);
             }
         }
@@ -337,22 +419,22 @@ void fireTriggers(loc l, bool protected=true){
     if(cdebug) println("\tfireTriggers: <l>");
     
     for(fct <- triggersFact[l] ? {}){
-        if(allDependenciesKnown(fct.dependsOn, facts)){
+        if(allDependenciesKnown(fct.dependsOn, true)){
            try {
               if(cdebug) println("\tfireTriggers: adding fact: <fct>");
               openFacts -= fct;
               addFact(fct);
-           } catch TypeUnavailable(Key t): {
+           } catch TypeUnavailable(): {
                   /* cannot yet compute type */;
                   if(!protected){
-                     throw TypeUnavailable(t);
+                     throw TypeUnavailable();
                   }
               }
         }
     }
     
     for(req <- triggersRequirement[l] ? {}){
-        if(allDependenciesKnown(req.dependsOn, facts)){
+        if(allDependenciesKnown(req.dependsOn, true)){
            requirementJobs += req;
            if(cdebug)println("\tfireTriggers: adding requirementJob: <req.name>, <req.src>");
         }
@@ -393,9 +475,12 @@ xxx
 AType typeof(Tree tree) {
     try {
         fct = find(tree@\loc);
-        return instantiate(fct);
+        //println("find(<tree@\loc>) =\> <fct>");
+        res = instantiate(fct);
+        //println("typeof(<tree@\loc>) =\> <res>");
+        return res;
     } catch NoSuchKey(l): {
-        throw TypeUnavailable(tree@\loc);
+        throw TypeUnavailable();
     }
 }
 
@@ -404,7 +489,7 @@ AType typeof(tvar(loc l)){
         tp = facts[l];
         return tp;
     } catch NoSuchKey(k): {
-        throw TypeUnavailable(l);
+        throw TypeUnavailable();
     }
 }
 
@@ -421,14 +506,14 @@ AType typeof(Tree utype, Tree tree, set[IdRole] idRoles) {
      }
    } catch NoKey(): {
         println("typeof: <utype@\loc>, <tree> ==\> TypeUnavailable1");
-        throw TypeUnavailable(tree@\loc);
+        throw TypeUnavailable();
    }
 }
 
 // The "equal" predicate that succeeds or gives error
 void equal(AType given, AType expected, ErrorHandler onError){
     if(given != expected){
-        throw error("<onError.msg>, expected `<AType2String(expected)>`, found `<AType2String(given)>`", onError.where);
+        throw error(interpolate("<onError.msg>, expected %, found %", expected, given), onError.where);
     }
 }
 
@@ -444,14 +529,19 @@ void unify(AType given, AType expected, ErrorHandler onError){
     if(ok){
         bindings += bindings1;
     } else {
-        iexpected = instantiate(expected);
-        igiven = instantiate(given);
-        throw error("<onError.msg>, expected `<AType2String(iexpected)>`, found `<AType2String(igiven)>`", onError.where);
+        throw error("<onError.msg>", onError.where);
+        //iexpected = instantiate(expected);
+        //igiven = instantiate(given);
+        //throw error("<onError.msg>, expected `<AType2String(iexpected)>`, found `<AType2String(igiven)>`", onError.where);
     }
 }
 
 // Check the "unify" predicate
 bool unify(AType given, AType expected){
+    if(tvar(name) := given){
+        bindings[name] = expected;
+            return true;
+    }
     <ok, bindings1> = unify(instantiate(given), instantiate(expected), bindings);
     if(cdebug)println("unify(<given>, <expected>) ==\> <ok>, <bindings1>");
     if(ok){
@@ -466,15 +556,28 @@ bool unify(AType given, AType expected){
 void subtype(AType small, AType large, ErrorHandler onError){
     extractedFRModel.facts = facts;
     if(!isSubTypeFun(small, large)){
-        throw error("<onError.msg>, expected subtype of `<AType2String(large)>`, found `<AType2String(small)>`", onError.where);
+        throw error(interpolate("<onError.msg>, expected subtype of %, found %", large, small), onError.where);
     }
 }
 
 // The "comparable" predicate
 void comparable(AType atype1, AType atype2, ErrorHandler onError){
     extractedFRModel.facts = facts;
-    if(!(isSubTypeFun(atype1, atype2) || isSubTypeFun(atype2, atype1))){
-        throw error("<onError.msg>, `<AType2String(atype1)>` and `<AType2String(atype2)>` are not comparable", onError.where);
+    if(isFullyInstantiated(atype1) && isFullyInstantiated(atype2)){
+        if(!(isSubTypeFun(atype1, atype2) || isSubTypeFun(atype2, atype1))){
+            throw error(interpolate(onError.msg, onError.args), onError.where);
+        }
+    } else {
+        throw TypeUnavailable();
+    }
+}
+
+default bool comparable(AType atype1, AType atype2){
+    extractedFRModel.facts = facts;
+    if(isFullyInstantiated(atype1) && isFullyInstantiated(atype2)){
+        return isSubTypeFun(atype1, atype2) || isSubTypeFun(atype2, atype1);
+    } else {
+        throw TypeUnavailable();
     }
 }
 
@@ -549,6 +652,8 @@ void reportWarning(loc src, str msg){
 FRModel validate(FRModel er,
                       bool(AType atype1, AType atype2) isSubType = noIsSubType,
                       AType(AType atype1, AType atype2) getLUB = noGetLUB,
+                      AType() getATypeMin = noATypeMin,
+                      AType() getATypeMax = noATypeMax,
                       set[IdRole] mayBeOverloaded = {},
                       bool debug = false
 ){
@@ -566,6 +671,8 @@ FRModel validate(FRModel er,
     
     isSubTypeFun = isSubType;
     getLUBFun = getLUB;
+    getATypeMinFun = getATypeMin;
+    getATypeMaxFun = getATypeMax;
     cdebug = debug;
     
     // Initialize local state
@@ -605,11 +712,10 @@ FRModel validate(FRModel er,
             unresolvedUses += u;
             //println("Not handled: <u>");
         } catch AmbiguousDefinition(Key scope, str id, set[IdRole] idRoles, set[Key] definitions):{
-            //println("Ambiguous: <u>");
-            if(idRoles <= mayBeOverloaded){
+            if(!isEmpty(idRoles & mayBeOverloaded)){
                 unresolvedUses += u;
             } else {
-                messages += {error("Double declaration", d) | d <- definitions} + error("Undefined `<getId(u)>`due to double declaration", u.occ);
+                messages += {error("Double declaration", d) | d <- definitions} + error("Undefined `<getId(u)>` due to double declaration", u.occ);
             }
         }
     }
@@ -644,7 +750,7 @@ FRModel validate(FRModel er,
     }
 
     for(oreq <- openReqs){
-        if(allDependenciesKnown(oreq.dependsOn, facts)){
+        if(allDependenciesKnown(oreq.dependsOn, oreq.eager)){
            requirementJobs += oreq;
         }
     }
@@ -702,7 +808,7 @@ FRModel validate(FRModel er,
                   fct1 = facts[def];
                   deps = extractTypeDependencies(fct1);
                   if(cdebug)println("use is defined as: <fct1>, deps: <deps>");
-                  if(allDependenciesKnown(deps, facts)){ 
+                  if(allDependenciesKnown(deps, true)){ 
                      addFact(u.occ, instantiate(fct1));
                      unresolvedUses -= u;
                      if (cdebug) println("Resolved use: <u>");
@@ -719,12 +825,12 @@ FRModel validate(FRModel er,
        // eliminate calculators for which argument types are known
        for(calcKey <- calculators){
           calc = calculators[calcKey];
-          if(isEmpty(calc.dependsOn) || all(dep <- calc.dependsOn, facts[dep]?)){
+          if(allDependenciesKnown(calc.dependsOn, calc.eager)){
               try {
                 t = calc.calculator();
                 addFact(calcKey, t);
                 bindings2facts(bindings, calc.src); 
-              } catch TypeUnavailable(t): {
+              } catch TypeUnavailable(): {
                 continue;
               } catch Message e: {
                 messages += e;
@@ -737,7 +843,7 @@ FRModel validate(FRModel er,
        // Sort to force bottom-up evaluation
        for(oreq <- sort(requirementJobs, bool(Requirement a, Requirement b) { return a.src < b.src; })){
           if(cdebug)println("\nchecking `<oreq.name>`: <oreq.src>\n\t<oreq>");
-          if(allDependenciesKnown(oreq.dependsOn, facts)){ 
+          if(allDependenciesKnown(oreq.dependsOn, oreq.eager)){ 
              if(cdebug)println("\tchecking `<oreq.name>`: dependencies are available");  
              try {       
                  <ok, messages1, bindings1> = satisfies(oreq); 
@@ -746,12 +852,12 @@ FRModel validate(FRModel er,
                  if(ok){
                     if(cdebug)println("\tchecking `<oreq.name>`: bindings: <bindings1>");
                     for(tv <- domain(bindings1), f <- triggersFact[tv] ? {}){
-                        if(allDependenciesKnown(f.dependsOn, facts)){
+                        if(allDependenciesKnown(f.dependsOn, true)){
                             try {
                                 if(cdebug)println("\tchecking `<oreq.name>`: adding bound fact: <f>");
                                 addFact(f.src, f.getAType());
                                 openFacts -= {f};
-                            } catch TypeUnavailable(t): /* cannot yet compute type */;
+                            } catch TypeUnavailable(): /* cannot yet compute type */;
                         }
                     }
                     
@@ -764,7 +870,7 @@ FRModel validate(FRModel er,
                      openReqs -= oreq;
                      requirementJobs -= oreq;
                  }
-             } catch TypeUnavailable(t):
+             } catch TypeUnavailable():
                 println("checking `<oreq.name>`: dependencies not yet available");
           } else {
             println("\tchecking `<oreq.name>`: dependencies not yet available");
@@ -777,7 +883,7 @@ FRModel validate(FRModel er,
           def = defs[u.occ];
           if (facts[def]?) {
             deps = extractTypeDependencies(facts[def]);
-            if (!allDependenciesKnown(deps, facts)) {
+            if (!allDependenciesKnown(deps, true)) {
               messages += { error("Unresolved dependencies for `<u.id>`: <deps>", u.occ) };
             }
             else {
@@ -796,7 +902,7 @@ FRModel validate(FRModel er,
     
     for(l <- calculators){
         calc = calculators[l];
-        deps = calculators[l].dependsOn;
+        deps = toList(calculators[l].dependsOn);
         messages += error("Type of <calc.name> could not be computed for <for(int i <- index(deps)){><facts[deps[i]]? ? "`<AType2String(facts[deps[i]])>`" : "`unknown type`"><i < size(deps)-1 ? "," : ""> <}>", calc.src );
     }
   
@@ -806,6 +912,14 @@ FRModel validate(FRModel er,
        println("------");
        println("iterations: <iterations>; calculators: <size(calculators)>; facts: <size(facts)>; openFacts: <size(openFacts)>; openReqs: <size(openReqs)>");
        printState();
+       println("calculators:");
+       for(c <- calculators){
+            calc = calculators[c];
+            println("\t<calc.name> at <calc.src>:");
+            for(atype <- calc.dependsOn){
+                println("\t  dependsOn: <atype>");
+            }
+       }
        
        println("------");
        if(isEmpty(messages) && isEmpty(openReqs) && isEmpty(openFacts)){

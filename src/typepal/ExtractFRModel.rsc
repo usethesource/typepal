@@ -21,15 +21,17 @@ extend typepal::ScopeGraph;
 data AType
     = tvar(loc name)                            // type variable, used for type inference
     | useType(Use use)                          // Use a type defined elsewhere
-    | lub(list[AType] atypes)                   // LUB of a list of types
-    | listType(list[AType] atypes)              // built-in list-of-ATypes type
+    | lazyLub(list[AType] atypes)               // lazily computed LUB of a list of types
+    | atypeList(list[AType] atypes)              // built-in list-of-ATypes type
     | overloadedType(rel[Key, AType] overloads) // built-in-overloaded type; each key provides an alternative type
     ;
 
 // Pretty print ATypes
 str AType2String(tvar(loc name))    = "<name>";
 str AType2String(useType(Use use)) = "<getId(use)>";
-str AType2String(listType(list[AType] atypes)) = size(atypes) == 0 ? "empty list of types" : intercalate(", ", [AType2String(a) | a <- atypes]);
+str AType2String(lazyLub(list[AType] atypes)) = "lub(<atypes>))";
+str AType2String(atypeList(list[AType] atypes)) = size(atypes) == 0 ? "empty list of types" : intercalate(", ", [AType2String(a) | a <- atypes]);
+str AType2String(overloadedType(rel[Key, AType] overloads)) = "overloaded(" + intercalate(", ", [AType2String(t) | <k, t> <- overloads]) + ")";
 default str AType2String(AType tp) = "<tp>";
 
 // AType utilities
@@ -38,10 +40,8 @@ bool isTypeVariable(loc tv) = tv.scheme == "typevar";
 loc getLoc(Tree t) = t@\loc ? t.args[0]@\loc;
     
 set[loc] extractTypeDependencies(AType tp) 
-    = { use.occ | /useType(Use use) := tp };
+    = { use.occ | /useType(Use use) := tp } /*+ { src | /tvar(loc src) := tp }*/;
 
-bool allDependenciesKnown(set[loc] deps, map[loc,AType] facts)
-    = (isEmpty(deps) || all(dep <- deps, facts[dep]?));
 
 list[Key] dependenciesAsKeyList(list[value] dependencies){
     return 
@@ -73,22 +73,64 @@ DefInfo defLub(list[value] dependsOn, AType() getAType)
     
 // Errors found during type checking  
 data ErrorHandler
-    = onError(loc where, str msg)
+    = onError(loc where, str msg, list[value] args)
     | noError()
     ;
    
-ErrorHandler onError(Tree t, str msg) = onError(getLoc(t), msg);
+ErrorHandler onError(Tree t, str msg, value args...) = onError(getLoc(t), msg, args);
 
-void reportError(Tree t, str msg){
-    throw error(msg, getLoc(t));
+str v2s(AType t)            = "`<AType2String(t)>`";
+//str v2s(Tree t)             = "`<AType2String(typeof(t))>`";
+str v2s(str s)              = "`<s>`";
+str v2s(int n)              = "<n>";
+str v2s(list[value] vals)   = intercalateAnd([v2s(vl) | vl <- vals]);
+default str v2s(value v)    = "`<v>`";
+
+str intercalateAnd(list[str] strs){
+    switch(size(strs)){
+      case 0: return "";
+      case 1: return strs[0];
+      default: 
+              return intercalate(", ", strs[0..-1]) + " and " + strs[-1];
+      };
 }
 
-void reportWarning(Tree t, str msg){
-    throw warning(msg, getLoc(t));
+str interpolate(str msg, value args...){
+    parts = split("%", msg);
+    nparts = size(parts);
+    int iargs = 0;
+    int nargs = size(args);
+    interpolated =
+        for(int i <- index(parts)){
+            append parts[i];
+            if(i > 0 && isEmpty(parts[i])) { 
+                append "%";
+            } else {
+                if(i < nparts-1 && !isEmpty(parts[i+1])){
+                    if( iargs < nargs){
+                        append v2s(args[iargs]);
+                        iargs += 1;
+                    } else {
+                        throw "Interpolation: too few args for <msg>";
+                    }
+                }
+            }
+        }
+    if(iargs < nargs){
+        interpolated += [v2s(a) | a <- args[iargs..]];
+    }
+    return intercalate("", interpolated);
+}
+void reportError(Tree t, str msg, value args...){
+    throw error(interpolate(msg, args), getLoc(t));
 }
 
-void reportInfo(Tree t, str msg){
-    throw info(msg, getLoc(t));
+void reportWarning(Tree t, str msg, value args...){
+    throw warning(interpolate(msg, args), getLoc(t));
+}
+
+void reportInfo(Tree t, str msg, value args...){
+    throw info(interpolate(msg, args), getLoc(t));
 }
 
 // The basic ingredients for type checking: facts, requirements and overloads
@@ -101,11 +143,11 @@ data Fact
 
 // A named requirement for location src, given dependencies and a callback predicate
 data Requirement
-    = openReq(str name, loc src, set[loc] dependsOn,  void() preds);
+    = openReq(str name, loc src, set[loc] dependsOn, bool eager, void() preds);
 
 // Named type calculator for location src, given args, and resolve callback    
 data Calculator
-    = calculate(str name, loc src, list[loc] dependsOn, AType() calculator);
+    = calculate(str name, loc src, set[loc] dependsOn, bool eager, AType() calculator);
 
 // The basic Fact & Requirement Model; can be extended in specific type checkers
 data FRModel (
@@ -190,20 +232,22 @@ data FRBuilder
         void (Tree inner, Tree outer) addScope,
        
         void (str name, Tree src, list[value] dependencies, void() preds) require,
+        void (str name, Tree src, list[value] dependencies, void() preds) requireEager,
         void (Tree src, AType tp) atomicFact,
         void (Tree src, list[value] dependencies, AType() getAType) fact,
         void (str name, Tree src, list[value] dependencies, AType() calculator) calculate,
-        void (Tree src, str msg) reportError,
-        void (Tree src, str msg) reportWarning,
-        void (Tree src, str msg) reportInfo,
+        void (str name, Tree src, list[value] dependencies, AType() calculator) calculateEager,
+        void (Tree src, str msg, list[value] args) reportError,
+        void (Tree src, str msg, list[value] args) reportWarning,
+        void (Tree src, str msg, list[value] args) reportInfo,
         AType (Tree scope) newTypeVar,
         FRModel () build
       ); 
 
 AType() makeClos1(AType tp) = AType (){ return tp; };                   // TODO: workaround for compiler glitch
-void() makeClosError(Tree src, str msg) = void(){ reportError(src, msg); };
-void() makeClosWarning(Tree src, str msg) = void(){ reportWarning(src, msg); };
-void() makeClosInfo(Tree src, str msg) = void(){ reportInfo(src, msg); };
+void() makeClosError(Tree src, str msg, list[value] args) = void(){ reportError(src, msg, args); };
+void() makeClosWarning(Tree src, str msg, list[value] args) = void(){ reportWarning(src, msg, args); };
+void() makeClosInfo(Tree src, str msg, list[value] args) = void(){ reportInfo(src, msg, args); };
                           
 FRBuilder newFRBuilder(bool debug = false){
         
@@ -286,7 +330,15 @@ FRBuilder newFRBuilder(bool debug = false){
     
     void _require(str name, Tree src, list[value] dependencies, void() preds){ 
         if(building){
-           openReqs += { openReq(name, getLoc(src), dependenciesAsKeys(dependencies), preds) };
+           openReqs += { openReq(name, getLoc(src), dependenciesAsKeys(dependencies), false, preds) };
+        } else {
+            throw "Cannot call `require` on FRBuilder after `build`";
+        }
+    } 
+    
+    void _requireEager(str name, Tree src, list[value] dependencies, void() preds){ 
+        if(building){
+           openReqs += { openReq(name, getLoc(src), dependenciesAsKeys(dependencies), true, preds) };
         } else {
             throw "Cannot call `require` on FRBuilder after `build`";
         }
@@ -311,31 +363,38 @@ FRBuilder newFRBuilder(bool debug = false){
     
     void _calculate(str name, Tree src, list[value] dependencies, AType() calculator){
         if(building){
-           calculators[getLoc(src)] = calculate(name, getLoc(src), dependenciesAsKeyList(dependencies),  calculator);
+           calculators[getLoc(src)] = calculate(name, getLoc(src), dependenciesAsKeys(dependencies),  false, calculator);
         } else {
             throw "Cannot call `calculate` on FRBuilder after `build`";
         }
     }
+    void _calculateEager(str name, Tree src, list[value] dependencies, AType() calculator){
+        if(building){
+           calculators[getLoc(src)] = calculate(name, getLoc(src), dependenciesAsKeys(dependencies),  true, calculator);
+        } else {
+            throw "Cannot call `calculateOpen` on FRBuilder after `build`";
+        }
+    }
     
-    void _reportError(Tree src, str msg){
+    void _reportError(Tree src, str msg, list[value] args){
        if(building){
-          openReqs += { openReq("error", getLoc(src), {}, makeClosError(src, msg)) };
+          openReqs += { openReq("error", getLoc(src), {}, true, makeClosError(src, msg, args)) };
        } else {
             throw "Cannot call `reportError` on FRBuilder after `build`";
        }
     }
     
-    void _reportWarning(Tree src, str msg){
+    void _reportWarning(Tree src, str msg, list[value] args){
         if(building){
-           openReqs += { openReq("warning", getLoc(src), {}, makeClosWarning(src, msg)) };
+           openReqs += { openReq("warning", getLoc(src), {}, true, makeClosWarning(src, msg, args)) };
         } else {
             throw "Cannot call `reportWarning` on FRBuilder after `build`";
         }
     }
     
-    void _reportInfo(Tree src, str msg){
+    void _reportInfo(Tree src, str msg, list[value] args){
         if(building){
-           openReqs += { openReq("info", getLoc(src), {}, makeClosInfo(src, msg)) };
+           openReqs += { openReq("info", getLoc(src), {}, true, makeClosInfo(src, msg, args)) };
         } else {
             throw "Cannot call `reportInfo` on FRBuilder after `build`";
         }
@@ -415,9 +474,11 @@ FRBuilder newFRBuilder(bool debug = false){
                      _use_qual_ref, 
                      _addScope, 
                      _require, 
+                     _requireEager,
                      _fact1, 
                      _fact2, 
                      _calculate, 
+                     _calculateEager,
                      _reportError, 
                      _reportWarning, 
                      _reportInfo, 

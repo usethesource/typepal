@@ -71,6 +71,8 @@ str deescape(str s)  {  // copied from RascalExpression, belongs in library
 bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder = emptyFRBuilder,
                       bool(AType atype1, AType atype2) isSubType = noIsSubType,
                       AType(AType atype1, AType atype2) getLUB = noGetLUB,
+                      AType() getATypeMin = noATypeMin,
+                      AType() getATypeMax = noATypeMax,
                       set[IdRole] mayBeOverloaded = {},
                       bool verbose = false
 ){
@@ -94,7 +96,7 @@ bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder 
         ntests += 1;
         try {
            p = parse(begin, "<ti.tokens>");
-          model = validate(enhanceFRModel(extractFRModel(p, initialFRBuilder(p))), isSubType=isSubType, getLUB=getLUB, mayBeOverloaded=mayBeOverloaded);
+          model = validate(enhanceFRModel(extractFRModel(p, initialFRBuilder(p))), isSubType=isSubType, getLUB=getLUB, getATypeMin=noATypeMin, getATypeMax=noATypeMax, mayBeOverloaded=mayBeOverloaded);
           messages = model.messages;
           if(verbose) println("runTests: <messages>");
           ok = ok && isEmpty(messages);
@@ -122,6 +124,7 @@ bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder 
 }
 
 loc relocate(loc osrc, loc base){
+    //println("relocate: <osrc>, <base>");
     nsrc = base;
     
     nsrc.offset = base.offset + osrc.offset;
@@ -130,17 +133,29 @@ loc relocate(loc osrc, loc base){
     nsrc.end.line = base.begin.line + osrc.end.line - 1;
     nsrc.begin.line = base.begin.line + osrc.begin.line - 1;
     
+    if(osrc.begin.line == 1){
+        nsrc.begin.column = base.begin.column + osrc.begin.column;
+    } else {
+        nsrc.begin.column = osrc.begin.column;
+    }
+    
     if(osrc.end.line == 1){
         nsrc.end.column = base.begin.column + osrc.end.column;
     } else {
         nsrc.end.column = osrc.end.column;
     }
     
-    if(osrc.begin.line == 1){
-        nsrc.begin.column = base.begin.column + osrc.begin.column;
-    } else {
-        nsrc.begin.column = osrc.begin.column;
-    }
+    //if(osrc.end.line == 1){
+    //    nsrc.end.column = base.begin.column + osrc.end.column;
+    //} else {
+    //    nsrc.end.column = osrc.end.column;
+    //}
+    //
+    //if(osrc.begin.line == 1){
+    //    nsrc.begin.column = base.begin.column + osrc.begin.column;
+    //} else {
+    //    nsrc.begin.column = osrc.begin.column;
+    //}
     
     //println("relocate with base <base>: from <osrc> to <nsrc>");
     return nsrc;
