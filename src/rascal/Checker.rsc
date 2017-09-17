@@ -179,16 +179,56 @@ Accept isAcceptableSimple(FRModel frm, Key def, Use use){
 
 // Rascal-specific defines
 
+list[Tree] getReturnExpressions(Tree decl)
+    = [expr | /(Statement) `return <Expression expr>;` := decl];
+
+// Note: Rascal's closures are mutable, therefore we need an extra closure when creating
+// several requirements from the same function context. In this way the value of expr becomes fixed
+void() makeReturnRequirement(Expression expr, AType retType)
+    = () { println("makeReturnRequirement: <typeof(expr)>, <retType>");
+           if(isFullyInstantiated(typeof(expr))){
+             subtype(typeof(expr), retType, onError(expr, "Return type should be subtype of %, found %", retType, expr));
+           } else {
+              if(!unify(typeof(expr), retType)){
+                 subtype(typeof(expr), retType, onError(expr, "Return type should be subtype of %, found %", retType, expr));
+              }
+           }
+         };
+             
 Tree define(FunctionDeclaration decl, Tree scope, FRBuilder frb){
     signature = decl.signature;
+    
+    parameters = signature.parameters;
+    formals = [pat | Pattern pat <- parameters.formals.formals];
+    
+    for(pat <- formals){
+        if(namePat: (Pattern) `<QualifiedName name>` := pat){
+            tau = frb.newTypeVar(scope);
+            frb.atomicFact(pat, tau);
+            frb.define(scope, "<name>", formalId(), name, defLub([], AType() { return typeof(tau); }));
+        }
+        if(splicePat: (Pattern) `*<QualifiedName name>` := pat || splicePat: (Pattern) `<QualifiedName name>*` := pat){
+            tau = frb.newTypeVar(scope);
+            frb.atomicFact(pat, tau);
+            frb.define(scope, "<name>", formalId(), name, defLub([], AType() { return alist(typeof(tau)); }));
+        }
+        if(splicePlusPat: (Pattern) `+<QualifiedName name>` := pat){
+            tau = frb.newTypeVar(scope);
+            frb.atomicFact(pat, tau);
+            frb.define(scope, "<name>", formalId(), name, defLub([], AType() { return alist(typeof(tau)); }));
+        }
+    }
     body = decl.body;
     name = signature.name;
     retType = toAType(convertType(signature.\type));
-    parameters = signature.parameters;
-    formals = [pat | Pattern pat <- parameters.formals.formals];
-   
     kwFormals = getKeywordFormals(parameters.keywordFormals);
+    
     frb.define(scope, "<name>", functionId(), name, defType(formals, AType() { return afunc(retType, [typeof(f) | f <- formals], kwFormals); }));
+    for(Tree expr <- getReturnExpressions(decl)){
+        println("makeReturnRequirement: <retType>");
+            frb.requireEager("return type", expr, [expr], makeReturnRequirement(expr, retType));     
+         } 
+    
     return decl;
 }
 
@@ -305,9 +345,9 @@ void collect(exp: (Expression) `<Expression exp1> + <Expression exp2>`, Tree sco
 Tree define(exp: (Expression) `<Expression exp1> || <Expression exp2>`, Tree scope, FRBuilder frb){
     frb.atomicFact(exp, abool());
       
-    frb.require("`||` operator", exp, [exp1, exp2],
-        (){ if(abool() != typeof(exp1)) reportError(exp1, "Argument of || should be `bool`, found %", exp1);
-            if(abool() != typeof(exp2)) reportError(exp2, "Argument of || should be `bool`, found %", exp2);
+    frb.requireEager("`||` operator", exp, [exp1, exp2],
+        (){ if(!unify(abool(), typeof(exp1))) reportError(exp1, "Argument of || should be `bool`, found %", exp1);
+            if(!unify(abool(), typeof(exp2))) reportError(exp2, "Argument of || should be `bool`, found %", exp2);
             // TODO: check that exp1 and exp2 introduce the same set of variables
           });
     return scope;
@@ -316,9 +356,9 @@ Tree define(exp: (Expression) `<Expression exp1> || <Expression exp2>`, Tree sco
 Tree define(exp: (Expression) `<Expression exp1> && <Expression exp2>`, Tree scope, FRBuilder frb){
     frb.atomicFact(exp, abool());
    
-    frb.require("`&&` operator", exp, [exp1, exp2],
-        (){ if(abool() != typeof(exp1)) reportError(exp1, "Argument of && should be `bool`, found %", exp1);
-            if(abool() != typeof(exp2)) reportError(exp2, "Argument of && should be `bool`, found %", exp2);
+    frb.requireEager("`&&` operator", exp, [exp1, exp2],
+        (){ if(!unify(abool(), typeof(exp1))) reportError(exp1, "Argument of && should be `bool`, found %", exp1);
+            if(!unify(abool(), typeof(exp2))) reportError(exp2, "Argument of && should be `bool`, found %", exp2);
           });
     return scope;
 }
@@ -333,7 +373,7 @@ void collect(exp: (Expression) `<Expression exp1> == <Expression exp2>`, Tree sc
 void collect(exp: (Expression) `[ <{Expression ","}* elements0> ]`, Tree scope, FRBuilder frb){
     elms = [ e | Expression e <- elements0 ];
     frb.calculateEager("list expression", exp, elms,
-        AType() { return alist(lub([typeof(elm) | elm <- elms])); });
+        AType() { println("list expression: <[typeof(elm) | elm <- elms]>"); return alist(lub([typeof(elm) | elm <- elms])); });
 }
 
 void collect(exp: (Expression) `{ <{Expression ","}* elements0> }`, Tree scope, FRBuilder frb){
@@ -610,10 +650,16 @@ Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> 
     condList = [cond | Expression cond <- conditions];
     frb.atomicFact(stat, avalue());
     
-    frb.require("if then", stat, condList + [thenPart],
+    frb.requireEager("if then", stat, condList + [thenPart],
         (){
             for(cond <- condList){
-                if(abool() != typeof(cond)) reportError(cond, "Condition should be `bool`, found %", cond);
+                if(isFullyInstantiated(typeof(cond))){
+                    subtype(typeof(cond), abool(), onError(cond, "Condition should be `bool`, found %", cond));
+                } else {
+                    if(!unify(typeof(cond), abool())){
+                        subtype(typeof(cond), abool(), onError(cond, "Condition should be `bool`, found %", cond));
+                    }
+                }
             }
         });
     return conditions; // thenPart may refer to variables defined in conditions
@@ -626,10 +672,16 @@ Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> 
     condList = [cond | cond <- conditions];
     addElseScope(conditions, elsePart); // variable occurrences in elsePart may not refer to variables defined in conditions
     
-    frb.require("if then else", stat, condList + [thenPart, elsePart],
+    frb.requireEager("if then else", stat, condList + [thenPart, elsePart],
         (){
             for(cond <- condList){
-                if(abool() != typeof(cond)) reportError(cond, "Condition should be `bool`, found %", cond);
+                if(isFullyInstantiated(typeof(cond))){
+                    subtype(typeof(cond), abool(), onError(cond, "Condition should be `bool`, found %", cond));
+                } else {
+                    if(!unify(typeof(cond), abool())){
+                        subtype(typeof(cond), abool(), onError(cond, "Condition should be `bool`, found %", cond));
+                    }
+                }
             }  
             fact(stat, getLUB(typeof(thenPart), typeof(elsePart)));
         });
