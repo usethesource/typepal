@@ -156,7 +156,8 @@ data FRModel (
         set[Fact] openFacts = {},
         set[Requirement] openReqs = {},
         map[loc,loc] tvScopes = (),
-        set[Message] messages = {}
+        set[Message] messages = {},
+        rel[str,value] store = {}
         );
 
 alias Key = loc;
@@ -241,6 +242,7 @@ data FRBuilder
         void (Tree src, str msg, list[value] args) reportWarning,
         void (Tree src, str msg, list[value] args) reportInfo,
         AType (Tree scope) newTypeVar,
+        void (str key, value val) store,
         FRModel () build
       ); 
 
@@ -258,6 +260,7 @@ FRBuilder newFRBuilder(bool debug = false){
     Paths paths = {};
     ReferPaths referPaths = {};
     Uses uses = [];
+    rel[str,value] storeVals = {};
     
     map[loc,Calculator] calculators = ();
     map[loc,AType] facts = ();
@@ -412,6 +415,10 @@ FRBuilder newFRBuilder(bool debug = false){
         }
     }
     
+    void _store(str key, value val){
+        storeVals += <key, val>;
+    }
+    
     void finalizeDefines(){
         set[Define] extra_defines = {};
        
@@ -460,6 +467,7 @@ FRBuilder newFRBuilder(bool debug = false){
            frm.openFacts = openFacts;
            frm.openReqs = openReqs;
            frm.tvScopes = tvScopes;
+           frm.store = storeVals;
            
            return frm; 
         } else {
@@ -483,5 +491,6 @@ FRBuilder newFRBuilder(bool debug = false){
                      _reportWarning, 
                      _reportInfo, 
                      _newTypeVar, 
+                     _store,
                      _build); 
 }
