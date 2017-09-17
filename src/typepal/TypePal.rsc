@@ -43,12 +43,16 @@ FRModel getFRModel(){
 }
 
 AType lub(list[AType] atypes) {
+    println("lub: <atypes>");
     minType = getATypeMinFun();
     lubbedType = (minType | getLUBFun(it, t) | t <- atypes, isFullyInstantiated(t));
     tvs =  [ t | t <- atypes, tvar(v) := t ];
     other = [t | t <- atypes - tvs, !isFullyInstantiated(t) ];
     lubArgs = (lubbedType == minType ? [] : [lubbedType]) + [ t | t <- atypes, !isFullyInstantiated(t) ];
-    if(size(tvs) >= 1 && size(other) == 0){
+    if(size(tvs) == 1 && size(other) == 0 && lubbedType == minType){
+        return tvs[0];
+    }
+    if(size(tvs) >= 1 && size(other) == 0 && lubbedType != minType){
         for(tvar(v) <- tvs){
             addFact(v, lubbedType);
             return lubbedType;
@@ -556,7 +560,7 @@ bool unify(AType given, AType expected){
 void subtype(AType small, AType large, ErrorHandler onError){
     extractedFRModel.facts = facts;
     if(!isSubTypeFun(small, large)){
-        throw error(interpolate("<onError.msg>, expected subtype of %, found %", large, small), onError.where);
+        throw error(interpolate(onError.msg, onError.args), onError.where);
     }
 }
 
