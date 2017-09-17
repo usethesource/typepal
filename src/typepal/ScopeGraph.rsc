@@ -167,8 +167,8 @@ private list[Key] lookupPaths(FRModel frm, Key scope, Use use, PathLabel pathLab
 // Get all pathLabels and remember them
 @memo 
 private set[PathLabel] pathLabels(FRModel frm){
-    return {pl | /PathLabel pl := frm};
-    //return frm.paths.pathLabel;
+    //return {pl | /PathLabel pl := frm};
+    return frm.paths.pathLabel;
 }
 
 // Lookup use in syntactic scope and via all semantic paths
