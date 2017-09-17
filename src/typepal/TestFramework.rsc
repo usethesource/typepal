@@ -96,7 +96,7 @@ bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder 
         ntests += 1;
         try {
            p = parse(begin, "<ti.tokens>");
-          model = validate(enhanceFRModel(extractFRModel(p, initialFRBuilder(p))), isSubType=isSubType, getLUB=getLUB, getATypeMin=noATypeMin, getATypeMax=noATypeMax, mayBeOverloaded=mayBeOverloaded);
+          model = validate(enhanceFRModel(extractFRModel(p, initialFRBuilder(p))), isSubType=isSubType, getLUB=getLUB, getATypeMin=getATypeMin, getATypeMax=getATypeMax, mayBeOverloaded=mayBeOverloaded);
           messages = model.messages;
           if(verbose) println("runTests: <messages>");
           ok = ok && isEmpty(messages);
