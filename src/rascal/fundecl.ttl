@@ -55,6 +55,40 @@ test O2 [[ module rascal::O2
     void main(){ int x = f(1, k=1); str y = f("a"); z = f(true, "a"); z = f("a", false); }
 ]]
 
+test K1 [[ module rascal::K1
+    data D(int n = 0) = d1();
+    void f(){ D x = d1(); }
+]]
+
+test K2 [[ module rascal::K2
+    data D(int n = 0) = d1();
+    void f(){ D x = d1(n=3); }
+]]
+
+test K3 [[ module rascal::K3
+    data D(int n = 0) = d1();
+    void f(){ D x = d1(m=3); }
+]] expect{ "Undefined keyword argument `m`" }
+
+test K4 [[ module rascal::K4
+    data D(int n = 0) = d1();
+    void f(){ D x = d1(n=true); }
+]] expect { "Keyword argument `n` has type `bool`, expected `int`" }
+
+test K5 [[ module rascal::K5
+    data D(int n = 0) = d1();
+    data D(bool b = true) = d2();
+    void f(){ D x = d2(b=true); }
+]]
+
+test K6 [[ module rascal::K6
+    data D(int n = 0) = d1();
+    data D(bool b = true) = d2();
+    void f(){ D x = d2(n=3); }
+]] expect { "Undefined keyword argument `n`" }
+
+
+
 test R1 [[module rascal::R1
     int f() { return 10; }
 ]]
@@ -83,14 +117,17 @@ test R7 [[ module rascal::R7
     value f(b) { b || true; return b; }
 ]]
 
+@@ order dependent
 test R8 [[ module rascal::R8
     value f(b) { n = b || true; return b; }
-]]
+]] expect { "Argument of || should be `bool`, found `value`" }
 
+@@ order dependent
 test R9 [[ module rascal::R9
     value f(b) { n = b || true; if(b) 10; return b; }
-]]
+]] expect { "Argument of || should be `bool`, found `value`" }
 
+@@ order dependent
 test R10 [[ module rascal::R10
     value f(b) { n = b || true; if(b) 10; return b; b && false; }
 ]]

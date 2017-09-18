@@ -21,89 +21,9 @@ import Type;
 import lang::rascal::types::ConvertType;
 import lang::rascal::types::AbstractType;
 
+extend rascal::AType;
 extend typepal::TypePal;
 extend typepal::TestFramework;
-
-data AType 
-    =  aint()
-     | abool()
-     | areal()
-     | arat()
-     | astr()
-     | anum()
-     | anode()
-     | avoid()
-     | avalue()
-     | aloc()
-     | adatetime()
-     | alist(AType elmType)
-     | aset(AType elmType)
-     | atuple(AType elemType)
-     | amap(AType keyType, AType valType)
-     | arel(AType elemType)
-     | alrel(AType elemType)
-     | afunc(AType ret, list[AType] formals, lrel[AType fieldType, str fieldName, Expression defaultExp] kwFormals)
-     | aadt(str adtName)
-     | acons(str adtName, str consName, 
-             lrel[AType fieldType, str fieldName] fields, 
-             lrel[AType fieldType, str fieldName, Expression defaultExp] kwFields)
-     ;
-    
-Symbol toSymbol(aint()) = \int();
-Symbol toSymbol(abool()) = \bool();
-Symbol toSymbol(areal()) = \real();
-Symbol toSymbol(arat()) = \rat();
-Symbol toSymbol(astr()) = \str();
-Symbol toSymbol(anum()) = \num();
-Symbol toSymbol(anode()) = \node();
-Symbol toSymbol(avoid()) = \void();
-Symbol toSymbol(avalue()) = \value();
-Symbol toSymbol(aloc()) = \loc();
-Symbol toSymbol(adatetime()) = \datetime();
-Symbol toSymbol(alist(AType elmType)) = \list(toSymbol(elmType));
-Symbol toSymbol(aset(AType elmType)) = \set(toSymbol(elmType));
-Symbol toSymbol(atuple(atypeList(list[AType] elmTypes))) = \tuple([toSymbol(elmType) | elmType <- elmTypes]);
-Symbol toSymbol(amap(Atype t1, AType t2)) = \map(toSymbol(t1), toSymbol(t2));
-Symbol toSymbol(arel(atypeList(list[AType] elmTypes))) = \rel([toSymbol(elmType) | elmType <- elmTypes]);
-Symbol toSymbol(alrel(atypeList(list[AType] elmTypes))) = \lrel([toSymbol(elmType) | elmType <- elmTypes]);
-Symbol toSymbol(aadt(str adtName)) = \adt(adtName, []);
-Symbol toSymbol(tvar(name)) {
-    throw TypeUnavailable();
-}
-default Symbol toSymbol(AType t) {
-    throw "toSymbol cannot convert <t>";
-}
-
-AType toAType(\int()) = aint();
-AType toAType(\bool()) = abool();
-AType toAType(\real()) = areal();
-AType toAType(\rat()) = arat();
-AType toAType(\str()) = astr();
-AType toAType(\num()) = anum();
-AType toAType(\node()) = anode();
-AType toAType(\void()) = avoid();
-AType toAType(\value()) = avalue();
-AType toAType(\loc()) = aloc();
-AType toAType(\datetime()) = adatetime();
-AType toAType(\list(Symbol elmType)) = alist(toAType(elmType));
-AType toAType(\set(Symbol elmType)) = aset(toAType(elmType));
-AType toAType(\tuple(list[Symbol] elmTypes)) = atuple(atypeList([toAType(elmType) | elmType <- elmTypes]));
-AType toAType(\map(Symbol from, Symbol to)) = amap(toAType(from), toAType(to));
-AType toAType(\rel(list[Symbol] elmTypes)) = arel(atypeList([toAType(elmType) | elmType <- elmTypes]));
-AType toAType(\lrel(list[Symbol] elmTypes)) = alrel(atypeList([toAType(elmType) | elmType <- elmTypes]));
-AType toAType(\adt(str adtName, list[Symbol] parameters)) = aadt(adtName);
-
-//str AType2String(tvar(name)) = "<name>";
-//str AType2String(lub(list[AType] atypes)) = "lub([<intercalate(",", [AType2String(t) | t <- atypes])>])";
-str AType2String(acons(str adtName, str consName, 
-                 lrel[AType fieldType, str fieldName] fields, 
-                 lrel[AType fieldType, str fieldName, Expression defaultExp] kwFields))
-                 = "<adtName>:<consName>(<intercalate(",", ["<AType2String(ft)> <fn>" | <ft, fn> <- fields])>,<kwFields>)";
-
-str AType2String(afunc(AType ret, list[AType] formals, lrel[AType fieldType, str fieldName, Expression defaultExp] kwFormals))
-                = "<AType2String(ret)>(<intercalate(",", [AType2String(f) | f <- formals])>,<kwFormals>)";
-                
-str AType2String(AType t) = prettyPrintType(toSymbol(t));
 
 data IdRole
     = moduleId()
@@ -177,6 +97,8 @@ Accept isAcceptableSimple(FRModel frm, Key def, Use use){
     return res;
 }
 
+// ---- Begin of Rascal type checking rules ----
+
 // Rascal-specific defines
 
 list[Tree] getReturnExpressions(Tree decl)
@@ -185,12 +107,12 @@ list[Tree] getReturnExpressions(Tree decl)
 // Note: Rascal's closures are mutable, therefore we need an extra closure when creating
 // several requirements from the same function context. In this way the value of expr becomes fixed
 void() makeReturnRequirement(Expression expr, AType retType)
-    = () { println("makeReturnRequirement: <typeof(expr)>, <retType>");
+    = () { 
            if(isFullyInstantiated(typeof(expr))){
-             subtype(typeof(expr), retType, onError(expr, "Return type should be subtype of %, found %", retType, expr));
+             subtype(typeof(expr), retType, onError(expr, "Return type should be subtype of <fmt(retType)>, found <fmt(expr)>"));
            } else {
               if(!unify(typeof(expr), retType)){
-                 subtype(typeof(expr), retType, onError(expr, "Return type should be subtype of %, found %", retType, expr));
+                 subtype(typeof(expr), retType, onError(expr, "Return type should be subtype of <fmt(retType)>, found <fmt(expr)>"));
               }
            }
          };
@@ -201,51 +123,46 @@ Tree define(FunctionDeclaration decl, Tree scope, FRBuilder frb){
     parameters = signature.parameters;
     formals = [pat | Pattern pat <- parameters.formals.formals];
     
-    for(pat <- formals){
-        if(namePat: (Pattern) `<QualifiedName name>` := pat){
-            tau = frb.newTypeVar(scope);
-            frb.atomicFact(pat, tau);
-            frb.define(scope, "<name>", formalId(), name, defLub([], AType() { return typeof(tau); }));
-        }
-        if(splicePat: (Pattern) `*<QualifiedName name>` := pat || splicePat: (Pattern) `<QualifiedName name>*` := pat){
-            tau = frb.newTypeVar(scope);
-            frb.atomicFact(pat, tau);
-            frb.define(scope, "<name>", formalId(), name, defLub([], AType() { return alist(typeof(tau)); }));
-        }
-        if(splicePlusPat: (Pattern) `+<QualifiedName name>` := pat){
-            tau = frb.newTypeVar(scope);
-            frb.atomicFact(pat, tau);
-            frb.define(scope, "<name>", formalId(), name, defLub([], AType() { return alist(typeof(tau)); }));
-        }
-    }
+    // Take care of single variable patterns
+    handleSingleVariablePatterns(formals, scope, frb);
+  
     body = decl.body;
     name = signature.name;
     retType = toAType(convertType(signature.\type));
-    kwFormals = getKeywordFormals(parameters.keywordFormals);
+    //kwFormals = (parameters.keywordFormals is none) ? [] : getKeywordFormals(parameters.keywordFormals.keywordFormalList);
+    kwFormals = [];
+    
+    if(parameters.keywordFormals is \default){
+        kwFormals = getKeywordFormals(parameters.keywordFormals.keywordFormalList, decl, frb);
+    }
     
     frb.define(scope, "<name>", functionId(), name, defType(formals, AType() { return afunc(retType, [typeof(f) | f <- formals], kwFormals); }));
     for(Tree expr <- getReturnExpressions(decl)){
-        println("makeReturnRequirement: <retType>");
-            frb.requireEager("return type", expr, [expr], makeReturnRequirement(expr, retType));     
-         } 
+        frb.requireEager("return type", expr, [expr], makeReturnRequirement(expr, retType));     
+    } 
     
     return decl;
 }
 
-lrel[AType, str, Expression] getKeywordFormals(KeywordFormals kwFormals){
-    if(kwFormals is none) return [];
-    
+lrel[AType, str, Expression] getKeywordFormals({KeywordFormal  "," }+ keywordFormalList, Tree scope, FRBuilder frb){    
     return 
-        for(KeywordFormal kwf <- kwFormals.keywordFormalList){
+        for(KeywordFormal kwf <- keywordFormalList){
             fieldType = toAType(convertType(kwf.\type));
             fieldName = "<kwf.name>";
             defaultExp = kwf.expression;
+            frb.define(scope, fieldName, formalId(), kwf.name, defType(fieldType));
             append <fieldType, fieldName, defaultExp>;
         }
 }
 
-Tree define ((Declaration) `<Tags tags> <Visibility visibility> data <UserType user> <CommonKeywordParameters commonKeywordParameters> = <{Variant "|"}+ variants> ;`, Tree scope, FRBuilder frb){
+Tree define (decl: (Declaration) `<Tags tags> <Visibility visibility> data <UserType user> <CommonKeywordParameters commonKeywordParameters> = <{Variant "|"}+ variants> ;`, Tree scope, FRBuilder frb){
     adtName = "<user.name>";
+    
+    commonKwFields = [];
+    if(commonKeywordParameters is present){
+        commonKwFields = getKeywordFormals(commonKeywordParameters.keywordFormalList, decl, frb);
+    }
+    
     for(Variant v <- variants){
         consName = "<v.name>";
         fields = 
@@ -255,20 +172,14 @@ Tree define ((Declaration) `<Tags tags> <Visibility visibility> data <UserType u
                 append <fieldType, fieldName>;
             }
     
-       kwFields = [];
+       kwFields = commonKwFields;
        if(v.keywordArguments is \default){
-        kwFields =
-            for(KeywordFormal kwf <- v.keywordArguments.keywordFormalList){
-                fieldType = toAType(convertType(kwf.\type));
-                fieldName = "<kwf.name>";
-                defaultExp = kwf.expression;
-                append <fieldType, fieldName, defaultExp>;
-            }
-        }
-        consType = acons(adtName, consName, fields, kwFields);
-        frb.define(scope, consName, constructorId(), v.name, defType(consType));
+          kwFields += getKeywordFormals(v.keywordArguments.keywordFormalList, decl, frb);
+       }
+       consType = acons(adtName, consName, fields, kwFields);
+       frb.define(scope, consName, constructorId(), v.name, defType(consType));
     }
-    return scope;
+    return decl;
 }
 
 
@@ -338,7 +249,7 @@ void collect(exp: (Expression) `<Expression exp1> + <Expression exp2>`, Tree sco
                 return aset(getLUB(t1, e2));
             }
                 
-             reportError(exp, "No version of `+` is applicable for % and %", exp1, exp2);    
+             reportError(exp, "No version of `+` is applicable for <fmt(exp1)> and <fmt(exp2)>");    
       }); 
 }
 
@@ -346,8 +257,8 @@ Tree define(exp: (Expression) `<Expression exp1> || <Expression exp2>`, Tree sco
     frb.atomicFact(exp, abool());
       
     frb.requireEager("`||` operator", exp, [exp1, exp2],
-        (){ if(!unify(abool(), typeof(exp1))) reportError(exp1, "Argument of || should be `bool`, found %", exp1);
-            if(!unify(abool(), typeof(exp2))) reportError(exp2, "Argument of || should be `bool`, found %", exp2);
+        (){ if(!unify(abool(), typeof(exp1))) reportError(exp1, "Argument of || should be `bool`, found <fmt(exp1)>");
+            if(!unify(abool(), typeof(exp2))) reportError(exp2, "Argument of || should be `bool`, found <fmt(exp2)>");
             // TODO: check that exp1 and exp2 introduce the same set of variables
           });
     return scope;
@@ -357,8 +268,8 @@ Tree define(exp: (Expression) `<Expression exp1> && <Expression exp2>`, Tree sco
     frb.atomicFact(exp, abool());
    
     frb.requireEager("`&&` operator", exp, [exp1, exp2],
-        (){ if(!unify(abool(), typeof(exp1))) reportError(exp1, "Argument of && should be `bool`, found %", exp1);
-            if(!unify(abool(), typeof(exp2))) reportError(exp2, "Argument of && should be `bool`, found %", exp2);
+        (){ if(!unify(abool(), typeof(exp1))) reportError(exp1, "Argument of && should be `bool`, found <fmt(exp1)>");
+            if(!unify(abool(), typeof(exp2))) reportError(exp2, "Argument of && should be `bool`, found <fmt(exp2)>");
           });
     return scope;
 }
@@ -366,14 +277,14 @@ Tree define(exp: (Expression) `<Expression exp1> && <Expression exp2>`, Tree sco
 void collect(exp: (Expression) `<Expression exp1> == <Expression exp2>`, Tree scope, FRBuilder frb){
     frb.atomicFact(exp, abool());
     frb.require("`==` operator", exp, [exp1, exp2],
-        (){ comparable(typeof(exp1), typeof(exp2), onError(exp, "`==` operator not defined for % and %", exp1, exp2));
+        (){ comparable(typeof(exp1), typeof(exp2), onError(exp, "`==` operator not defined for <fmt(exp1)> and <fmt(exp2)>"));
           });
 }
 
 void collect(exp: (Expression) `[ <{Expression ","}* elements0> ]`, Tree scope, FRBuilder frb){
     elms = [ e | Expression e <- elements0 ];
     frb.calculateEager("list expression", exp, elms,
-        AType() { println("list expression: <[typeof(elm) | elm <- elms]>"); return alist(lub([typeof(elm) | elm <- elms])); });
+        AType() { return alist(lub([typeof(elm) | elm <- elms])); });
 }
 
 void collect(exp: (Expression) `{ <{Expression ","}* elements0> }`, Tree scope, FRBuilder frb){
@@ -410,9 +321,10 @@ void collect(exp: (Expression) `<Pattern pat> := <Expression expression>`, Tree 
         frb.requireEager("`:=` operator", exp, [pat, expression],
             () { ptype = typeof(pat); etype = typeof(expression);
                  if(isFullyInstantiated(ptype) && isFullyInstantiated(etype)){
-                    comparable(ptype, etype, onError(exp, "Cannot match % pattern with % subject", pat, expression));
+                    comparable(ptype, etype, onError(exp, "Cannot match <fmt(pat)> pattern with <fmt(expression)> subject"));
                  } else {
                     unify(ptype, etype, onError(pat, "Type of pattern could not be computed"));
+                    // add comparable?
                  }
                  fact(pat, typeof(pat));
                });
@@ -429,12 +341,12 @@ void checkKwArgs(lrel[AType fieldType, str fieldName, Expression defaultExp] kwF
         for(<ft, fn, de> <- kwFormals){
            if(kwName == fn){
               if(!comparable(kwType, ft)){
-                reportError(kwa, "Keyword argument % has type %, expected %", kwName, kwType, ft);
+                reportError(kwa, "Keyword argument <fmt(kwName)> has type <fmt(kwType)>, expected <fmt(ft)>");
               }
               continue next_arg;
            } 
         }
-        reportError(kwa, "Undefined keyword argument %", kwName);
+        reportError(kwa, "Undefined keyword argument <fmt(kwName)>");
     }
  }                   
 
@@ -470,15 +382,15 @@ void collect(callOrTree: (Expression) `<Expression expression> ( <{Expression ",
                             return aadt(adtName);
                         }
                     }
-                    reportError(callOrTree, "No function or constructor `<expression>` for arguments %", [actuals]);
+                    reportError(callOrTree, "No function or constructor <fmt(expression)> for arguments <fmt(actuals)>");
                 }
                 if(afunc(AType ret, list[AType] formals, lrel[AType fieldType, str fieldName, Expression defaultExp] kwFormals) := typeof(expression)){
                     nactuals = size(actuals); nformals = size(formals);
                     if(nactuals != nformals){
-                        reportError(callOrTree, "Expected <nformals> argument<nformals != 1 ? "s" : ""> for `<expression>`, found <nactuals>");
+                        reportError(callOrTree, "Expected <nformals> argument<nformals != 1 ? "s" : ""> for `<"<expression>">`, found <nactuals>");
                     }
                     for(int i <- index(actuals)){
-                        comparable(typeof(actuals[i]), formals[i], onError(actuals[i], "Argument of `<expression>` should have type %, found %", formals[i], actuals[i]));
+                        comparable(typeof(actuals[i]), formals[i], onError(actuals[i], "Argument of `<"<expression>">` should have type <fmt(formals[i])>, found <fmt(actuals[i])>"));
                     }
                     checkKwArgs(kwFormals, keywordArguments);
                     return ret;
@@ -486,14 +398,15 @@ void collect(callOrTree: (Expression) `<Expression expression> ( <{Expression ",
                 if(acons(str adtName, str consName, lrel[AType fieldType, str fieldName] fields, lrel[AType fieldType, str fieldName, Expression defaultExp] kwFields) := typeof(expression)){
                     nactuals = size(actuals); nformals = size(fields);
                     if(nactuals != nformals){
-                        reportError(callOrTree, "Expected <nformals> argument<nformals != 1 ? "s" : ""> for `<expression>`, found <nactuals>");
+                        reportError(callOrTree, "Expected <nformals> argument<nformals != 1 ? "s" : ""> for `<"<expression>">`, found <nactuals>");
                     }
                     for(int i <- index(actuals)){
-                        comparable(typeof(actuals[i]), fields[i].fieldType, onError(actuals[i], "Field should have type %, found % ", fields[i].fieldType, actuals[i]));
+                        comparable(typeof(actuals[i]), fields[i].fieldType, onError(actuals[i], "Field should have type <fmt(fields[i].fieldType)>, found <fmt(actuals[i])>"));
                     }
+                    checkKwArgs(kwFields, keywordArguments);
                     return aadt(adtName);
                 }
-                reportError(callOrTree, "Function or constructor type required for `<expression>`, found %", [expression]);
+                reportError(callOrTree, "Function or constructor type required for <fmt(expression)>, found <fmt(expression)>");
         });
 }
 
@@ -538,9 +451,7 @@ Tree define(Pattern pat: (Pattern) `<Type tp> <Name name>`, Tree scope, FRBuilde
     return scope;
 }
 
-void collect(listPat: (Pattern) `[ <{Pattern ","}* elements0> ]`, Tree scope, FRBuilder frb){
-    pats = [ p | Pattern p <- elements0 ];
-   
+void handleSingleVariablePatterns(list[Pattern] pats, Tree scope, FRBuilder frb){
     for(pat <- pats){
         if(namePat: (Pattern) `<QualifiedName name>` := pat){
             tau = frb.newTypeVar(scope);
@@ -558,6 +469,12 @@ void collect(listPat: (Pattern) `[ <{Pattern ","}* elements0> ]`, Tree scope, FR
             frb.define(scope, "<name>", variableId(), name, defLub([], AType() { return alist(typeof(tau)); }));
         }
     }
+}
+
+void collect(listPat: (Pattern) `[ <{Pattern ","}* elements0> ]`, Tree scope, FRBuilder frb){
+    pats = [ p | Pattern p <- elements0 ];
+   
+    handleSingleVariablePatterns(pats, scope, frb);
     
     tvElm = frb.newTypeVar(scope);
     frb.calculateEager("list pattern", listPat, pats, 
@@ -572,23 +489,7 @@ void collect(listPat: (Pattern) `[ <{Pattern ","}* elements0> ]`, Tree scope, FR
 void collect(setPat: (Pattern) `{ <{Pattern ","}* elements0> }`, Tree scope, FRBuilder frb){
     pats = [ p | Pattern p <- elements0 ];
    
-    for(pat <- pats){
-        if(namePat: (Pattern) `<QualifiedName name>` := pat){
-            tau = frb.newTypeVar(scope);
-            frb.atomicFact(pat, tau);
-            frb.define(scope, "<name>", variableId(), name, defLub([], AType() { return typeof(tau); }));
-        }
-        if(splicePat: (Pattern) `*<QualifiedName name>` := pat || splicePat: (Pattern) `<QualifiedName name>*` := pat){
-            tau = frb.newTypeVar(scope);
-            frb.atomicFact(pat, tau);
-            frb.define(scope, "<name>", variableId(), name, defLub([], AType() { return aset(typeof(tau)); }));
-        }
-        if(splicePlusPat: (Pattern) `+<QualifiedName name>` := pat){
-            tau = frb.newTypeVar(scope);
-            frb.atomicFact(pat, tau);
-            frb.define(scope, "<name>", variableId(), name, defLub([], AType() { return aset(typeof(tau)); }));
-        }
-    }
+    handleSingleVariablePatterns(pats, scope, frb);
     
     tvElm = frb.newTypeVar(scope);
     frb.calculateEager("set pattern", setPat, pats, 
@@ -614,6 +515,63 @@ void collect(tuplePat: (Pattern) `\< <{Pattern ","}+ elements1> \>`, Tree scope,
         AType() { return atuple(atypeList([typeof(pat) | pat <- pats])); });
 }
 
+void collect(callOrTreePat: (Pattern) `<Pattern expression> ( <{Pattern ","}* arguments> <KeywordArguments[Pattern] keywordArguments> )`, Tree scope, FRBuilder frb){
+    
+    if(namePat: (Pattern) `<QualifiedName name>` := expression){
+        frb.use(scope, name, {variableId(), formalId(), constructorId()});
+    }
+    
+    pats = [ p | Pattern p <- arguments ];
+    for(pat <- pats){
+        if(namePat: (Pattern) `<QualifiedName name>` := pat){
+            tau = frb.newTypeVar(scope);
+            frb.atomicFact(pat, tau);
+            frb.define(scope, "<name>", variableId(), name, defLub([], AType() { return typeof(tau); }));
+        }
+    }
+    
+    frb.calculateEager("call or tree pattern", callOrTreePat, pats,
+        AType(){        
+                if(overloadedType(rel[Key, AType] overloads) := typeof(expression)){
+                  
+                   next_cons:
+                     for(<key, tp> <- overloads){
+                        if(acons(str adtName, str consName, lrel[AType fieldType, str fieldName] fields, lrel[AType fieldType, str fieldName, Expression defaultExp] kwFields) := tp){
+                            nactuals = size(fields); nformals = size(fields);
+                            if(nactuals != nformals) continue next_cons;
+                            for(int i <- index(fields)){
+                                if(isFullyInstantiated(typeof(pats[i]))){
+                                   if(!comparable(typeof(pats[i]), fields[i].fieldType)) continue next_cons;
+                                } else {
+                                   if(!unify(typeof(pats[i]), fields[i].fieldType)) continue next_cons;
+                                }  
+                            }
+                            checkKwArgs(kwFields, keywordArguments);
+                            return aadt(adtName);
+                        }
+                    }
+                    reportError(callOrTreePat, "No function or constructor <"<expression>"> for arguments <fmt(pats)>");
+                }
+            
+                if(acons(str adtName, str consName, lrel[AType fieldType, str fieldName] fields, lrel[AType fieldType, str fieldName, Expression defaultExp] kwFields) := typeof(expression)){
+                    nactuals = size(pats); nformals = size(fields);
+                    if(nactuals != nformals){
+                        reportError(callOrTreePat, "Expected <nformals> argument<nformals != 1 ? "s" : ""> for `<expression>`, found <nactuals>");
+                    }
+                    for(int i <- index(pats)){
+                        if(isFullyInstantiated(typeof(pats[i]))){
+                            comparable(typeof(pats[i]), fields[i].fieldType, onError(pats[i], "Field <fmt(fields[i].fieldName)> should have type <fmt(fields[i].fieldType)>, found <fmt(pats[i])>"));
+                        } else {
+                            unify(typeof(pats[i]), fields[i].fieldType, onError(pats[i], onError(pats[i], "Field <fmt(fields[i].fieldName)> should have type <fmt(fields[i].fieldType)>, found <fmt(pats[i])>")));
+                        }
+                    }
+                    checkKwArgs(kwFields, keywordArguments);
+                    return aadt(adtName);
+                }
+                reportError(callOrTreePat, "Function or constructor type required for <"<expression>">, found <fmt(expression)>");
+        });
+}
+
 // A few statements
 
 void collect(stat: (Statement) `<Expression expression>;`,  Tree scope, FRBuilder frb){
@@ -624,13 +582,12 @@ Tree define(stat: (Statement) `<QualifiedName name> = <Statement statement>`, Tr
     frb.fact(stat, [statement], AType(){ return typeof(statement); });
     frb.define(scope, "<name>", variableId(), name, defLub([statement], AType(){ return typeof(statement); }));
     frb.require("assignment to variable `<name>`", stat, [name, statement],
-                () { subtype(typeof(statement), typeof(name), onError(stat, "Incompatible type in assignment to variable `<name>`", statement)); });  
+                () { subtype(typeof(statement), typeof(name), onError(stat, "Incompatible type in assignment to variable `<name>`, found <fmt(statement)>")); });  
     
     return scope;
 }
 
 Tree define(stat: (Statement) `<Type tp> <{Variable ","}+ variables>;`, Tree scope, FRBuilder frb){
-    println(convertType(tp));
     declaredType = toAType((convertType(tp)));
     frb.atomicFact(stat, declaredType);
     for(v <- variables){
@@ -654,10 +611,10 @@ Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> 
         (){
             for(cond <- condList){
                 if(isFullyInstantiated(typeof(cond))){
-                    subtype(typeof(cond), abool(), onError(cond, "Condition should be `bool`, found %", cond));
+                    subtype(typeof(cond), abool(), onError(cond, "Condition should be `bool`, found <fmt(cond)>"));
                 } else {
                     if(!unify(typeof(cond), abool())){
-                        subtype(typeof(cond), abool(), onError(cond, "Condition should be `bool`, found %", cond));
+                        subtype(typeof(cond), abool(), onError(cond, "Condition should be `bool`, found <fmt(cond)>"));
                     }
                 }
             }
@@ -676,10 +633,10 @@ Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> 
         (){
             for(cond <- condList){
                 if(isFullyInstantiated(typeof(cond))){
-                    subtype(typeof(cond), abool(), onError(cond, "Condition should be `bool`, found %", cond));
+                    subtype(typeof(cond), abool(), onError(cond, "Condition should be `bool`, found <fmt(cond)>"));
                 } else {
                     if(!unify(typeof(cond), abool())){
-                        subtype(typeof(cond), abool(), onError(cond, "Condition should be `bool`, found %", cond));
+                        subtype(typeof(cond), abool(), onError(cond, "Condition should be `bool`, found <fmt(cond)>"));
                     }
                 }
             }  
