@@ -22,6 +22,7 @@ import String;
 import Message;
 
 extend typepal::ScopeGraph;
+extend typepal::AType;
 extend typepal::ExtractFRModel;
 
 bool cdebug = false;
@@ -43,7 +44,7 @@ FRModel getFRModel(){
 }
 
 AType lub(list[AType] atypes) {
-    println("lub: <atypes>");
+    //println("lub: <atypes>");
     minType = getATypeMinFun();
     lubbedType = (minType | getLUBFun(it, t) | t <- atypes, isFullyInstantiated(t));
     tvs =  [ t | t <- atypes, tvar(v) := t ];
@@ -129,68 +130,11 @@ AType() getATypeMaxFun = noATypeMax;
 
 // Error handling
 
-//str v2s(AType t)            = "`<AType2String(t)>`";
-str v2s(Tree t)             = "`<AType2String(typeof(t))>`";
-//str v2s(str s)              = "`<s>`";
-//str v2s(int n)              = "<n>";
-//str v2s(list[value] vals)   = intercalateAnd([v2s(vl) | vl <- vals]);
-//default str v2s(value v)    = "`<v>`";
+str fmt(Tree t)             = "`<AType2String(typeof(t))>`";
 
-//str v2s(value v){
-//    if(AType t := v){
-//        return "`<AType2String(t)>`";
-//    }
-//    if(Tree t := v){
-//        return "`<AType2String(typeof(t))>`";
-//    }
-//    if(str s := v) return "`<s>`";
-//    if(int n := v) return "<n>";
-//    if(list[value] vals := v){
-//        return intercalateAnd([v2s(vl) | vl <- vals]);
-//    }
-//    return "`<v>`";
-//
-//}
-
-//str intercalateAnd(list[str] strs){
-//    switch(size(strs)){
-//      case 0: return "";
-//      case 1: return strs[0];
-//      default: 
-//              return intercalate(", ", strs[0..-1]) + " and " + strs[-1];
-//      };
-//}
-//
-//str interpolate(str msg, value args...){
-//    parts = split("%", msg);
-//    nparts = size(parts);
-//    int iargs = 0;
-//    int nargs = size(args);
-//    interpolated =
-//        for(int i <- index(parts)){
-//            append parts[i];
-//            if(i > 0 && isEmpty(parts[i])) { 
-//                append "%";
-//            } else {
-//                if(i < nparts-1 && !isEmpty(parts[i+1])){
-//                    if( iargs < nargs){
-//                        append v2s(args[iargs]);
-//                        iargs += 1;
-//                    } else {
-//                        throw "Interpolation: too few args for <msg>";
-//                    }
-//                }
-//            }
-//        }
-//    if(iargs < nargs){
-//        interpolated += [v2s(a) | a <- args[iargs..]];
-//    }
-//    return intercalate("", interpolated);
-//}
-
-void reportError(Tree t, str msg, value args...){
+void reportError(Tree t, str msg){
     //throw error("<msg>, found <intercalateAnd(["`<AType2String(typeof(f))>`" | f <- args])>", t@\loc);
-    throw error(interpolate(msg, args), getLoc(t));
+    throw error(msg, getLoc(t));
 }
 
 set[Message] filterMostPrecise(set[Message] messages){
@@ -517,7 +461,7 @@ AType typeof(Tree utype, Tree tree, set[IdRole] idRoles) {
 // The "equal" predicate that succeeds or gives error
 void equal(AType given, AType expected, ErrorHandler onError){
     if(given != expected){
-        throw error(interpolate("<onError.msg>, expected %, found %", expected, given), onError.where);
+        throw error("<onError.msg>, expected <fmt(expected)>, found <fmt(given)>", onError.where);
     }
 }
 
@@ -560,7 +504,7 @@ bool unify(AType given, AType expected){
 void subtype(AType small, AType large, ErrorHandler onError){
     extractedFRModel.facts = facts;
     if(!isSubTypeFun(small, large)){
-        throw error(interpolate(onError.msg, onError.args), onError.where);
+        throw error(onError.msg, onError.where);
     }
 }
 
@@ -569,7 +513,7 @@ void comparable(AType atype1, AType atype2, ErrorHandler onError){
     extractedFRModel.facts = facts;
     if(isFullyInstantiated(atype1) && isFullyInstantiated(atype2)){
         if(!(isSubTypeFun(atype1, atype2) || isSubTypeFun(atype2, atype1))){
-            throw error(interpolate(onError.msg, onError.args), onError.where);
+            throw error(onError.msg, onError.where);
         }
     } else {
         throw TypeUnavailable();
@@ -875,9 +819,9 @@ FRModel validate(FRModel er,
                      requirementJobs -= oreq;
                  }
              } catch TypeUnavailable():
-                println("checking `<oreq.name>`: dependencies not yet available");
+                ;//println("checking `<oreq.name>`: dependencies not yet available");
           } else {
-            println("\tchecking `<oreq.name>`: dependencies not yet available");
+            ;//println("\tchecking `<oreq.name>`: dependencies not yet available");
           }
       }
     } 
