@@ -2,7 +2,7 @@ module rascal::AType
 
 import Type;
 import Node;
-extend typepal::AType;
+import typepal::AType;
 import lang::rascal::\syntax::Rascal;
 import lang::rascal::types::AbstractType;
 import lang::rascal::types::AbstractName;
@@ -30,7 +30,16 @@ data AType
      | acons(str adtName, str consName, 
              lrel[AType fieldType, str fieldName] fields, 
              lrel[AType fieldType, str fieldName, Expression defaultExp] kwFields)
+     | amodule(str mname)
      ;
+
+bool isSubType(AType t1, AType t2) = subtype(toSymbol(t1), toSymbol(t2));
+AType getLUB(AType t1, AType t2) = toAType(lub(toSymbol(t1), toSymbol(t2)));
+
+AType getVoid() = avoid();
+AType getValue() = avalue();
+
+public set[AType] numericTypes = { aint(), areal(), arat(), anum() };
 
 Symbol toSymbol(aint()) = \int();
 Symbol toSymbol(abool()) = \bool();
@@ -86,8 +95,6 @@ default AType toAType(Symbol s){
     throw "toAType: cannot convert <s>";
 }
 
-//str AType2String(tvar(name)) = "<name>";
-//str AType2String(lub(list[AType] atypes)) = "lub([<intercalate(",", [AType2String(t) | t <- atypes])>])";
 str AType2String(acons(str adtName, str consName, 
                  lrel[AType fieldType, str fieldName] fields, 
                  lrel[AType fieldType, str fieldName, Expression defaultExp] kwFields))
@@ -97,3 +104,4 @@ str AType2String(afunc(AType ret, list[AType] formals, lrel[AType fieldType, str
                 = "<AType2String(ret)>(<intercalate(",", [AType2String(f) | f <- formals])>,<intercalate(",", ["<AType2String(ft)> <fn>=..." | <ft, fn, de> <- kwFormals])>)";
                 
 str AType2String(AType t) = prettyPrintType(toSymbol(t));
+

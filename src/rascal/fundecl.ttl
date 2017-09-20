@@ -99,7 +99,7 @@ test R2 [[module rascal::R2
 
 test R3 [[module rascal::R3
     int f(n) { return n; }
-]]
+]] expect { "Return type should be subtype of `int`, found `value`" }
 
 test R4 [[module rascal::R4
     list[int] f([n]) { return [n]; }
@@ -111,23 +111,23 @@ test R5 [[ module rascal::R5
 
 test R6 [[ module rascal::R6
     value f(b) { if(b) 10; return b; }
-]]
+]] expect { "Condition should be `bool`, found `value`" }
 
 test R7 [[ module rascal::R7
     value f(b) { b || true; return b; }
-]]
+]] expect { "Argument of || should be `bool`, found `value`" }
 
-@@ order dependent
+@@ order dependent?
 test R8 [[ module rascal::R8
     value f(b) { n = b || true; return b; }
 ]] expect { "Argument of || should be `bool`, found `value`" }
 
-@@ order dependent
+@@ order dependent?
 test R9 [[ module rascal::R9
     value f(b) { n = b || true; if(b) 10; return b; }
 ]] expect { "Argument of || should be `bool`, found `value`" }
 
-@@ order dependent
+@@ order dependent?
 test R10 [[ module rascal::R10
     value f(b) { n = b || true; if(b) 10; return b; b && false; }
-]]
+]] expect { "Argument of || should be `bool`, found `value`" }

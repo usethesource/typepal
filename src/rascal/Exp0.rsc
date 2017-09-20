@@ -12,13 +12,10 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 }
 module rascal::Exp0
 
-data D(int n = 1, int sq = n * n) = d1(str s) | d1(bool b, str s);
+int f(){  return 42; }
 
-data D(bool bb = true)= d2();
-
-//bool f(bool b = true) { return b;}
-
-value main(){
-    z = d1("a");
-    d1(x,n=true) := z;
-}
+int g() { int x = f(1); }
+ //int f(n) { 
+ //   /int n := [1,2,3] && n == 1;
+ //
+ //}

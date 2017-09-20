@@ -6,7 +6,7 @@ begin declare input : natural,
               s2 : string;
       input := 14;
       output := 1;
-      while input - 1 do 
+      while input1 - 1 do 
           rep := output;
           repnr := input;
           while repnr - 1 do
