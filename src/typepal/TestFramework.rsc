@@ -124,26 +124,22 @@ bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder 
 }
 
 loc relocate(loc osrc, loc base){
-    //println("relocate: <osrc>, <base>");
+    println("relocate: <osrc>, <base>");
     nsrc = base;
     
-    nsrc.offset = base.offset + osrc.offset;
-    nsrc.length = osrc.length;
+    offset = base.offset + osrc.offset;
+    length = osrc.length;
     
-    nsrc.end.line = base.begin.line + osrc.end.line - 1;
-    nsrc.begin.line = base.begin.line + osrc.begin.line - 1;
+    endline = base.begin.line + osrc.end.line - 1;
+    beginline = base.begin.line + osrc.begin.line - 1;
     
-    if(osrc.begin.line == 1){
-        nsrc.begin.column = base.begin.column + osrc.begin.column;
-    } else {
-        nsrc.begin.column = osrc.begin.column;
-    }
+    begincolumn = osrc.begin.line == 1 ? base.begin.column + osrc.begin.column
+                                       : osrc.begin.column;
+   
+    endcolumn = osrc.end.line == 1 ? base.begin.column + osrc.end.column
+                                   : osrc.end.column;
     
-    if(osrc.end.line == 1){
-        nsrc.end.column = base.begin.column + osrc.end.column;
-    } else {
-        nsrc.end.column = osrc.end.column;
-    }
+    return |<base.scheme>://<base.authority>/<base.path>|(offset, length, <beginline, begincolumn>, <endline, endcolumn>);
     
     //if(osrc.end.line == 1){
     //    nsrc.end.column = base.begin.column + osrc.end.column;

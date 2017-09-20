@@ -116,7 +116,8 @@ data FRModel (
         set[Requirement] openReqs = {},
         map[loc,loc] tvScopes = (),
         set[Message] messages = {},
-        rel[str,value] store = {}
+        rel[str,value] store = {},
+        map[Key, Define] definitions = ()
         );
 
 alias Key = loc;
@@ -152,7 +153,7 @@ FRModel extractFRModel(Tree root, FRBuilder frb){
             try {
                 def = lookup(frm, c.use);
                 /*if(debug)*/ println("extractFRModel: resolve <c.use> to <def>");
-                frm.paths += {<c.use.scope, c.pathLabel, def>};
+                frm.paths += {<c.use.scope, c.pathRole, def>};
                 frm.referPaths -= {c}; 
             }
             catch:
@@ -186,9 +187,9 @@ data FRBuilder
     = frbuilder(
         Tree (Tree scope, str id, IdRole idRole, Tree def, DefInfo info) define,
         void (Tree scope, Tree occ, set[IdRole] idRoles) use,
-        void (Tree scope, Tree occ, set[IdRole] idRoles, PathLabel pathLabel) use_ref,
+        void (Tree scope, Tree occ, set[IdRole] idRoles, PathRole pathRole) use_ref,
         void (Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) use_qual,
-        void (Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathLabel pathLabel) use_qual_ref,   
+        void (Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole) use_qual_ref,   
         void (Tree inner, Tree outer) addScope,
        
         void (str name, Tree src, list[value] dependencies, void() preds) require,
@@ -252,11 +253,11 @@ FRBuilder newFRBuilder(bool debug = false){
         }
     }
     
-    void _use_ref(Tree scope, Tree occ, set[IdRole] idRoles, PathLabel pathLabel) {
+    void _use_ref(Tree scope, Tree occ, set[IdRole] idRoles, PathRole pathRole) {
         if(building){
             u = use("<occ>", getLoc(occ), getLoc(scope), idRoles);
             uses += [u];
-            referPaths += {refer(u, pathLabel)};
+            referPaths += {refer(u, pathRole)};
         } else {
             throw "Cannot call `use_ref` on FRBuilder after `build`";
         }
@@ -269,11 +270,11 @@ FRBuilder newFRBuilder(bool debug = false){
             throw "Cannot call `use_qual` on FRBuilder after `build`";
         }  
      }
-     void _use_qual_ref(Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathLabel pathLabel){
+     void _use_qual_ref(Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole){
         if(building){
             u = useq(ids, getLoc(occ), getLoc(scope), idRoles, qualifierRoles);
             uses += [u];
-            referPaths += {refer(u, pathLabel)};
+            referPaths += {refer(u, pathRole)};
         } else {
             throw "Cannot call `use_qual_ref` on FRBuilder after `build`";
         } 
@@ -427,7 +428,7 @@ FRBuilder newFRBuilder(bool debug = false){
            frm.openReqs = openReqs;
            frm.tvScopes = tvScopes;
            frm.store = storeVals;
-           
+           frm.definitions = ( def.defined : def | Define def <- frm.defines);
            return frm; 
         } else {
            throw "Cannot call `build` on FRBuilder after `build`";

@@ -27,10 +27,62 @@ extend typepal::ExtractFRModel;
 
 bool cdebug = false;
 
+data Exception
+    = UnspecifiedIsSubType(AType atype1, AType atype2)
+    | UnspecifiedGetLUB(AType atype1, AType atype2)
+    | UnspecifiedATypeMin()
+    | UnspecifiedATypeMax()
+    | UndefinedLUB(AType atype1, AType atype2)
+    | TypeUnavailable()
+    ;
+
+// defaults for isSubType and getLUB
+bool noIsSubType(AType atype1, AType atype2) {
+    throw UnspecifiedIsSubType(atype1, atype2);
+}
+
+AType noGetLUB(AType atype1, AType atype2){
+    throw UnspecifiedGetLUB(atype1, atype2);
+}
+
+AType noATypeMin(){
+    throw UnspecifiedATypeMin();
+}
+
+AType noATypeMax(){
+    throw UnspecifiedATypeMax();
+}
+
+// Error handling
+
+str fmt(Tree t)  = "`<AType2String(typeof(t))>`";
+
+void reportError(Tree t, str msg){
+    throw error(msg, getLoc(t));
+}
+
+set[Message] filterMostPrecise(set[Message] messages){
+    res = { msg | msg <- messages, !any(msg2 <- messages, surrounds(msg, msg2)) };
+    return res;
+}
+    
+bool surrounds (Message msg1, Message msg2){
+    // TODO: return msg1.at > msg2.at should also work but does not.
+    return msg1.at.offset <= msg2.at.offset && msg1.at.offset + msg1.at.length > msg2.at.offset + msg2.at.length;
+}
+
 // Global variables, used by validate and callback (define, require, etc.)
 
+// Used outside validate
 FRModel extractedFRModel;
+
 map[loc, AType] facts = ();
+bool(AType atype1, AType type2) isSubTypeFun = noIsSubType;
+AType(AType atype1, AType atype2) getLUBFun = noGetLUB;
+
+AType() getATypeMinFun = noATypeMin;
+AType() getATypeMaxFun = noATypeMax;
+
 set[Fact] openFacts = {};
 set[Requirement] openReqs = {};
 map[loc, AType] bindings = ();
@@ -94,60 +146,6 @@ void printState(){
     //    for(l <- triggersRequirement){
     //        println("\t<l>: <triggersRequirement[l]>");
     //    }
-}
-
-data Exception
-    = UnspecifiedIsSubType(AType atype1, AType atype2)
-    | UnspecifiedGetLUB(AType atype1, AType atype2)
-    | UnspecifiedATypeMin()
-    | UnspecifiedATypeMax()
-    | UndefinedLUB(AType atype1, AType atype2)
-    | TypeUnavailable()
-    ;
-
-// defaults for isSubType and getLUB
-bool noIsSubType(AType atype1, AType atype2) {
-    throw UnspecifiedIsSubType(atype1, atype2);
-}
-
-AType noGetLUB(AType atype1, AType atype2){
-    throw UnspecifiedGetLUB(atype1, atype2);
-}
-
-AType noATypeMin(){
-    throw UnspecifiedATypeMin();
-}
-
-AType noATypeMax(){
-    throw UnspecifiedATypeMax();
-}
-
-bool(AType atype1, AType type2) isSubTypeFun = noIsSubType;
-AType(AType atype1, AType atype2) getLUBFun = noGetLUB;
-
-AType() getATypeMinFun = noATypeMin;
-AType() getATypeMaxFun = noATypeMax;
-
-// Error handling
-
-str fmt(Tree t)             = "`<AType2String(typeof(t))>`";
-
-void reportError(Tree t, str msg){
-    //throw error("<msg>, found <intercalateAnd(["`<AType2String(typeof(f))>`" | f <- args])>", t@\loc);
-    throw error(msg, getLoc(t));
-}
-
-set[Message] filterMostPrecise(set[Message] messages){
-    res = { msg | msg <- messages, !any(msg2 <- messages, surrounds(msg, msg2)) };
-    return res;
-}
-    
-    // (msg.msg == msg2.msg && msg.at.begin.line > msg2.at.begin.line)) };
-    
-    
-bool surrounds (Message msg1, Message msg2){
-    // TODO: return msg1.at > msg2.at should also work but does not.
-    return msg1.at.offset <= msg2.at.offset && msg1.at.offset + msg1.at.length > msg2.at.offset + msg2.at.length;
 }
 
 bool allDependenciesKnown(set[loc] deps, bool eager)
@@ -428,6 +426,7 @@ AType typeof(Tree tree) {
         //println("typeof(<tree@\loc>) =\> <res>");
         return res;
     } catch NoSuchKey(l): {
+        //iprintln(facts);
         throw TypeUnavailable();
     }
 }
@@ -543,54 +542,6 @@ void reportError(loc src, str msg){
 void reportWarning(loc src, str msg){
     throw Message::warning(msg, src);
 }
-
-// Experimental: The "enclosingDefinition" function
-
-//Define enclosingDefine(Tree tscope, Tree tocc, set[IdRole] idRoles){
-//    scope = orgScope = tscope@\loc;
-//    occ = tocc@\loc;
-//    println("enclosingDefine: <scope>, <occ>, <idRoles>");
-//    scopes = extractedFRModel.scopes;
-//    defines = extractedFRModel.defines;
-//    initial = true;
-//    //Define result;
-//    //for(def <- defines){
-//    //    println("<def.id>: <def.defined>, <occ <= def.scope>");
-//    //    if(def.idRole in idRoles && occ <= def.defined){
-//    //        println("<def.id>: <def.defined>");
-//    //       if(!result? || def.scope <= result.scope){
-//    //          println("set result to: <def>");
-//    //          result = def;
-//    //       }
-//    //    }
-//    // }
-//    // if(result?){
-//    //        println("enclosingDefine =\> <result>");
-//    //        return result;
-//    //     }
-//    
-//    do {
-//        if(initial){
-//           initial = false;
-//        } else {
-//           scope = scopes[scope];
-//        }
-//        Define result;
-//        for(def <- defines){
-//            if(def.scope == scope && def.idRole in idRoles){
-//               if(!result? || result.defined < def.defined){
-//                  result = def;
-//               }
-//            }
-//         }
-//         if(result?){
-//            println("enclosingDefine =\> <result>");
-//            return result;
-//         }
-//     } while (scopes[scope]?);
-//     throw "No Definition found"; 
-//    //tuple[Key scope, str id, IdRole idRole, Key defined, DefInfo defInfo];
-//}
 
 /*
  *  validate: validates an extracted FRModel via constraint solving
