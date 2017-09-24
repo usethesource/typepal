@@ -17,16 +17,13 @@ import ParseTree;
 import String;
 extend typepal::ScopeGraph;
 extend typepal::AType;
+import rascal::ATypeUtils;
 
 
 // AType utilities
 bool isTypeVariable(loc tv) = tv.scheme == "typevar"; 
 
 loc getLoc(Tree t) = t@\loc ? t.args[0]@\loc;
-    
-set[loc] extractTypeDependencies(AType tp) 
-    = { use.occ | /useType(Use use) := tp } /*+ { src | /tvar(loc src) := tp }*/;
-
 
 list[Key] dependenciesAsKeyList(list[value] dependencies){
     return 
@@ -64,8 +61,7 @@ data ErrorHandler
    
 ErrorHandler onError(Tree t, str msg) = onError(getLoc(t), msg);
 
-str fmt(AType t)            = "`<AType2String(t)>`";
-//str fmt(Tree t)             = "`<AType2String(typeof(t))>`";
+str fmt(AType t)            = "`<prettyPrintAType(t)>`";
 str fmt(str s)              = "`<s>`";
 str fmt(int n)              = "<n>";
 str fmt(list[value] vals)   = intercalateAnd([fmt(vl) | vl <- vals]);
@@ -134,36 +130,45 @@ default void collect(Tree tree, Tree scope, FRBuilder frb) {
 }
 
 // Default definition for initializeFRModel; may be overridden in specific type checker to add initial type info
-default FRModel initializeFRModel(FRModel frm) = frm;
+//default FRModel initializeFRModel(FRModel frm) = frm;
 
-// Default definition for enhanceFRModel; 
+// Default definition for myEnhanceFRModel; 
 // may be overridden in specific type checker to enhance extracted facts and requirements before validation
-default FRModel enhanceFRModel(FRModel frm) = frm;
+default FRModel myEnhanceFRModel(FRModel frm) = frm;
 
-FRModel extractFRModel(Tree root, FRBuilder frb){
+FRModel extractFRModel(Tree root, FRBuilder(Tree t) frBuilder = defaultFRBuilder, set[Key] (FRModel, Use) lookupFun = lookup){
     //println("extractFRModel: <root>");
+    frb = frBuilder(root);
     extract2(root, root, frb);
-    frm = enhanceFRModel(frb.build());
-    if(luDebug) printFRModel(frm);
+    frm = frb.build();
+    //printFRModel(frm);
+    msgs = {};
     int n = 0;
-    if(luDebug) println("&&&&&&&&&&&&&&&&&&&&& resolving referPath &&&&&&&&&&&&&&&&&&&&");
+
     while(!isEmpty(frm.referPaths) && n < 3){    // explain this iteration count
         n += 1;
         for(c <- frm.referPaths){
             try {
-                def = lookup(frm, c.use);
-                /*if(debug)*/ println("extractFRModel: resolve <c.use> to <def>");
-                frm.paths += {<c.use.scope, c.pathRole, def>};
+                foundDefs = lookupFun(frm, c.use);
+                if({def} := foundDefs){
+                   if(luDebug) println("extractFRModel: resolve <c.use> to <def>");
+                   frm.paths += {<c.use.scope, c.pathRole, def>};  
+                } else {
+                   msgs += error("Name <fmt(c.use.id)> is ambiguous", c.use.occ);
+                }
                 frm.referPaths -= {c}; 
             }
-            catch:
+            catch:{
                 println("Lookup for <c> fails"); 
+                msgs += error("Name <fmt(c.use.id)> not found", c.use.occ);
+            }
         }
     }
-    if(!isEmpty(frm.referPaths)){
-        println("&&&&&&&&&&&&&&&&&&& Could not solve path contributions");
+    for(c <- frm.referPaths){
+        msgs += error("Reference to name <fmt(c.use.id)> cannot be resolved", c.use.occ);
     }
-    return frm;
+    frm.messages += msgs;
+    return myEnhanceFRModel(frm);
 }
 
 void extract2(currentTree: appl(Production _, list[Tree] args), Tree currentScope, FRBuilder frb){
@@ -210,8 +215,10 @@ AType() makeClos1(AType tp) = AType (){ return tp; };                   // TODO:
 void() makeClosError(Tree src, str msg) = void(){ reportError(src, msg); };
 void() makeClosWarning(Tree src, str msg) = void(){ reportWarning(src, msg); };
 void() makeClosInfo(Tree src, str msg) = void(){ reportInfo(src, msg); };
-                          
-FRBuilder newFRBuilder(bool debug = false){
+             
+FRBuilder defaultFRBuilder(Tree t) = newFRBuilder(t);    
+         
+FRBuilder newFRBuilder(Tree t, bool debug = false){
         
     Defines defines = {};
     Defines lubDefines = {};
@@ -309,8 +316,7 @@ FRBuilder newFRBuilder(bool debug = false){
     
     void _fact1(Tree tree, AType tp){  
         if(building){
-           deps = extractTypeDependencies(tp);
-           openFacts += { openFact(getLoc(tree), deps, makeClos1(tp)) };
+           openFacts += { openFact(getLoc(tree), {}, makeClos1(tp)) };
         } else {
             throw "Cannot call `atomicFact` on FRBuilder after `build`";
         }

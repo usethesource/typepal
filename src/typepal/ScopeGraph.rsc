@@ -8,7 +8,7 @@ Redistribution and use in source and binary forms, with or without modification,
 
 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIWideT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 }
 module typepal::ScopeGraph
 
@@ -18,13 +18,13 @@ import IO;
 import Set;
 import List;
 
-bool luDebug = false;
+private bool luDebug = true;
 
 alias Key = loc;    // a syntactic range in the source code
 
 data Exception
     = NoKey()
-    | AmbiguousDefinition(Key scope, str id, set[IdRole] idRoles, set[Key] definitions)
+    | AmbiguousDefinition(set[Key] definitions)
     ;
 
 // IdRole: the various (language-specific) roles identifiers can play.
@@ -122,24 +122,13 @@ private Key bind(FRModel frm, Key scope, str id, set[IdRole] idRoles){
         return res;
     }
     if(size(defs) > 1){
-       //println("Ambiguous: <scope>, <id>, <idRoles>");
-       throw AmbiguousDefinition(scope, id, idRoles, defs<0>);
+       throw AmbiguousDefinition(defs<0>);
     }
     
     if(luDebug) println("\t---- bind, NoKey: <scope>, <id>");
     throw NoKey();
 }
 
-// Retrieve bindings for use in given syntactic scope
-private set[Key] bindRec(FRModel frm, Key scope, str id, set[IdRole] idRoles){
-    defs = frm.defines[scope, id, idRoles];
-    
-    if(luDebug) println("\tbindRec: <scope>, <id>, <idRoles>
-                       '\tbindRec: <defs>");
-    res = defs<0>;
-    if(luDebug) println("\tbind: <scope>, <id>, <idRoles> =\> <res>");
-    return res;
-}
 
 // Lookup use in given syntactic scope
 private Key lookupScope(FRModel frm, Key scope, Use use){
@@ -153,22 +142,16 @@ private Key lookupScope(FRModel frm, Key scope, Use use){
     throw NoKey();
 }
 
-// Lookup use in given syntactic scope
-private set[Key] lookupScopeRec(FRModel frm, Key scope, Use use){
-    if(luDebug) println("\tlookupScopeRec: <scope>, <use>");
-    defs = {def | def <- bindRec(frm, scope, use.id, use.idRoles), isAcceptableSimple(frm, def, use) == acceptBinding()}; 
-    if(luDebug) println("\tlookupScopeRec, <scope>. <use> ==\> <defs>"); 
-    return defs;  
-}
+
 
 // Find all (semantics induced) bindings for use in given syntactic scope via PathRole
 private list[Key] lookupPaths(FRModel frm, Key scope, Use use, PathRole pathRole){
-    if(luDebug) println("\tlookupPaths: <scope>, <use>, <pathRole>");
+    //println("\tlookupPaths: <use.id> in scope <scope>, pathRole <pathRole>");
     res = 
       for(<scope, pathRole, Key parent> <- frm.paths){
         try {
             def = lookupScope(frm, parent, use);
-            switch(isAcceptablePath(frm, def, use, pathRole)){
+            switch(isAcceptablePath(frm, parent, def, use, pathRole)){
             case acceptBinding():
                append def;
              case ignoreContinue():
@@ -179,29 +162,7 @@ private list[Key] lookupPaths(FRModel frm, Key scope, Use use, PathRole pathRole
         } catch NoKey():
             scope = parent;
     }
-    println("\t---- lookupPaths: <scope>, <use>, <pathRole> ==\> <res>");
-    return res;
-}
-
-// Find all (semantics induced) bindings for use in given syntactic scope via PathRole
-private set[Key] lookupPathsRec(FRModel frm, Key scope, Use use, PathRole pathRole){
-    if(luDebug) println("\tlookupPathsRec: <scope>, <use>, <pathRole>");
-    res = {};
-    for(<scope, pathRole, Key parent> <- frm.paths){
-        defs = lookupScopeRec(frm, parent, use);
-        for(def <- defs){
-            switch(isAcceptablePath(frm, def, use, pathRole)){
-            case acceptBinding():
-               res += def;
-             case ignoreContinue():
-                  continue; 
-             case ignoreSkipPath():
-                  break; 
-            }
-        }
-        scope = parent;
-    }
-    println("\t---- lookupPaths: <scope>, <use>, <pathRole> ==\> <res>");
+    if(luDebug)println("\t---- lookupPaths: <scope>, <use>, <pathRole> ==\> <res>");
     return res;
 }
 
@@ -241,29 +202,7 @@ private Key lookupQual(FRModel frm, Key scope, Use u){
     throw NoKey();
 }
 
-// Lookup use in syntactic scope and via all semantic paths
-private set[Key] lookupQualRec(FRModel frm, Key scope, Use u){
-    res = lookupScopeRec(frm, scope, u);
 
-    if(luDebug) println("\tlookupQualRec: loop over <pathRoles(frm)>");
-    nextPath:
-    for(PathRole pathRole <- pathRoles(frm)){
-       candidates = lookupPaths(frm, scope, u, pathRole);
- 
-       for(Key candidate <- candidates){
-           switch(isAcceptableSimple(frm, candidate, u)){
-           case acceptBinding():
-              res += candidate;
-           case ignoreContinue():
-              continue;
-           case ignoreSkipPath():
-              continue nextPath;
-           }
-        }
-    }
-    if(luDebug) println("\t---- lookupQualRec, <u> ==\> <res>");
-    return res;
-}
 
 // Lookup use in syntactic scope and via all semantic paths,
 // recur to syntactic parent until found
@@ -282,21 +221,7 @@ private Key lookupNest(FRModel frm, Key scope, Use u){
     }
 }
 
-// Lookup use in syntactic scope and via all semantic paths,
-// recur to syntactic parent until found
-private set[Key] lookupNestRec(FRModel frm, Key scope, Use u){
-    if(luDebug)println("\tlookupNestRec: <scope>, <u>");
-    res = lookupQualRec(frm, scope, u);
-    if(frm.scopes[scope] ?){
-       parent = frm.scopes[scope];
-       if(luDebug)println("\tlookupNestRec: <scope>, <u> move up to <parent>");
-       res += lookupNest(frm, parent, u);
-    }
-    if(luDebug) println("\t---- lookupNestRec, <u> ==\> <res>");
-    return res;
-}
-
-public Key lookup(FRModel frm, Use u){
+public Key lookup1(FRModel frm, Use u){
     scope = u.scope;
     if(luDebug) println("lookup: <u>");
     if(!(u has qualifierRoles)){
@@ -310,7 +235,7 @@ public Key lookup(FRModel frm, Use u){
        while(true){
           scope = startScope;
            for(id <- u.ids[0..-1]){ 
-               println("lookup, search for <id>");
+               if(luDebug)println("lookup, search for <id>");
                scope = lookupNest(frm, scope, use(id, u.occ, scope, u.qualifierRoles));
             }
        
@@ -334,21 +259,178 @@ public Key lookup(FRModel frm, Use u){
      throw NoKey();
 }
 
-public set[Key] lookupRec(FRModel frm, Use u){
+public set[Key] lookup(FRModel frm, Use u){
+    try {
+        return {lookup1(frm, u)};
+    } catch AmbiguousDefinition(set[Key] definitions):
+        return definitions;
+}
+
+/************************************************************************************/
+/* "wide" scopes were designed to suit Rascal's scope model where names from        */
+/* imported modules co-exist with names declared in the current module.             */
+/* lookupWide returns all definitions in the current syntactic scope (or its        */
+/* parents) and definitions that can be reached in a single step via semantic links */                             
+/************************************************************************************/
+
+// Retrieve all bindings for use in given syntactic scope
+private set[Key] bindWide(FRModel frm, Key scope, str id, set[IdRole] idRoles){
+    defs = frm.defines[scope, id, idRoles];
+    
+    //println("\tbindWide: <id> in scope <scope>, defs:\n<for(d <- defs){>\t---- <d><}>");
+
+    res = defs<0>;
+    if(isEmpty(res)){
+        //println("\tbindWide, <id> in scope <scope> ==\> NoKey");
+        throw NoKey();
+    }
+    //println("\tbindWide: <id> in scope <scope> returns:\n<for(r <- res){>\t===\> <r><}>");
+    return res;
+}
+
+// Lookup use in the given syntactic scope
+private set[Key] lookupScopeWide(FRModel frm, Key scope, Use use){
+    //println("\tlookupScopeWide: <use.id> in scope <scope>");
+    defs = {};
+    try {
+        defs = {def | def <- bindWide(frm, scope, use.id, use.idRoles), isAcceptableSimple(frm, def, use) == acceptBinding()}; 
+    } catch NoKey():{
+        //println("\tlookupScopeWide: <use.id> in scope <scope> ==\> NoKey");
+        throw NoKey();
+    }
+    if(isEmpty(defs)){
+        //println("\tlookupScopeWide: <use.id> in scope <scope> ==\> NoKey");
+        throw NoKey();
+    }
+    //println("\tlookupScopeWide, <use.id> in scope <scope> returns:\n<for(d <- defs){>\t===\> <d><}>"); 
+    return defs;  
+}
+
+// Find all (semantics induced, one-level) bindings for use in given syntactic scope via PathRole
+private set[Key] lookupPathsWide(FRModel frm, Key scope, Use use, PathRole pathRole){
+    //println("\tlookupPathsWide: <use.id> in scope <scope>, role <pathRole>\n<for(p <- frm.paths){>\t---- <p><}>");
+    res = {};
+    
+    solve(res, scope) {
+    next_path:
+        for(<scope, pathRole, Key parent> <- frm.paths){
+            //println("\tlookupPathsWide: scope: <scope>, trying semantic parent: <parent>");
+            try {
+                defs = lookupScopeWide(frm, parent, use);
+                for(def <- defs){
+                    switch(isAcceptablePath(frm, parent, def, use, pathRole)){
+                    case acceptBinding():
+                       res += def;
+                     case ignoreContinue():
+                          continue; 
+                     case ignoreSkipPath():
+                          continue next_path; 
+                    }
+                }
+            } catch NoKey(): {
+                //println("\tlookupPathsWide: <use.id> in scope <scope>, NoKey, move to semantic parent <parent>");
+                ;//break; //scope = parent;
+            }
+            scope = parent;
+        }
+       
+    }
+    //rwhile(isEmpty(res) && frm.scopes[scope]?);
+    //println("\tlookupPathsWide: <use.id> in scope <scope>, <pathRole> ==\> <res>");
+    return res;
+}
+
+// Lookup use in given syntactic scope and via all semantic paths
+private set[Key] lookupQualWide(FRModel frm, Key scope, Use u){
+    //println("\tlookupQualWide: <u.id> in scope <scope>");
+    res = {};
+    try {
+        res = lookupScopeWide(frm, scope, u);
+        //println("\tlookupQualWide: <u.id> in scope <scope>, after lookupScopeWide:\n<for(r <- res){>\t--\> <r><}>");
+        
+    } catch NoKey(): { /* nothing found */; }
+
+    try {
+        //println("\tlookupQualWide: <res>, loop over <pathRoles(frm)>");
+        nextPath:
+        for(PathRole pathRole <- pathRoles(frm)){
+           candidates = lookupPathsWide(frm, scope, u, pathRole);
+           //println("\tlookupQualWide: candidates: <candidates>");
+           for(Key candidate <- candidates){
+               switch(isAcceptableSimple(frm, candidate, u)){
+               case acceptBinding():
+                  res += candidate;
+               case ignoreContinue():
+                  continue;
+               case ignoreSkipPath():
+                  continue nextPath;
+               }
+            }
+        }
+    } catch NoKey(): { /* do nothing */; }
+        
+    if(isEmpty(res)){
+        //println("\tlookupQualWide, <u.id> in scope <scope> ==\> NoKey");
+        throw NoKey();
+    }
+    //println("\tlookupQualWide: <u.id> in scope <scope> returns:\n<for(r <- res){>\t==\> <r><}>");
+    return res;
+}
+
+// Lookup use in syntactic scope and via all semantic paths,
+// recur to syntactic parent until found
+private set[Key] lookupNestWide(FRModel frm, Key scope, Use u){
+    //println("\tlookupNestWide: <u.id> in scope <scope>");
+    res = {};
+    try {
+        res = lookupQualWide(frm, scope, u);
+        //println("\tlookupNestWide: <u.id> in scope <scope> found:\n<for(r <- res){>\t==\> <r><}>");
+        //return rt;
+    } catch NoKey(): { /* nothing found */; }
+    
+    try {
+        if(frm.scopes[scope] ?){
+           parent = frm.scopes[scope];
+           //println("\tlookupNestWide: <u.id> in scope <scope> move up to <parent>");
+           res += lookupNestWide(frm, parent, u);
+        }
+    } catch NoKey():
+        /* do nothing */;
+    if(isEmpty(res)){
+        //println("\tlookupNestWide: <u.id> in scope <scope> ==\> NoKey");
+        throw NoKey();
+    }
+    //println("\tlookupNestWide: <u.id> in scope <scope> returns:\n<for(r <- res){>\t==\> <r><}>");
+    return res;
+}
+
+public set[Key] lookupWide(FRModel frm, Use u){
     scope = u.scope;
-    if(luDebug) println("lookupRec: <u>");
+    //println("lookupWide: <u>");
     if(!(u has qualifierRoles)){
-       defs = {def | def <- lookupNestRec(frm, scope, u), isAcceptableSimple(frm, def, u) == acceptBinding()};
-       if(luDebug) println("lookupRec: <u> ==\> <defs>");
+       defs = {def | def <- lookupNestWide(frm, scope, u), isAcceptableSimple(frm, def, u) == acceptBinding()};
+       //println("lookupWide: <u> returns:\n<for(d <- defs){>\t==\> <d><}>");
        return defs;
     } else {
-       for(id <- u.ids[0..-1]){ 
-           println("lookup, search for <id>");
-           scope = lookupNest(frm, scope, use(id, u.occ, scope, u.qualifierRoles));
+       startScope = scope;
+       while(true){
+           for(id <- u.ids[0..-1]){ 
+               if(luDebug)println("lookup, search for <id>");
+               scope = lookupNest(frm, scope, use(id, u.occ, scope, u.qualifierRoles));
+            }
+            try {
+                defs = { def | def <- lookupNestWide(frm, scope, use(u.ids[-1], u.occ, scope, u.idRoles)), isAcceptableQualified(frm, def, u) == acceptBinding()};
+                //println("lookupWide: <u> returns:\n<for(d <- defs){>\t==\> <d><}>");
+                return defs;
+            } catch NoKey(): {
+                  if(frm.scopes[startScope]?){
+                     startScope = frm.scopes[startScope];
+                     //println("^^^^ lookup move to scope <startScope>");
+                  } else {
+                     throw NoKey();
+                  }
+            }
         }
-        defs = { def | def <- lookupNestRec(frm, scope, use(u.ids[-1], u.occ, scope, u.idRoles)), isAcceptableQualified(frm, def, u) == acceptBinding()};
-        if(luDebug) println("lookupRec: <u> ==\> <defs>");
-        return defs;
      }
 }
 
@@ -359,9 +441,15 @@ data Accept
     | ignoreSkipPath()
     ;
 
-default Accept isAcceptableSimple(FRModel frm, Key candidate, Use use) = acceptBinding();
+default Accept isAcceptableSimple(FRModel frm, Key candidate, Use use) {
+    //println("default isAcceptableSimple: <use.id> candidate: <candidate>");
+    return acceptBinding();
+}
 
-default Accept isAcceptablePath(FRModel frm, Key candidate, Use use, PathRole pathRole) = acceptBinding();
+default Accept isAcceptablePath(FRModel frm, Key defScope, Key def, Use use, PathRole pathRole) {
+    //println("default isAcceptablePath: <use.id>, defScope: <defScope>, def <def>");
+    return acceptBinding();
+}
 
 default Accept isAcceptableQualified(FRModel frm, Key candidate, Use use) = acceptBinding();
 

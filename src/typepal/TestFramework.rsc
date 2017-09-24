@@ -54,7 +54,6 @@ syntax TTL_Expect
 bool matches(str subject, str pat) =
     contains(toLowerCase(subject), toLowerCase(pat));
 
-FRBuilder emptyFRBuilder(Tree t) = newFRBuilder();
 
 str deescape(str s)  {  // copied from RascalExpression, belongs in library
     res = visit(s) { 
@@ -68,13 +67,10 @@ str deescape(str s)  {  // copied from RascalExpression, belongs in library
     return res;
 }
 
-bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder = emptyFRBuilder,
-                      bool(AType atype1, AType atype2) isSubType = noIsSubType,
-                      AType(AType atype1, AType atype2) getLUB = noGetLUB,
-                      AType() getATypeMin = noATypeMin,
-                      AType() getATypeMax = noATypeMax,
-                      set[IdRole] mayBeOverloaded = {},
-                      bool verbose = false
+bool runTests(loc tests, type[&T<:Tree] begin, 
+              FRBuilder(Tree t) frBuilder = defaultFRBuilder,
+              set[Key] (FRModel, Use) lookupFun = lookup,
+              bool verbose = false
 ){
     TTL ttlProgram;
     
@@ -95,8 +91,9 @@ bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder 
     for(ti <- ttlProgram.items){
         ntests += 1;
         try {
-           p = parse(begin, "<ti.tokens>");
-          model = validate(enhanceFRModel(extractFRModel(p, initialFRBuilder(p))), isSubType=isSubType, getLUB=getLUB, getATypeMin=getATypeMin, getATypeMax=getATypeMax, mayBeOverloaded=mayBeOverloaded);
+          p = parse(begin, "<ti.tokens>");
+          model = validate(extractFRModel(p, frBuilder=frBuilder, lookupFun=lookupFun), lookupFun=lookupFun, debug=false);
+          //iprintln(model);
           messages = model.messages;
           if(verbose) println("runTests: <messages>");
           ok = ok && isEmpty(messages);
@@ -114,9 +111,15 @@ bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder 
     if(!isEmpty(failedTests)){
         println("Failed tests:");
         for(failed <- failedTests){
-            println("<failed>:");
-            for(msg <- failedTests[failed]){
-                println("\t<msg>");
+            msgs = failedTests[failed];
+           
+            if(isEmpty(msgs)){
+                println("<failed>:\tExpected message not found");
+            } else {
+                println("<failed>:");
+                for(msg <- msgs){
+                    println("\t<msg>");
+                }
             }
         }
     }
@@ -124,7 +127,7 @@ bool runTests(loc tests, type[&T<:Tree] begin, FRBuilder(Tree) initialFRBuilder 
 }
 
 loc relocate(loc osrc, loc base){
-    println("relocate: <osrc>, <base>");
+    //println("relocate: <osrc>, <base>");
     nsrc = base;
     
     offset = base.offset + osrc.offset;
@@ -140,18 +143,6 @@ loc relocate(loc osrc, loc base){
                                    : osrc.end.column;
     
     return |<base.scheme>://<base.authority>/<base.path>|(offset, length, <beginline, begincolumn>, <endline, endcolumn>);
-    
-    //if(osrc.end.line == 1){
-    //    nsrc.end.column = base.begin.column + osrc.end.column;
-    //} else {
-    //    nsrc.end.column = osrc.end.column;
-    //}
-    //
-    //if(osrc.begin.line == 1){
-    //    nsrc.begin.column = base.begin.column + osrc.begin.column;
-    //} else {
-    //    nsrc.begin.column = osrc.begin.column;
-    //}
     
     //println("relocate with base <base>: from <osrc> to <nsrc>");
     return nsrc;
