@@ -3,9 +3,11 @@ module rascal::Pattern
 extend typepal::TypePal;
 
 import lang::rascal::\syntax::Rascal;
-import lang::rascal::types::ConvertType;
-import rascal::AType;
+extend rascal::AType;
+extend rascal::ATypeUtils;
 import rascal::Scope;
+import rascal::ConvertType;
+import lang::rascal::types::AbstractName;
 
 // A few patterns
 
@@ -40,7 +42,11 @@ void collect(Pattern pat:(Literal)`<LocationLiteral ll>`, Tree scope, FRBuilder 
 }
             
 Tree define(Pattern pat: (Pattern) `<Type tp> <Name name>`, Tree scope, FRBuilder frb){
-    declaredType = toAType(convertType(tp));
+    <msgs, declaredType> = convertType(tp);
+    for(msg <- msgs){
+        if(msg is error) frb.reportError(msg.msg, tp);
+        if(msg is warning) frb.reportWarning(msg.msg, tp);
+    }
     frb.atomicFact(pat, declaredType);
     frb.define(scope, "<name>", variableId(), name, defType(declaredType));
     return scope;
@@ -127,7 +133,7 @@ void collect(callOrTreePat: (Pattern) `<Pattern expression> ( <{Pattern ","}* ar
     
     frb.calculateEager("call or tree pattern", callOrTreePat, pats,
         AType(){        
-            if(overloadedType(rel[Key, AType] overloads) := typeof(expression)){
+            if(overloadedAType(rel[Key, AType] overloads) := typeof(expression)){
               
                next_cons:
                  for(<key, tp> <- overloads){

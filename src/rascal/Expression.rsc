@@ -2,10 +2,12 @@ module rascal::Expression
 
 extend typepal::TypePal;
 
-import lang::rascal::\syntax::Rascal;
-import lang::rascal::types::ConvertType;
-extend rascal::AType;   // Why extend?
+import rascal::AType;
+import rascal::ATypeUtils;
 import rascal::Scope;
+
+import lang::rascal::\syntax::Rascal;
+
 
 // Check the types of Rascal literals
 void collect(Literal l:(Literal)`<IntegerLiteral il>`, Tree scope, FRBuilder frb){
@@ -41,7 +43,7 @@ void collect(Literal l:(Literal)`<LocationLiteral ll>`, Tree scope, FRBuilder fr
 // A few expressions
 
 void collect(exp: (Expression) `<QualifiedName name>`, Tree scope, FRBuilder frb){
-    frb.use(scope, name, {variableId(), formalId(), functionId(), constructorId()}, recursive=true);
+    frb.use(scope, name, {variableId(), formalId(), functionId(), constructorId()});
 }
 
 void collect(exp: (Expression) `{ <Statement+ statements> }`, Tree scope, FRBuilder frb){
@@ -56,21 +58,21 @@ void collect(exp: (Expression) `<Expression exp1> + <Expression exp2>`, Tree sco
         AType() {
             t1 = typeof(exp1); t2 = typeof(exp2);
             if(t1 in numericTypes && t2 in numericTypes){
-               return getLUB(t1, t2);
+               return myLUB(t1, t2);
             }
             switch([t1, t2]){
-                case [alist(e1), x]: return alist(e2) := x ? alist(getLUB(e1, e2)) : alist(getLUB(e1, x));
-                case [aset(e1), x]: return aset(e2) := x ? aset(getLUB(e1, e2)) : aset(getLUB(e1, x));
+                case [alist(e1), x]: return alist(e2) := x ? alist(getLUB(e1, e2)) : alist(myLUB(e1, x));
+                case [aset(e1), x]: return aset(e2) := x ? aset(myLUB(e1, e2)) : aset(myLUB(e1, x));
                 //case [\map(e1a, e2a), \map(e1b, e2b)]: return rascalType(\map(lub(e1a,e1b), lub(e2a,e2b)));
                 //case [\tuple(e1), \tuple(e2)]: return rascalType(\tuple(lub(e1, e2)));
                 case [astr(), astr()]: return astr();
                 case [aloc(), astr()]: return aloc();       
             }
             if(alist(e2) := t2){
-                return alist(getLUB(t1, e2));
+                return alist(myLUB(t1, e2));
             }
             if(aset(e2) := t2){
-                return aset(getLUB(t1, e2));
+                return aset(myLUB(t1, e2));
             }
                 
              reportError(exp, "No version of `+` is applicable for <fmt(exp1)> and <fmt(exp2)>");    
@@ -156,7 +158,7 @@ void collect(exp: (Expression) `<Pattern pat> := <Expression expression>`, Tree 
 }
 
 
-void checkKwArgs(lrel[AType fieldType, str fieldName, Expression defaultExp] kwFormals, keywordArguments){
+void checkKwArgs(list[Keyword] kwFormals, keywordArguments){
     if(keywordArguments is none) return;
  
     next_arg:
@@ -171,19 +173,24 @@ void checkKwArgs(lrel[AType fieldType, str fieldName, Expression defaultExp] kwF
               continue next_arg;
            } 
         }
-        reportError(kwa, "Undefined keyword argument <fmt(kwName)>");
+        
+        reportError(kwa, "Undefined keyword argument <fmt(kwName)>; <kwFormals<0,1>>");
     }
- }                   
+ } 
+
+list[Keyword] getCommonKeywords(aadt(str adtName, list[AType] parameters, list[Keyword] common)) =  common;
+list[Keyword] getCommonKeywords(overloadedAType(rel[Key, AType] overloads)) = [ *getCommonKeywords(adt) | <def, adt> <- overloads ];
+                  
 
 void collect(callOrTree: (Expression) `<Expression expression> ( <{Expression ","}* arguments> <KeywordArguments[Expression] keywordArguments>)`, Tree scope, FRBuilder frb){
     actuals = [a | Expression a <- arguments];
     
-    frb.calculate("call", callOrTree, actuals,
+    frb.calculate("call", callOrTree, expression + actuals,
         AType(){        
-            if(overloadedType(rel[Key, AType] overloads) := typeof(expression)){
+            if(overloadedAType(rel[Key, AType] overloads) := typeof(expression)){
               next_fun:
                 for(<key, tp> <- overloads){                       
-                    if(afunc(AType ret, list[AType] formals, lrel[AType fieldType, str fieldName, Expression defaultExp] kwFormals) := tp){
+                    if(afunc(AType ret, atypeList(list[AType] formals), list[Keyword] kwFormals) := tp){
                         nactuals = size(actuals); nformals = size(formals);
                         if(nactuals != nformals){
                             continue next_fun;
@@ -197,19 +204,21 @@ void collect(callOrTree: (Expression) `<Expression expression> ( <{Expression ",
                  }
                next_cons:
                  for(<key, tp> <- overloads){
-                    if(acons(str adtName, str consName, lrel[AType fieldType, str fieldName] fields, lrel[AType fieldType, str fieldName, Expression defaultExp] kwFields) := tp){
+                    if(acons(aadt(adtName, list[AType] parameters, list[Keyword] common), str consName, list[Field] fields, list[Keyword] kwFields) := tp){
                         nactuals = size(actuals); nformals = size(fields);
                         if(nactuals != nformals) continue next_cons;
                         for(int i <- index(actuals)){
                             if(!comparable(typeof(actuals[i]), fields[i].fieldType)) continue next_cons;
                         }
-                        checkKwArgs(kwFields, keywordArguments);
-                        return aadt(adtName);
+                        adtType = typeof(adtName, scope, {dataId()});
+                        checkKwArgs(kwFields + getCommonKeywords(adtType), keywordArguments);
+                        return adtType;
                     }
                 }
                 reportError(callOrTree, "No function or constructor <fmt(expression)> for arguments <fmt(actuals)>");
             }
-            if(afunc(AType ret, list[AType] formals, lrel[AType fieldType, str fieldName, Expression defaultExp] kwFormals) := typeof(expression)){
+          
+            if(afunc(AType ret, atypeList(list[AType] formals), list[Keyword] kwFormals) := typeof(expression)){
                 nactuals = size(actuals); nformals = size(formals);
                 if(nactuals != nformals){
                     reportError(callOrTree, "Expected <nformals> argument<nformals != 1 ? "s" : ""> for `<"<expression>">`, found <nactuals>");
@@ -220,7 +229,7 @@ void collect(callOrTree: (Expression) `<Expression expression> ( <{Expression ",
                 checkKwArgs(kwFormals, keywordArguments);
                 return ret;
             }
-            if(acons(str adtName, str consName, lrel[AType fieldType, str fieldName] fields, lrel[AType fieldType, str fieldName, Expression defaultExp] kwFields) := typeof(expression)){
+            if(acons(aadt(adtName, list[AType] parameters, list[Keyword] common), str consName, list[Field] fields, list[Keyword] kwFields) := typeof(expression)){
                 nactuals = size(actuals); nformals = size(fields);
                 if(nactuals != nformals){
                     reportError(callOrTree, "Expected <nformals> argument<nformals != 1 ? "s" : ""> for `<"<expression>">`, found <nactuals>");
@@ -228,8 +237,9 @@ void collect(callOrTree: (Expression) `<Expression expression> ( <{Expression ",
                 for(int i <- index(actuals)){
                     comparable(typeof(actuals[i]), fields[i].fieldType, onError(actuals[i], "Field should have type <fmt(fields[i].fieldType)>, found <fmt(actuals[i])>"));
                 }
-                checkKwArgs(kwFields, keywordArguments);
-                return aadt(adtName);
+                adtType = typeof(adtName, scope, {dataId()});
+                checkKwArgs(kwFields + getCommonKeywords(adtType), keywordArguments);
+                return adtType;
             }
             reportError(callOrTree, "Function or constructor type required for <fmt(expression)>, found <fmt(expression)>");
         });

@@ -3,7 +3,9 @@ module rascal::Declaration
 extend typepal::TypePal;
 
 import lang::rascal::\syntax::Rascal;
-import lang::rascal::types::ConvertType;
+import rascal::ConvertType;
+//import lang::rascal::types::AbstractName;
+import rascal::ATypeUtils;
 
 extend rascal::AType;
 extend rascal::Scope;
@@ -39,7 +41,11 @@ Tree define(varDecls: (Declaration) `<Tags tags> <Visibility visibility> <Type \
     if(vis == defaultVis()){
         vis = privateVis();
     }
-    varType = toAType(convertType(varDecls.\type));
+    <msgs, varType> = convertType(varDecls.\type);
+    for(msg <- msgs){
+        if(msg is error) frb.reportError(msg.msg, varDecls.\type);
+        if(msg is warning) frb.reportWarning(msg.msg, varDecls.\type);
+    }
     
     for(var <- variables){
         frb.define(scope, "<var.name>", variableId(), var.name, defType(varType, vis=vis));
@@ -57,6 +63,7 @@ list[Expression] getReturnExpressions(Tree decl)
 // several requirements from the same function context. In this way the value of expr becomes fixed
 void() makeReturnRequirement(Expression expr, AType retType)
     = () { 
+           //println("makeReturnRequirement, <expr>, <typeof(expr) ? "undefined">");
            if(isFullyInstantiated(typeof(expr))){
              subtype(typeof(expr), retType, onError(expr, "Return type should be subtype of <fmt(retType)>, found <fmt(expr)>"));
            } else {
@@ -67,7 +74,6 @@ void() makeReturnRequirement(Expression expr, AType retType)
          };
              
 Tree define(FunctionDeclaration decl, Tree scope, FRBuilder frb){
-    println("define: <decl>");
     visibility = getVis(decl.visibility);
     if(visibility == defaultVis()){
         visibility = publicVis();
@@ -78,16 +84,20 @@ Tree define(FunctionDeclaration decl, Tree scope, FRBuilder frb){
     formals = [pat | Pattern pat <- params.formals.formals];
     
     // Take care of single variable patterns
-    singleVarsInFunDecl(formals, scope, frb);
+    defineSingleVarsInFormals(formals, decl, frb);
   
     fname = signature.name;
-    retType = toAType(convertType(signature.\type));
+    <msgs, retType> = convertType(signature.\type);
+    for(msg <- msgs){
+        if(msg is error) frb.reportError(msg.msg, signature.\type);
+        if(msg is warning) frb.reportWarning(msg.msg, signature.\type);
+    }
     kwFormals = [];
     
     if(params.keywordFormals is \default){
         kwFormals = getKeywordFormals(params.keywordFormals.keywordFormalList, decl, frb);
     }
-    dt = defType(formals, AType() { return afunc(retType, [typeof(f) | f <- formals], kwFormals); });
+    dt = defType(formals, AType() { return afunc(retType, atypeList([typeof(f) | f <- formals]), kwFormals); });
     dt.vis=visibility;  // TODO: Cannot be set directly, bug in interpreter?
     frb.define(scope, "<fname>", functionId(), fname, dt);
     if(decl is \default){
@@ -117,19 +127,19 @@ Tree define(FunctionDeclaration decl, Tree scope, FRBuilder frb){
     return decl;
 }
 
-void singleVarsInFunDecl(list[Pattern] pats, Tree scope, FRBuilder frb){
+void defineSingleVarsInFormals(list[Pattern] pats, Tree scope, FRBuilder frb){
     for(pat <- pats){
         if(namePat: (Pattern) `<QualifiedName name>` := pat){
             frb.atomicFact(pat, avalue());
-            frb.define(scope, "<name>", variableId(), name, defLub([], AType() { return avalue(); }));
+            frb.define(scope, "<name>", formalId(), name, defLub([], AType() { return avalue(); }));
         }
         if(splicePat: (Pattern) `*<QualifiedName name>` := pat || splicePat: (Pattern) `<QualifiedName name>*` := pat){            
             frb.atomicFact(pat, avalue());
-            frb.define(scope, "<name>", variableId(), name, defLub([], AType() { return alist(avalue()); }));
+            frb.define(scope, "<name>", formalId(), name, defLub([], AType() { return alist(avalue()); }));
         }
         if(splicePlusPat: (Pattern) `+<QualifiedName name>` := pat){
             frb.atomicFact(pat, avalue());
-            frb.define(scope, "<name>", variableId(), name, defLub([], AType() { return alist(avalue()); }));
+            frb.define(scope, "<name>", formalId(), name, defLub([], AType() { return alist(avalue()); }));
         }
     }
 }
@@ -137,7 +147,11 @@ void singleVarsInFunDecl(list[Pattern] pats, Tree scope, FRBuilder frb){
 lrel[AType, str, Expression] getKeywordFormals({KeywordFormal  "," }+ keywordFormalList, Tree scope, FRBuilder frb){    
     return 
         for(KeywordFormal kwf <- keywordFormalList){
-            fieldType = toAType(convertType(kwf.\type));
+            <msgs, fieldType> = convertType(kwf.\type);
+            for(msg <- msgs){
+                if(msg is error) frb.reportError(msg.msg, kwf.\type);
+                if(msg is warning) frb.reportWarning(msg.msg, kwf.\type);
+            }
             fieldName = "<kwf.name>";
             defaultExp = kwf.expression;
             frb.define(scope, fieldName, formalId(), kwf.name, defType(fieldType));
@@ -152,21 +166,27 @@ Tree define (decl: (Declaration) `<Tags tags> <Visibility visibility> data <User
     if(commonKeywordParameters is present){
         commonKwFields = getKeywordFormals(commonKeywordParameters.keywordFormalList, decl, frb);
     }
+    adtType = aadt(adtName, [], commonKwFields);
+    frb.define(scope, adtName, dataId(), user.name, defType(adtType));
     
     for(Variant v <- variants){
         consName = "<v.name>";
         fields = 
             for(TypeArg ta <- v.arguments){
-                fieldType = toAType(convertType(ta.\type));
+                <msgs, fieldType> = convertType(ta.\type);
+                for(msg <- msgs){
+                    if(msg is error) frb.reportError(msg.msg, ta.\type);
+                    if(msg is warning) frb.reportWarning(msg.msg, ta.\type);
+                }
                 fieldName = ta has name ? "<ta.name>" : "";
                 append <fieldType, fieldName>;
             }
     
-       kwFields = commonKwFields;
+       kwFields = [];
        if(v.keywordArguments is \default){
           kwFields += getKeywordFormals(v.keywordArguments.keywordFormalList, decl, frb);
        }
-       consType = acons(adtName, consName, fields, kwFields);
+       consType = acons(adtType, consName, fields, kwFields);
        frb.define(scope, consName, constructorId(), v.name, defType(consType));
     }
     return decl;

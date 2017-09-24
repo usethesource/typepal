@@ -1,10 +1,11 @@
 module rascal::Statement
 
 extend typepal::TypePal;
+extend rascal::AType;
 
 import lang::rascal::\syntax::Rascal;
-import lang::rascal::types::ConvertType;
-import rascal::AType;
+extend rascal::ConvertType;
+
 import rascal::Scope;
 
 // A few statements
@@ -23,7 +24,11 @@ Tree define(stat: (Statement) `<QualifiedName name> = <Statement statement>`, Tr
 }
 
 Tree define(stat: (Statement) `<Type tp> <{Variable ","}+ variables>;`, Tree scope, FRBuilder frb){
-    declaredType = toAType((convertType(tp)));
+    <msgs, declaredType> = convertType(tp);
+    for(msg <- msgs){
+        if(msg is error) frb.reportError(msg.msg, tp);
+        if(msg is warning) frb.reportWarning(msg.msg, tp);
+    }
     frb.atomicFact(stat, declaredType);
     for(v <- variables){
         frb.define(scope, "<v.name>", variableId(), v, defType(declaredType));
@@ -75,7 +80,7 @@ Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> 
                     }
                 }
             }  
-            fact(stat, getLUB(typeof(thenPart), typeof(elsePart)));
+            fact(stat, myLUB(typeof(thenPart), typeof(elsePart)));
         });
     return conditions; // thenPart may refer to variables defined in conditions; elsePart may not
 }

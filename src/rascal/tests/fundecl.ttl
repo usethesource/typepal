@@ -85,9 +85,7 @@ test K6 [[ module rascal::K6
     data D(int n = 0) = d1();
     data D(bool b = true) = d2();
     void f(){ D x = d2(n=3); }
-]] expect { "Undefined keyword argument `n`" }
-
-
+]]
 
 test R1 [[module rascal::R1
     int f() { return 10; }

@@ -17,9 +17,6 @@ import String;
 import util::Benchmark;
 
 import lang::rascal::\syntax::Rascal;
-import Type;
-import lang::rascal::types::ConvertType;
-import lang::rascal::types::AbstractType;
 
 extend typepal::TypePal;
 extend typepal::TestFramework;
@@ -28,6 +25,9 @@ extend rascal::Declaration;
 extend rascal::Expression;
 extend rascal::Statement;
 extend rascal::Pattern;
+
+extend rascal::AType;
+extend rascal::ATypeUtils;
 
 start syntax Modules
     = Module+ modules;
@@ -42,9 +42,9 @@ set[Message] validateModule(str name) {
     startTime = cpuTime();
     b = sampleModule(name).top;
     afterParseTime = cpuTime();
-    m = extractFRModel(b, newFRBuilder(debug=false));
+    m = extractFRModel(b, lookupFun=lookupWide);
     afterExtractTime = cpuTime();
-    msgs = validate(m, isSubType=isSubType, getLUB=getLUB, getATypeMin=getVoid, getATypeMax=getValue, mayBeOverloaded=possibleOverloads, debug=true).messages;
+    msgs = validate(m, lookupFun=lookupWide, debug=true).messages;
     afterValidateTime = cpuTime();
     //println("parse:    <(afterParseTime - startTime)/1000000> ms
     //        'extract:  <(afterExtractTime - afterParseTime)/1000000> ms
@@ -57,9 +57,11 @@ set[Message] validateModules(str name) {
     startTime = cpuTime();
     b = sampleModules(name).top;
     afterParseTime = cpuTime();
-    m = extractFRModel(b, newFRBuilder(debug=false));
+    m = extractFRModel(b, lookupFun=lookupWide);
     afterExtractTime = cpuTime();
-    msgs = validate(m, isSubType=isSubType, getLUB=getLUB, getATypeMin=getVoid, getATypeMax=getValue, mayBeOverloaded=possibleOverloads, debug=true).messages;
+    m = validate(m, lookupFun=lookupWide, debug=true);
+    //iprintln(m);
+    msgs = m.messages;
     afterValidateTime = cpuTime();
     //println("parse:    <(afterParseTime - startTime)/1000000> ms
     //        'extract:  <(afterExtractTime - afterParseTime)/1000000> ms
@@ -68,25 +70,14 @@ set[Message] validateModules(str name) {
     return msgs;
 }
 
-set[Message] validateExpression(str name) {
-    b = sampleExpression(name);
-    m = extractFRModel(b, newFRBuilder(),debug=true);
-    return validate(m, isSubType=isSubType, getLUB=getLUB, getATypeMin=getVoid, getATypeMax=getValue, debug=false).messages;
-}
-
-
 void testExp() {
-    runTests(|project://TypePal/src/rascal/exp.ttl|, #Expression, isSubType=isSubType, getLUB=getLUB, getATypeMin=getVoid, getATypeMax=getValue, mayBeOverloaded=possibleOverloads);
+    runTests(|project://TypePal/src/rascal/tests/exp.ttl|, #Expression, lookupFun=lookupWide);
 }
 
 void testPat() {
-    runTests(|project://TypePal/src/rascal/pat.ttl|, #Expression, isSubType=isSubType, getLUB=getLUB, getATypeMin=getVoid, getATypeMax=getValue, mayBeOverloaded=possibleOverloads);
+    runTests(|project://TypePal/src/rascal/tests/pat.ttl|, #Expression, lookupFun=lookupWide);
 }
 
-void testModule() {
-    runTests(|project://TypePal/src/rascal/fundecl.ttl|, #Module, isSubType=isSubType, getLUB=getLUB, getATypeMin=getVoid, getATypeMax=getValue, mayBeOverloaded=possibleOverloads);
-}
-
-void testModules() {
-    runTests(|project://TypePal/src/rascal/modules.ttl|, #Modules, isSubType=isSubType, getLUB=getLUB, getATypeMin=getVoid, getATypeMax=getValue, mayBeOverloaded=possibleOverloads);
+void testModules(str name) {
+    runTests(|project://TypePal/src/rascal/tests/<name>.ttl|, #Modules, lookupFun=lookupWide);
 }

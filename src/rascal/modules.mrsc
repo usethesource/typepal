@@ -1,0 +1,4 @@
+module rascal::K5
+    data D(int n = 0) = d1();
+    data D(bool b = true) = d2();
+    void f(){ D x = d2(b=true); }
