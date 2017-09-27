@@ -65,6 +65,8 @@ str fmt(AType t)            = "`<prettyPrintAType(t)>`";
 str fmt(str s)              = "`<s>`";
 str fmt(int n)              = "<n>";
 str fmt(list[value] vals)   = intercalateAnd([fmt(vl) | vl <- vals]);
+str fmt(set[value] vals)    = intercalateAnd([fmt(vl) | vl <- vals]);
+str fmt(int n, str descr)   = n == 1 ? "<n> <descr>" : "<n> <descr>s";
 default str fmt(value v)    = "`<v>`";
 
 str intercalateAnd(list[str] strs){
@@ -132,9 +134,13 @@ default void collect(Tree tree, Tree scope, FRBuilder frb) {
 // Default definition for initializeFRModel; may be overridden in specific type checker to add initial type info
 //default FRModel initializeFRModel(FRModel frm) = frm;
 
-// Default definition for myEnhanceFRModel; 
+// Default definition for myPreValidation; 
 // may be overridden in specific type checker to enhance extracted facts and requirements before validation
-default FRModel myEnhanceFRModel(FRModel frm) = frm;
+default FRModel myPreValidation(FRModel frm) = frm;
+
+// Default definition for myPostValidation; 
+// may be overridden in specific type checker to enhance validated model after validation
+default FRModel myPostValidation(FRModel frm) = frm;
 
 FRModel extractFRModel(Tree root, FRBuilder(Tree t) frBuilder = defaultFRBuilder, set[Key] (FRModel, Use) lookupFun = lookup){
     //println("extractFRModel: <root>");
@@ -168,7 +174,7 @@ FRModel extractFRModel(Tree root, FRBuilder(Tree t) frBuilder = defaultFRBuilder
         msgs += error("Reference to name <fmt(c.use.id)> cannot be resolved", c.use.occ);
     }
     frm.messages += msgs;
-    return myEnhanceFRModel(frm);
+    return myPreValidation(frm);
 }
 
 void extract2(currentTree: appl(Production _, list[Tree] args), Tree currentScope, FRBuilder frb){
@@ -236,6 +242,7 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
     int ntypevar = -1;
     map[loc,loc] tvScopes = ();
     luDebug = debug;
+    set[Message] messages = {};
     
     bool building = true;
     
@@ -435,6 +442,7 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
            frm.tvScopes = tvScopes;
            frm.store = storeVals;
            frm.definitions = ( def.defined : def | Define def <- frm.defines);
+           frm.messages = messages;
            return frm; 
         } else {
            throw "Cannot call `build` on FRBuilder after `build`";

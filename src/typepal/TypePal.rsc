@@ -72,6 +72,11 @@ set[Message] filterMostPrecise(set[Message] messages){
     res = { msg | msg <- messages, !any(msg2 <- messages, surrounds(msg, msg2)) };
     return res;
 }
+
+set[Message] filterMostGlobal(set[Message] messages){
+    res = { msg | msg <- messages, !any(msg2 <- messages, surrounds(msg2, msg)) };
+    return res;
+}
     
 bool surrounds (Message msg1, Message msg2){
     // TODO: return msg1.at > msg2.at should also work but does not.
@@ -530,7 +535,7 @@ FRModel validate(FRModel er,  set[Key] (FRModel, Use) lookupFun = lookup, bool d
     map[Key, set[Key]] defs = ();
     map[loc, Calculator] calculators = extractedFRModel.calculators;
     set[Use] openUses = {};
-    set[Message] messages = {};
+    set[Message] messages = extractedFRModel.messages;
     iterations = 0;
    
     if(cdebug){
@@ -746,7 +751,7 @@ FRModel validate(FRModel er,  set[Key] (FRModel, Use) lookupFun = lookup, bool d
        }
        er.facts = facts;
        er.messages = filterMostPrecise(messages);
-       return er;
+       return myPostValidation(er);
 }
 
 rel[loc, loc] getUseDef(FRModel frm){
