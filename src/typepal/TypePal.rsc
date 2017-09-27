@@ -473,6 +473,15 @@ void subtype(AType small, AType large, ErrorHandler onError){
     }
 }
 
+bool subtype(AType small, AType large){
+    extractedFRModel.facts = facts;
+    if(isFullyInstantiated(small) && isFullyInstantiated(large)){
+       return myIsSubType(small, large);
+    } else {
+      throw TypeUnavailable();
+    }
+}
+
 // The "comparable" predicate
 void comparable(AType atype1, AType atype2, ErrorHandler onError){
     extractedFRModel.facts = facts;
