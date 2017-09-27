@@ -44,12 +44,12 @@ set[Message] validateModule(str name) {
     afterParseTime = cpuTime();
     m = extractFRModel(b, lookupFun=lookupWide);
     afterExtractTime = cpuTime();
-    msgs = validate(m, lookupFun=lookupWide, debug=true).messages;
+    msgs = validate(m, lookupFun=lookupWide, debug=false).messages;
     afterValidateTime = cpuTime();
-    //println("parse:    <(afterParseTime - startTime)/1000000> ms
-    //        'extract:  <(afterExtractTime - afterParseTime)/1000000> ms
-    //        'validate: <(afterValidateTime - afterExtractTime)/1000000> ms
-    //        'total:    <(afterValidateTime - startTime)/1000000> ms");
+    println("parse:    <(afterParseTime - startTime)/1000000> ms
+            'extract:  <(afterExtractTime - afterParseTime)/1000000> ms
+            'validate: <(afterValidateTime - afterExtractTime)/1000000> ms
+            'total:    <(afterValidateTime - startTime)/1000000> ms");
     return msgs;
 }
 

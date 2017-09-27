@@ -107,7 +107,7 @@ Accept isAcceptableSimple(FRModel frm, Key def, Use use){
        }
        // restrict when in conditional scope
        set[Key] elseParts = elseScopes[use.scope];
-       println("elseParts = <elseParts>, <any(part <- elseParts, use.occ < part)>");
+       //println("elseParts = <elseParts>, <any(part <- elseParts, use.occ < part)>");
        if(!isEmpty(elseParts)){
           if(any(part <- elseParts, use.occ < part)){
              res = ignoreContinue();
