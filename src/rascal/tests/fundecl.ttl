@@ -129,3 +129,15 @@ test R9 [[ module rascal::R9
 test R10 [[ module rascal::R10
     value f(b) { n = b || true; if(b) 10; return b; b && false; }
 ]] expect { "Argument of || should be `bool`, found `value`" }
+
+test Issue1051 [[
+    module A
+    data F = f() | g();
+    
+    int func(f()) = 1;
+    int func(g()) = 2;
+    
+    int apply(int (F) theFun, F theArg) = theFun(theArg);
+    
+    int main() = apply(func, f());
+]]

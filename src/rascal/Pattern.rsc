@@ -42,11 +42,7 @@ void collect(Pattern pat:(Literal)`<LocationLiteral ll>`, Tree scope, FRBuilder 
 }
             
 Tree define(Pattern pat: (Pattern) `<Type tp> <Name name>`, Tree scope, FRBuilder frb){
-    <msgs, declaredType> = convertType(tp);
-    for(msg <- msgs){
-        if(msg is error) frb.reportError(msg.msg, tp);
-        if(msg is warning) frb.reportWarning(msg.msg, tp);
-    }
+    declaredType = convertType(tp, frb);
     frb.atomicFact(pat, declaredType);
     frb.define(scope, "<name>", variableId(), name, defType(declaredType));
     return scope;
@@ -137,7 +133,7 @@ void collect(callOrTreePat: (Pattern) `<Pattern expression> ( <{Pattern ","}* ar
               
                next_cons:
                  for(<key, tp> <- overloads){
-                    if(acons(str adtName, str consName, lrel[AType fieldType, str fieldName] fields, lrel[AType fieldType, str fieldName, Expression defaultExp] kwFields) := tp){
+                    if(acons(adtType:aadt(adtName, list[AType] parameters, list[Keyword] common), str consName, lrel[AType fieldType, str fieldName] fields, lrel[AType fieldType, str fieldName, Expression defaultExp] kwFields) := tp){
                         nactuals = size(fields); nformals = size(fields);
                         if(nactuals != nformals) continue next_cons;
                         for(int i <- index(fields)){
@@ -148,13 +144,13 @@ void collect(callOrTreePat: (Pattern) `<Pattern expression> ( <{Pattern ","}* ar
                             }  
                         }
                         checkKwArgs(kwFields, keywordArguments);
-                        return aadt(adtName);
+                        return adtType;
                     }
                 }
                 reportError(callOrTreePat, "No function or constructor <"<expression>"> for arguments <fmt(pats)>");
             }
         
-            if(acons(str adtName, str consName, lrel[AType fieldType, str fieldName] fields, lrel[AType fieldType, str fieldName, Expression defaultExp] kwFields) := typeof(expression)){
+            if(acons(adtType:aadt(adtName, list[AType] parameters, list[Keyword] common), str consName, lrel[AType fieldType, str fieldName] fields, lrel[AType fieldType, str fieldName, Expression defaultExp] kwFields) := typeof(expression)){
                 nactuals = size(pats); nformals = size(fields);
                 if(nactuals != nformals){
                     reportError(callOrTreePat, "Expected <nformals> argument<nformals != 1 ? "s" : ""> for `<expression>`, found <nactuals>");
@@ -167,7 +163,7 @@ void collect(callOrTreePat: (Pattern) `<Pattern expression> ( <{Pattern ","}* ar
                     }
                 }
                 checkKwArgs(kwFields, keywordArguments);
-                return aadt(adtName);
+                return adtType;
             }
             reportError(callOrTreePat, "Function or constructor type required for <"<expression>">, found <fmt(expression)>");
         });
@@ -180,7 +176,7 @@ Tree define(varBecomesPat: (Pattern) `<Name name> : <Pattern pattern>`, Tree sco
 }
 
 Tree define(varBecomesPat: (Pattern) `<Type tp> <Name name> : <Pattern pattern>`, Tree scope, FRBuilder frb){
-    declaredType = toAType(convertType(tp));
+    declaredType = convertType(tp, frb);
     frb.define(scope, "<name>", variableId(), name, defType(declaredType));
     frb.atomicFact(varBecomesPat, declaredType);
     tau = frb.newTypeVar(scope);

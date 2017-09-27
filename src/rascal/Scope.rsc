@@ -35,10 +35,10 @@ data Modifier
 data DefInfo(Vis vis = publicVis());
 
 // Maintain conditionalScopes: map to subrange where definitions are valid
-public map[Key,Key] elseScopes = ();
+public rel[Key,Key] elseScopes = {};
 
 void addElseScope(Tree cond, Tree elsePart){
-    elseScopes[getLoc(cond)] = getLoc(elsePart);
+    elseScopes += <getLoc(cond), getLoc(elsePart)>;
 }
 
 // Define the name overloading that is allowed
@@ -49,12 +49,45 @@ bool myMayOverload(set[Key] defs, map[Key, Define] defines){
     return idRoles <= {functionId(), constructorId()} || idRoles == {dataId()};
 }
 
-// Enhance FRModel with transitive edges for extend
-FRModel myEnhanceFRModel(FRModel m){
+// Enhance FRModel before validation
+FRModel myPreValidation(FRModel m){
+    // add transitive edges for extend
     extendPlus = {<from, to> | <Key from, extendPath(), Key to> <- m.paths}+;
     extended = domain(extendPlus);
     m.paths += { <from, extendPath(), to> | <Key from, Key to> <- extendPlus};
     m.paths += { <c, importPath(), a> | < Key c, importPath(), Key b> <- m.paths,  <b , extendPath(), Key a> <- m.paths};
+    // check for parameter arity of ADTs
+  
+        return m;
+}
+
+// Enhance FRModel after validation
+FRModel myPostValidation(FRModel m){
+    // Check that all uses of an adt name are defined
+    adts = {<adtName, size(params), def> | <def, di> <- m.defines[_,_,dataId()], aadt(str adtName, params, bound) := di.atype};
+    for(adtName <- adts<0>){
+        nparams = adts[adtName]<0>;
+        if(size(nparams) != 1){
+            for(def <- adts[adtName,_]){
+                m.messages += { error("Type <fmt(adtName)> defined with <fmt(sort(nparams))> type parameters", def) };
+            }
+        }
+    }
+    // Check that all adt uses have the correct number of type parameters
+    adtNames = domain(adts);
+    msgs = {};
+    for(def <- m.facts){
+        tp = m.facts[def];
+        if(a:aadt(adtName,params, _) := tp){
+           if(adtName notin adtNames){
+               msgs += {error("Undeclared type <fmt(adtName)>", def)};
+            } else
+            if({nexpected} := adts[adtName]<0> && nexpected != size(params)){
+                msgs += {error("Expected <fmt(nexpected, "type parameter")> for <fmt(adtName)>", def)};
+            }
+        }
+    }
+    m.messages += filterMostGlobal(msgs);
     return m;
 }
 
@@ -73,8 +106,10 @@ Accept isAcceptableSimple(FRModel frm, Key def, Use use){
            return res;
        }
        // restrict when in conditional scope
-       if(elseScopes[use.scope]?){
-          if(use.occ < elseScopes[use.scope]){
+       set[Key] elseParts = elseScopes[use.scope];
+       println("elseParts = <elseParts>, <any(part <- elseParts, use.occ < part)>");
+       if(!isEmpty(elseParts)){
+          if(any(part <- elseParts, use.occ < part)){
              res = ignoreContinue();
              //println("isAcceptableSimple =\> <res>");
              return res;

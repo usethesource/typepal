@@ -63,7 +63,7 @@ str prettyPrintAType(avalue()) = "value";
 str prettyPrintAType(aloc()) = "loc";
 str prettyPrintAType(adatetime()) = "datetime";
 str prettyPrintAType(alabel(str s, AType t)) = "<prettyPrintAType(t)> <s>";
-str prettyPrintAType(aparameter(str pn, AType t)) = "&<pn> \<: <prettyPrintAType(t)>";
+str prettyPrintAType(aparameter(str pn, AType t)) = t == avalue() ? "&<pn>" : "&<pn> \<: <prettyPrintAType(t)>";
 str prettyPrintAType(aset(AType t)) = "set[<prettyPrintAType(t)>]";
 str prettyPrintAType(arel(AType ts)) = "rel[<prettyPrintAType(ts)>]";
 str prettyPrintAType(alrel(AType ts)) = "lrel[<prettyPrintAType(ts)>]";
@@ -71,13 +71,13 @@ str prettyPrintAType(atuple(AType ts)) = "tuple[<prettyPrintAType(ts)>]";
 str prettyPrintAType(alist(AType t)) = "list[<prettyPrintAType(t)>]";
 str prettyPrintAType(amap(AType d, AType r)) = "map[<prettyPrintAType(d)>, <prettyPrintAType(r)>]";
 str prettyPrintAType(abag(AType t)) = "bag[<prettyPrintAType(t)>]";
-str prettyPrintAType(\adt(str s, atypeList([]))) = s;
-str prettyPrintAType(\adt(str s, atypeList(ps))) = "<s>[<prettyPrintAType(ps)>]" when size(ps) > 0;
+str prettyPrintAType(aadt(str s, [], _)) = s;
+str prettyPrintAType(aadt(str s, ps, _)) = "<s>[<prettyPrintAType(ps)>]" when size(ps) > 0;
 str prettyPrintAType(acons(RName rn, str consName, AType fs, list[Keyword] kwFormals)) = "<convertName(rn)> <name> : (<prettyPrintAType(fs)>)";
-str prettyPrintAType(aalias(str s, atypeList([]), AType t)) = "alias <s> = <prettyPrintAType(t)>";
-str prettyPrintAType(aalias(str s, atypeList(ps), AType t)) = "alias <s>[<prettyPrintAType(ps)>] = <prettyPrintAType(t)>" when size(ps) > 0;
+str prettyPrintAType(aalias(str s, [], AType t)) = "alias <s> = <prettyPrintAType(t)>";
+str prettyPrintAType(aalias(str s, ps, AType t)) = "alias <s>[<prettyPrintAType(ps)>] = <prettyPrintAType(t)>" when size(ps) > 0;
 //str prettyPrintAType(AType s:afunc(AType rt, list[AType] ps)) = "fun <prettyPrintAType(rt)>(<intercalate(", ", [ prettyPrintAType(p) | p <- ps])>";
-str prettyPrintAType(afunc(AType rt, atypeList(ps), list[AType] kw)) = "fun <prettyPrintAType(rt)>(<prettyPrintAType(ps)><isEmpty(kw) ? "" : ", "><intercalate(", ", [ prettyPrintAType(p) | p <- kw])>)";
+str prettyPrintAType(afunc(AType rt, atypeList(ps), list[AType] kw)) = "fun <prettyPrintAType(rt)>(<prettyPrintAType(atypeList(ps))><isEmpty(kw) ? "" : ", "><intercalate(", ", [ prettyPrintAType(p) | p <- kw])>)";
 str prettyPrintAType(\var-func(AType rt, atypeList(ps), AType va)) = "fun <prettyPrintAType(rt)>(prettyPrintAType(ps+val))>...)";
 str prettyPrintAType(areified(AType t)) = "type[<prettyPrintAType(t)>]";
 
@@ -91,6 +91,8 @@ str prettyPrintAType(afunc(AType ret, list[AType] formals, lrel[AType fieldType,
 str prettyPrintAType(amodule(str mname)) = "module <mname>";               
 str prettyPrintAType(overloadedAType(rel[Key, AType] overloads))
                 = "overloaded(" + intercalate(", ", [prettyPrintAType(t) | <k, t> <- overloads]) + ")";
+
+str prettyPrintAType(list[AType] atypes) = intercalate(", ", [prettyPrintAType(t) | t <- atypes]);
 
 //str prettyPrintAType(\user(RName rn, list[Symbol] ps)) = "<prettyPrintName(rn)>[<intercalate(", ", [ prettyPrintAType(p) | p <- ps ])>]";
 //str prettyPrintAType(failure(set[Message] ms)) = "fail"; // TODO: Add more detail?
@@ -236,13 +238,13 @@ AType makeMapTypeFromTuple(AType t) {
 AType makeBagType(AType elementType) = abag(elementType);
 
 @doc{Create a new ADT type with the given name.}
-AType makeADTType(str n) = \adt(n,[]);
+AType makeADTType(str n) = aadt(n,[]);
 
 @doc{Create a new parameterized ADT type with the given type parameters}
-AType makeParameterizedADTType(str n, Symbol p...) = \adt(n,p);
+AType makeParameterizedADTType(str n, AType p...) = aadt(n,p);
 
 @doc{Create a new constructor type.}
-AType makeConstructorType(AType adtType, str name, Symbol consArgs...) {    
+AType makeConstructorType(AType adtType, str name, AType consArgs...) {    
     set[str] labels = { l | alabel(l,_) <- consArgs };
     if (size(labels) == 0 || size(labels) == size(consArgs)) 
         return acons(adtType, name, consArgs);
@@ -251,21 +253,21 @@ AType makeConstructorType(AType adtType, str name, Symbol consArgs...) {
 }
 
 @doc{Create a new constructor type based on the contents of a tuple.}
-AType makeConstructorTypeFromTuple(AType adtType, str name, Symbol consArgs) {    
+AType makeConstructorTypeFromTuple(AType adtType, str name, AType consArgs) {    
     return makeConstructorType(adtType, name, getTupleFields(consArgs)); 
 }
 
 @doc{Create a new alias type with the given name and aliased type.}
-AType makeAliasType(str n, Symbol t) = aalias(n,[],t);
+AType makeAliasType(str n, AType t) = aalias(n,[],t);
 
 @doc{Create a new parameterized alias type with the given name, aliased type, and parameters.}
-AType makeParameterizedAliasType(str n, Symbol t, list[Symbol] params) = aalias(n,params,t);
+AType makeParameterizedAliasType(str n, AType t, list[AType] params) = aalias(n,params,t);
 
 @doc{Marks if a function is a var-args function.}
-public anno bool Symbol@isVarArgs;
+public anno bool AType@isVarArgs;
 
 @doc{Create a new function type with the given return and parameter types.}
-AType makeFunctionType(AType retType, bool isVarArgs, Symbol paramTypes...) {
+AType makeFunctionType(AType retType, bool isVarArgs, AType paramTypes...) {
     set[str] labels = { l | alabel(l,_) <- paramTypes };
     if (size(labels) == 0 || size(labels) == size(paramTypes))
         //if (isVarArgs) { 
@@ -278,7 +280,7 @@ AType makeFunctionType(AType retType, bool isVarArgs, Symbol paramTypes...) {
 }
 
 @doc{Create a new function type with parameters based on the given tuple.}
-AType makeFunctionTypeFromTuple(AType retType, bool isVarArgs, Symbol paramTypeTuple) { 
+AType makeFunctionTypeFromTuple(AType retType, bool isVarArgs, AType paramTypeTuple) { 
     return makeFunctionType(retType, isVarArgs, getTupleFields(paramTypeTuple));
 }
 
@@ -289,23 +291,23 @@ AType makeReifiedType(AType mainType) = areified(mainType);
 AType makeTypeVar(str varName) = aparameter(varName, avalue())[@boundGiven=false];
 
 @doc{Create a type representing a type parameter (type variable) and bound.}
-AType makeTypeVarWithBound(str varName, Symbol varBound) = aparameter(varName, varBound)[@boundGiven=true];
+AType makeTypeVarWithBound(str varName, AType varBound) = aparameter(varName, varBound)[@boundGiven=true];
 
 @doc{Unwraps aliases, parameters, and labels from around a type.}
 AType unwrapType(aalias(_,_,at)) = unwrapType(at);
 AType unwrapType(aparameter(_,tvb)) = unwrapType(tvb);
 AType unwrapType(alabel(_,ltype)) = unwrapType(ltype);
 AType unwrapType(\conditional(sym,_)) = unwrapType(sym);
-public default Symbol unwrapType(AType t) = t;
+public default AType unwrapType(AType t) = t;
 
 @doc{Get the type that has been reified and stored in the reified type.}
-public Symbol getReifiedType(AType t) {
+public AType getReifiedType(AType t) {
     if (areified(rt) := unwrapType(t)) return rt;
     throw "getReifiedType given unexpected type: <prettyPrintAType(t)>";
 }
 
 @doc{Get the type of the relation fields as a tuple.}
-public Symbol getRelElementType(AType t) {
+public AType getRelElementType(AType t) {
     if (arel(ets) := unwrapType(t)) return atuple(ets);
     if (aset(tup) := unwrapType(t)) return tup;
     throw "Error: Cannot get relation element type from type <prettyPrintAType(t)>";
@@ -325,14 +327,14 @@ public list[str] getRelFieldNames(AType t) {
 }
 
 @doc{Get the fields of a relation.}
-public list[Symbol] getRelFields(AType t) {
+public list[AType] getRelFields(AType t) {
     if (arel(tls) := unwrapType(t)) return tls;
     if (aset(atuple(tls)) := unwrapType(t)) return tls;
     throw "getRelFields given non-Relation type <prettyPrintAType(t)>";
 }
 
 @doc{Get the type of the list relation fields as a tuple.}
-public Symbol getListRelElementType(AType t) {
+public AType getListRelElementType(AType t) {
     if (alrel(ets) := unwrapType(t)) return atuple(ets);
     if (alist(tup) := unwrapType(t)) return tup;
     throw "Error: Cannot get list relation element type from type <prettyPrintAType(t)>";
@@ -352,7 +354,7 @@ public list[str] getListRelFieldNames(AType t) {
 }
 
 @doc{Get the fields of a list relation.}
-public list[Symbol] getListRelFields(AType t) {
+public list[AType] getListRelFields(AType t) {
     if (alrel(tls) := unwrapType(t)) return tls;
     if (alist(atuple(tls)) := unwrapType(t)) return tls;
     throw "getListRelFields given non-List-Relation type <prettyPrintAType(t)>";
@@ -360,28 +362,28 @@ public list[Symbol] getListRelFields(AType t) {
 
 @doc{Get the name of a type variable.}
 str getTypeVarName(AType t) {
-    if (aalias(_,_,Symbol at) := t) return getTypeVarName(at);
-    if (alabel(_,Symbol lt) := t) return getTypeVarName(lt);
+    if (aalias(_,_,AType at) := t) return getTypeVarName(at);
+    if (alabel(_,AType lt) := t) return getTypeVarName(lt);
     if (aparameter(tvn,_) := t) return tvn;
     throw "getTypeVarName given unexpected type: <prettyPrintAType(t)>";
 }
 
 @doc{Get the bound of a type variable.}
-public Symbol getTypeVarBound(AType t) {
-    if (aalias(_,_,Symbol at) := t) return getTypeVarBound(at);
-    if (alabel(_,Symbol lt) := t) return getTypeVarBound(lt);
+public AType getTypeVarBound(AType t) {
+    if (aalias(_,_,AType at) := t) return getTypeVarBound(at);
+    if (alabel(_,AType lt) := t) return getTypeVarBound(lt);
     if (aparameter(_,tvb) := t) return tvb;
     throw "getTypeVarBound given unexpected type: <prettyPrintAType(t)>";
 }
 
 @doc{Get all the type variables inside a given type.}
-public set[Symbol] collectTypeVars(AType t) {
-    return { rt | / Symbol rt : aparameter(_,_) := t };
+public set[AType] collectTypeVars(AType t) {
+    return { rt | / AType rt : aparameter(_,_) := t };
 }
 
 @doc{Provide an initial type map from the variables in the type to void.}
-public map[str,Symbol] initializeTypeVarMap(AType t) {
-    set[Symbol] rt = collectTypeVars(t);
+public map[str,AType] initializeTypeVarMap(AType t) {
+    set[AType] rt = collectTypeVars(t);
     return ( getTypeVarName(tv) : makeVoidType() | tv <- rt );
 }
 
@@ -410,21 +412,21 @@ public set[str] typeVarNames(AType t) {
 //}
 
 @doc{Get a list of arguments for the function.}
-public list[Symbol] getFunctionArgumentTypes(AType ft) {
+public list[AType] getFunctionArgumentTypes(AType ft) {
     if (afunc(_, ats, _) := unwrapType(ft)) return ats;
     if (afunc(_, ats) := unwrapType(ft)) return ats;
     throw "Cannot get function arguments from non-function type <prettyPrintAType(ft)>";
 }
 
 @doc{Get the arguments for a function in the form of a tuple.}
-public Symbol getFunctionArgumentTypesAsTuple(AType ft) {
+public AType getFunctionArgumentTypesAsTuple(AType ft) {
     if (afunc(_, ats, _) := unwrapType(ft)) return atuple(ats);
      if (afunc(_, ats) := unwrapType(ft)) return atuple(ats);
     throw "Cannot get function arguments from non-function type <prettyPrintAType(ft)>";
 }
 
 @doc{Get the return type for a function.}
-public Symbol getFunctionReturnType(AType ft) {
+public AType getFunctionReturnType(AType ft) {
     if (afunc(rt, _, _) := unwrapType(ft)) return rt;
     if (afunc(rt, _) := unwrapType(ft)) return rt; 
     throw "Cannot get function return type from non-function type <prettyPrintAType(ft)>";
@@ -441,7 +443,7 @@ bool tupleHasField(AType t, int fn) {
 }
 
 @doc{Get the type of the tuple field with the given name.}
-public Symbol getTupleFieldType(AType t, str fn) {
+public AType getTupleFieldType(AType t, str fn) {
     if (atuple(tas) := unwrapType(t)) {
         fieldmap = ( l : ltype | alabel(l,ltype) <- tas );
         if (fn in fieldmap) return fieldmap[fn];
@@ -451,7 +453,7 @@ public Symbol getTupleFieldType(AType t, str fn) {
 }
 
 @doc{Get the type of the tuple field at the given offset.}
-public Symbol getTupleFieldType(AType t, int fn) {
+public AType getTupleFieldType(AType t, int fn) {
     if (atuple(tas) := unwrapType(t)) {
         if (0 <= fn && fn < size(tas)) return unwrapType(tas[fn]);
         throw "Tuple <prettyPrintAType(t)> does not have field <fn>";
@@ -460,14 +462,14 @@ public Symbol getTupleFieldType(AType t, int fn) {
 }
 
 @doc{Get the types of the tuple fields, with labels removed}
-public list[Symbol] getTupleFieldTypes(AType t) {
+public list[AType] getTupleFieldTypes(AType t) {
     if (atuple(tas) := unwrapType(t))
         return [ (alabel(_,v) := li) ? v : li | li <- tas ];
     throw "Cannot get tuple field types from type <prettyPrintAType(t)>"; 
 }
 
 @doc{Get the fields of a tuple as a list.}
-public list[Symbol] getTupleFields(AType t) {
+public list[AType] getTupleFields(AType t) {
     if (atuple(tas) := unwrapType(t)) return tas;
     throw "Cannot get tuple fields from type <prettyPrintAType(t)>"; 
 }
@@ -500,20 +502,20 @@ str getTupleFieldName(AType t, int idx) {
 }
 
 @doc{Get the element type of a set.}
-public Symbol getSetElementType(AType t) {
+public AType getSetElementType(AType t) {
     if (aset(et) := unwrapType(t)) return et;
     if (arel(ets) := unwrapType(t)) return atuple(ets);
     throw "Error: Cannot get set element type from type <prettyPrintAType(t)>";
 }
 
 @doc{Get the element type of a bag.}
-public Symbol getBagElementType(AType t) {
+public AType getBagElementType(AType t) {
     if (abag(et) := unwrapType(t)) return et;
     throw "Error: Cannot get set element type from type <prettyPrintAType(t)>";
 }
 
 @doc{Get the domain and range of the map as a tuple.}
-public Symbol getMapFieldsAsTuple(AType t) {
+public AType getMapFieldsAsTuple(AType t) {
     if (amap(dt,rt) := unwrapType(t)) return atuple([dt,rt]);
     throw "getMapFieldsAsTuple called with unexpected type <prettyPrintAType(t)>";
 }       
@@ -525,13 +527,13 @@ bool mapHasField(AType t, str fn) = tupleHasField(getMapFieldsAsTuple(t),fn);
 bool mapHasField(AType t, int fn) = tupleHasField(getMapFieldsAsTuple(t),fn);
 
 @doc{Return the type of a field defined on a map (by name).}
-public Symbol getMapFieldType(AType t, str fn) = getTupleFieldType(getMapFieldsAsTuple(t),fn);
+public AType getMapFieldType(AType t, str fn) = getTupleFieldType(getMapFieldsAsTuple(t),fn);
 
 @doc{Return the type of a field defined on a map (by index).}
-public Symbol getMapFieldType(AType t, int fn) = getTupleFieldType(getMapFieldsAsTuple(t),fn);
+public AType getMapFieldType(AType t, int fn) = getTupleFieldType(getMapFieldsAsTuple(t),fn);
 
 @doc{Get the fields in a map as a list of fields.}
-public list[Symbol] getMapFields(AType t) = getTupleFields(getMapFieldsAsTuple(t));
+public list[AType] getMapFields(AType t) = getTupleFields(getMapFieldsAsTuple(t));
 
 @doc{Check to see if the map has field names.}
 bool mapHasFieldNames(AType t) = tupleHasFieldNames(getMapFieldsAsTuple(t));
@@ -548,30 +550,30 @@ public tuple[str domainName, str rangeName] getMapFieldNames(AType t) {
 str getMapFieldName(AType t, int idx) = getMapFieldNames(t)[idx];
 
 @doc{Get the domain type of the map.}    
-public Symbol getMapDomainType(AType t) = unwrapType(getMapFields(t)[0]);
+public AType getMapDomainType(AType t) = unwrapType(getMapFields(t)[0]);
 
 @doc{Get the range type of the map.}
-public Symbol getMapRangeType(AType t) = unwrapType(getMapFields(t)[1]);
+public AType getMapRangeType(AType t) = unwrapType(getMapFields(t)[1]);
 
 @doc{Get a list of the argument types in a constructor.}
-public list[Symbol] getConstructorArgumentTypes(AType ct) {
+public list[AType] getConstructorArgumentTypes(AType ct) {
     if (acons(_,_,cts) := unwrapType(ct)) return cts;
     throw "Cannot get constructor arguments from non-constructor type <prettyPrintAType(ct)>";
 }
 
 @doc{Get a tuple with the argument types as the fields.}
-public Symbol getConstructorArgumentTypesAsTuple(AType ct) {
+public AType getConstructorArgumentTypesAsTuple(AType ct) {
     return atuple(getConstructorArgumentTypes(ct));
 }
 
 @doc{Get the ADT type of the constructor.}
-public Symbol getConstructorResultType(AType ct) {
+public AType getConstructorResultType(AType ct) {
     if (acons(a,_,_) := unwrapType(ct)) return a;
     throw "Cannot get constructor ADT type from non-constructor type <prettyPrintAType(ct)>";
 }
 
 @doc{Get the element type of a list.}
-public Symbol getListElementType(AType t) {
+public AType getListElementType(AType t) {
     if (alist(et) := unwrapType(t)) return et;
     if (alrel(ets) := unwrapType(t)) return atuple(ets);    
     throw "Error: Cannot get list element type from type <prettyPrintAType(t)>";
@@ -579,15 +581,15 @@ public Symbol getListElementType(AType t) {
 
 @doc{Get the name of the ADT.}
 str getADTName(AType t) {
-    if (\adt(n,_) := unwrapType(t)) return n;
+    if (aadt(n,_,_) := unwrapType(t)) return n;
     if (acons(a,_,_) := unwrapType(t)) return getADTName(a);
     if (areified(_) := unwrapType(t)) return "type";
     throw "getADTName, invalid type given: <prettyPrintAType(t)>";
 }
 
 @doc{Get the type parameters of an ADT.}
-public list[Symbol] getADTTypeParameters(AType t) {
-    if (\adt(n,ps) := unwrapType(t)) return ps;
+public list[AType] getADTTypeParameters(AType t) {
+    if (aadt(n,ps,_) := unwrapType(t)) return ps;
     if (acons(a,_,_) := unwrapType(t)) return getADTTypeParameters(a);
     if (areified(_) := unwrapType(t)) return [];
     throw "getADTTypeParameters given non-ADT type <prettyPrintAType(t)>";
@@ -603,7 +605,7 @@ str getUserTypeName(AType ut) {
 } 
 
 @doc{Get the type parameters from a user type.}
-public list[Symbol] getUserTypeParameters(AType ut) {
+public list[AType] getUserTypeParameters(AType ut) {
     if (\user(_,ps) := unwrapType(ut)) return ps;
     throw "Cannot get type parameters from non user type <prettyPrintAType(ut)>";
 }
@@ -618,13 +620,13 @@ str getAliasName(AType t) {
 }
 
 @doc{Get the aliased type of the type alias.}
-public Symbol getAliasedType(AType t) {
+public AType getAliasedType(AType t) {
     if (aalias(_,_,at) := t) return at;
     throw "Cannot get the aliased type from non alias type <prettyPrintAType(t)>";
 }
 
 @doc{Get the type parameters for the alias.}
-public list[Symbol] getAliasTypeParameters(AType t) {
+public list[AType] getAliasTypeParameters(AType t) {
     if (aalias(_,ps,_) := t) return ps;
     throw "getAliasTypeParameters given non-alias type <prettyPrintAType(t)>";
 }
@@ -633,7 +635,7 @@ public list[Symbol] getAliasTypeParameters(AType t) {
 bool aliasHasTypeParameters(AType t) = size(getAliasTypeParameters(t)) > 0;
 
 @doc{Unwind any aliases inside a type.}
-public Symbol unwindAliases(AType t) {
+public AType unwindAliases(AType t) {
     solve(t) {
         t = visit(t) { case aalias(tl,ps,tr) => tr };
     }
@@ -642,178 +644,178 @@ public Symbol unwindAliases(AType t) {
 
 @doc{Is the provided type a failure type?}
 bool isFailType(failure(_)) = true;
-public default bool isFailType(Symbol _) = false;
+public default bool isFailType(AType _) = false;
 
 @doc{Construct a new fail type with the given message and error location.}
-public Symbol makeFailType(str s, loc l) = failure({error(s,l)});
+public AType makeFailType(str s, loc l) = failure({error(s,l)});
 
 @doc{Construct a new fail type with the given message and error location.}
-public Symbol makeFailTypeAsWarning(str s, loc l) = failure({warning(s,l)});
+public AType makeFailTypeAsWarning(str s, loc l) = failure({warning(s,l)});
 
 @doc{Get the failure messages out of the type.}
 public set[Message] getFailures(failure(set[Message] ms)) = ms;
 
 @doc{Extend a failure type with new failure messages.}
-public Symbol extendFailType(failure(set[Message] ms), set[Message] msp) = failure(ms + msp);
-public default Symbol extendFailType(Symbol t) {    
+public AType extendFailType(failure(set[Message] ms), set[Message] msp) = failure(ms + msp);
+public default AType extendFailType(AType t) {    
     throw "Cannot extend a non-failure type with failure information, type <prettyPrintAType(t)>";
 }
 
 @doc{Collapse a set of failure types into a single failure type with all the failures included.} 
-public Symbol collapseFailTypes(set[Symbol] rt) = failure({ s | failure(ss) <- rt, s <- ss }); 
+public AType collapseFailTypes(set[AType] rt) = failure({ s | failure(ss) <- rt, s <- ss }); 
 
 @doc{Is this type an inferred type?}
 bool isInferredType(\inferred(_)) = true;
-public default bool isInferredType(Symbol _) = false;
+public default bool isInferredType(AType _) = false;
 
 @doc{Does this type have an inferred type?}
-bool hasInferredType(Symbol \type) = (/\inferred(_) := \type);
+bool hasInferredType(AType \type) = (/\inferred(_) := \type);
 
 @doc{Construct a new inferred type.}
-public Symbol makeInferredType(int n) = \inferred(n);
+public AType makeInferredType(int n) = \inferred(n);
 
 @doc{Get the numeric identifier for the inferred type.}
-public int getInferredTypeIndex(Symbol t) {
+public int getInferredTypeIndex(AType t) {
     if (\inferred(n) := t) return n;
     throw "Error: Cannot get inferred type index from non-inferred type <prettyPrintAType(t)>";
 }
 
 @doc{Is this type an overloaded type?}
 bool isOverloadedType(\overloaded(_,_)) = true;
-public default bool isOverloadedType(Symbol _) = false;
+public default bool isOverloadedType(AType _) = false;
 
 @doc{Get the non-default overloads stored inside the overloaded type.}
-public set[Symbol] getNonDefaultOverloadOptions(Symbol t) {
+public set[AType] getNonDefaultOverloadOptions(AType t) {
     if (\overloaded(s,_) := t) return s;
     throw "Error: Cannot get non-default overloaded options from non-overloaded type <prettyPrintAType(t)>";
 }
 
 @doc{Get the default overloads stored inside the overloaded type.}
-public set[Symbol] getDefaultOverloadOptions(Symbol t) {
+public set[AType] getDefaultOverloadOptions(AType t) {
     if (\overloaded(_,defaults) := t) return defaults;
     throw "Error: Cannot get default overloaded options from non-overloaded type <prettyPrintAType(t)>";
 }
 
 @doc{Construct a new overloaded type.}
-public Symbol makeOverloadedType(set[Symbol] options, set[Symbol] defaults) {
+public AType makeOverloadedType(set[AType] options, set[AType] defaults) {
     options  = { *( (\overloaded(opts,_) := optItem) ? opts : { optItem } ) | optItem <- options };
     defaults = defaults + { *( (\overloaded(_,opts) := optItem) ? opts : {} ) | optItem <- options };
     return \overloaded(options,defaults);
 }
 
 @doc{Ensure that sets of tuples are treated as relations.}
-public Symbol aset(Symbol t) = arel(getTupleFields(t)) when isTupleType(t);
+public AType aset(AType t) = arel(getTupleFields(t)) when isTupleType(t);
 
 @doc{Ensure that lists of tuples are treated as list relations.}
-public Symbol alist(Symbol t) = alrel(getTupleFields(t)) when isTupleType(t);
+public AType alist(AType t) = alrel(getTupleFields(t)) when isTupleType(t);
 
 @doc{Calculate the lub of a list of types.}
-public Symbol lubList(list[Symbol] ts) {
-    Symbol theLub = avoid();
+public AType lubList(list[AType] ts) {
+    AType theLub = avoid();
     for (t <- ts) theLub = lub(theLub,t);
     return theLub;
 }
 
 @doc{Is this type a non-container type?}
-bool isElementType(Symbol t) = 
+bool isElementType(AType t) = 
     isIntType(t) || isBoolType(t) || isRealType(t) || isRatType(t) || isStrType(t) || 
     isNumType(t) || isNodeType(t) || isVoidType(t) || isValueType(t) || isLocType(t) || 
     isDateTimeType(t) || isTupleType(t) || isADTType(t) || isConstructorType(t) ||
     isFunctionType(t) || isReifiedType(t) || isNonTerminalType(t);
 
 @doc{Is this type a container type?}
-bool isContainerType(Symbol t) =
+bool isContainerType(AType t) =
     isSetType(t) || isListType(t) || isMapType(t) || isBagType(t);
     
-@doc{Synopsis: Determine if the given type is a nonterminal.}
-bool isNonTerminalType(aalias(_,_,Symbol at)) = isNonTerminalType(at);
-bool isNonTerminalType(aparameter(_,Symbol tvb)) = isNonTerminalType(tvb);
-bool isNonTerminalType(alabel(_,Symbol lt)) = isNonTerminalType(lt);
-bool isNonTerminalType(Symbol::\start(Symbol ss)) = isNonTerminalType(ss);
-bool isNonTerminalType(Symbol::\conditional(Symbol ss,_)) = isNonTerminalType(ss);
-bool isNonTerminalType(Symbol::\sort(_)) = true;
-bool isNonTerminalType(Symbol::\lex(_)) = true;
-bool isNonTerminalType(Symbol::\layouts(_)) = true;
-bool isNonTerminalType(Symbol::\keywords(_)) = true;
-bool isNonTerminalType(Symbol::\aparameterized-sort(_,_)) = true;
-bool isNonTerminalType(Symbol::\aparameterized-lex(_,_)) = true;
-bool isNonTerminalType(Symbol::\iter(_)) = true;
-bool isNonTerminalType(Symbol::\iter-star(_)) = true;
-bool isNonTerminalType(Symbol::\iter-seps(_,_)) = true;
-bool isNonTerminalType(Symbol::\iter-star-seps(_,_)) = true;
-bool isNonTerminalType(Symbol::\empty()) = true;
-bool isNonTerminalType(Symbol::\opt(_)) = true;
-bool isNonTerminalType(Symbol::\alt(_)) = true;
-bool isNonTerminalType(Symbol::\seq(_)) = true;
-
-public default bool isNonTerminalType(Symbol _) = false;    
-
-bool isNonTerminalIterType(aalias(_,_,Symbol at)) = isNonTerminalIterType(at);
-bool isNonTerminalIterType(aparameter(_,Symbol tvb)) = isNonTerminalIterType(tvb);
-bool isNonTerminalIterType(alabel(_,Symbol lt)) = isNonTerminalIterType(lt);
-bool isNonTerminalIterType(Symbol::\iter(_)) = true;
-bool isNonTerminalIterType(Symbol::\iter-star(_)) = true;
-bool isNonTerminalIterType(Symbol::\iter-seps(_,_)) = true;
-bool isNonTerminalIterType(Symbol::\iter-star-seps(_,_)) = true;
-public default bool isNonTerminalIterType(Symbol _) = false;    
-
-public Symbol getNonTerminalIterElement(aalias(_,_,Symbol at)) = getNonTerminalIterElement(at);
-public Symbol getNonTerminalIterElement(aparameter(_,Symbol tvb)) = getNonTerminalIterElement(tvb);
-public Symbol getNonTerminalIterElement(alabel(_,Symbol lt)) = getNonTerminalIterElement(lt);
-public Symbol getNonTerminalIterElement(Symbol::\iter(Symbol i)) = i;
-public Symbol getNonTerminalIterElement(Symbol::\iter-star(Symbol i)) = i;
-public Symbol getNonTerminalIterElement(Symbol::\iter-seps(Symbol i,_)) = i;
-public Symbol getNonTerminalIterElement(Symbol::\iter-star-seps(Symbol i,_)) = i;
-public default Symbol getNonTerminalIterElement(Symbol i) {
-    throw "<prettyPrintAType(i)> is not an iterable non-terminal type";
-}   
-
-bool isNonTerminalOptType(aalias(_,_,Symbol at)) = isNonTerminalOptType(at);
-bool isNonTerminalOptType(aparameter(_,Symbol tvb)) = isNonTerminalOptType(tvb);
-bool isNonTerminalOptType(alabel(_,Symbol lt)) = isNonTerminalOptType(lt);
-bool isNonTerminalOptType(Symbol::\opt(Symbol ot)) = true;
-public default bool isNonTerminalOptType(Symbol _) = false;
-
-public Symbol getNonTerminalOptType(aalias(_,_,Symbol at)) = getNonTerminalOptType(at);
-public Symbol getNonTerminalOptType(aparameter(_,Symbol tvb)) = getNonTerminalOptType(tvb);
-public Symbol getNonTerminalOptType(alabel(_,Symbol lt)) = getNonTerminalOptType(lt);
-public Symbol getNonTerminalOptType(Symbol::\opt(Symbol ot)) = ot;
-public default Symbol getNonTerminalOptType(Symbol ot) {
-    throw "<prettyPrintAType(ot)> is not an optional non-terminal type";
-}
-
-bool isStartNonTerminalType(aalias(_,_,Symbol at)) = isNonTerminalType(at);
-bool isStartNonTerminalType(aparameter(_,Symbol tvb)) = isNonTerminalType(tvb);
-bool isStartNonTerminalType(alabel(_,Symbol lt)) = isNonTerminalType(lt);
-bool isStartNonTerminalType(Symbol::\start(_)) = true;
-public default bool isStartNonTerminalType(Symbol _) = false;    
-
-public Symbol getStartNonTerminalType(aalias(_,_,Symbol at)) = getStartNonTerminalType(at);
-public Symbol getStartNonTerminalType(aparameter(_,Symbol tvb)) = getStartNonTerminalType(tvb);
-public Symbol getStartNonTerminalType(alabel(_,Symbol lt)) = getStartNonTerminalType(lt);
-public Symbol getStartNonTerminalType(Symbol::\start(Symbol s)) = s;
-public default Symbol getStartNonTerminalType(Symbol s) {
-    throw "<prettyPrintAType(s)> is not a start non-terminal type";
-}
-
-@doc{Get the name of the nonterminal.}
-str getNonTerminalName(aalias(_,_,Symbol at)) = getNonTerminalName(at);
-str getNonTerminalName(aparameter(_,Symbol tvb)) = getNonTerminalName(tvb);
-str getNonTerminalName(alabel(_,Symbol lt)) = getNonTerminalName(lt);
-str getNonTerminalName(Symbol::\start(Symbol ss)) = getNonTerminalName(ss);
-str getNonTerminalName(Symbol::\sort(str n)) = n;
-str getNonTerminalName(Symbol::\lex(str n)) = n;
-str getNonTerminalName(Symbol::\layouts(str n)) = n;
-str getNonTerminalName(Symbol::\keywords(str n)) = n;
-str getNonTerminalName(Symbol::\aparameterized-sort(str n,_)) = n;
-str getNonTerminalName(Symbol::\aparameterized-lex(str n,_)) = n;
-str getNonTerminalName(Symbol::\iter(Symbol ss)) = getNonTerminalName(ss);
-str getNonTerminalName(Symbol::\iter-star(Symbol ss)) = getNonTerminalName(ss);
-str getNonTerminalName(Symbol::\iter-seps(Symbol ss,_)) = getNonTerminalName(ss);
-str getNonTerminalName(Symbol::\iter-star-seps(Symbol ss,_)) = getNonTerminalName(ss);
-str getNonTerminalName(Symbol::\opt(Symbol ss)) = getNonTerminalName(ss);
-str getNonTerminalName(Symbol::\conditional(Symbol ss,_)) = getNonTerminalName(ss);
-public default str getNonTerminalName(Symbol s) { throw "Invalid nonterminal passed to getNonTerminalName: <s>"; }
+//@doc{Synopsis: Determine if the given type is a nonterminal.}
+//bool isNonTerminalType(aalias(_,_,AType at)) = isNonTerminalType(at);
+//bool isNonTerminalType(aparameter(_,AType tvb)) = isNonTerminalType(tvb);
+//bool isNonTerminalType(alabel(_,AType lt)) = isNonTerminalType(lt);
+//bool isNonTerminalType(AType::\start(AType ss)) = isNonTerminalType(ss);
+//bool isNonTerminalType(AType::\conditional(AType ss,_)) = isNonTerminalType(ss);
+//bool isNonTerminalType(AType::\sort(_)) = true;
+//bool isNonTerminalType(AType::\lex(_)) = true;
+//bool isNonTerminalType(AType::\layouts(_)) = true;
+//bool isNonTerminalType(AType::\keywords(_)) = true;
+//bool isNonTerminalType(AType::\aparameterized-sort(_,_)) = true;
+//bool isNonTerminalType(AType::\aparameterized-lex(_,_)) = true;
+//bool isNonTerminalType(AType::\iter(_)) = true;
+//bool isNonTerminalType(AType::\iter-star(_)) = true;
+//bool isNonTerminalType(AType::\iter-seps(_,_)) = true;
+//bool isNonTerminalType(AType::\iter-star-seps(_,_)) = true;
+//bool isNonTerminalType(AType::\empty()) = true;
+//bool isNonTerminalType(AType::\opt(_)) = true;
+//bool isNonTerminalType(AType::\alt(_)) = true;
+//bool isNonTerminalType(AType::\seq(_)) = true;
+//
+//public default bool isNonTerminalType(AType _) = false;    
+//
+//bool isNonTerminalIterType(aalias(_,_,AType at)) = isNonTerminalIterType(at);
+//bool isNonTerminalIterType(aparameter(_,Symbol tvb)) = isNonTerminalIterType(tvb);
+//bool isNonTerminalIterType(alabel(_,Symbol lt)) = isNonTerminalIterType(lt);
+//bool isNonTerminalIterType(Symbol::\iter(_)) = true;
+//bool isNonTerminalIterType(Symbol::\iter-star(_)) = true;
+//bool isNonTerminalIterType(Symbol::\iter-seps(_,_)) = true;
+//bool isNonTerminalIterType(Symbol::\iter-star-seps(_,_)) = true;
+//public default bool isNonTerminalIterType(Symbol _) = false;    
+//
+//public Symbol getNonTerminalIterElement(aalias(_,_,Symbol at)) = getNonTerminalIterElement(at);
+//public Symbol getNonTerminalIterElement(aparameter(_,Symbol tvb)) = getNonTerminalIterElement(tvb);
+//public Symbol getNonTerminalIterElement(alabel(_,Symbol lt)) = getNonTerminalIterElement(lt);
+//public Symbol getNonTerminalIterElement(Symbol::\iter(Symbol i)) = i;
+//public Symbol getNonTerminalIterElement(Symbol::\iter-star(Symbol i)) = i;
+//public Symbol getNonTerminalIterElement(Symbol::\iter-seps(Symbol i,_)) = i;
+//public Symbol getNonTerminalIterElement(Symbol::\iter-star-seps(Symbol i,_)) = i;
+//public default Symbol getNonTerminalIterElement(Symbol i) {
+//    throw "<prettyPrintAType(i)> is not an iterable non-terminal type";
+//}   
+//
+//bool isNonTerminalOptType(aalias(_,_,Symbol at)) = isNonTerminalOptType(at);
+//bool isNonTerminalOptType(aparameter(_,Symbol tvb)) = isNonTerminalOptType(tvb);
+//bool isNonTerminalOptType(alabel(_,Symbol lt)) = isNonTerminalOptType(lt);
+//bool isNonTerminalOptType(Symbol::\opt(Symbol ot)) = true;
+//public default bool isNonTerminalOptType(Symbol _) = false;
+//
+//public Symbol getNonTerminalOptType(aalias(_,_,Symbol at)) = getNonTerminalOptType(at);
+//public Symbol getNonTerminalOptType(aparameter(_,Symbol tvb)) = getNonTerminalOptType(tvb);
+//public Symbol getNonTerminalOptType(alabel(_,Symbol lt)) = getNonTerminalOptType(lt);
+//public Symbol getNonTerminalOptType(Symbol::\opt(Symbol ot)) = ot;
+//public default Symbol getNonTerminalOptType(Symbol ot) {
+//    throw "<prettyPrintAType(ot)> is not an optional non-terminal type";
+//}
+//
+//bool isStartNonTerminalType(aalias(_,_,Symbol at)) = isNonTerminalType(at);
+//bool isStartNonTerminalType(aparameter(_,Symbol tvb)) = isNonTerminalType(tvb);
+//bool isStartNonTerminalType(alabel(_,Symbol lt)) = isNonTerminalType(lt);
+//bool isStartNonTerminalType(Symbol::\start(_)) = true;
+//public default bool isStartNonTerminalType(Symbol _) = false;    
+//
+//public Symbol getStartNonTerminalType(aalias(_,_,Symbol at)) = getStartNonTerminalType(at);
+//public Symbol getStartNonTerminalType(aparameter(_,Symbol tvb)) = getStartNonTerminalType(tvb);
+//public Symbol getStartNonTerminalType(alabel(_,Symbol lt)) = getStartNonTerminalType(lt);
+//public Symbol getStartNonTerminalType(Symbol::\start(Symbol s)) = s;
+//public default Symbol getStartNonTerminalType(Symbol s) {
+//    throw "<prettyPrintAType(s)> is not a start non-terminal type";
+//}
+//
+//@doc{Get the name of the nonterminal.}
+//str getNonTerminalName(aalias(_,_,Symbol at)) = getNonTerminalName(at);
+//str getNonTerminalName(aparameter(_,Symbol tvb)) = getNonTerminalName(tvb);
+//str getNonTerminalName(alabel(_,Symbol lt)) = getNonTerminalName(lt);
+//str getNonTerminalName(Symbol::\start(Symbol ss)) = getNonTerminalName(ss);
+//str getNonTerminalName(Symbol::\sort(str n)) = n;
+//str getNonTerminalName(Symbol::\lex(str n)) = n;
+//str getNonTerminalName(Symbol::\layouts(str n)) = n;
+//str getNonTerminalName(Symbol::\keywords(str n)) = n;
+//str getNonTerminalName(Symbol::\aparameterized-sort(str n,_)) = n;
+//str getNonTerminalName(Symbol::\aparameterized-lex(str n,_)) = n;
+//str getNonTerminalName(Symbol::\iter(Symbol ss)) = getNonTerminalName(ss);
+//str getNonTerminalName(Symbol::\iter-star(Symbol ss)) = getNonTerminalName(ss);
+//str getNonTerminalName(Symbol::\iter-seps(Symbol ss,_)) = getNonTerminalName(ss);
+//str getNonTerminalName(Symbol::\iter-star-seps(Symbol ss,_)) = getNonTerminalName(ss);
+//str getNonTerminalName(Symbol::\opt(Symbol ss)) = getNonTerminalName(ss);
+//str getNonTerminalName(Symbol::\conditional(Symbol ss,_)) = getNonTerminalName(ss);
+//public default str getNonTerminalName(Symbol s) { throw "Invalid nonterminal passed to getNonTerminalName: <s>"; }
 
 //@doc{Check to see if the type allows fields.}
 //bool nonTerminalAllowsFields(aalias(_,_,Symbol at)) = nonTerminalAllowsFields(at);
@@ -900,7 +902,7 @@ bool hasDeferredTypes(Symbol t) = size({d | /d:deferred(_) := t}) > 0;
 
 bool subtype(Symbol::deferred(Symbol t), Symbol s) = subtype(t,s);
 bool subtype(Symbol t, Symbol::deferred(Symbol s)) = subtype(t,s); 
-bool subtype(Symbol t, Symbol::\adt("Tree",[])) = true when isNonTerminalType(t);
+bool subtype(Symbol t, Symbol::aadt("Tree",[])) = true when isNonTerminalType(t);
 bool subtype(Symbol t, Symbol::anode()) = true when isNonTerminalType(t);
 bool subtype(Symbol::\iter-seps(Symbol s, list[Symbol] seps), Symbol::\iter-star-seps(Symbol t, list[Symbol] seps2)) = subtype(s,t) && subtype(seps, seps2);
 bool subtype(Symbol::\iter(Symbol s), Symbol::\iter-star(Symbol t)) = subtype(s, t);

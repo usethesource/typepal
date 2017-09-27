@@ -5,6 +5,7 @@ extend typepal::TypePal;
 import rascal::AType;
 import rascal::ATypeUtils;
 import rascal::Scope;
+import rascal::ATypeInstantiation;
 
 import lang::rascal::\syntax::Rascal;
 
@@ -35,6 +36,32 @@ void collect(Literal l:(Literal)`<RationalLiteral rl>`, Tree scope, FRBuilder fr
 void collect(Literal l:(Literal)`<StringLiteral sl>`, Tree scope, FRBuilder frb){
     frb.atomicFact(l, astr());
 }
+
+Tree define(template: (StringTemplate) `if(<{Expression ","}+ conditions>){ <Statement* preStats> <StringMiddle body> <Statement* postStats> }`, Tree scope, FRBuilder frb){
+    condList = [cond | Expression cond <- conditions];
+    frb.atomicFact(template, avalue());
+    
+     
+    frb.requireEager("if then template", template, condList, (){ checkConditions(condList); });
+    return conditions; // thenPart may refer to variables defined in conditions
+}
+
+Tree define(template: (StringTemplate) `if( <{Expression ","}+ conditions> ){ <Statement* preStatsThen> <StringMiddle thenString> <Statement* postStatsThen> } else { <Statement* preStatsElse> <StringMiddle elseString> <Statement* postStatsElse> }`, Tree scope, FRBuilder frb){
+    condList = [cond | Expression cond <- conditions];
+    // TODO scoping in else does not yet work
+    if(!isEmpty([s | s <- preStatsElse]))
+       addElseScope(conditions, preStatsElse); // variable occurrences in elsePart may not refer to variables defined in conditions
+    if(!isEmpty("<elseString>"))
+       addElseScope(conditions, elseString); 
+    if(!isEmpty([s | s <- postStatsElse]))
+       addElseScope(conditions, postStatsElse);
+    
+    frb.calculate("if then else template", template, condList/* + [postStatsThen + postStatsElse]*/,
+        AType (){ checkConditions(condList); 
+                  return avalue();
+        });
+    return conditions; // thenPart may refer to variables defined in conditions
+} 
 
 void collect(Literal l:(Literal)`<LocationLiteral ll>`, Tree scope, FRBuilder frb){
     frb.atomicFact(l, aloc());
@@ -194,12 +221,29 @@ void collect(callOrTree: (Expression) `<Expression expression> ( <{Expression ",
                         nactuals = size(actuals); nformals = size(formals);
                         if(nactuals != nformals){
                             continue next_fun;
-                        }
+                        }  
+                        Bindings bindings = ();
                         for(int i <- index(actuals)){
-                            if(!comparable(typeof(actuals[i]), formals[i])) continue next_fun;
+                            try {
+                              bindings = match(formals[i], typeof(actuals[i]), bindings);
+                            } catch invalidMatch(t1, t2): {
+                              continue next_fun;
+                            } catch invalidMatch(str pname, AType actual, AType bound):
+                              continue next_fun;
+                        }
+                        iformals = [];
+                        try {
+                          iformals = [instantiate(formals[i], bindings, actuals[i]) | int i <- index(formals)];
+                        } catch invalidInstantiation():
+                          continue next_fun;
+                        for(int i <- index(actuals)){
+                            if(!comparable(typeof(actuals[i]), iformals[i])) continue next_fun;
                         }
                         checkKwArgs(kwFormals, keywordArguments);
-                        return ret;
+                        try {
+                           return instantiate(ret, bindings, callOrTree);
+                        } catch invalidInstantiation():
+                          continue next_fun;
                     }
                  }
                next_cons:
@@ -207,6 +251,7 @@ void collect(callOrTree: (Expression) `<Expression expression> ( <{Expression ",
                     if(acons(aadt(adtName, list[AType] parameters, list[Keyword] common), str consName, list[Field] fields, list[Keyword] kwFields) := tp){
                         nactuals = size(actuals); nformals = size(fields);
                         if(nactuals != nformals) continue next_cons;
+                      
                         for(int i <- index(actuals)){
                             if(!comparable(typeof(actuals[i]), fields[i].fieldType)) continue next_cons;
                         }
@@ -221,26 +266,67 @@ void collect(callOrTree: (Expression) `<Expression expression> ( <{Expression ",
             if(afunc(AType ret, atypeList(list[AType] formals), list[Keyword] kwFormals) := typeof(expression)){
                 nactuals = size(actuals); nformals = size(formals);
                 if(nactuals != nformals){
-                    reportError(callOrTree, "Expected <nformals> argument<nformals != 1 ? "s" : ""> for `<"<expression>">`, found <nactuals>");
+                    reportError(callOrTree, "Expected <fmt(nformals, "argument")> for `<"<expression>">`, found <nactuals>");
                 }
+                Bindings bindings = ();
                 for(int i <- index(actuals)){
-                    comparable(typeof(actuals[i]), formals[i], onError(actuals[i], "Argument of `<"<expression>">` should have type <fmt(formals[i])>, found <fmt(actuals[i])>"));
+                    try {
+                      bindings = match(formals[i], typeof(actuals[i]), bindings);
+                    } catch invalidMatch(t1, t2): {
+                      reportError(actuals[i], "Cannot match types <fmt(t1)> and <fmt(t2)>");
+                    } catch invalidMatch(str pname, AType actual, AType bound): {
+                      reportError(actuals[i], "Type parameter <fmt(pname)> should be less than <fmt(bound)>, but is bound to <fmt(actual)>");
+                    }
+                }
+                iformals = [];
+                try {
+                  iformals = [instantiate(formals[i], bindings, actuals[i]) | int i <- index(formals)];
+                } catch invalidInstantiation():
+                  return avalue();
+                
+                for(int i <- index(actuals)){
+                    comparable(typeof(actuals[i]), iformals[i], onError(actuals[i], "Argument of `<"<expression>">` should have type <fmt(iformals[i])>, found <fmt(actuals[i])>"));
                 }
                 checkKwArgs(kwFormals, keywordArguments);
-                return ret;
+                try {
+                  return instantiate(ret, bindings, callOrTree);
+                } catch invalidInstantiation():
+                  return avalue();
             }
             if(acons(aadt(adtName, list[AType] parameters, list[Keyword] common), str consName, list[Field] fields, list[Keyword] kwFields) := typeof(expression)){
                 nactuals = size(actuals); nformals = size(fields);
                 if(nactuals != nformals){
-                    reportError(callOrTree, "Expected <nformals> argument<nformals != 1 ? "s" : ""> for `<"<expression>">`, found <nactuals>");
+                    reportError(callOrTree, "Expected <fmt(nformals, "argument")> for `<"<expression>">`, found <nactuals>");
                 }
+                Bindings bindings = ();
                 for(int i <- index(actuals)){
-                    comparable(typeof(actuals[i]), fields[i].fieldType, onError(actuals[i], "Field should have type <fmt(fields[i].fieldType)>, found <fmt(actuals[i])>"));
+                    try {
+                       bindings = match(fields[i].fieldType, typeof(actuals[i]), bindings);
+                    } catch invalidMatch(t1, t2): {
+                      reportError(actuals[i], "Cannot match types <fmt(t1)> and <fmt(t2)>");
+                    } catch invalidMatch(str pname, AType actual, AType bound): {
+                      reportError(actuals[i], "Type parameter <fmt(pname)> should be less than <fmt(bound)>, but is bound to <fmt(actual)>");
+                    }
                 }
-                adtType = typeof(adtName, scope, {dataId()});
+                iformals = [];
+                try {
+                   iformals = [instantiate(fields[i].fieldType, bindings, actuals[i]) | int i <- index(fields)];
+                } catch invalidInstantiation():
+                  return avalue();
+                
+                for(int i <- index(actuals)){
+                    comparable(typeof(actuals[i]), iformals[i], onError(actuals[i], "Field should have type <fmt(fields[i].fieldType)>, found <fmt(actuals[i])>"));
+                }
+                adtType = avalue();
+                try {
+                   adtType = instantiate(typeof(adtName, scope, {dataId()}), bindings, callOrTree);
+                } catch invalidInstantiation():
+                  return adtType;
+                  
                 checkKwArgs(kwFields + getCommonKeywords(adtType), keywordArguments);
                 return adtType;
             }
             reportError(callOrTree, "Function or constructor type required for <fmt(expression)>, found <fmt(expression)>");
+            return avalue();
         });
 }

@@ -39,52 +39,22 @@ data AType
      ;
 
 AType overloadedAType(rel[Key, AType] overloads){
-    if(all(<Key k, AType t> <- overloads, aadt(adtName, common) := t)){
+    if(all(<Key k, AType t> <- overloads, aadt(adtName, params, common) := t)){
       cm = [];
-      RName adtName;
-      for(<Key k, AType t> <- overloads, aadt(adtName1, common) := t){
+      str adtName;
+      list[AType] adtParams;
+      for(<Key k, AType t> <- overloads, aadt(adtName1, params1, common1) := t){
         adtName = adtName1;
-        cm += common;
+        adtParams = params1;
+        cm += common1;
       }
-      //println("overloadedAType: overloads <overloads>
-      //        '<cm>");
-      return aadt(adtName, cm);
+      return aadt(adtName, adtParams, cm);
     }
     fail;
 }
 
 bool myIsSubType(AType t1, AType t2) = asubtype(t1, t2);
 //{ res = asubtype(t1, t2); println("asubtype(<t1>, <t2>) ==\> <res>"); return res;}
-
-//bool myIsSubType(AType t1, AType t2) {
-//    //println("myIsSubType: <fmt(t1)>, <fmt(t2)>");
-//    
-//    if(aadt(adtName1, common1) := t1){
-//        if(aadt(adtName2, common2) := t2){
-//            return adtName1 == adtName2;
-//        }
-//        if(overloadedAType(rel[Key, AType] overloads2) := t2){
-//            <k, tp> = getOneFrom(overloads2);
-//            return aadt(adtName1, common) := tp;
-//        }
-//        return subtype(adt(adtName1, []), toSymbol(t2));
-//    }
-//    if(overloadedAType(rel[Key, AType] overloads1) := t1){
-//        if(aadt(adtName2, common2) := t2){
-//           <k, tp> = getOneFrom(overloads1);
-//           return aadt(adtName2, common) := tp;
-//        }
-//       if(overloadedAType(rel[Key, AType] overloads2) := t2){
-//          <k1, tp1> = getOneFrom(overloads1);
-//          <k2, tp2> = getOneFrom(overloads2);
-//          return aadt(adtName, common1) := tp1 && aadt(adtName, common2) := tp2;
-//       } else {
-//          return false;
-//       }
-//    }
-//    
-//    return subtype(toSymbol(t1), toSymbol(t2));
-//}
 
 AType myLUB(AType t1, AType t2) = lub(t1, t2); //toAType(lub(toSymbol(t1), toSymbol(t2)));
 
@@ -105,7 +75,7 @@ This function documents and implements the subtype relation of Rascal's type sys
 }
 
 bool asubtype(AType s, s) = true;
-bool asubtype(AType s, AType t) = false;
+default bool asubtype(AType s, AType t) = false;    // <-- default was missing
 
 bool asubtype(overloadedAType(overloads), AType r) = all(<k, tp> <- overloads, asubtype(tp, r));
 bool asubtype(AType l, overloadedAType(overloads)) = all(<k, tp> <- overloads, asubtype(l, tp));
@@ -114,8 +84,8 @@ bool asubtype(AType _, avalue()) = true;
 
 bool asubtype(avoid(), AType _) = true;
 
-bool asubtype(acons(AType a, _, list[AType] _), a) = true;
-bool asubtype(acons(AType a, str name, list[AType] ap), acons(a,name,list[AType] bp)) = asubtype(ap,bp);
+bool asubtype(acons(AType a, _, list[Field] _, list[Keyword] _), a) = true;
+bool asubtype(acons(AType a, str name, list[Field] ap, list[Keyword] _), acons(a,name,list[Field] bp, list[Keyword] _)) = asubtype(ap,bp);
 
 bool asubtype(aadt(str _, list[AType] _, list[Keyword] _), anode()) = true;
 bool asubtype(aadt(str n, list[AType] l, list[Keyword] _), aadt(n, list[AType] r, list[Keyword] _)) = asubtype(l, r);
@@ -147,8 +117,6 @@ bool asubtype(abag(AType s), abag(AType t)) = asubtype(s, t);
 
 bool asubtype(amap(AType from1, AType to1), amap(AType from2, AType to2)) = asubtype(from1, from2) && asubtype(to1, to2);
 
-bool asubtype(afunc(AType r1, AType p1, list[Keyword] _), AType f2) = asubtype(afunc(r1, p1), f2);
-bool asubtype(AType f2, afunc(AType r1, AType p1, list[Keyword] _)) = asubtype(f2, afunc(r1, p1));
 bool asubtype(afunc(AType r1, AType p1, list[Keyword] _), afunc(AType r2, AType p2, list[Keyword] _)) = asubtype(r1, r2) && asubtype(p2, p1); // note the contra-variance of the argument types
 
 bool asubtype(aparameter(str _, AType bound), AType r) = asubtype(bound, r);
@@ -162,6 +130,9 @@ bool asubtype(areified(AType s), anode()) = true;
 
 bool asubtype(list[AType] l, list[AType] r) = all(i <- index(l), asubtype(l[i], r[i])) when size(l) == size(r) && size(l) > 0;
 default bool asubtype(list[AType] l, list[AType] r) = size(l) == 0 && size(r) == 0;
+
+bool asubtype(list[Field] l, list[Field] r) = all(i <- index(l), asubtype(l[i].fieldType, r[i].fieldType)) when size(l) == size(r) && size(l) > 0;
+default bool asubtype(list[Field] l, list[Field] r) = size(l) == 0 && size(r) == 0;
 
 @doc{
 .Synopsis
@@ -260,7 +231,7 @@ AType lub(amap(AType lf, AType lt), amap(alabel(str rfl, AType rf), alabel(str r
 AType lub(amap(AType lf, AType lt), amap(AType rf, AType rt)) = amap(lub(lf,rf), lub(lt,rt)) when alabel(_,_) !:= lf && alabel(_,_) !:= lt && alabel(_,_) !:= rf && alabel(_,_) !:= rt;
 
 AType lub(abag(AType s), abag(AType t)) = abag(lub(s, t));
-AType lub(aadt(str n, list[AType] _), anode()) = anode();
+AType lub(aadt(str n, list[AType] _, list[Keyword] _), anode()) = anode();
 AType lub(anode(), aadt(str n, list[AType] _, list[Keyword] _)) = anode();
 AType lub(aadt(str n, list[AType] lp, list[Keyword] _), aadt(n, list[AType] rp,list[Keyword] _)) = aadt(n, addParamLabels(lub(lp,rp),getParamLabels(lp)), []) when size(lp) == size(rp) && getParamLabels(lp) == getParamLabels(rp) && size(getParamLabels(lp)) > 0;
 AType lub(aadt(str n, list[AType] lp, list[Keyword] _), aadt(n, list[AType] rp, list[Keyword] _)) = aadt(n, lub(lp,rp), []) when size(lp) == size(rp) && size(getParamLabels(lp)) == 0;
@@ -268,7 +239,7 @@ AType lub(aadt(str n, list[AType] lp, list[Keyword] _), aadt(str m, list[AType] 
 AType lub(aadt(str ln, list[AType] lp, list[Keyword] _), acons(AType b, _, list[AType] _)) = lub(aadt(ln,lp,[]),b);
 
 AType lub(acons(AType la, _, list[AType] _), acons(AType ra, _, list[AType] _)) = lub(la,ra);
-AType lub(acons(AType a, _, list[AType] lp), aadt(str n, list[AType] rp)) = lub(a,aadt(n,rp));
+AType lub(acons(AType a, _, list[AType] lp), aadt(str n, list[AType] rp)) = lub(a,aadt(n,rp, []));
 AType lub(acons(AType _, _, list[AType] _), anode()) = anode();
 
 AType lub(aalias(str _, list[AType] _, AType aliased), AType r) = lub(aliased, r);
@@ -513,7 +484,7 @@ Determine if the given type is an Abstract Data Type (ADT).
 bool isADTType(aalias(_,_,AType at)) = isADTType(at);
 bool isADTType(aparameter(_,AType tvb)) = isADTType(tvb);
 bool isADTType(alabel(_,AType lt)) = isADTType(lt);
-bool isADTType(aadt(_,_)) = true;
+bool isADTType(aadt(_,_,_)) = true;
 bool isADTType(areified(_)) = true;
 default bool isADTType(AType _) = false;
 
