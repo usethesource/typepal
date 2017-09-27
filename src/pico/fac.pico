@@ -1,6 +1,5 @@
 begin declare input : natural,  
-              output : natural,
-              output: natural,           
+              output : natural,      
               repnr : natural,
               rep : natural,
               s1 : string,

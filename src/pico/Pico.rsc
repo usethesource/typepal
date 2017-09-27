@@ -147,7 +147,7 @@ public Program samplePico(str name) = parse(#Program, |home:///git/TypePal/src/p
                      
 set[Message] validatePico(str name) {
     Tree p = samplePico(name);
-    ex = extractFRModel(p, newFRBuilder());
+    ex = extractFRModel(p);
     return validate(ex).messages;
 }
  value main() = validatePico("e1");

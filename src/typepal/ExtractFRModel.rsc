@@ -194,6 +194,23 @@ default void extract2(Tree root, Tree currentScope, FRBuilder frb) {
     //println("default extract2: <getName(root)>");
 }
 
+default void collect(Tree currentTree, Tree currentScope, FRBuilder frb){
+   collectChildren(currentTree, currentScope, frb);
+}
+
+void collectChildren(currentTree: appl(Production _, list[Tree] args), Tree currentScope, FRBuilder frb){
+   bool nonLayout = true;
+   for(Tree arg <- args){
+       if(nonLayout && !(arg is char))
+          collect(arg, currentScope, frb);
+       nonLayout = !nonLayout;
+   }
+}
+
+default void collectChildren(Tree root, Tree currentScope, FRBuilder frb) {
+
+}
+
 data FRBuilder 
     = frbuilder(
         Tree (Tree scope, str id, IdRole idRole, Tree def, DefInfo info) define,
