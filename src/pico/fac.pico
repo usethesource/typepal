@@ -1,13 +1,12 @@
 begin declare input : natural,  
-              output : natural,
-              output: natural,           
+              output : natural,       
               repnr : natural,
               rep : natural,
               s1 : string,
               s2 : string;
       input := 14;
       output := 1;
-      while input1 - 1 do 
+      while input - 1 do 
           rep := output;
           repnr := input;
           while repnr - 1 do

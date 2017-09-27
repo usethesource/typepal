@@ -81,9 +81,8 @@ str AType2String(strType()) = "str";
 
 // ----  Define -----------------------------------------
  
-Tree define(d:(Declaration) `<Id id> : <Type tp>`,  Tree scope, FRBuilder frb) {
+void collect(d:(Declaration) `<Id id> : <Type tp>`,  Tree scope, FRBuilder frb) {
      frb.define(scope, "<d.id>", variableId(), d, defType(transType(tp)));
-     return scope; 
 }
 
 // ----  Collect uses and requirements ------------------------------------
@@ -94,6 +93,7 @@ void collect(e: (Expression) `<Id name>`, Tree scope, FRBuilder frb){
 
 void collect(s: (Statement) `<Id var> := <Expression val>`, Tree scope, FRBuilder frb){
      frb.use(scope, var, {variableId()});
+     collectChildren(val, scope, frb);
 }
 
 // ----  Requirements ------------------------------------
@@ -102,16 +102,19 @@ void collect(s: (Statement) `<Id var> :=  <Expression val>`, Tree scope, FRBuild
      Tree tvar = var; Tree tval = val;
      frb.require("assignment", s, [tvar, tval],
                  (){ equal(typeof(var), typeof(val), onError(s, "Lhs <var> should have same type as rhs")); });
+     collectChildren(val, scope, frb);
 }
 
 void collect(s: (Statement) `if <Expression cond> then <{Statement ";"}*  thenPart> else <{Statement ";"}* elsePart> fi`, Tree scope, FRBuilder frb){
      frb.require("int_condition", s, [s.cond],
          () { equal(typeof(s.cond), intType(), onError(s.cond, "Condition")); });
+     collectChildren(s, scope, frb);
 }
 
 void collect(s: (Statement) `while <Expression cond> do <{Statement ";"}* body> od`, Tree scope, FRBuilder frb){
      frb.require("int_condition", s, [s.cond],
          () { equal(typeof(s.cond), intType(), onError(s.cond, "Condition")); } );
+     collectChildren(s, scope, frb);
 }
 
 void collect(e: (Expression) `<Expression lhs> + <Expression rhs>`, Tree scope, FRBuilder frb){
@@ -123,6 +126,7 @@ void collect(e: (Expression) `<Expression lhs> + <Expression rhs>`, Tree scope, 
                        reportError(e, "Operator `+` cannot be applied", [lhs, rhs]);
                }
             });
+     collectChildren(e, scope, frb);
 }
 
 void collect(e: (Expression) `<Expression lhs> - <Expression rhs>`, Tree scope, FRBuilder frb){
@@ -131,6 +135,7 @@ void collect(e: (Expression) `<Expression lhs> - <Expression rhs>`, Tree scope, 
               equal(typeof(rhs), intType(), onError(rhs, "Rhs of -"));
               fact(e, intType());
             });
+     collectChildren(e, scope, frb);
 }
  
 void collect(e: (Expression) `<String string>`, Tree scope, FRBuilder frb){
@@ -147,7 +152,7 @@ public Program samplePico(str name) = parse(#Program, |home:///git/TypePal/src/p
                      
 set[Message] validatePico(str name) {
     Tree p = samplePico(name);
-    ex = extractFRModel(p, newFRBuilder());
-    return validate(ex).messages;
+    ex = extractFRModel(p);
+    return validate(ex, debug=false).messages;
 }
  value main() = validatePico("e1");

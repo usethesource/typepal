@@ -11,42 +11,43 @@ import lang::rascal::\syntax::Rascal;
 
 
 // Check the types of Rascal literals
-void collect(Literal l:(Literal)`<IntegerLiteral il>`, Tree scope, FRBuilder frb){
+void collect(Literal l:(Literal)`<IntegerLiteral il>`, FRBuilder frb){
     frb.atomicFact(il, aint());
 }
 
-void collect(Literal l:(Literal)`<RealLiteral rl>`, Tree scope, FRBuilder frb){
+void collect(Literal l:(Literal)`<RealLiteral rl>`, FRBuilder frb){
     frb.atomicFact(l, areal());
 }
 
-void collect(Literal l:(Literal)`<BooleanLiteral bl>`, Tree scope, FRBuilder frb){
+void collect(Literal l:(Literal)`<BooleanLiteral bl>`, FRBuilder frb){
     frb.atomicFact(l, abool());
  }
 
-void collect(Literal l:(Literal)`<DateTimeLiteral dtl>`, Tree scope, FRBuilder frb){
+void collect(Literal l:(Literal)`<DateTimeLiteral dtl>`, FRBuilder frb){
     frb.atomicFact(l, adatetime());
 }
 
-void collect(Literal l:(Literal)`<RationalLiteral rl>`, Tree scope, FRBuilder frb){
+void collect(Literal l:(Literal)`<RationalLiteral rl>`, FRBuilder frb){
     frb.atomicFact(l, arat());
 }
 
 //void collect(Literal l:(Literal)`<RegExpLiteral rl>`, Configuration c) {
 
-void collect(Literal l:(Literal)`<StringLiteral sl>`, Tree scope, FRBuilder frb){
+void collect(Literal l:(Literal)`<StringLiteral sl>`, FRBuilder frb){
     frb.atomicFact(l, astr());
+    collectParts(l, frb);
 }
 
-Tree define(template: (StringTemplate) `if(<{Expression ","}+ conditions>){ <Statement* preStats> <StringMiddle body> <Statement* postStats> }`, Tree scope, FRBuilder frb){
+void collect(template: (StringTemplate) `if(<{Expression ","}+ conditions>){ <Statement* preStats> <StringMiddle body> <Statement* postStats> }`, FRBuilder frb){
     condList = [cond | Expression cond <- conditions];
     frb.atomicFact(template, avalue());
-    
-     
     frb.requireEager("if then template", template, condList, (){ checkConditions(condList); });
-    return conditions; // thenPart may refer to variables defined in conditions
+    frb.enterScope(conditionalScope(), template);// thenPart may refer to variables defined in conditions
+        collectParts(templae, frb);
+    frb.leaveScope(conditionalScope(), template);
 }
 
-Tree define(template: (StringTemplate) `if( <{Expression ","}+ conditions> ){ <Statement* preStatsThen> <StringMiddle thenString> <Statement* postStatsThen> } else { <Statement* preStatsElse> <StringMiddle elseString> <Statement* postStatsElse> }`, Tree scope, FRBuilder frb){
+Tree define(template: (StringTemplate) `if( <{Expression ","}+ conditions> ){ <Statement* preStatsThen> <StringMiddle thenString> <Statement* postStatsThen> } else { <Statement* preStatsElse> <StringMiddle elseString> <Statement* postStatsElse> }`, FRBuilder frb){
     condList = [cond | Expression cond <- conditions];
     // TODO scoping in else does not yet work
     if(!isEmpty([s | s <- preStatsElse]))
@@ -63,24 +64,25 @@ Tree define(template: (StringTemplate) `if( <{Expression ","}+ conditions> ){ <S
     return conditions; // thenPart may refer to variables defined in conditions
 } 
 
-void collect(Literal l:(Literal)`<LocationLiteral ll>`, Tree scope, FRBuilder frb){
+void collect(Literal l:(Literal)`<LocationLiteral ll>`, FRBuilder frb){
     frb.atomicFact(l, aloc());
 }
 
 // A few expressions
 
-void collect(exp: (Expression) `<QualifiedName name>`, Tree scope, FRBuilder frb){
-    frb.use(scope, name, {variableId(), formalId(), functionId(), constructorId()});
+void collect(exp: (Expression) `<QualifiedName name>`, FRBuilder frb){
+    frb.use(name, {variableId(), formalId(), functionId(), constructorId()});
 }
 
-void collect(exp: (Expression) `{ <Statement+ statements> }`, Tree scope, FRBuilder frb){
+void collect(exp: (Expression) `{ <Statement+ statements> }`, FRBuilder frb){
     stats = [ stat | Statement stat <- statements ];
     frb.calculate("non-empty block", exp, stats,
         AType() { return typeof(stats[-1]); }
         );
+    collectParts(exp, frb);
 }
 
-void collect(exp: (Expression) `<Expression exp1> + <Expression exp2>`, Tree scope, FRBuilder frb){
+void collect(exp: (Expression) `<Expression exp1> + <Expression exp2>`, FRBuilder frb){
     frb.calculate("`+` operator", exp, [exp1, exp2], 
         AType() {
             t1 = typeof(exp1); t2 = typeof(exp2);
@@ -103,10 +105,11 @@ void collect(exp: (Expression) `<Expression exp1> + <Expression exp2>`, Tree sco
             }
                 
              reportError(exp, "No version of `+` is applicable for <fmt(exp1)> and <fmt(exp2)>");    
-      }); 
+      });
+    collectParts(exp, frb); 
 }
 
-Tree define(exp: (Expression) `<Expression exp1> || <Expression exp2>`, Tree scope, FRBuilder frb){
+void collect(exp: (Expression) `<Expression exp1> || <Expression exp2>`, FRBuilder frb){
     frb.atomicFact(exp, abool());
       
     frb.requireEager("`||` operator", exp, [exp1, exp2],
@@ -114,60 +117,65 @@ Tree define(exp: (Expression) `<Expression exp1> || <Expression exp2>`, Tree sco
             if(!unify(abool(), typeof(exp2))) reportError(exp2, "Argument of || should be `bool`, found <fmt(exp2)>");
             // TODO: check that exp1 and exp2 introduce the same set of variables
           });
-    return scope;
+    collectParts(exp, frb);
 }
 
-Tree define(exp: (Expression) `<Expression exp1> && <Expression exp2>`, Tree scope, FRBuilder frb){
+void collect(exp: (Expression) `<Expression exp1> && <Expression exp2>`, FRBuilder frb){
     frb.atomicFact(exp, abool());
    
     frb.requireEager("`&&` operator", exp, [exp1, exp2],
         (){ if(!unify(abool(), typeof(exp1))) reportError(exp1, "Argument of && should be `bool`, found <fmt(exp1)>");
             if(!unify(abool(), typeof(exp2))) reportError(exp2, "Argument of && should be `bool`, found <fmt(exp2)>");
           });
-    return scope;
+    collectParts(exp, frb);
 }
 
-void collect(exp: (Expression) `<Expression exp1> == <Expression exp2>`, Tree scope, FRBuilder frb){
+void collect(exp: (Expression) `<Expression exp1> == <Expression exp2>`, FRBuilder frb){
     frb.atomicFact(exp, abool());
     frb.require("`==` operator", exp, [exp1, exp2],
         (){ comparable(typeof(exp1), typeof(exp2), onError(exp, "`==` operator not defined for <fmt(exp1)> and <fmt(exp2)>"));
           });
+    collectParts(exp, frb);
 }
 
-void collect(exp: (Expression) `[ <{Expression ","}* elements0> ]`, Tree scope, FRBuilder frb){
+void collect(exp: (Expression) `[ <{Expression ","}* elements0> ]`, FRBuilder frb){
     elms = [ e | Expression e <- elements0 ];
     frb.calculateEager("list expression", exp, elms,
         AType() { return alist(lub([typeof(elm) | elm <- elms])); });
+    collectParts(exp, frb);
 }
 
-void collect(exp: (Expression) `{ <{Expression ","}* elements0> }`, Tree scope, FRBuilder frb){
+void collect(exp: (Expression) `{ <{Expression ","}* elements0> }`, FRBuilder frb){
     elms = [ e | Expression e <- elements0 ];
     frb.calculateEager("set expression", exp, elms,
         AType() { return aset(lub([typeof(elm) | elm <- elms])); });
+    collectParts(exp, frb);
 }
 
-void collect(exp: (Expression) `\< <{Expression ","}* elements1> \>`, Tree scope, FRBuilder frb){
+void collect(exp: (Expression) `\< <{Expression ","}* elements1> \>`, FRBuilder frb){
     elms = [ e | Expression e <- elements1 ];
     frb.calculateEager("tuple expression", exp, elms,
         AType() {
                 return atuple(atypeList([ typeof(elm) | elm <- elms ]));
         });
+    collectParts(exp, frb);
 }
 
-void collect(exp: (Expression) `( <{Mapping[Expression] ","}* mappings>)`, Tree scope, FRBuilder frb){
+void collect(exp: (Expression) `( <{Mapping[Expression] ","}* mappings>)`, FRBuilder frb){
     froms = [ m.from | m <- mappings ];
     tos =  [ m.to | m <- mappings ];
     frb.calculateEager("map expression", exp, froms + tos,
         AType() {
                 return amap(lub([ typeof(f) | f <- froms ]), lub([ typeof(t) | t <- tos ]));
         });
+    collectParts(exp, frb);
 }
 
-void collect(exp: (Expression) `<Pattern pat> := <Expression expression>`, Tree scope, FRBuilder frb){
+void collect(exp: (Expression) `<Pattern pat> := <Expression expression>`, FRBuilder frb){
     frb.atomicFact(exp, abool());
     if(pat is  qualifiedName){
         name = pat.qualifiedName;
-        frb.define(scope, "<name>", variableId(), name, defLub([expression], AType(){ return typeof(expression); }));
+        frb.define("<name>", variableId(), name, defLub([expression], AType(){ return typeof(expression); }));
         frb.require("match variable `<name>`", exp, [name, expression],
                 () { comparable(typeof(expression), typeof(name), onError(exp, "Incompatible type in match using `<name>`")); });  
     } else {
@@ -182,8 +190,8 @@ void collect(exp: (Expression) `<Pattern pat> := <Expression expression>`, Tree 
                  fact(pat, typeof(pat));
                });
     }
+    collectParts(exp, frb);
 }
-
 
 void checkKwArgs(list[Keyword] kwFormals, keywordArguments){
     if(keywordArguments is none) return;
@@ -209,8 +217,9 @@ list[Keyword] getCommonKeywords(aadt(str adtName, list[AType] parameters, list[K
 list[Keyword] getCommonKeywords(overloadedAType(rel[Key, AType] overloads)) = [ *getCommonKeywords(adt) | <def, adt> <- overloads ];
                   
 
-void collect(callOrTree: (Expression) `<Expression expression> ( <{Expression ","}* arguments> <KeywordArguments[Expression] keywordArguments>)`, Tree scope, FRBuilder frb){
+void collect(callOrTree: (Expression) `<Expression expression> ( <{Expression ","}* arguments> <KeywordArguments[Expression] keywordArguments>)`, FRBuilder frb){
     actuals = [a | Expression a <- arguments];
+    scope = frb.getScope();
     
     frb.calculate("call", callOrTree, expression + actuals,
         AType(){        
@@ -329,4 +338,5 @@ void collect(callOrTree: (Expression) `<Expression expression> ( <{Expression ",
             reportError(callOrTree, "Function or constructor type required for <fmt(expression)>, found <fmt(expression)>");
             return avalue();
         });
+      collectParts(callOrTree, frb);
 }

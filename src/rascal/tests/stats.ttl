@@ -24,5 +24,8 @@ expect { "Insert type should be subtype of `int`, found `str`" }
 test Visit5  [[ module A void main() { visit(1) { case int x: insert "a"; } } ]]
 expect { "Insert type should be subtype of `int`, found `str`" }
 
-test Visit5  [[ module A void main() { visit(1) { case int x: insert 1; }; x; } ]]
+test Visit6  [[ module A void main() { visit(1) { case int x: insert 1; }; x; } ]]
 expect { "Undefined `x`" }
+
+test Visit7  [[ module A void main() { insert 2; } ]]
+expect { "Insert found outside replacement context" }

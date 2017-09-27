@@ -19,6 +19,13 @@ extend typepal::ScopeGraph;
 extend typepal::AType;
 import rascal::ATypeUtils;
 
+// ScopeRole: the various (language-specific) roles scopes can play.
+// Initially ScopeRole only provides the rootScope but is extended in a language-specific module
+
+data ScopeRole
+    = anonymousScope()
+    ;
+
 
 // AType utilities
 bool isTypeVariable(loc tv) = tv.scheme == "typevar"; 
@@ -127,9 +134,9 @@ default Tree define(Tree tree, Tree scope, FRBuilder frb) {
 }
 
 // Default definition for collect; to be overridden in specific type checker
-default void collect(Tree tree, Tree scope, FRBuilder frb) { 
-    //println("Default collect <tree>");
-}
+//default void collect(Tree tree, Tree scope, FRBuilder frb) { 
+//    //println("Default collect <tree>");
+//}
 
 // Default definition for initializeFRModel; may be overridden in specific type checker to add initial type info
 //default FRModel initializeFRModel(FRModel frm) = frm;
@@ -145,7 +152,7 @@ default FRModel myPostValidation(FRModel frm) = frm;
 FRModel extractFRModel(Tree root, FRBuilder(Tree t) frBuilder = defaultFRBuilder, set[Key] (FRModel, Use) lookupFun = lookup){
     //println("extractFRModel: <root>");
     frb = frBuilder(root);
-    extract2(root, root, frb);
+    collect(root, frb);
     frm = frb.build();
     //printFRModel(frm);
     msgs = {};
@@ -177,31 +184,53 @@ FRModel extractFRModel(Tree root, FRBuilder(Tree t) frBuilder = defaultFRBuilder
     return myPreValidation(frm);
 }
 
-void extract2(currentTree: appl(Production _, list[Tree] args), Tree currentScope, FRBuilder frb){
-   //println("extract2: <currentTree>");
-   newScope = define(currentTree, currentScope, frb);
-   frb.addScope(newScope, currentScope);
-   collect(currentTree, newScope, frb);
-   bool nonLayout = true;
-   for(Tree arg <- args){
-       if(nonLayout && !(arg is char))
-          extract2(arg, newScope, frb);
-       nonLayout = !nonLayout;
-   }
+//void extract2(currentTree: appl(Production _, list[Tree] args), Tree currentScope, FRBuilder frb){
+//   //println("extract2: <currentTree>");
+//   newScope = define(currentTree, currentScope, frb);
+//   frb.addScope(newScope, currentScope);
+//   collect(currentTree, newScope, frb);
+//   bool nonLayout = true;
+//   for(Tree arg <- args){
+//       if(nonLayout && !(arg is char))
+//          extract2(arg, newScope, frb);
+//       nonLayout = !nonLayout;
+//   }
+//}
+//
+//default void extract2(Tree root, Tree currentScope, FRBuilder frb) {
+//    //println("default extract2: <getName(root)>");
+//}
+
+default void collect(Tree currentTree, FRBuilder frb){
+   //println("default collect: <currentTree>");
+   collectParts(currentTree, frb);
 }
 
-default void extract2(Tree root, Tree currentScope, FRBuilder frb) {
-    //println("default extract2: <getName(root)>");
+void collectParts(Tree currentTree, FRBuilder frb){
+   //println("collectParts: <currentTree>");
+   if(appl(Production _, list[Tree] args) := currentTree){
+       bool nonLayout = true;
+       for(Tree arg <- args){
+           if(nonLayout && !(arg is char))
+              collect(arg, frb);
+           nonLayout = !nonLayout;
+       }
+   }
 }
 
 data FRBuilder 
     = frbuilder(
-        Tree (Tree scope, str id, IdRole idRole, Tree def, DefInfo info) define,
-        void (Tree scope, Tree occ, set[IdRole] idRoles) use,
-        void (Tree scope, Tree occ, set[IdRole] idRoles, PathRole pathRole) use_ref,
-        void (Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) use_qual,
-        void (Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole) use_qual_ref,   
-        void (Tree inner, Tree outer) addScope,
+        Tree (str id, IdRole idRole, Tree def, DefInfo info) define,
+        void (Tree occ, set[IdRole] idRoles) use,
+        void (Tree occ, set[IdRole] idRoles, PathRole pathRole) use_ref,
+        void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) use_qual,
+        void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole) use_qual_ref,   
+        //void (Tree inner, Tree outer) addScope,
+        void (ScopeRole scopeRole, Tree inner) enterScope,
+        void (ScopeRole scopeRole, Tree inner) leaveScope,
+        void (value info) setScopeInfo,
+        tuple[bool found, Key scope, value scopeInfo] (ScopeRole scopeRole) getScopeInfo,
+        Key () getScope,
        
         void (str name, Tree src, list[value] dependencies, void() preds) require,
         void (str name, Tree src, list[value] dependencies, void() preds) requireEager,
@@ -212,7 +241,7 @@ data FRBuilder
         void (Tree src, str msg) reportError,
         void (Tree src, str msg) reportWarning,
         void (Tree src, str msg) reportInfo,
-        AType (Tree scope) newTypeVar,
+        AType () newTypeVar,
         void (str key, value val) store,
         FRModel () build
       ); 
@@ -243,33 +272,37 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
     map[loc,loc] tvScopes = ();
     luDebug = debug;
     set[Message] messages = {};
+   
+    Key currentScope = getLoc(t);
+    Key rootScope = currentScope;
+    lrel[ScopeRole role, Key scope, value scopeInfo] scopeStack = [<anonymousScope(), currentScope, false>];
     
     bool building = true;
     
-    void _define(Tree scope, str id, IdRole idRole, Tree def, DefInfo info){
+    void _define(str id, IdRole idRole, Tree def, DefInfo info){
         if(building){
             if(info is defLub){
-                lubDefines += {<getLoc(scope), id, idRole, getLoc(def), info>};
-                lubKeys += <getLoc(scope), id, idRole>;
+                lubDefines += {<currentScope, id, idRole, getLoc(def), info>};
+                lubKeys += <currentScope, id, idRole>;
             } else {
-                defines += {<getLoc(scope), id, idRole, getLoc(def), info>};
+                defines += {<currentScope, id, idRole, getLoc(def), info>};
             }
         } else {
             throw "Cannot call `define` on FRBuilder after `build`";
         }
     }
        
-    void _use(Tree scope, Tree occ, set[IdRole] idRoles) {
+    void _use(Tree occ, set[IdRole] idRoles) {
         if(building){
-           uses += [use("<occ>", getLoc(occ), getLoc(scope), idRoles)];
+           uses += [use("<occ>", getLoc(occ), currentScope, idRoles)];
         } else {
             throw "Cannot call `use` on FRBuilder after `build`";
         }
     }
     
-    void _use_ref(Tree scope, Tree occ, set[IdRole] idRoles, PathRole pathRole) {
+    void _use_ref(Tree occ, set[IdRole] idRoles, PathRole pathRole) {
         if(building){
-            u = use("<occ>", getLoc(occ), getLoc(scope), idRoles);
+            u = use("<occ>", getLoc(occ), currentScope, idRoles);
             uses += [u];
             referPaths += {refer(u, pathRole)};
         } else {
@@ -277,16 +310,16 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
         }
     }
     
-    void _use_qual(Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles){
+    void _use_qual(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles){
         if(building){
-           uses += [useq(ids, getLoc(occ), getLoc(scope), idRoles, qualifierRoles)];
+           uses += [useq(ids, getLoc(occ), currentScope, idRoles, qualifierRoles)];
         } else {
             throw "Cannot call `use_qual` on FRBuilder after `build`";
         }  
      }
-     void _use_qual_ref(Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole){
+     void _use_qual_ref(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole){
         if(building){
-            u = useq(ids, getLoc(occ), getLoc(scope), idRoles, qualifierRoles);
+            u = useq(ids, getLoc(occ), currentScope, idRoles, qualifierRoles);
             uses += [u];
             referPaths += {refer(u, pathRole)};
         } else {
@@ -294,17 +327,75 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
         } 
     }
     
-    void _addScope(Tree inner, Tree outer) { 
+    //void _addScope(Tree inner, Tree outer) { 
+    //    if(building){
+    //        innerLoc = getLoc(inner);
+    //        outerLoc = getLoc(outer);
+    //        if(innerLoc != outerLoc) scopes[innerLoc] = outerLoc; 
+    //    } else {
+    //        throw "Cannot call `addScope` on FRBuilder after `build`";
+    //    }
+    //}
+    
+    void _enterScope(ScopeRole scopeRole, Tree inner){
         if(building){
-            innerLoc = getLoc(inner);
-            outerLoc = getLoc(outer);
-            if(innerLoc != outerLoc) scopes[innerLoc] = outerLoc; 
+           innerLoc = getLoc(inner);
+           if(innerLoc != currentScope){
+              scopes[innerLoc] = currentScope; 
+              currentScope = innerLoc;
+              scopeStack = push(<scopeRole, innerLoc, false>, scopeStack);
+           } else 
+           if(innerLoc == rootScope){
+              currentScope = innerLoc;
+              scopeStack = push(<scopeRole, innerLoc, false>, scopeStack);
+           } else {
+              throw "Cannot call `enterScope` with inner scope that is equal to currentScope";
+           }
         } else {
-            throw "Cannot call `addScope` on FRBuilder after `build`";
+          throw "Cannot call `enterScope` on FRBuilder after `build`";
         }
     }
-     
     
+    void _leaveScope(ScopeRole scopeRole, Tree inner){
+        if(building){
+           innerLoc = getLoc(inner);
+           if(innerLoc == currentScope){
+              scopeStack = tail(scopeStack);
+              if(isEmpty(scopeStack)){
+                 throw "Cannot call `leaveScope` beyond the root scope"; 
+              }
+              currentScope = scopeStack[0].scope;
+           } else {
+              throw "Cannot call `leaveScope` with a scope that is not the current scope"; 
+           }
+        } else {
+          throw "Cannot call `leaveScope` on FRBuilder after `build`";
+        }
+    }
+    
+    void _setScopeInfo(value scopeInfo){
+        if(building){
+           scopeStack[0].scopeInfo = scopeInfo;
+        } else {
+           throw "Cannot call `setScopeInfo` on FRBuilder after `build`";
+        }
+    }
+    
+    tuple[bool found, Key scope, value scopeInfo] _getScopeInfo(ScopeRole scopeRole){
+        if(building){
+          for(<scopeRole, Key scope, value scopeInfo> <- scopeStack){
+              return <true, scope, scopeInfo>;
+          }
+          return <false, currentScope, false>;
+        } else {
+           throw "Cannot call `getScopeInfo` on FRBuilder after `build`";
+        }
+    }
+    
+    Key _getScope(){
+        return currentScope;
+    }
+   
     void _require(str name, Tree src, list[value] dependencies, void() preds){ 
         if(building){
            openReqs += { openReq(name, getLoc(src), dependenciesAsKeys(dependencies), false, preds) };
@@ -376,12 +467,12 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
         }
     }
     
-    AType _newTypeVar(Tree scope){
+    AType _newTypeVar(){
         if(building){
             ntypevar += 1;
             s = right("<ntypevar>", 10, "0");
             tv = |typevar:///<s>|;
-            tvScopes[tv] = getLoc(scope);
+            tvScopes[tv] = currentScope;
             return tvar(tv);
         } else {
             throw "Cannot call `newTypeVar` on FRBuilder after `build`";
@@ -454,7 +545,11 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
                      _use_ref, 
                      _use_qual, 
                      _use_qual_ref, 
-                     _addScope, 
+                     _enterScope, 
+                     _leaveScope,
+                     _setScopeInfo,
+                     _getScopeInfo,
+                     _getScope,
                      _require, 
                      _requireEager,
                      _fact1, 

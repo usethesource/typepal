@@ -408,9 +408,9 @@ AType typeof(tvar(loc l)){
     }
 }
 
-AType typeof(str id, Tree scope, set[IdRole] idRoles){
+AType typeof(str id, Key scope, set[IdRole] idRoles){
     try {
-        foundDefs = lookupFun(extractedFRModel, use(id, anonymousOccurrence, scope@\loc, idRoles));
+        foundDefs = lookupFun(extractedFRModel, use(id, anonymousOccurrence, scope, idRoles));
         if({def} := foundDefs){
            return instantiate(facts[def]);
         } else {

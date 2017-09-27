@@ -13,77 +13,91 @@ import rascal::ATypeExceptions;
 
 // ---- assert
 
-void collect(stat: (Statement) `assert <Expression expression>;`, Tree scope, FRBuilder frb){
+void collect(stat: (Statement) `assert <Expression expression>;`, FRBuilder frb){
     frb.atomicFact(stat, abool());
     frb.require("assert statement", stat, [expression],
         () { subtype(typeof(expression), abool(), onError(expression, "Assertion should be `bool`, found <fmt(expression)>")); });
+    collectParts(stat, frb);
 } 
 
-void collect(stat: (Statement) `assert <Expression expression> : <Expression message> ;`, Tree scope, FRBuilder frb){
+void collect(stat: (Statement) `assert <Expression expression> : <Expression message> ;`, FRBuilder frb){
    frb.atomicFact(stat, abool());
    frb.require("assert statement with message", stat, [expression, message],
        () { subtype(typeof(expression), abool(), onError(expression, "Assertion should be `bool`, found <fmt(expression)>"));
             subtype(typeof(message), astr(), onError(message, "Assertion message should be `str`, found <fmt(message)>"));
        });
+   collectParts(stat, frb);
 } 
      
 // ---- expression
-void collect(stat: (Statement) `<Expression expression>;`, Tree scope, FRBuilder frb){
+void collect(stat: (Statement) `<Expression expression>;`, FRBuilder frb){
     frb.fact(stat, [expression], AType(){ return typeof(expression); });
+    collectParts(stat, frb);
 }
 
 // ---- visit
-Tree define(stat: (Statement) `<Label label> <Visit vst>`, Tree scope, FRBuilder frb){
-    if(label is \default){
-        frb.define(stat, "<label.name>", labelId(), label.name, noDefInfo());
-    }
-    frb.fact(vst, [vst.subject], AType(){ return typeof(vst.subject); });
-    return stat;
-}
-
-Tree define(pwa: (PatternWithAction) `<Pattern pattern> =\> <Replacement replacement>`,  Tree scope, FRBuilder frb){
-    frb.require("pattern replacement", pwa, [pattern, replacement],
-        (){ subtype(typeof(replacement), typeof(pattern), onError(pwa, "A pattern of type <fmt(pattern)> cannot be replaced by <fmt(replacement)>")); });
-    return pwa;
-}
-
-
-Tree define(pwa: (PatternWithAction) `<Pattern pattern>: <Statement statement>`,  Tree scope, FRBuilder frb){
-    for(Expression expr <- getInsertExpressions(statement)){
-            frb.requireEager("insert expression", expr, [expr, pattern], makeInsertRequirement(expr, pattern));     
+void collect(stat: (Statement) `<Label label> <Visit vst>`, FRBuilder frb){
+    frb.enterScope(visitScope(), stat);
+        if(label is \default){
+            frb.define("<label.name>", labelId(), label.name, noDefInfo());
         }
-    return pwa;
+        frb.fact(vst, [vst.subject], AType(){ return typeof(vst.subject); });
+        collectParts(stat, frb);
+    frb.leaveScope(visitScope(), stat);
 }
 
-// TODO: finds too many (nested) inserts!
-// TODO: check that insert occurs inside a replacement context
-list[Expression] getInsertExpressions(Tree stat)
-    = [expr | /(Statement) `insert <Expression expr>;` := stat];
+void collect(pwa: (PatternWithAction) `<Pattern pattern> =\> <Replacement replacement>`,  FRBuilder frb){
+    frb.enterScope(replacementScope(), pwa);
+        frb.setScopeInfo(pattern);
+        frb.require("pattern replacement", pwa, [pattern, replacement],
+            (){ subtype(typeof(replacement), typeof(pattern), onError(pwa, "A pattern of type <fmt(pattern)> cannot be replaced by <fmt(replacement)>")); });
+        collectParts(pwa, frb);
+    frb.leaveScope(replacementScope(), pwa);
+}
 
-// Note: Rascal's closures are mutable, therefore we need an extra closure when creating
-// several requirements from the same function context. In this way the value of expr becomes fixed
-void() makeInsertRequirement(Expression expr, Pattern pat)
-       = () { 
-             if(isFullyInstantiated(typeof(expr)) && isFullyInstantiated(typeof(pat))){
-                subtype(typeof(expr), typeof(pat), onError(expr, "Insert type should be subtype of <fmt(pat)>, found <fmt(expr)>"));
-              } else {
-              if(!unify(typeof(expr), patType)){
-                 subtype(typeof(expr), patType, onError(expr, "Insert type should be subtype of <fmt(patType)>, found <fmt(expr)>"));
-              }
-           }
-         };
+void collect(pwa: (PatternWithAction) `<Pattern pattern>: <Statement statement>`,  FRBuilder frb){
+    frb.enterScope(replacementScope(), pwa);
+        frb.setScopeInfo(pattern);
+        collectParts(pwa, frb);
+    frb.leaveScope(replacementScope(), pwa);
+}
+
+void collect(stat: (Statement) `insert <Expression expr>;`, FRBuilder frb){
+    <found, scope, scopeInfo> = frb.getScopeInfo(replacementScope());
+    if(!found){
+        frb.reportError(stat, "Insert found outside replacement context");
+    } else {
+      if(Pattern pat := scopeInfo){
+         frb.requireEager("insert expression", expr, [expr, pat], 
+             () { 
+                  if(isFullyInstantiated(typeof(expr)) && isFullyInstantiated(typeof(pat))){
+                     subtype(typeof(expr), typeof(pat), onError(expr, "Insert type should be subtype of <fmt(pat)>, found <fmt(expr)>"));
+                  } else {
+                  if(!unify(typeof(expr), patType)){
+                     subtype(typeof(expr), patType, onError(expr, "Insert type should be subtype of <fmt(patType)>, found <fmt(expr)>"));
+                  }
+                }
+             });
+      } else {
+        throw "Inconsistent info from replacement scope: <info>";
+      }
+    }
+    collectParts(stat, frb);
+}
 
 // --- while
 
-Tree define(stat: (Statement) `<Label label> while( <{Expression ","}+ conditions> ) <Statement body>`,  Tree scope, FRBuilder frb){
-    if(label is \default){
-        frb.define(stat, "<label.name>", labelId(), label.name, noDefInfo());
-    }
-    condList = [cond | Expression cond <- conditions];
-    frb.atomicFact(stat, avalue());
-    
-    frb.requireEager("while statement", stat, condList + [body], (){ checkConditions(condList); });
-    return conditions; // body may refer to variables defined in conditions
+void collect(stat: (Statement) `<Label label> while( <{Expression ","}+ conditions> ) <Statement body>`,  FRBuilder frb){
+    frb.enterScope(conditionalScope(), conditions);   // body may refer to variables defined in conditions
+        if(label is \default){
+            frb.define("<label.name>", labelId(), label.name, noDefInfo());
+        }
+        condList = [cond | Expression cond <- conditions];
+        frb.atomicFact(stat, avalue());
+        
+        frb.requireEager("while statement", stat, condList + [body], (){ checkConditions(condList); });
+        collectParts(stat, frb);
+    frb.leaveScope(conditionalScope(), conditions);
 }
 
 void checkConditions(list[Expression] condList){
@@ -100,58 +114,66 @@ void checkConditions(list[Expression] condList){
 
 // ---- do
 
-Tree define(stat: (Statement) `<Label label> do <Statement body> while ( <Expression condition> ) ;`, Tree scope, FRBuilder frb){
-    if(label is \default){
-        frb.define(stat, "<label.name>", labelId(), label.name, noDefInfo());
-    }
-    condList = [cond | Expression cond <- conditions];
-    frb.atomicFact(stat, avalue());
-    
-    frb.requireEager("do statement", stat, condList + [body], (){ checkConditions(condList); });
-    return stat; // condition may refer to variables defined in body
+void collect(stat: (Statement) `<Label label> do <Statement body> while ( <Expression condition> ) ;`, FRBuilder frb){
+    frb.enterScope(conditionalScope(), stat);   // condition may refer to variables defined in body
+        if(label is \default){
+            frb.define(stat, "<label.name>", labelId(), label.name, noDefInfo());
+        }
+        condList = [cond | Expression cond <- conditions];
+        frb.atomicFact(stat, avalue());
+        
+        frb.requireEager("do statement", stat, condList + [body], (){ checkConditions(condList); });
+        collectParts(stat, frb);
+    frb.leaveScope(conditionalScope(), stat); 
 }
 
 //---- for
 
-Tree define(stat: (Statement) `<Label label> for( <{Expression ","}+ conditions> ) <Statement body>`,  Tree scope, FRBuilder frb){
-    if(label is \default){
-        frb.define(stat, "<label.name>", labelId(), label.name, noDefInfo());
-    }
-    condList = [cond | Expression cond <- conditions];
-    frb.atomicFact(stat, avalue());
-    
-    frb.requireEager("for statement", stat, condList + [body], (){ checkConditions(condList); });
-    return conditions; // body may refer to variables defined in conditions
+void collect(stat: (Statement) `<Label label> for( <{Expression ","}+ conditions> ) <Statement body>`,  FRBuilder frb){
+    frb.enterScope(conditionalScope(), conditions);   // body may refer to variables defined in conditions
+        if(label is \default){
+            frb.define("<label.name>", labelId(), label.name, noDefInfo());
+        }
+        condList = [cond | Expression cond <- conditions];
+        frb.atomicFact(stat, avalue());
+        
+        frb.requireEager("for statement", stat, condList + [body], (){ checkConditions(condList); });
+        collectParts(stat, frb);
+    frb.leaveScope(conditionalScope(), conditions);  
 }
 
 // ---- if
 
-Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> ) <Statement thenPart>`,  Tree scope, FRBuilder frb){
-    if(label is \default){
-        frb.define(stat, "<label.name>", labelId(), label.name, noDefInfo());
-    }
-    condList = [cond | Expression cond <- conditions];
-    frb.atomicFact(stat, avalue());
-    
-    frb.requireEager("if then", stat, condList + [thenPart], (){ checkConditions(condList); });
-    return conditions; // thenPart may refer to variables defined in conditions
+void collect(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> ) <Statement thenPart>`,  FRBuilder frb){
+    frb.enterScope(conditionalScope(), conditions); // thenPart may refer to variables defined in conditions
+        if(label is \default){
+            frb.define("<label.name>", labelId(), label.name, noDefInfo());
+        }
+        condList = [cond | Expression cond <- conditions];
+        frb.atomicFact(stat, avalue());
+        
+        frb.requireEager("if then", stat, condList + [thenPart], (){ checkConditions(condList); });
+        collectParts(stat, frb);
+    frb.leaveScope(conditionalScope(), conditions);   
 }
 
 // --- if then else
 
-Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> ) <Statement thenPart> else <Statement elsePart>`,  Tree scope, FRBuilder frb){
-    if(label is \default){
-        frb.define(stat, "<label.name>", labelId(), label.name, noDefInfo());
-    }
-    condList = [cond | cond <- conditions];
-    addElseScope(conditions, elsePart); // variable occurrences in elsePart may not refer to variables defined in conditions
-    
-    frb.calculateEager("if then else", stat, condList + [thenPart, elsePart],
-        AType (){
-            checkConditions(condList);
-            return myLUB(typeof(thenPart), typeof(elsePart));
-        });
-    return conditions; // thenPart may refer to variables defined in conditions; elsePart may not
+void collect(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> ) <Statement thenPart> else <Statement elsePart>`,  FRBuilder frb){
+    frb.enterScope(conditionalScope(), conditions);   // thenPart may refer to variables defined in conditions; elsePart may not
+        if(label is \default){
+            frb.define("<label.name>", labelId(), label.name, noDefInfo());
+        }
+        condList = [cond | cond <- conditions];
+        addElseScope(conditions, elsePart); // variable occurrences in elsePart may not refer to variables defined in conditions
+        
+        frb.calculateEager("if then else", stat, condList + [thenPart, elsePart],
+            AType (){
+                checkConditions(condList);
+                return myLUB(typeof(thenPart), typeof(elsePart));
+            });
+    collectParts(stat, frb);
+    frb.leaveScope(conditionalScope(), conditions); 
 }
 
 // ---- switch
@@ -163,16 +185,23 @@ Tree define(stat: (Statement) `<Label label> if( <{Expression ","}+ conditions> 
 // ---- try
 // ---- try finally
 // ---- non-empty block
+
+void collect(stat: (Statement) `<Label label> { <Statement+ statements> }`, FRBuilder frb){
+    if(label is \default){
+       frb.define("<label.name>", labelId(), label.name, noDefInfo());
+    }
+    collectParts(stat, frb);
+}
+
 // ---- empty block
 // ---- assignment
 
-Tree define(stat: (Statement) `<QualifiedName name> = <Statement statement>`, Tree scope, FRBuilder frb){
+void collect(stat: (Statement) `<QualifiedName name> = <Statement statement>`, FRBuilder frb){
     frb.fact(stat, [statement], AType(){ return typeof(statement); });
-    frb.define(scope, "<name>", variableId(), name, defLub([statement], AType(){ return typeof(statement); }));
+    frb.define("<name>", variableId(), name, defLub([statement], AType(){ return typeof(statement); }));
     frb.require("assignment to variable `<name>`", stat, [name, statement],
                 () { subtype(typeof(statement), typeof(name), onError(stat, "Incompatible type in assignment to variable `<name>`, found <fmt(statement)>")); });  
-    
-    return scope;
+    collectParts(stat, frb);
 }
 
 // ---- return
@@ -184,7 +213,7 @@ Tree define(stat: (Statement) `<QualifiedName name> = <Statement statement>`, Tr
 
 // ---- local variable declaration
 
-Tree define(stat: (Statement) `<Type tp> <{Variable ","}+ variables>;`, Tree scope, FRBuilder frb){
+void collect(stat: (Statement) `<Type tp> <{Variable ","}+ variables>;`, FRBuilder frb){
     declaredType = convertType(tp, frb);
     declaredTypeVars = collectTypeVars(declaredType);
     AType tau = declaredType;
@@ -194,12 +223,12 @@ Tree define(stat: (Statement) `<Type tp> <{Variable ","}+ variables>;`, Tree sco
        if(size([v | v <- variables]) > 1){
           frb.reportError(stat, "Parameterized declared type not allowed with multiple initializations");
        }
-       tau = frb.newTypeVar(scope);
+       tau = frb.newTypeVar();
     }
     
     for(v <- variables){
         if(v is initialized){
-            frb.define(scope, "<v.name>", variableId(), v, defType(tau)); 
+            frb.define("<v.name>", variableId(), v, defType(tau)); 
             if(isEmpty(declaredTypeVars)){ 
                frb.calculate("initialization of variable `<v.name>`", v, [v.initial],   
                    AType (){ 
@@ -246,5 +275,5 @@ Tree define(stat: (Statement) `<Type tp> <{Variable ","}+ variables>;`, Tree sco
             } 
         }
     }
-    return scope;
+    collectParts(stat, frb);
 }

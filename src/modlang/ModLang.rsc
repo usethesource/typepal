@@ -71,8 +71,8 @@ data IdRole
     | parameterId()
     ;
     
-data PathLabel
-    = importsLabel()
+data PathRole
+    = importsPath()
     ;
 
 data AType   
@@ -108,7 +108,7 @@ Tree define(vd: (VarDecl) `def <Id id> = <Expression expression> ;`, Tree scope,
 // ---- Collect uses & requirements ------------------------------------
 
 void collect(ImportDecl d, Tree scope, FRBuilder sg){
-     sg.use_ref(scope, d.mid, {moduleId()}, importsLabel());
+     sg.use_ref(scope, d.mid, {moduleId()}, importsPath());
 }
 
 void collect(exp: (Expression) `<Id name>`, Tree scope,  FRBuilder sg){
