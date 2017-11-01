@@ -79,18 +79,18 @@ str AType2String(functionType(AType from, AType to)) = "fun <AType2String(from)>
 
 void collect(e: (Expression) `fun <Id name> : <Type tp> { <Expression body> }`, FRBuilder frb) {   
      frb.define("<name>", variableId(), name, defType(transType(tp)));
-     frb.enterScope(anonymousScope(), e);
+     frb.enterScope(e);
          frb.fact(e, [body], AType(){ return functionType(transType(tp), typeof(body)); });
          collectParts(e, frb);
-     frb.leaveScope(anonymousScope(), e);
+     frb.leaveScope(e);
 }
 
 void collect(e: (Expression) `let <Id name> : <Type tp> = <Expression exp1> in <Expression exp2> end`, FRBuilder frb) {  
-     frb.enterScope(anonymousScope(), e);
+     frb.enterScope(e);
          frb.define("<name>", variableId(), name, defType(transType(tp)));
          frb.fact(e, [exp2], AType() { return typeof(exp2); } );
          collectParts(e, frb);  
-     frb.leaveScope(anonymousScope(), e);
+     frb.leaveScope(e);
 }
 
 // ----  Collect uses & requirements ------------------------------------

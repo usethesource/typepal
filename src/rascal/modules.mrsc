@@ -1,5 +1,0 @@
-module A
-
-int n = { return 10; 11;};
-           
-           void main(){ if(int x := 1) x + 1; else x + 2; }

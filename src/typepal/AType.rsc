@@ -1,6 +1,7 @@
 module typepal::AType
 
 import String;
+import Message;
 extend typepal::ScopeGraph;
 
 // Extend AType for type checking purposes
@@ -19,3 +20,10 @@ str prettyPrintAType(lazyLub(list[AType] atypes)) = "lub(<atypes>))";
 str prettyPrintAType(atypeList(list[AType] atypes)) = size(atypes) == 0 ? "empty list of types" : intercalate(", ", [prettyPrintAType(a) | a <- atypes]);
 str prettyPrintAType(overloadedAType(rel[Key, AType] overloads)) = "overloaded(" + intercalate(", ", [prettyPrintAType(t) | <k, t> <- overloads]) + ")";
 default str prettyPrintAType(AType tp) = "<tp>";
+
+// AType utilities
+bool isTypeVariable(loc tv) = tv.scheme == "typevar"; 
+
+data RuntimeException
+    = checkFailed(set[Message] msgs)
+    ;
