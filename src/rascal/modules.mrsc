@@ -1,3 +1,0 @@
-module A
-           
-           void main(){ visit(3) { case 1 => "a" case true => 2 } }

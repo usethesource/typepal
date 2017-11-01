@@ -19,19 +19,34 @@ extend typepal::ScopeGraph;
 extend typepal::AType;
 import rascal::ATypeUtils;
 
+data RuntimeException
+    = TypePalUsage(str reason)
+    | TypePalInternalError(str reason)
+    | TypeUnavailable()
+    ;
 
-// AType utilities
-bool isTypeVariable(loc tv) = tv.scheme == "typevar"; 
+// ScopeRole: the various (language-specific) roles scopes can play.
+// Initially ScopeRole only provides the rootScope but is extended in a language-specific module
+
+data ScopeRole
+    = anonymousScope()
+    ;
 
 loc getLoc(Tree t) = t@\loc ? t.args[0]@\loc;
 
+RuntimeException checkFailed(Tree where, str msg) = checkFailed({ error(msg, getLoc(where)) });
+RuntimeException checkFailed(loc where, str msg) = checkFailed({ error(msg, where) });
+
+// Extract (nested) tree locations and type variables from a list of dependencies
 list[Key] dependenciesAsKeyList(list[value] dependencies){
     return 
         for(d <- dependencies){
             if(Tree t := d){
                 append getLoc(t);
+            } else if(tvar(tv) := d){
+                append tv;
             } else {
-                throw "Dependency should be a tree, found <d>";
+                throw TypePalUsage("Dependency should be a tree or type variable, found <d>");
             }
         };
 } 
@@ -79,30 +94,32 @@ str intercalateAnd(list[str] strs){
 }
 
 void reportError(Tree t, str msg){
-    throw error(msg, getLoc(t));
+    throw checkFailed({error(msg, getLoc(t))});
 }
 
 void reportWarning(Tree t, str msg){
-    throw warning(msg, getLoc(t));
+    throw checkFailed({warning(msg, getLoc(t))});
 }
 
 void reportInfo(Tree t, str msg){
-    throw info(msg, getLoc(t));
+    throw checkFailed({info(msg, getLoc(t))});
 }
 
 // The basic ingredients for type checking: facts, requirements and overloads
 
-// Fact about location src, given dependencies and an AType callback
+// Facts about location src, given dependencies and an AType callback
 data Fact
     = openFact(loc src, set[loc] dependsOn, AType() getAType)
     | openFact(set[loc] srcs, set[loc] dependsOn, list[AType()] getATypes)
     ;
 
 // A named requirement for location src, given dependencies and a callback predicate
+// Eager requirements are tried when not all dependencies are known.
 data Requirement
     = openReq(str name, loc src, set[loc] dependsOn, bool eager, void() preds);
 
-// Named type calculator for location src, given args, and resolve callback    
+// Named type calculator for location src, given args, and resolve callback 
+// Eager calculators are tried when not all dependencies are known.   
 data Calculator
     = calculate(str name, loc src, set[loc] dependsOn, bool eager, AType() calculator);
 
@@ -120,34 +137,44 @@ data FRModel (
 
 alias Key = loc;
 
-// Default definition for define; to be overridden in speicific type checker
-default Tree define(Tree tree, Tree scope, FRBuilder frb) {
-   //println("Default define <tree>");
-   return scope;
-}
-
-// Default definition for collect; to be overridden in specific type checker
-default void collect(Tree tree, Tree scope, FRBuilder frb) { 
-    //println("Default collect <tree>");
-}
-
-// Default definition for initializeFRModel; may be overridden in specific type checker to add initial type info
-//default FRModel initializeFRModel(FRModel frm) = frm;
-
-// Default definition for myPreValidation; 
-// may be overridden in specific type checker to enhance extracted facts and requirements before validation
-default FRModel myPreValidation(FRModel frm) = frm;
-
-// Default definition for myPostValidation; 
-// may be overridden in specific type checker to enhance validated model after validation
-default FRModel myPostValidation(FRModel frm) = frm;
-
 FRModel extractFRModel(Tree root, FRBuilder(Tree t) frBuilder = defaultFRBuilder, set[Key] (FRModel, Use) lookupFun = lookup){
-    //println("extractFRModel: <root>");
     frb = frBuilder(root);
-    extract2(root, root, frb);
+    collect(root, frb);
     frm = frb.build();
-    //printFRModel(frm);
+    frm = resolvePath(frm, lookupFun=lookupFun);
+    return frm;
+}
+
+// Default definition for collect; to be overridden in a specific type checker
+// for handling syntax-constructs-of-interest
+default void collect(Tree currentTree, FRBuilder frb){
+  println("default collect: <typeOf(currentTree)>: <currentTree>");
+   collectParts(currentTree, frb);
+}
+
+private  set[str] skipSymbols = {"lex", "layouts", "keywords", "lit", "cilit", "char-class"};
+
+void collectParts(Tree currentTree, FRBuilder frb){
+   //println("collectParts: <typeOf(currentTree)>: <currentTree>");
+   if(currentTree has prod && getName(currentTree.prod.def) notin skipSymbols){
+   //if(appl(Production p, list[Tree] args) := currentTree, getName(p.def) notin skipSymbols){
+      //bool nonLayout = true;
+       //for(Tree arg <- currentTree.args){
+       //    if(nonLayout)
+       //       collect(arg, frb);
+       //    nonLayout = !nonLayout;
+       //}
+       args = currentTree.args;
+       int n = size(args);
+       int i = 0;
+       while(i < n){
+        collect(args[i], frb);
+        i += 2;
+       }
+   }
+}
+
+FRModel resolvePath(FRModel frm, set[Key] (FRModel, Use) lookupFun = lookup){
     msgs = {};
     int n = 0;
 
@@ -157,7 +184,7 @@ FRModel extractFRModel(Tree root, FRBuilder(Tree t) frBuilder = defaultFRBuilder
             try {
                 foundDefs = lookupFun(frm, c.use);
                 if({def} := foundDefs){
-                   if(luDebug) println("extractFRModel: resolve <c.use> to <def>");
+                   //println("resolvePath: resolve <c.use> to <def>");
                    frm.paths += {<c.use.scope, c.pathRole, def>};  
                 } else {
                    msgs += error("Name <fmt(c.use.id)> is ambiguous", c.use.occ);
@@ -174,24 +201,7 @@ FRModel extractFRModel(Tree root, FRBuilder(Tree t) frBuilder = defaultFRBuilder
         msgs += error("Reference to name <fmt(c.use.id)> cannot be resolved", c.use.occ);
     }
     frm.messages += msgs;
-    return myPreValidation(frm);
-}
-
-void extract2(currentTree: appl(Production _, list[Tree] args), Tree currentScope, FRBuilder frb){
-   //println("extract2: <currentTree>");
-   newScope = define(currentTree, currentScope, frb);
-   frb.addScope(newScope, currentScope);
-   collect(currentTree, newScope, frb);
-   bool nonLayout = true;
-   for(Tree arg <- args){
-       if(nonLayout && !(arg is char))
-          extract2(arg, newScope, frb);
-       nonLayout = !nonLayout;
-   }
-}
-
-default void extract2(Tree root, Tree currentScope, FRBuilder frb) {
-    //println("default extract2: <getName(root)>");
+    return frm;
 }
 
 default void collect(Tree currentTree, Tree currentScope, FRBuilder frb){
@@ -213,31 +223,36 @@ default void collectChildren(Tree root, Tree currentScope, FRBuilder frb) {
 
 data FRBuilder 
     = frbuilder(
-        Tree (Tree scope, str id, IdRole idRole, Tree def, DefInfo info) define,
-        void (Tree scope, Tree occ, set[IdRole] idRoles) use,
-        void (Tree scope, Tree occ, set[IdRole] idRoles, PathRole pathRole) use_ref,
-        void (Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) use_qual,
-        void (Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole) use_qual_ref,   
-        void (Tree inner, Tree outer) addScope,
+        Tree (str id, IdRole idRole, Tree def, DefInfo info) define,
+        void (Tree occ, set[IdRole] idRoles) use,
+        void (Tree occ, set[IdRole] idRoles, PathRole pathRole) use_ref,
+        void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) use_qual,
+        void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole) use_qual_ref,   
+        void (Tree inner) enterScope,
+        void (Tree inner) leaveScope,
+        void (Key scope, ScopeRole scopeRole, value info) setScopeInfo,
+        lrel[Key scope, value scopeInfo] (ScopeRole scopeRole) getScopeInfo,
+        Key () getScope,
        
         void (str name, Tree src, list[value] dependencies, void() preds) require,
         void (str name, Tree src, list[value] dependencies, void() preds) requireEager,
-        void (Tree src, AType tp) atomicFact,
-        void (Tree src, list[value] dependencies, AType() getAType) fact,
+        void (Tree src, AType tp) fact,
+        //void (Tree src, list[value] dependencies, AType() getAType) fact,
         void (str name, Tree src, list[value] dependencies, AType() calculator) calculate,
         void (str name, Tree src, list[value] dependencies, AType() calculator) calculateEager,
         void (Tree src, str msg) reportError,
         void (Tree src, str msg) reportWarning,
         void (Tree src, str msg) reportInfo,
-        AType (Tree scope) newTypeVar,
+        AType () newTypeVar,
         void (str key, value val) store,
+        set[value] (str key) getStored,
         FRModel () build
       ); 
 
 AType() makeClos1(AType tp) = AType (){ return tp; };                   // TODO: workaround for compiler glitch
-void() makeClosError(Tree src, str msg) = void(){ reportError(src, msg); };
-void() makeClosWarning(Tree src, str msg) = void(){ reportWarning(src, msg); };
-void() makeClosInfo(Tree src, str msg) = void(){ reportInfo(src, msg); };
+void() makeClosError(Tree src, str msg) = void(){ throw checkFailed(src, msg); };
+void() makeClosWarning(Tree src, str msg) = void(){ throw checkFailed({ warning(msg, getLoc(src)) }); };
+void() makeClosInfo(Tree src, str msg) = void(){ checkFailed({ info(msg, getLoc(src)) }); };
              
 FRBuilder defaultFRBuilder(Tree t) = newFRBuilder(t);    
          
@@ -245,7 +260,8 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
         
     Defines defines = {};
     Defines lubDefines = {};
-    rel[loc, str, IdRole] lubKeys = {};
+    set[Key] lubScopes = {};
+    rel[loc scope, str id, IdRole idRole] lubKeys = {};
     Scopes scopes = ();
     Paths paths = {};
     ReferPaths referPaths = {};
@@ -260,73 +276,148 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
     map[loc,loc] tvScopes = ();
     luDebug = debug;
     set[Message] messages = {};
+   
+    Key globalScope = |global-scope:///|;
+     
+    Key currentScope = globalScope; //getLoc(t);
+    Key rootScope = globalScope; //currentScope;
+  
+    scopes[getLoc(t)] = globalScope;
+    lrel[Key scope, bool lubScope, map[ScopeRole, value] scopeInfo] scopeStack = [<globalScope, false, (anonymousScope(): false)>];
     
     bool building = true;
     
-    void _define(Tree scope, str id, IdRole idRole, Tree def, DefInfo info){
+    Key getCurrentLubScope(){
+        for(int i <- index(scopeStack), <scope, true, map[ScopeRole,value] scopeInfo2> := scopeStack[i]){     
+            return scope;
+        }
+        throw TypePalUsage("`getCurrentLubScope` scope cannot be found");
+    }
+    
+    // TODO This is language dependent!
+    str stripLeadingEscape(str n) = startsWith(n,"\\") ? substring(n,1) : n;
+    
+    void _define(str id, IdRole idRole, Tree def, DefInfo info){
         if(building){
             if(info is defLub){
-                lubDefines += {<getLoc(scope), id, idRole, getLoc(def), info>};
-                lubKeys += <getLoc(scope), id, idRole>;
+                lubDefines += {<getCurrentLubScope(), id, idRole, getLoc(def), info>};
+                lubKeys += <currentScope, id, idRole>;
             } else {
-                defines += {<getLoc(scope), id, idRole, getLoc(def), info>};
+                defines += {<currentScope, id, idRole, getLoc(def), info>};
             }
         } else {
-            throw "Cannot call `define` on FRBuilder after `build`";
+            throw TypePalUsage("Cannot call `define` on FRBuilder after `build`");
         }
     }
        
-    void _use(Tree scope, Tree occ, set[IdRole] idRoles) {
+    void _use(Tree occ, set[IdRole] idRoles) {
         if(building){
-           uses += [use("<occ>", getLoc(occ), getLoc(scope), idRoles)];
+           uses += [use(stripLeadingEscape("<occ>"), getLoc(occ), currentScope, idRoles)];
         } else {
-            throw "Cannot call `use` on FRBuilder after `build`";
+            throw TypePalUsage("Cannot call `use` on FRBuilder after `build`");
         }
     }
     
-    void _use_ref(Tree scope, Tree occ, set[IdRole] idRoles, PathRole pathRole) {
+    void _use_ref(Tree occ, set[IdRole] idRoles, PathRole pathRole) {
         if(building){
-            u = use("<occ>", getLoc(occ), getLoc(scope), idRoles);
+            u = use(stripLeadingEscape("<occ>"), getLoc(occ), currentScope, idRoles);
             uses += [u];
             referPaths += {refer(u, pathRole)};
         } else {
-            throw "Cannot call `use_ref` on FRBuilder after `build`";
+            throw TypePalUsage("Cannot call `use_ref` on FRBuilder after `build`");
         }
     }
     
-    void _use_qual(Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles){
+    void _use_qual(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles){
         if(building){
-           uses += [useq(ids, getLoc(occ), getLoc(scope), idRoles, qualifierRoles)];
+           uses += [useq([stripLeadingEscape(id) | id <- ids], getLoc(occ), currentScope, idRoles, qualifierRoles)];
         } else {
-            throw "Cannot call `use_qual` on FRBuilder after `build`";
+            throw TypePalUsage("Cannot call `use_qual` on FRBuilder after `build`");
         }  
      }
-     void _use_qual_ref(Tree scope, list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole){
+     void _use_qual_ref(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole){
         if(building){
-            u = useq(ids, getLoc(occ), getLoc(scope), idRoles, qualifierRoles);
+            u = useq([stripLeadingEscape(id) | id <- ids], getLoc(occ), currentScope, idRoles, qualifierRoles);
             uses += [u];
             referPaths += {refer(u, pathRole)};
         } else {
-            throw "Cannot call `use_qual_ref` on FRBuilder after `build`";
+            throw TypePalUsage("Cannot call `use_qual_ref` on FRBuilder after `build`");
         } 
     }
     
-    void _addScope(Tree inner, Tree outer) { 
+    void _enterScope(Tree inner, bool lubScope=false){
         if(building){
-            innerLoc = getLoc(inner);
-            outerLoc = getLoc(outer);
-            if(innerLoc != outerLoc) scopes[innerLoc] = outerLoc; 
+           innerLoc = getLoc(inner);
+           if(innerLoc != currentScope){
+              scopes[innerLoc] = currentScope; 
+              currentScope = innerLoc;
+              scopeStack = push(<innerLoc, lubScope, ()>, scopeStack);
+              if(lubScope) lubScopes += innerLoc;
+           } else 
+           if(innerLoc == rootScope){
+              currentScope = innerLoc;
+              scopeStack = push(<innerLoc, lubScope, ()>, scopeStack);
+           } else {
+              throw TypePalUsage("Cannot call `enterScope` with inner scope that is equal to currentScope");
+           }
         } else {
-            throw "Cannot call `addScope` on FRBuilder after `build`";
+          throw TypePalUsage("Cannot call `enterScope` on FRBuilder after `build`");
         }
     }
-     
     
+    void _leaveScope(Tree inner){
+        if(building){
+           innerLoc = getLoc(inner);
+           if(innerLoc == currentScope){
+              scopeStack = tail(scopeStack);
+              if(isEmpty(scopeStack)){
+                 throw TypePalUsage("Cannot call `leaveScope` beyond the root scope"); 
+              }
+              currentScope = scopeStack[0].scope;
+           } else {
+              throw TypePalUsage("Cannot call `leaveScope` with a scope that is not the current scope"); 
+           }
+        } else {
+          throw TypePalUsage("Cannot call `leaveScope` on FRBuilder after `build`");
+        }
+    }
+    
+    void _setScopeInfo(Key scope, ScopeRole scopeRole, value scopeInfo){
+        if(building){           
+           for(int i <- index(scopeStack), <scope, lubScope, map[ScopeRole,value] scopeInfo2> := scopeStack[i]){
+               scopeStack[i].scopeInfo[scopeRole] = scopeInfo;
+               return;
+           }
+           throw TypePalUsage("`setScopeInfo` scope cannot be found");
+        } else {
+           throw TypePalUsage("Cannot call `setScopeInfo` on FRBuilder after `build`");
+        }
+    }
+    
+    lrel[Key scope, value scopeInfo] _getScopeInfo(ScopeRole scopeRole){
+        if(building){
+            return
+                for(<Key scope, lubScope, map[ScopeRole,value] scopeInfo> <- scopeStack, scopeRole in scopeInfo){
+                    append <scope, scopeInfo[scopeRole]>;
+          }
+        } else {
+           throw TypePalUsage("Cannot call `getScopeInfo` on FRBuilder after `build`");
+        }
+    }
+    
+    Key _getScope(){
+        if(building){
+            return currentScope;
+        } else {
+            throw TypePalUsage("Cannot call `getScope` on FRBuilder after `build`");
+        }
+    }
+   
     void _require(str name, Tree src, list[value] dependencies, void() preds){ 
         if(building){
            openReqs += { openReq(name, getLoc(src), dependenciesAsKeys(dependencies), false, preds) };
         } else {
-            throw "Cannot call `require` on FRBuilder after `build`";
+            throw TypePalUsage("Cannot call `require` on FRBuilder after `build`");
         }
     } 
     
@@ -334,23 +425,15 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
         if(building){
            openReqs += { openReq(name, getLoc(src), dependenciesAsKeys(dependencies), true, preds) };
         } else {
-            throw "Cannot call `require` on FRBuilder after `build`";
+            throw TypePalUsage("Cannot call `require` on FRBuilder after `build`");
         }
     } 
     
-    void _fact1(Tree tree, AType tp){  
+    void _fact(Tree tree, AType tp){  
         if(building){
            openFacts += { openFact(getLoc(tree), {}, makeClos1(tp)) };
         } else {
-            throw "Cannot call `atomicFact` on FRBuilder after `build`";
-        }
-    }
-    
-    void _fact2(Tree tree, list[value] dependencies, AType() getAType){
-        if(building){
-           openFacts += { openFact(getLoc(tree), dependenciesAsKeys(dependencies), getAType) };
-        } else {
-            throw "Cannot call `fact` on FRBuilder after `build`";
+            throw TypePalUsage("Cannot call `atomicFact` on FRBuilder after `build`");
         }
     }
     
@@ -358,14 +441,14 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
         if(building){
            calculators[getLoc(src)] = calculate(name, getLoc(src), dependenciesAsKeys(dependencies),  false, calculator);
         } else {
-            throw "Cannot call `calculate` on FRBuilder after `build`";
+            throw TypePalUsage("Cannot call `calculate` on FRBuilder after `build`");
         }
     }
     void _calculateEager(str name, Tree src, list[value] dependencies, AType() calculator){
         if(building){
            calculators[getLoc(src)] = calculate(name, getLoc(src), dependenciesAsKeys(dependencies),  true, calculator);
         } else {
-            throw "Cannot call `calculateOpen` on FRBuilder after `build`";
+            throw TypePalUsage("Cannot call `calculateOpen` on FRBuilder after `build`");
         }
     }
     
@@ -373,7 +456,7 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
        if(building){
           openReqs += { openReq("error", getLoc(src), {}, true, makeClosError(src, msg)) };
        } else {
-            throw "Cannot call `reportError` on FRBuilder after `build`";
+            throw TypePalUsage("Cannot call `reportError` on FRBuilder after `build`");
        }
     }
     
@@ -381,7 +464,7 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
         if(building){
            openReqs += { openReq("warning", getLoc(src), {}, true, makeClosWarning(src, msg)) };
         } else {
-            throw "Cannot call `reportWarning` on FRBuilder after `build`";
+            throw TypePalUsage("Cannot call `reportWarning` on FRBuilder after `build`");
         }
     }
     
@@ -389,19 +472,19 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
         if(building){
            openReqs += { openReq("info", getLoc(src), {}, true, makeClosInfo(src, msg)) };
         } else {
-            throw "Cannot call `reportInfo` on FRBuilder after `build`";
+            throw TypePalUsage("Cannot call `reportInfo` on FRBuilder after `build`");
         }
     }
     
-    AType _newTypeVar(Tree scope){
+    AType _newTypeVar(){
         if(building){
             ntypevar += 1;
             s = right("<ntypevar>", 10, "0");
             tv = |typevar:///<s>|;
-            tvScopes[tv] = getLoc(scope);
+            tvScopes[tv] = currentScope;
             return tvar(tv);
         } else {
-            throw "Cannot call `newTypeVar` on FRBuilder after `build`";
+            throw TypePalUsage("Cannot call `newTypeVar` on FRBuilder after `build`");
         }
     }
     
@@ -409,33 +492,42 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
         storeVals += <key, val>;
     }
     
+    set[value] _getStored(str key){
+        return storeVals[key];
+    }
+    
     void finalizeDefines(){
+        // recall: alias Define = tuple[Key scope, str id, IdRole idRole, Key defined, DefInfo defInfo];
         set[Define] extra_defines = {};
-       
-        for(<scope, id, role> <- lubKeys){
-            //println("<scope>, <id>, <role>");
-            if({fixedDef} := defines[scope, id, role]){
-                for(<Key defined, DefInfo defInfo> <- lubDefines[scope, id, role]){
-                    res = use(id, defined, scope, {role});
-                    //println("add use: <res>");
-                    uses += res;
-                }
-            } else { // No definition with fixed type
-                deps = {}; getATypes = [];
-                defineds = {};
-                loc firstDefined;
-                for(tuple[Key defined, DefInfo defInfo] info <- lubDefines[scope, id, role]){
-                    defineds += info.defined;
-                    if(!firstDefined? || info.defined.offset < firstDefined.offset){
-                        firstDefined = info.defined;
+        
+        for(scope <- lubScopes){   
+            lubDefs = lubDefines[scope];
+        
+            for(<str id, IdRole role> <- lubDefs<0,1>){
+                if({fixedDef} := defines[scope, id, role]){
+                    // A definition with fixed type
+                    for(<Key defined, DefInfo defInfo> <- lubDefines[scope, id, role]){
+                        res = use(id, defined, scope, {role});
+                        //println("finalizeDefines: add use: <res>");
+                        uses += res;
                     }
-                    deps += info.defInfo.dependsOn;
-                    getATypes += info.defInfo.getATypes;
+                } else {  // No definition with fixed type
+                    deps = {}; getATypes = [];
+                    defineds = {};
+                    loc firstDefined;
+                    for(tuple[Key defined, DefInfo defInfo] info <- lubDefines[scope, id, role]){
+                        defineds += info.defined;
+                        if(!firstDefined? || info.defined.offset < firstDefined.offset){
+                            firstDefined = info.defined;
+                        }
+                        deps += info.defInfo.dependsOn;
+                        getATypes += info.defInfo.getATypes;
+                    }
+                  
+                    res = <scope, id, role, firstDefined, defLub(deps - defineds, defineds, getATypes)>;
+                    //println("finalizeDefines: add define: <res>");
+                    extra_defines += res;
                 }
-              
-                res = <scope, id, role, firstDefined, defLub(deps - defineds, defineds, getATypes)>;
-                //println("add define: <res>");
-                extra_defines += res;
             }
         }
         defines += extra_defines;
@@ -458,11 +550,16 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
            frm.openReqs = openReqs;
            frm.tvScopes = tvScopes;
            frm.store = storeVals;
-           frm.definitions = ( def.defined : def | Define def <- frm.defines);
+           frm.definitions = ( def.defined : def | Define def <- defines);
+           definesMap = ();
+           for(<Key scope, str id, IdRole idRole, Key defined, DefInfo defInfo> <- defines){
+                definesMap[<scope, id>] = definesMap[<scope, id>]? ?  definesMap[<scope, id>] + {<idRole, defined>} : {<idRole, defined>};
+           }
+           frm.definesMap = definesMap;
            frm.messages = messages;
            return frm; 
         } else {
-           throw "Cannot call `build` on FRBuilder after `build`";
+           throw TypePalUsage("Cannot call `build` on FRBuilder after `build`");
         }
     }
     
@@ -471,11 +568,15 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
                      _use_ref, 
                      _use_qual, 
                      _use_qual_ref, 
-                     _addScope, 
+                     _enterScope, 
+                     _leaveScope,
+                     _setScopeInfo,
+                     _getScopeInfo,
+                     _getScope,
                      _require, 
                      _requireEager,
-                     _fact1, 
-                     _fact2, 
+                     _fact, 
+                     //_fact, 
                      _calculate, 
                      _calculateEager,
                      _reportError, 
@@ -483,5 +584,6 @@ FRBuilder newFRBuilder(Tree t, bool debug = false){
                      _reportInfo, 
                      _newTypeVar, 
                      _store,
+                     _getStored,
                      _build); 
 }

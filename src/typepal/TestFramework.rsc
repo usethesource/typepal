@@ -67,44 +67,51 @@ str deescape(str s)  {  // copied from RascalExpression, belongs in library
     return res;
 }
 
-bool runTests(loc tests, type[&T<:Tree] begin, 
-              FRBuilder(Tree t) frBuilder = defaultFRBuilder,
-              set[Key] (FRModel, Use) lookupFun = lookup,
-              bool verbose = false
-){
+//bool runTests(loc tests, type[&T<:Tree] begin, 
+//              FRBuilder(Tree t) frBuilder = defaultFRBuilder,
+//              set[Key] (FRModel, Use) lookupFun = lookup,
+//              bool verbose = false
+//){
+
+bool runTests(list[loc] suites, FRModel(str txt) getModel, bool verbose = false){
     TTL ttlProgram;
     
-    tr = parse(#start[TTL], tests, allowAmbiguity=true);
-
-    // TODO: layout of the subject language may interfere with laout of TTL
-   //       but this is a too harsh measure!
-   
-    if(amb(set[Tree] alternatives) := tr){
-        ttlProgram = visit(tr){ case amb(set[Tree] alternatives1) => getOneFrom(alternatives1) }.top;
-    } else {
-        ttlProgram = visit(tr.top){ case amb(set[Tree] alternatives2) => getOneFrom(alternatives2) };
-    }
-
-    ok = true;
     failedTests = ();
     ntests = 0;
-    for(ti <- ttlProgram.items){
-        ntests += 1;
-        try {
-          p = parse(begin, "<ti.tokens>");
-          model = validate(extractFRModel(p, frBuilder=frBuilder, lookupFun=lookupFun), lookupFun=lookupFun, debug=false);
-          //iprintln(model);
-          messages = model.messages;
-          if(verbose) println("runTests: <messages>");
-          ok = ok && isEmpty(messages);
-          expected = ti.expect is none ? {} : {deescape("<s>"[1..-1]) | TTL_String s <- ti.expect.messages};
-          result = (isEmpty(messages) && isEmpty(expected)) || all(emsg <- expected, any(eitem <- messages, matches(eitem.msg, emsg)));
-          println("Test <ti.name>: <result>");
-          if(!result) failedTests["<ti.name>"] = relocate(messages, ti.tokens@\loc); 
-          //if(!result) iprintln(relocate(model, ti.tokens@\loc));  
-       } catch ParseError(loc l): {
-            failedTests["<ti.name>"]  = {error("Parse error", relocate(l, ti.tokens@\loc))};
-       } 
+    ok = true;
+    for(suite <- suites){
+        tr = parse(#start[TTL], suite, allowAmbiguity=true);
+    
+        // TODO: layout of the subject language may interfere with laout of TTL
+       //       but this is a too harsh measure!
+       
+        if(amb(set[Tree] alternatives) := tr){
+            ttlProgram = visit(tr){ case amb(set[Tree] alternatives1) => getOneFrom(alternatives1) }.top;
+        } else {
+            ttlProgram = visit(tr.top){ case amb(set[Tree] alternatives2) => getOneFrom(alternatives2) };
+        }
+    
+       
+
+        for(ti <- ttlProgram.items){
+            ntests += 1;
+            try {
+              //p = parse(begin, "<ti.tokens>");
+              //model = validate(extractFRModel(p, frBuilder=frBuilder, lookupFun=lookupFun), lookupFun=lookupFun, debug=false);
+              model = getModel("<ti.tokens>");
+              //iprintln(model);
+              messages = model.messages;
+              if(verbose) println("runTests: <messages>");
+              ok = ok && isEmpty(messages);
+              expected = ti.expect is none ? {} : {deescape("<s>"[1..-1]) | TTL_String s <- ti.expect.messages};
+              result = (isEmpty(messages) && isEmpty(expected)) || all(emsg <- expected, any(eitem <- messages, matches(eitem.msg, emsg)));
+              println("Test <ti.name>: <result>");
+              if(!result) failedTests[<"<ti.name>", suite>] = relocate(messages, ti.tokens@\loc); 
+              //if(!result) iprintln(relocate(model, ti.tokens@\loc));  
+           } catch ParseError(loc l): {
+                failedTests[<"<ti.name>", suite>]  = {error("Parse error", relocate(l, ti.tokens@\loc))};
+           } 
+        }
     }
     nfailed = size(failedTests);
     println("Test summary: <ntests> tests executed, <ntests - nfailed> succeeded, <nfailed> failed");
@@ -112,11 +119,12 @@ bool runTests(loc tests, type[&T<:Tree] begin,
         println("Failed tests:");
         for(failed <- failedTests){
             msgs = failedTests[failed];
+            <name, suite> = failed;
            
             if(isEmpty(msgs)){
-                println("<failed>:\tExpected message not found");
+                println("<suite>, <name>:\tExpected message not found");
             } else {
-                println("<failed>:");
+                println("<suite>, <name>:");
                 for(msg <- msgs){
                     println("\t<msg>");
                 }

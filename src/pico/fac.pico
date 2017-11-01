@@ -1,12 +1,16 @@
 begin declare input : natural,  
+<<<<<<< HEAD
               output : natural,      
+=======
+              output : natural,       
+>>>>>>> 40b0944d6801fa5e0b892330c740cc334db88760
               repnr : natural,
               rep : natural,
               s1 : string,
               s2 : string;
       input := 14;
       output := 1;
-      while input1 - 1 do 
+      while input - 1 do 
           rep := output;
           repnr := input;
           while repnr - 1 do
