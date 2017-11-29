@@ -67,7 +67,7 @@ str deescape(str s)  {  // copied from RascalExpression, belongs in library
     return res;
 }
 
-bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, bool verbose = false){
+bool runTests(list[loc] suites, TModel(str txt) getModel, bool verbose = false){
     TTL ttlProgram;
     
     failedTests = ();
@@ -90,21 +90,17 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
         for(ti <- ttlProgram.items){
             ntests += 1;
             try {
-              newTree = visit(parse(begin, "<ti.tokens>")) {
-                case Tree t => t[@\loc = relocate(t@\loc, ti.tokens@\loc)]
-                    when t has \loc
-              };
-              model = getModel(newTree);
+              model = getModel("<ti.tokens>");
               messages = model.messages;
               if(verbose) println("runTests: <messages>");
               ok = ok && isEmpty(messages);
               expected = ti.expect is none ? {} : {deescape("<s>"[1..-1]) | TTL_String s <- ti.expect.messages};
               result = (isEmpty(messages) && isEmpty(expected)) || all(emsg <- expected, any(eitem <- messages, matches(eitem.msg, emsg)));
               println("Test <ti.name>: <result>");
-              if(!result) failedTests[<"<ti.name>", suite>] = messages; 
-              //if(!result) iprintln(model);  
+              if(!result) failedTests[<"<ti.name>", suite>] = relocate(messages, ti.tokens@\loc); 
+              //if(!result) iprintln(relocate(model, ti.tokens@\loc));  
            } catch ParseError(loc l): {
-                failedTests[<"<ti.name>", suite>]  = {error("Parse error", l)};
+                failedTests[<"<ti.name>", suite>]  = {error("Parse error", relocate(l, ti.tokens@\loc))};
            } 
         }
     }
@@ -129,7 +125,27 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
     return ok;
 }
 
-loc relocate(loc osrc, loc base) = (base.top)[offset = base.offset + osrc.offset][length = osrc.length];
+loc relocate(loc osrc, loc base){
+    //println("relocate: <osrc>, <base>");
+    nsrc = base;
+    
+    offset = base.offset + osrc.offset;
+    length = osrc.length;
+    
+    endline = base.begin.line + osrc.end.line - 1;
+    beginline = base.begin.line + osrc.begin.line - 1;
+    
+    begincolumn = osrc.begin.line == 1 ? base.begin.column + osrc.begin.column
+                                       : osrc.begin.column;
+   
+    endcolumn = osrc.end.line == 1 ? base.begin.column + osrc.end.column
+                                   : osrc.end.column;
+    
+    return |<base.scheme>://<base.authority>/<base.path>|(offset, length, <beginline, begincolumn>, <endline, endcolumn>);
+    
+    //println("relocate with base <base>: from <osrc> to <nsrc>");
+    return nsrc;
+}
 
 Message relocate(Message msg, loc base){
     msg.at = relocate(msg.at, base);
