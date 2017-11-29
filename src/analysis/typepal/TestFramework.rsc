@@ -10,7 +10,7 @@ Redistribution and use in source and binary forms, with or without modification,
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 }
-module typepal::TestFramework
+module analysis::typepal::TestFramework
 
 import ParseTree;
 import IO;
@@ -19,7 +19,7 @@ import Set;
 import Map;
 import List;
 
-extend typepal::TypePal;
+extend analysis::typepal::TypePal;
 import analysis::grammars::Ambiguity;
 
 //import util::IDE;
@@ -67,13 +67,7 @@ str deescape(str s)  {  // copied from RascalExpression, belongs in library
     return res;
 }
 
-//bool runTests(loc tests, type[&T<:Tree] begin, 
-//              FRBuilder(Tree t) frBuilder = defaultFRBuilder,
-//              set[Key] (FRModel, Use) lookupFun = lookup,
-//              bool verbose = false
-//){
-
-bool runTests(list[loc] suites, FRModel(str txt) getModel, bool verbose = false){
+bool runTests(list[loc] suites, TModel(str txt) getModel, bool verbose = false){
     TTL ttlProgram;
     
     failedTests = ();
@@ -96,10 +90,7 @@ bool runTests(list[loc] suites, FRModel(str txt) getModel, bool verbose = false)
         for(ti <- ttlProgram.items){
             ntests += 1;
             try {
-              //p = parse(begin, "<ti.tokens>");
-              //model = validate(extractFRModel(p, frBuilder=frBuilder, lookupFun=lookupFun), lookupFun=lookupFun, debug=false);
               model = getModel("<ti.tokens>");
-              //iprintln(model);
               messages = model.messages;
               if(verbose) println("runTests: <messages>");
               ok = ok && isEmpty(messages);
@@ -164,8 +155,8 @@ Message relocate(Message msg, loc base){
 set[Message] relocate(set[Message] messages, loc base)
     = { relocate(msg, base) | msg <- messages };
 
-FRModel relocate(FRModel frm, loc base){
-    return visit(frm) {
+TModel relocate(TModel tm, loc base){
+    return visit(tm) {
            case loc l => relocate(l, base) when l.scheme == "unknown"
     }
 
