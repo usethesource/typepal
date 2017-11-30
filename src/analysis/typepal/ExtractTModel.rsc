@@ -123,7 +123,7 @@ data TModel (
         set[Fact] openFacts = {},
         set[Requirement] openReqs = {},
         map[loc,loc] tvScopes = (),
-        set[Message] messages = {},
+        list[Message] messages = {},
         map[str,value] store = (),
         map[Key, Define] definitions = ()
         );
@@ -318,7 +318,7 @@ TModel resolvePath(TModel tm, set[Key] (TModel, Use) lookupFun = lookup){
     for(c <- tm.referPaths){
         msgs += error("Reference to name <fmt(c.use.id)> cannot be resolved", c.use.occ);
     }
-    tm.messages += msgs;
+    tm.messages += [*msgs];
     return tm;
 }
 
@@ -833,7 +833,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
     }
     
     void _addTModel(TModel tm){
-        messages += tm.messages;
+        messages += {*tm.messages};
         scopes += tm.scopes;
         defines += tm.defines;
         facts += tm.facts;
@@ -879,7 +879,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
            //}
            tm.definesMap = definesMap;
            defines = {};
-           tm.messages = messages;
+           tm.messages = [*messages];
            return tm; 
         } else {
            throw TypePalUsage("Cannot call `build` on TBuilder after `build`");

@@ -626,7 +626,7 @@ TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool 
     openFacts = extractedTModel.openFacts;
     bindings = ();
     openReqs = extractedTModel.openReqs;
-    messages = extractedTModel.messages;
+    messages = {*extractedTModel.messages};
     triggersRequirement = ();
     triggersFact = ();
   
@@ -911,7 +911,7 @@ TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool 
            }
        }
        tmodel.facts = facts;
-       tmodel.messages = filterMostPrecise(messages);
+       tmodel.messages = sortMostPrecise([*messages]);
        
        if(cdebug) println("Derived facts: <size(tmodel.facts)>");
        return tmodel;
@@ -938,5 +938,5 @@ set[str] getVocabulary(TModel tmodel)
 map[loc, AType] getFacts(TModel tmodel)
     = tmodel.facts;
 
-set[Message] getMessages(TModel tmodel)
+list[Message] getMessages(TModel tmodel)
     = tmodel.messages;

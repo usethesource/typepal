@@ -48,25 +48,12 @@ str intercalateOr(list[str] strs){
       };
 }
 
-set[Message] filterMostPrecise(set[Message] messages){
-//  = { msg | msg <- messages, !any(msg2 <- messages, surrounds(msg, msg2)) };
-    map[int, set[Message]] tbl = ();
-    for(msg <- messages){
-        line = msg.at.begin.line;
-        if(tbl[line]?) tbl[line] += msg; else tbl[line] = {msg};
-    }
-    result = {}; 
-    for(line <- tbl){
-        alts = tbl[line];
-        result += { msg | msg <- alts, !any(msg2 <- alts, surrounds(msg, msg2)) };
-    };
-    return result;
-}
+list[Message] sortMostPrecise(list[Message] messages)
+    = sort(messages, bool (Message a, Message b) {
+        loc al = a.at;
+        loc bl = b.at;
+        return (al.length / 10) > (bl.length / 10) || al.top > bl.top;
+    });
 
-set[Message] filterMostGlobal(set[Message] messages) = messages;
+list[Message] filterMostGlobal(set[Message] messages) = [*messages];
 // = { msg | msg <- messages, !any(msg2 <- messages, surrounds(msg2, msg)) };
-    
-bool surrounds (Message msg1, Message msg2){
-    // TODO: return msg1.at > msg2.at should also work but does not.
-    return msg1.at.offset <= msg2.at.offset && msg1.at.offset + msg1.at.length > msg2.at.offset + msg2.at.length;
-}
