@@ -52,7 +52,7 @@ list[Message] sortMostPrecise(list[Message] messages)
     = sort(messages, bool (Message a, Message b) {
         loc al = a.at;
         loc bl = b.at;
-        return (al.length / 10) > (bl.length / 10) || al.top > bl.top;
+        return (al.length / 10) < (bl.length / 10) || al.top < bl.top;
     });
 
 list[Message] filterMostGlobal(set[Message] messages) = [*messages];
