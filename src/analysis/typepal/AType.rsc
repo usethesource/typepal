@@ -22,7 +22,7 @@ default str prettyPrintAType(overloadedAType(rel[Key, IdRole, AType] overloads))
 default str prettyPrintAType(AType tp)              = "<tp>";
 
 // AType utilities
-bool isTypeVariable(loc tv) = tv.scheme == "typevar"; 
+bool isTypeVariable(loc tv) = startsWith(tv.scheme, "typevar+"); 
 
 data RuntimeException
     = checkFailed(set[Message] msgs)

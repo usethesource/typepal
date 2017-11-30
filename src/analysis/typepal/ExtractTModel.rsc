@@ -367,7 +367,7 @@ alias LubDefine = tuple[Key lubScope, str id, Key scope, IdRole idRole, Key defi
 alias LubDefine2 = tuple[str id, Key scope, IdRole idRole, Key defined, DefInfo defInfo];       
 
 TBuilder newTBuilder(Tree t, bool debug = false){
-    str rootPath = getLoc(t).path;
+    loc rootLoc = getLoc(t).top;
     Key globalScope = |global-scope:///|;
     Defines defines = {};
     //set[LubDefine] lubDefines = {};
@@ -645,7 +645,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
         if(building){
             ntypevar += 1;
             s = right("<ntypevar>", 10, "0");
-            tv = |typevar://<rootPath>/<s>|;
+            tv = rootLoc[scheme="typevar+<rootLoc.scheme>"] + "<s>";
             tvScopes[tv] = currentScope;
             //println("newTypeVar: <tv> in scope <currentScope>");
             return tvar(tv);
