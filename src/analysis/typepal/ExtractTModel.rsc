@@ -123,7 +123,7 @@ data TModel (
         set[Fact] openFacts = {},
         set[Requirement] openReqs = {},
         map[loc,loc] tvScopes = (),
-        list[Message] messages = {},
+        list[Message] messages = [],
         map[str,value] store = (),
         map[Key, Define] definitions = ()
         );
@@ -417,8 +417,6 @@ TBuilder newTBuilder(Tree t, bool debug = false){
             else throw TypePalUsage("Argument `def` of `define` should be `Tree` or `loc`, found <typeOf(def)>");
             
             if(info is defLub){
-            if(id == "Y")
-                println("**** defLub Y, <getLoc(def)>");
                 //lubDefines += {<currentLubScope, id, currentScope, idRole, l, info>};                
                 lubDefinesPerLubScope[currentLubScope] += {<id, currentScope, idRole, l, info>};
             } else {
