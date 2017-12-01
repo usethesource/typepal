@@ -101,7 +101,7 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
               if(!result) failedTests[<"<ti.name>", suite>] = messages; 
               //if(!result) iprintln(model);  
            } catch ParseError(loc l): {
-                failedTests[<"<ti.name>", suite>]  = {error("Parse error", l)};
+                failedTests[<"<ti.name>", suite>]  = [error("Parse error", l)];
            } 
         }
     }
@@ -126,7 +126,29 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
     return ok;
 }
 
-loc relocate(loc osrc, loc base) = (base.top)[offset = base.offset + osrc.offset][length = osrc.length];
+loc relocate(loc osrc, loc base){
+    //println("relocate: <osrc>, <base>");
+    nsrc = base;
+    
+    offset = base.offset + osrc.offset;
+    length = osrc.length;
+    
+    endline = base.begin.line + osrc.end.line - 1;
+    beginline = base.begin.line + osrc.begin.line - 1;
+    
+    begincolumn = osrc.begin.line == 1 ? base.begin.column + osrc.begin.column
+                                       : osrc.begin.column;
+   
+    endcolumn = osrc.end.line == 1 ? base.begin.column + osrc.end.column
+                                   : osrc.end.column;
+    
+    return |<base.scheme>://<base.authority>/<base.path>|(offset, length, <beginline, begincolumn>, <endline, endcolumn>);
+    
+    //println("relocate with base <base>: from <osrc> to <nsrc>");
+    return nsrc;
+}
+
+//loc relocate(loc osrc, loc base) = (base.top)[offset = base.offset + osrc.offset][length = osrc.length];
 
 //void register() {
 //    registerLanguage("TTL", "ttl", Tree (str x, loc l) { return parse(#start[TTL], x, l, allowAmbiguity=true); });
