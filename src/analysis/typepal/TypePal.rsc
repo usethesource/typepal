@@ -841,8 +841,8 @@ TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool 
          openFactsToBeRemoved = {};
          for(Fact fct <- sort(openFacts, 
                               bool(Fact a, Fact b){
-                                asrc = a has src ? a.src : getFirstFrom(a.srcs);
-                                bsrc = b has src ? b.src : getFirstFrom(b.srcs);
+                                asrc = a has src ? a.src : sort(a.srcs)[0];
+                                bsrc = b has src ? b.src : sort(b.srcs)[0];
                                 return asrc < bsrc; })){
          //for(Fact fct <- openFacts){
              try {
