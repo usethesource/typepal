@@ -100,6 +100,14 @@ void clearBindings() {
     bindings = (); 
 }
 
+void keepBindings(loc tvScope) { 
+    if(!isEmpty(bindings)){
+        res = (b : bindings[b] | b <- bindings, b <= tvScope);
+        //println("keepBindings, <tvScope>: <bindings> ==\> <res>");
+       bindings = res;
+    }
+}
+
 AType lub(AType t1, AType t2) = lub([t1, t2]);
 
 AType lub(list[AType] atypes) {
@@ -118,7 +126,7 @@ AType lub(list[AType] atypes) {
         for(tvar(v) <- tvs){
             addFact(v, lubbedType);  
         }
-        println("lub: <atypes> ==\> <lubbedType>");
+        //println("lub: <atypes> ==\> <lubbedType>");
         return lubbedType;
     }
     lubArgs = lubbedType + tvs + other;
@@ -175,8 +183,8 @@ bool allDependenciesKnown(set[loc] deps, bool eager)
 
 bool isFullyInstantiated(AType atype){
     visit(atype){
-        case tvar(loc name): return facts[name]?;
-        case lazyLub(list[AType] atypes): return isEmpty(atypes) || all(AType tp <- atype, isFullyInstantiated(tp));
+        case tvar(loc name): if(!facts[name]?) return false;
+        case lazyLub(list[AType] atypes): if(!(isEmpty(atypes) || all(AType tp <- atype, isFullyInstantiated(tp)))) return false;
         case overloadedAType(rel[Key, IdRole, AType] overloads): all(<k, idr, tp> <- overloads, isFullyInstantiated(tp));
     }
     return true;
@@ -363,10 +371,12 @@ bool addFact(fct:openFact(loc src, set[loc] dependsOn,  AType() getAType)){
 }
 
 bool addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType()] getATypes)){
-    //if(cdebug)println("addFact: <fct>");
+    if(cdebug)println("addFact: <fct>");
     if(allDependenciesKnown(dependsOn, true)){
         try {    
-            tp =  (getATypes[0]() | myLUB(it, getAType()) | getAType <- getATypes[1..]);    
+            computedTypes = [getAType() | getAType <- getATypes];
+            tp = lub(computedTypes);
+            //tp =  (getATypes[0]() | myLUB(it, getAType()) | getAType <- getATypes[1..]);    
             for(def <- defines){ facts[def] = tp;  if(cdebug)println(" fact3 <def> ==\> <tp>");}
             for(def <- defines) { fireTriggers(def); }
             if(cdebug)println("\taddFact3: lub computed: <tp> for <defines>");
@@ -780,6 +790,7 @@ TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool 
        for(Key calcKey <- sort(domain(calculators), bool(Key a, Key b){ return a < b; })){
        //for(Key calcKey <- calculators){
           calc = calculators[calcKey];
+          if(cdebug) println("?calc [<calc.name>] at <calc.src>"); 
           if(allDependenciesKnown(calc.dependsOn, calc.eager)){
               try {
                 t = calc.calculator();
