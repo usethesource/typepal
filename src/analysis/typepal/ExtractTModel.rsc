@@ -41,7 +41,9 @@ data ScopeRole
 loc getLoc(Tree t)
     = t@\loc ? { fst = t.args[0]@\loc; 
                  lst = t.args[-1]@\loc;
-                 fst[length=lst.offset - fst.offset + lst.length][end=lst.end]; };
+                 n = fst[length=lst.offset - fst.offset + lst.length]; 
+                 (n.end? && lst.end?) ? n[end=lst.end] : n;
+                 };
 
 RuntimeException checkFailed(Tree where, str msg) = checkFailed({ error(msg, getLoc(where)) });
 RuntimeException checkFailed(loc where, str msg) = checkFailed({ error(msg, where) });
