@@ -347,7 +347,7 @@ data TBuilder
         void (Tree src, str msg) reportError,
         void (Tree src, str msg) reportWarning,
         void (Tree src, str msg) reportInfo,
-        AType () newTypeVar,
+        AType (Tree src) newTypeVar,
         //void (str key, value val) store,
         //set[value] (str key) getStored,
         void(str key, value val) push,
@@ -642,11 +642,10 @@ TBuilder newTBuilder(Tree t, bool debug = false){
         }
     }
     
-    AType _newTypeVar(){
+    AType _newTypeVar(Tree src){
         if(building){
-            ntypevar += 1;
-            s = right("<ntypevar>", 10, "0");
-            tv = rootLoc[scheme="typevar+<rootLoc.scheme>"] + "<s>";
+            tvLoc = getLoc(src);
+            tv = tvLoc; //tvLoc[scheme="typevar+<tvLoc.scheme>"];
             tvScopes[tv] = currentScope;
             //println("newTypeVar: <tv> in scope <currentScope>");
             return tvar(tv);
@@ -710,7 +709,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
         }
         if({role} := roles){
             res = <scope, id, role, firstDefined, defLub(deps - defineds, defineds, getATypes)>;
-            //println("finalizeDefines: add define:");  iprintln(res);
+            println("mergeLubDefs: add define:");  iprintln(res);
             return res;
         } else 
              throw TypePalUsage("LubDefs should use a single role, found <fmt(roles)>");
