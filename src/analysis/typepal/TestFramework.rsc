@@ -102,7 +102,10 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
               //if(!result) iprintln(model);  
            } catch ParseError(loc l): {
                 failedTests[<"<ti.name>", suite>]  = [error("Parse error", relocate(l, ti.tokens@\loc))];
+           } catch Ambiguity(loc l, nt, inp): {
+                failedTests[<"<ti.name>", suite>]  = [error("Ambiguity (<nt> on `<inp>`)", relocate(l, ti.tokens@\loc))];
            } 
+
         }
     }
     nfailed = size(failedTests);
