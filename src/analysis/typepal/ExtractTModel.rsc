@@ -164,14 +164,6 @@ void printTModel(TModel tm){
 
 alias Key = loc;
 
-//TModel extractTModel(Tree root, TBuilder(Tree t) tBuilder = defaultTBuilder, set[Key] (TModel, Use) lookupFun = lookup){
-//    tb = tBuilder(root);
-//    collect(root, tb);
-//    tm = tb.build();
-//    tm = resolvePath(tm, lookupFun=lookup);
-//    return tm;
-//}
-
 void collect(Tree t1, Tree t2, TBuilder tb){
     collect(t1, tb);
     collect(t2, tb);
@@ -328,6 +320,7 @@ TModel resolvePath(TModel tm, set[Key] (TModel, Use) lookupFun = lookup){
 data TBuilder 
     = tbuilder(
         void (str id, IdRole idRole, value def, DefInfo info) define,
+        void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope,
         void (Tree occ, set[IdRole] idRoles) use,
         void (Tree occ, set[IdRole] idRoles) useLub,
         void (Tree occ, set[IdRole] idRoles, PathRole pathRole) useViaPath,
@@ -426,6 +419,28 @@ TBuilder newTBuilder(Tree t, bool debug = false){
             }
         } else {
             throw TypePalUsage("Cannot call `define` on TBuilder after `build`");
+        }
+    }
+    
+    void _defineInScope(value scope, str id, IdRole idRole, value def, DefInfo info){
+        if(building){
+            loc definingScope;
+            if(Tree tscope := scope) definingScope = getLoc(tscope);
+            else if(loc lscope := scope) definingScope = lscope;
+            else throw TypePalUsage("Argument `scope` of `defineInScope` should be `Tree` or `loc`, found <typeOf(scope)>");
+            
+            loc l;
+            if(Tree tdef := def) l = getLoc(tdef);
+            else if(loc ldef := def) l = ldef;
+            else throw TypePalUsage("Argument `def` of `defineInScope` should be `Tree` or `loc`, found <typeOf(def)>");
+            
+            if(info is defLub){
+                throw TypePalUsage("`defLub` cannot be used in combination with `defineInScope`");
+            } else {
+                defines += <definingScope, id, idRole, l, info>;
+            }
+        } else {
+            throw TypePalUsage("Cannot call `defineInScope` on TBuilder after `build`");
         }
     }
        
@@ -645,10 +660,8 @@ TBuilder newTBuilder(Tree t, bool debug = false){
     AType _newTypeVar(Tree src){
         if(building){
             tvLoc = getLoc(src);
-            tv = tvLoc; //tvLoc[scheme="typevar+<tvLoc.scheme>"];
-            tvScopes[tv] = currentScope;
-            //println("newTypeVar: <tv> in scope <currentScope>");
-            return tvar(tv);
+            tvScopes[tvLoc] = currentScope;
+            return tvar(tvLov);
         } else {
             throw TypePalUsage("Cannot call `newTypeVar` on TBuilder after `build`");
         }
@@ -709,7 +722,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
         }
         if({role} := roles){
             res = <scope, id, role, firstDefined, defLub(deps - defineds, defineds, getATypes)>;
-            println("mergeLubDefs: add define:");  iprintln(res);
+            //println("mergeLubDefs: add define:");  iprintln(res);
             return res;
         } else 
              throw TypePalUsage("LubDefs should use a single role, found <fmt(roles)>");
@@ -888,30 +901,31 @@ TBuilder newTBuilder(Tree t, bool debug = false){
     }
     
     return tbuilder(_define, 
-                     _use, 
-                     _useLub,
-                     _useViaPath, 
-                     _useQualified, 
-                     _useQualifiedViaPath, 
-                     _enterScope, 
-                     _leaveScope,
-                     _setScopeInfo,
-                     _getScopeInfo,
-                     _getScope,
-                     _require, 
-                     _requireEager,
-                     _fact,
-                     _calculate, 
-                     _calculateEager,
-                     _reportError, 
-                     _reportWarning, 
-                     _reportInfo, 
-                     _newTypeVar, 
-                     _push,
-                     _pop,
-                     _top,
-                     _getStack,
-                     _clearStack,
-                     _addTModel,
-                     _build); 
+                    _defineInScope,
+                    _use, 
+                    _useLub,
+                    _useViaPath, 
+                    _useQualified, 
+                    _useQualifiedViaPath, 
+                    _enterScope, 
+                    _leaveScope,
+                    _setScopeInfo,
+                    _getScopeInfo,
+                    _getScope,
+                    _require, 
+                    _requireEager,
+                    _fact,
+                    _calculate, 
+                    _calculateEager,
+                    _reportError, 
+                    _reportWarning, 
+                    _reportInfo, 
+                    _newTypeVar, 
+                    _push,
+                    _pop,
+                    _top,
+                    _getStack,
+                    _clearStack,
+                    _addTModel,
+                    _build); 
 }
