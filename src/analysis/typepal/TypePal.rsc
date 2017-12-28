@@ -359,7 +359,9 @@ bool mayReplace(loc src, AType newType){
     oldType = facts[src];
     if(tvar(x) := oldType) return true;
     if(tvar(x) := newType) return true;
-    return asubtype(oldType, newType);
+    try {
+        return myIsSubType(oldType, newType);
+    } catch TypePalUsage(s): return false;
 }
 
 bool addFact(fct:openFact(loc src, AType uninstantiated)){

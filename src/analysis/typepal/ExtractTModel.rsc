@@ -661,7 +661,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
         if(building){
             tvLoc = getLoc(src);
             tvScopes[tvLoc] = currentScope;
-            return tvar(tvLov);
+            return tvar(tvLoc);
         } else {
             throw TypePalUsage("Cannot call `newTypeVar` on TBuilder after `build`");
         }
