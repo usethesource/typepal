@@ -100,6 +100,7 @@ void clearBindings() {
     bindings = (); 
 }
 
+// Is inner location textually contained in outer location?
 bool containedIn(loc inner, loc outer){
     return inner.path == outer.path && inner.offset >= outer.offset && inner.offset + inner.length <= outer.offset + outer.length;
 }
@@ -197,22 +198,22 @@ bool isFullyInstantiated(AType atype){
 }
 // Find a (possibly indirect) binding
 AType find(loc src){
-    println("find: <src>");
+    //println("find: <src>");
     if(bindings[src]?){
         v = bindings[src];
         if(tvar(loc src1) := v && src1 != src && (bindings[src1]? || facts[src1]?)) return find(src1);
-        println("find==\> <v>");
+        //println("find==\> <v>");
         return v;
     }
     if(facts[src]?){
         v = facts[src];
         if(tvar(loc src1) := v && src1 != src && (bindings[src1]? || facts[src1]?)) return find(src1);
-        println("find==\> <v>");
+        //println("find==\> <v>");
         return v;
     }
    // if(isTypeVariable(src)) return tvar(src);  <===
    //return tvar(src);
-   println("find==\> <NoSuchKey(src)>");
+   //println("find==\> <NoSuchKey(src)>");
    throw NoSuchKey(src);
 }
 
@@ -331,19 +332,16 @@ default bool addFact(Define d) {  throw TypePalInternalError("Cannot handle <d>"
 
 
 bool addFact(loc l, AType atype){
-    println("addFact: <l>, <atype>");
+    //println("addFact: <l>, <atype>");
     iatype = instantiate(atype);
-    if(facts[l]? && facts[l] != iatype && tvar(x) !:= facts[l]) { println("#### <l>: <facts[l]> =!=\> <iatype>"); return false; }
+    if(!mayReplace(l, iatype)){ println("####5 <l>: <facts[l]> not replaced by <iatype>"); return false; }
     facts[l] = iatype;
     if(cdebug)println(" fact <l> ==\> <iatype>");
-    if(tvar(tvloc) !:= atype)
+    if(tvar(tvloc) := iatype){
+        triggersFact[tvloc] = (triggersFact[tvloc] ? {}) + {openFact(l, iatype)};
+    } else {
         fireTriggers(l);
-    //if(startsWith(l.scheme, "typevar+")){
-    //   l.scheme = replaceAll(l.scheme, "typevar+", "");
-    //   facts[l] = iatype;
-    //   if(cdebug)println(" fact <l> ==\> <iatype>");
-    //   fireTriggers(l);
-    //}
+    }
     return true;
 }
 
@@ -355,14 +353,23 @@ set[loc] getDependencies(AType atype){
     return deps;
 }
 
+// If we already have type info for a location, may we replace that with newer info?
+bool mayReplace(loc src, AType newType){
+    if(!facts[src]?) return true;
+    oldType = facts[src];
+    if(tvar(x) := oldType) return true;
+    if(tvar(x) := newType) return true;
+    return asubtype(oldType, newType);
+}
+
 bool addFact(fct:openFact(loc src, AType uninstantiated)){
     if(!(uninstantiated is lazyLub)){
         try {
-            println("uninstantiated: <uninstantiated>");
             iatype = getType(uninstantiated); //instantiate(uninstantiated); //getType(uninstantiated);
-            if(facts[src]? && facts[src] != iatype, tvar(x) !:= facts[src]) { println("#### <src>: <facts[src]> =!=\> <iatype>"); return true; }
+            if(!mayReplace(src, iatype)){ println("####1 <src>: <facts[src]> not replaced by <iatype>"); return true; }
             facts[src] = iatype;
-            fireTriggers(src);
+            dependsOn = getDependencies(iatype);
+            if(allDependenciesKnown(dependsOn, false) && src notin dependsOn) fireTriggers(src);
             return true;
         } catch TypeUnavailable(): /* cannot yet compute type */;
     }
@@ -378,7 +385,7 @@ bool addFact(fct:openFact(loc src, set[loc] dependsOn,  AType() getAType)){
     if(allDependenciesKnown(dependsOn, true)){
         try {
             iatype = getAType();
-            if(facts[src]? && facts[src] != iatype, tvar(x) !:= facts[src]) { println("#### <src>: <facts[src]> =!=\> <iatype>"); return true; }
+            if(!mayReplace(src, iatype)){ println("####2 <src>: <facts[src]> =!=\> <iatype>"); return true; }
             facts[src] = iatype;
             if(cdebug)println(" fact <src> ==\> <facts[src]>");
             fireTriggers(src);
@@ -393,18 +400,16 @@ bool addFact(fct:openFact(loc src, set[loc] dependsOn,  AType() getAType)){
 
 bool addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType()] getATypes)){
     if(cdebug)println("addFact LUB: <fct>");
-    for(d <- defines){
-        if(facts[d]?) println("<d> is already defined as <facts[d]>");
-    }
+    
     if(allDependenciesKnown(dependsOn, true)){
         try {    
-            computedTypes = [getAType() | getAType <- getATypes];
+            computedTypes = [instantiate(getAType()) | getAType <- getATypes];
             if(any(tp <- computedTypes, tvar(l) := tp)) throw TypeUnavailable();
             tp = lub(computedTypes);
             //tp =  (getATypes[0]() | myLUB(it, getAType()) | getAType <- getATypes[1..]);    
             for(def <- defines){ 
-               if(facts[def]? && facts[def] != tp && tvar(x) := facts[def]){
-                  println("#### <def>: <facts[def]> ==\> <tp>");
+               if(!mayReplace(def, tp)){
+                  println("####3 <def>: <facts[def]> not replaced by <tp>");
               } else {
                  facts[def] = tp;  
                  if(cdebug)println(" fact3 <def> ==\> <tp>");
@@ -433,8 +438,8 @@ bool addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType()] ge
         
         if(currentLub?){
             for(def <- defines){ 
-                if(facts[def]? && facts[def] != currentLub, tvar(x) !:= facts[def]){
-                    println("#### <def>: <facts[def]> =!=\> <currentLub>");
+                if(!mayReplace(def, currentLub)){
+                    println("####4 <def>: <facts[def]>not replaced by <currentLub>");
                 } else {
                     facts[def] = currentLub; 
                 }
@@ -464,16 +469,18 @@ default void addFact(Fact fct) {
 }
 
 void fireTriggers(loc l, bool protected=true){
-    //if(cdebug) 
-    println("\tfireTriggers: <l>");
+    //if(cdebug) println("\tfireTriggers: <l>");
     
     for(fct <- triggersFact[l] ? {}){        
         if(fct has uninstantiated || allDependenciesKnown(fct.dependsOn, true)){
            try {
-              //if(cdebug) 
-              println("\tfireTriggers: adding fact: <fct>");
+              if(cdebug) println("\tfireTriggers: adding fact: <fct>");
               openFacts -= fct;
-              addFact(fct);
+              if(fct has src){
+                 if(!facts[fct.src]? || tvar(x) := facts[fct.src]) addFact(fct);
+              } else {
+                 addFact(fct);
+              }
            } catch TypeUnavailable(): {
                   /* cannot yet compute type */;
                   if(!protected){
@@ -496,14 +503,14 @@ void bindings2facts(map[loc, AType] bindings, loc occ){
    
     for(b <- bindings){
         if(cdebug) println("bindings2facts: <b>, <facts[b]?>");
-        if(!facts[b]?){
+        if(!facts[b]? || tvar(x) := facts[b]){
            addFact(b, bindings[b]);
            if(cdebug) println("bindings2facts, added: <b> : <bindings[b]>");
         } else {
            oldTp = facts[b];
            if(lazyLub(list[AType] atypes) := oldTp){
               addFact(b, bindings[b]);
-              if(cdebug) println("bindings2facts, added: <b> : <bindings[b]>");
+              if(cdebug){ println("bindings2facts, added: <b> : <bindings[b]>"); }
            } else
            if(cdebug) println("bindings2facts, not added: <b>");
         }
@@ -580,7 +587,8 @@ AType getType(str id, Key scope, set[IdRole] idRoles){
             throw TypeUnavailable();
             }
        catch NoKey(): {
-            println("getType: <id> in scope <scope> ==\> TypeUnavailable1");
+            println("getType: <id> in scope <scope> as <idRoles> ==\> TypeUnavailable1");
+            for(d <- extractedTModel.defines, d.id == "type") println(d);
             throw TypeUnavailable();
        }
 }
@@ -610,7 +618,7 @@ set[Define] getDefinitions(str id, Key scope, set[IdRole] idRoles){
      } catch NoSuchKey(k):
             throw TypeUnavailable();
        catch NoKey(): {
-            println("getDefinitions: <id> in scope <scope> ==\> TypeUnavailable1");
+            println("getDefinitions: <id> in scope <scope> ==\> TypeUnavailable2");
             throw TypeUnavailable();
        }
 }
@@ -670,12 +678,12 @@ void fact(loc src, AType atype){
         addFact(src, atype);
 }
 
-// The "reportError" assertion 
+// Report an error: WARNING throws an exception and aborts normal control flow 
 void reportError(loc src, str msg){
     throw checkFailed({Message::error(msg, src)});
 }
 
-// The "reportWarning" assertion 
+// Report a warning: WARNING throws an exception and aborts normal control flow 
 void reportWarning(loc src, str msg){
     throw {Message::warning(msg, src)}; // TODO FIXME
 }
@@ -778,6 +786,7 @@ TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool 
     for(Requirement oreq <- openReqs){
        for(dep <- oreq.dependsOn){
            triggersRequirement[dep] = (triggersRequirement[dep] ? {}) + {oreq};
+           //println("add trigger <dep> ==\> <oreq.name>");
        }
     }
 
@@ -934,15 +943,6 @@ TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool 
        
        if(cdebug) println("..... solving complete");
        
-       //for(k <- facts){
-       //   if(tvar(l) := facts[k]){
-       //     l.scheme = replaceAll(l.scheme, "typevar+", "");
-       //     if(!facts[l]?){
-       //         println("$$$$$$$$$$$$$$ <l> is known!");
-       //     }
-       //   }
-       //
-       //}
        
        //iprintln(facts, lineLimit=10000);
     
