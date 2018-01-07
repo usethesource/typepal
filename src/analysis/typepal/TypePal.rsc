@@ -126,7 +126,7 @@ AType lub(list[AType] atypes) {
     other = [t | t <- atypes - tvs, !isFullyInstantiated(t) ];
     lubArgs = (lubbedType == minType ? [] : [lubbedType]) + [ t | t <- atypes, !isFullyInstantiated(t) ];
     if(size(tvs) == 1 && size(other) == 0 && lubbedType == minType){
-        //println("lub <atypes> ==\> <tvs[0]>");
+        println("lub <atypes> ==\> <tvs[0]>");
         return tvs[0];
     }
     if(size(tvs) >= 1 && size(other) == 0 && lubbedType != minType){
@@ -590,7 +590,6 @@ AType getType(str id, Key scope, set[IdRole] idRoles){
             }
        catch NoKey(): {
             println("getType: <id> in scope <scope> as <idRoles> ==\> TypeUnavailable1");
-            for(d <- extractedTModel.defines, d.id == "type") println(d);
             throw TypeUnavailable();
        }
 }
@@ -624,6 +623,13 @@ set[Define] getDefinitions(str id, Key scope, set[IdRole] idRoles){
             throw TypeUnavailable();
        }
 }
+
+set[Define] getDefinitions(Tree tree, set[IdRole] idRoles)
+    = getDefinitions(getLoc(tree), idRoles);
+
+set[Define] getDefinitions(Key scope, set[IdRole] idRoles)
+    = {<scope, id, idRole, defined, defInfo> | <str id, IdRole idRole, Key defined, DefInfo defInfo> <- extractedTModel.defines[scope], idRole in idRoles };
+
 
 // Check the "equal" predicate
 bool equal(AType given, AType expected){

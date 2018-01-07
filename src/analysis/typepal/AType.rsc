@@ -14,7 +14,7 @@ data AType
     ;
 
 // Pretty print ATypes
-str prettyPrintAType(tvar(loc name))                = "<name>";
+str prettyPrintAType(tvar(loc name))                = "typevar(<name>)";
 str prettyPrintAType(lazyLub(list[AType] atypes))   = "lub(<atypes>))";
 str prettyPrintAType(atypeList(list[AType] atypes)) = size(atypes) == 0 ? "empty list of types" : intercalate(", ", [prettyPrintAType(a) | a <- atypes]);
 default str prettyPrintAType(overloadedAType(rel[Key, IdRole, AType] overloads)) 

@@ -500,7 +500,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
               scopesPerLubScope[currentLubScope] += <currentScope, innerLoc>;
               currentScope = innerLoc;
               scopeStack = push(<innerLoc, lubScope, ()>, scopeStack);
-              if(lubScope){
+              if(lubScope && isEmpty(lubScopeStack)){   // Nested lubScopes are merged in outer lubScope
                 lubScopeStack = push(innerLoc, lubScopeStack);
                 currentLubScope = innerLoc;
                 definesPerLubScope[currentLubScope] = {};
@@ -851,6 +851,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
         scopes += tm.scopes;
         defines += tm.defines;
         facts += tm.facts;
+        paths += tm.paths;
     }
     
     TModel _build(){
