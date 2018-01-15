@@ -19,6 +19,20 @@ import Set;
 import List;
 import Relation;
 
+data TypePalConfig(
+        set[Key] (TModel, Use) lookup       = lookup,
+       
+        Accept (TModel tm, Key def, Use use) isAcceptableSimple     = defaultIsAcceptableSimple,
+        Accept (TModel tm, Key def, Use use) isAcceptableQualified  = defaultIsAcceptableQualified,
+        Accept (TModel tm, Key defScope, Key def, Use use, PathRole pathRole) isAcceptablePath = defaultIsAcceptablePath
+        ) = tconfig();
+
+void configScopeGraph(TypePalConfig tc){
+    isAcceptableSimpleFun = tc.isAcceptableSimple;
+    isAcceptableQualifiedFun = tc.isAcceptableQualified;
+    isAcceptablePathFun = tc.isAcceptablePath;
+}
+
 private bool luDebug = false;
 
 alias Key = loc;    // a syntactic range in the source code
@@ -31,13 +45,22 @@ data Exception
 // IdRole: the various (language-specific) roles identifiers can play.
 // Initially IdRole is empty but is extended in a language-specific module
 
-data IdRole;
+data IdRole
+    = variableId()
+    ;
 
 // PathRole: the various (language-specific) labelled semantic paths
 // between program parts
 // Initially PathRole is empty but may be extended in a language-specific module
 
 data PathRole;
+
+// ScopeRole: the various (language-specific) roles scopes can play.
+// Initially ScopeRole only provides the rootScope but is extended in a language-specific module
+
+data ScopeRole
+    = anonymousScope()
+    ;
     
 // Applied occurrence (use) of id for given IdRoles
 // IdRoles are used to fold multiple scopeGraphs into one 
@@ -77,7 +100,6 @@ data TModel (
     Paths paths = {}, 
     ReferPaths referPaths = {},
     Uses uses = [],
-    //map[tuple[Key, str], rel[IdRole idRole, Key defined]] definesMap = ()
     map[Key, map[str, rel[IdRole idRole, Key defined]]] definesMap = ()
 )   = tmodel()
     ;
@@ -106,7 +128,7 @@ private Key bind(TModel tm, Key scope, str id, set[IdRole] idRoles){
 private Key lookupScope(TModel tm, Key scope, Use use){
     if(luDebug) println("\tlookupScope: <scope>, <use>");
     def = bind(tm, scope, use.id, use.idRoles);
-    if(isAcceptableSimple(tm, def, use) == acceptBinding()){
+    if(isAcceptableSimpleFun(tm, def, use) == acceptBinding()){
        if(luDebug) println("\tlookupScope, <scope>. <use> ==\> <def>");
        return def;
     }
@@ -123,7 +145,7 @@ private list[Key] lookupPaths(TModel tm, Key scope, Use use, PathRole pathRole){
       for(<scope, pathRole, Key parent> <- tm.paths){
         try {
             def = lookupScope(tm, parent, use);
-            switch(isAcceptablePath(tm, parent, def, use, pathRole)){
+            switch(isAcceptablePathFun(tm, parent, def, use, pathRole)){
             case acceptBinding():
                append def;
              case ignoreContinue():
@@ -159,7 +181,7 @@ private Key lookupQual(TModel tm, Key scope, Use u){
               return candidates[0];
            }
            for(Key candidate <- candidates){
-               switch(isAcceptableSimple(tm, candidate, u)){
+               switch(isAcceptableSimpleFun(tm, candidate, u)){
                case acceptBinding():
                   return candidate;
                case ignoreContinue():
@@ -198,7 +220,7 @@ public Key lookup1(TModel tm, Use u){
     if(luDebug) println("lookup: <u>");
     if(!(u has qualifierRoles)){
        res = lookupNest(tm, scope, u);
-       if(isAcceptableSimple(tm, res, u) == acceptBinding()){
+       if(isAcceptableSimpleFun(tm, res, u) == acceptBinding()){
           if(luDebug) println("lookup: <u> ==\> <res>");
           return res;
        }
@@ -213,7 +235,7 @@ public Key lookup1(TModel tm, Use u){
        
             try {
                 res = lookupNest(tm, scope, use(u.ids[-1], u.occ, scope, u.idRoles));
-                if(isAcceptableQualified(tm, res, u) == acceptBinding()){
+                if(isAcceptableQualifiedFun(tm, res, u) == acceptBinding()){
                    if(luDebug) println("lookup: <u> ==\> <res>");
                    return res;
                 }
@@ -247,7 +269,7 @@ public set[Key] lookup(TModel tm, Use u){
 
 bool wdebug = false;
 
-//@memo
+@memo
 // Retrieve all bindings for use in given syntactic scope
 private set[Key] bindWide(TModel tm, Key scope, str id, set[IdRole] idRoles){
     preDefs = (tm.definesMap[scope] ? ())[id] ? {};
@@ -260,9 +282,10 @@ private set[Key] bindWide(TModel tm, Key scope, str id, set[IdRole] idRoles){
 private set[Key] lookupScopeWide(TModel tm, Key scope, Use use){
     //if(wdebug) println("\tlookupScopeWide: <use.id> in scope <scope>");
 
-    return {def | def <-  bindWide(tm, scope, use.id, use.idRoles), isAcceptableSimple(tm, def, use) == acceptBinding()}; 
+    return {def | def <-  bindWide(tm, scope, use.id, use.idRoles), isAcceptableSimpleFun(tm, def, use) == acceptBinding()}; 
 }
 
+@memo
 // Find all (semantics induced, one-level) bindings for use in given syntactic scope via PathRole
 private set[Key] lookupPathsWide(TModel tm, Key scope, Use use, PathRole pathRole){
     //if(wdebug) println("\tlookupPathsWide: <use.id> in scope <scope>, role <pathRole>\n<for(p <- tm.paths){>\t---- <p>\n<}>");
@@ -276,7 +299,7 @@ private set[Key] lookupPathsWide(TModel tm, Key scope, Use use, PathRole pathRol
             //if(wdebug) println("\tlookupPathsWide: scope: <scope>, trying semantic path to: <parent>");
             
             for(def <- lookupScopeWide(tm, parent, use)){
-                switch(isAcceptablePath(tm, parent, def, use, pathRole)){
+                switch(isAcceptablePathFun(tm, parent, def, use, pathRole)){
                 case acceptBinding():
                    res += def;
                  case ignoreContinue():
@@ -304,7 +327,7 @@ private set[Key] lookupQualWide(TModel tm, Key scope, Use u){
        candidates = lookupPathsWide(tm, scope, u, pathRole);
        //if(wdebug) println("\tlookupQualWide: candidates: <candidates>");
        for(Key candidate <- candidates){
-           switch(isAcceptableSimple(tm, candidate, u)){
+           switch(isAcceptableSimpleFun(tm, candidate, u)){
            case acceptBinding():
               res += candidate;
            case ignoreContinue():
@@ -342,7 +365,7 @@ public set[Key] lookupWide(TModel tm, Use u){
  
     //if(wdebug) println("lookupWide: <u>");
     if(!(u has qualifierRoles)){
-       defs = {def | def <- lookupNestWide(tm, scope, u), isAcceptableSimple(tm, def, u) == acceptBinding()};
+       defs = {def | def <- lookupNestWide(tm, scope, u), isAcceptableSimpleFun(tm, def, u) == acceptBinding()};
        //if(wdebug) println("lookupWide: <u> returns:\n<for(d <- defs){>\t==\> <d><}>");
        if(isEmpty(defs)) throw NoKey(); else return defs;
     } else {
@@ -358,7 +381,7 @@ public set[Key] lookupWide(TModel tm, Use u){
             defs = {};
             for(Key qscope <- qscopes){
                 scopeLookups = lookupNestWide(tm, qscope, use(u.ids[-1], u.occ, qscope, u.idRoles));
-                defs += { def | def <- scopeLookups, isAcceptableQualified(tm, def, u) == acceptBinding()};            
+                defs += { def | def <- scopeLookups, isAcceptableQualifiedFun(tm, def, u) == acceptBinding()};            
             }
             if(!isEmpty(defs)){
                 //if(wdebug) println("lookupWide: <u> returns:\n<for(d <- defs){>\t==\> <d><}>");
@@ -382,17 +405,28 @@ data Accept
     | ignoreSkipPath()
     ;
 
-default Accept isAcceptableSimple(TModel tm, Key candidate, Use use) {
+// isAcceptableSimple
+
+Accept defaultIsAcceptableSimple(TModel tm, Key candidate, Use use) {
     if(wdebug) println("default isAcceptableSimple: <use.id> candidate: <candidate>");
     return acceptBinding();
 }
 
-default Accept isAcceptablePath(TModel tm, Key defScope, Key def, Use use, PathRole pathRole) {
+Accept (TModel tm, Key candidate, Use use) isAcceptableSimpleFun = defaultIsAcceptableSimple;
+
+// isAcceptablePath
+
+Accept defaultIsAcceptablePath(TModel tm, Key defScope, Key def, Use use, PathRole pathRole) {
     if(wdebug) println("default isAcceptablePath: <use.id>, defScope: <defScope>, def <def>");
     return acceptBinding();
 }
 
-default Accept isAcceptableQualified(TModel tm, Key candidate, Use use) = acceptBinding();
+Accept (TModel tm, Key defScope, Key def, Use use, PathRole pathRole) isAcceptablePathFun = defaultIsAcceptablePath;
+
+// isAcceptableQualified
+Accept defaultIsAcceptableQualified(TModel tm, Key candidate, Use use) = acceptBinding();
+
+Accept (TModel tm, Key candidate, Use use) isAcceptableQualifiedFun = defaultIsAcceptableQualified;
 
 default bool checkPaths(TModel tm, Key from, Key to, PathRole pathRole, bool(TModel,Key) pred) {
     current = from;

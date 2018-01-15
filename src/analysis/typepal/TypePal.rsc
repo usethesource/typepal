@@ -27,31 +27,39 @@ import util::Benchmark;
 extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::AType;
 extend analysis::typepal::ExtractTModel;
+extend analysis::typepal::TypePalConfig;
 
 syntax ANONYMOUS_OCCURRENCE = "anonymous_occurence";
 private loc anonymousOccurrence = ([ANONYMOUS_OCCURRENCE] "anonymous_occurence")@\loc;
 
+// Configuration 
+
 bool cdebug = false;
 
-// ---- defaults for all my* functions
+bool(AType,AType) isSubTypeFun = defaultIsSubType;
 
-default bool myIsSubType(AType atype1, AType atype2) {
-    throw TypePalUsage("`subtype(<atype1>, <atype2>)` called but `myIsSubType` is not specified");
+AType(AType,AType) getLubFun = defaultGetLub;
+
+AType() getMinATypeFun = defaultgetMinAType;
+
+AType theMinAType = atypeList([]);
+
+AType() getMaxATypeFun = defaultgetMaxAType;
+
+bool defaultMayOverload(set[Key] defs, map[Key, Define] defines) = false;
+
+bool (set[Key] defs, map[Key, Define] defines) mayOverloadFun = defaultMayOverload;
+
+void configTypePal(TypePalConfig tc){
+    analysis::typepal::ScopeGraph::configScopeGraph(tc);
+    getMinATypeFun = tc.getMinAType;
+    theMinAType = tc.getMinAType();
+    getMaxATypeFun = tc.getMaxAType;
+    isSubTypeFun = tc.isSubType;
+    getLubFun = tc.getLub;
+    mayOverloadFun = tc.mayOverload;
+    lookupFun = tc.lookup;
 }
-
-default AType myLUB(AType atype1, AType atype2){
-    throw TypePalUsage("`lub(<atype1>, <atype2>)` called but `myLUB` is not specified");
-}
-
-default AType myATypeMin(){
-    throw TypePalUsage("`myATypeMin()` called but `myATypeMin` is not specified");
-}
-
-default AType myATypeMax(){
-    throw TypePalUsage("`myATypeMax()` called but `myATypeMax` is not specified");
-}
-
-default bool myMayOverload(set[Key] defs, map[Key, Define] defines) = false;
 
 // --- Error handling
 
@@ -100,11 +108,6 @@ void clearBindings() {
     bindings = (); 
 }
 
-// Is inner location textually contained in outer location?
-bool containedIn(loc inner, loc outer){
-    return inner.path == outer.path && inner.offset >= outer.offset && inner.offset + inner.length <= outer.offset + outer.length;
-}
-
 void keepBindings(loc tvScope) { 
     if(!isEmpty(bindings)){
         res = (b : bindings[b] | b <- bindings, containedIn(b, tvScope));
@@ -113,40 +116,71 @@ void keepBindings(loc tvScope) {
     }
 }
 
-AType lub(AType t1, AType t2) = lub([t1, t2]);
-
-AType lub(list[AType] atypes) {
-    atypes = toList(toSet(atypes));  // remove duplicates
-    //println("lub: <atypes>");
-    if(size(atypes) == 1) return atypes[0];
-    minType = myATypeMin();
-    lubbedType = (minType | myLUB(it, t) | t <- atypes, isFullyInstantiated(t));
-    tvs =  [ t | t <- atypes, tvar(v) := t ];
-    //for(tvar(v) <- tvs) println("<v>: <facts[v] ? "unknown">");
-    other = [t | t <- atypes - tvs, !isFullyInstantiated(t) ];
-    lubArgs = (lubbedType == minType ? [] : [lubbedType]) + [ t | t <- atypes, !isFullyInstantiated(t) ];
-    if(size(tvs) == 1 && size(other) == 0 && lubbedType == minType){
-        println("lub <atypes> ==\> <tvs[0]>");
-        return tvs[0];
-    }
-    if(size(tvs) >= 1 && size(other) == 0 && lubbedType != minType){
-        for(tvar(v) <- tvs){
-            addFact(v, lubbedType);  
+AType simplifyLub(list[AType] atypes) {
+    //println("simplifyLub: <atypes>");
+    lubbedType = theMinAType;
+    other = [];
+    for(t <- atypes){
+        if(isFullyInstantiated(t)){
+            lubbedType = getLubFun(lubbedType, t);
+        } else {
+            other += t; 
         }
-        //println("lub: <atypes> ==\> <lubbedType>");
-        return lubbedType;
     }
-    lubArgs = lubbedType + tvs + other;
-    res = minType;
-    switch(size(lubArgs)){
-        case 0: res = minType;
-        case 1: res = lubArgs[0];
-        default:
-                res = lazyLub(lubArgs);
+   
+    if(lubbedType != theMinAType){
+        bindings1 = bindings;
+        bindings = ();
+        other = [t | t <- other, !unify(lubbedType, t)];
+        for(b <- bindings){
+            println("add <b>, <bindings[b]>");
+            addFact(b, bindings[b]);
+        }
+        bindings = bindings1;
     }
-    //println("lub: <atypes> ==\> <res>");
+   res = lubbedType;
+    switch(size(other)){
+        case 0:  res = lubbedType;
+        case 1:  res = lubbedType == theMinAType ? other[0] : lazyLub(lubbedType + other);
+        default: res = lubbedType == theMinAType ? lazyLub(other) : lazyLub(lubbedType + other);
+    }
+    //println("simplifyLub: <atypes> ==\> <res>");
     return res;
 }
+
+//AType simplifyLub(list[AType] atypes) {
+//    atypes = toList(toSet(atypes));  // remove duplicates
+//    println("simplifyLub: <atypes>");
+//    if(size(atypes) == 1) return atypes[0];
+//    minType = getMinATypeFun();
+//    lubbedType = (minType | getLubFun(it, t) | t <- atypes, isFullyInstantiated(t));
+//    tvs =  [ t | t <- atypes, tvar(v) := t ];
+//    //for(tvar(v) <- tvs) println("<v>: <facts[v] ? "unknown">");
+//    other = [t | t <- atypes - tvs, !isFullyInstantiated(t) ];
+//    lubArgs = (lubbedType == minType ? [] : [lubbedType]) + [ t | t <- atypes, !isFullyInstantiated(t) ];
+//    if(size(tvs) == 1 && size(other) == 0 && lubbedType == minType){
+//        println("simplifyLub <atypes> ==\> <tvs[0]>");
+//        return tvs[0];
+//    }
+//    if(size(tvs) >= 1 && size(other) == 0 && lubbedType != minType){
+//        for(tvar(v) <- tvs){
+//            addFact(v, lubbedType);  
+//        }
+//        //println("simplifyLub: <atypes> ==\> <lubbedType>");
+//        return lubbedType;
+//    }
+//    
+//    lubArgs = lubbedType + tvs + other;
+//    res = minType;
+//    switch(size(lubArgs)){
+//        case 0: res = minType;
+//        case 1: res = lubArgs[0];
+//        default:
+//                res = lazyLub(lubArgs);
+//    }
+//    //println("simplifyLub: <atypes> ==\> <res>");
+//    return res;
+//}
 
 void printState(){
     println("Derived facts:");
@@ -176,7 +210,7 @@ void printState(){
     if(size(openReqs) > 0){
         println("Unresolved requirements:");
         for(rq <- openReqs){
-            println("\t<rq.name> at <rq.src>:");
+            println("\t<rq.rname> at <rq.src>:");
             for(atype <- rq.dependsOn){
                 println("\t  dependsOn: <atype><facts[atype]? ? "" : " ** unavailable **">");
             }
@@ -188,9 +222,14 @@ bool allDependenciesKnown(set[loc] deps, bool eager)
     = isEmpty(deps) || (eager ? all(dep <- deps, facts[dep]?)
                               : all(dep <- deps, facts[dep]?, isFullyInstantiated(facts[dep])));
 
+bool allDependenciesKnown(list[loc] deps, bool eager)
+    = isEmpty(deps) || (eager ? all(dep <- deps, facts[dep]?)
+                              : all(dep <- deps, facts[dep]?, isFullyInstantiated(facts[dep])));
+
+
 bool isFullyInstantiated(AType atype){
     visit(atype){
-        case tvar(loc name): if(!facts[name]? || tvar(name) := facts[name]) return false; //return facts[name]? && isFullyInstantiated(facts[name]);
+        case tvar(loc tname): if(!facts[tname]? || tvar(tname) := facts[tname]) return false; // return facts[tname]? && isFullyInstantiated(facts[tname]);
         case lazyLub(list[AType] atypes): if(!(isEmpty(atypes) || all(AType tp <- atype, isFullyInstantiated(tp)))) return false;
         case overloadedAType(rel[Key, IdRole, AType] overloads): all(<k, idr, tp> <- overloads, isFullyInstantiated(tp));
     }
@@ -238,7 +277,7 @@ AType instantiate(AType atype){
         case tv: tvar(loc src) => substitute(tv)
         case lazyLub(list[AType] atypes) : {
             sbs = [substitute(tp) | tp <- atypes];
-            insert lub(sbs);
+            insert simplifyLub(sbs);
             }
       };
 }
@@ -360,7 +399,7 @@ bool mayReplace(loc src, AType newType){
     if(tvar(x) := oldType) return true;
     if(tvar(x) := newType) return true;
     try {
-        return myIsSubType(oldType, newType);
+        return isSubTypeFun(oldType, newType);
     } catch TypePalUsage(s): return false;
 }
 
@@ -407,8 +446,8 @@ bool addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType()] ge
         try {    
             computedTypes = [instantiate(getAType()) | getAType <- getATypes];
             if(any(tp <- computedTypes, tvar(l) := tp)) throw TypeUnavailable();
-            tp = lub(computedTypes);
-            //tp =  (getATypes[0]() | myLUB(it, getAType()) | getAType <- getATypes[1..]);    
+            tp = simplifyLub(computedTypes);
+            //tp =  (getATypes[0]() | getLubFun(it, getAType()) | getAType <- getATypes[1..]);    
             for(def <- defines){ 
                if(!mayReplace(def, tp)){
                   println("####3 <def>: <facts[def]> not replaced by <tp>");
@@ -432,7 +471,7 @@ bool addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType()] ge
             try {
                 tp = getATypes[i]();
                 if(isFullyInstantiated(tp)){
-                    currentLub = currentLub? ? myLUB(currentLub, tp) : tp;
+                    currentLub = currentLub? ? getLubFun(currentLub, tp) : tp;
                     knownTypes[i] = tp;
                 }
             } catch TypeUnavailable(): /*println("unavailable: <i>")*/;
@@ -441,7 +480,7 @@ bool addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType()] ge
         if(currentLub?){
             for(def <- defines){ 
                 if(!mayReplace(def, currentLub)){
-                    println("####4 <def>: <facts[def]>not replaced by <currentLub>");
+                    println("####4 <def>: <facts[def]> not replaced by <currentLub>");
                 } else {
                     facts[def] = currentLub; 
                 }
@@ -495,12 +534,13 @@ void fireTriggers(loc l, bool protected=true){
     for(req <- triggersRequirement[l] ? {}){
         if(allDependenciesKnown(req.dependsOn, true)){
            requirementJobs += req;
-           //if(cdebug)println("\tfireTriggers: adding requirementJob: <req.name>, <req.src>");
+           //if(cdebug)println("\tfireTriggers: adding requirementJob: <req.rname>, <req.src>");
         }
     }
 }
 
 // The binding of a type variable that occurs inside the scope of that type variable can be turned into a fact
+@memo
 void bindings2facts(map[loc, AType] bindings, loc occ){
    
     for(b <- bindings){
@@ -572,6 +612,7 @@ AType getType(loc l){
     }
 }
 
+@memo
 AType getType(str id, Key scope, set[IdRole] idRoles){
     try {
         foundDefs = lookupFun(extractedTModel, use(id, anonymousOccurrence, scope, idRoles));
@@ -589,7 +630,7 @@ AType getType(str id, Key scope, set[IdRole] idRoles){
             throw TypeUnavailable();
             }
        catch NoKey(): {
-            println("getType: <id> in scope <scope> as <idRoles> ==\> TypeUnavailable1");
+            //println("getType: <id> in scope <scope> as <idRoles> ==\> TypeUnavailable1");
             throw TypeUnavailable();
        }
 }
@@ -619,7 +660,7 @@ set[Define] getDefinitions(str id, Key scope, set[IdRole] idRoles){
      } catch NoSuchKey(k):
             throw TypeUnavailable();
        catch NoKey(): {
-            println("getDefinitions: <id> in scope <scope> ==\> TypeUnavailable2");
+            //println("getDefinitions: <id> in scope <scope> ==\> TypeUnavailable2");
             throw TypeUnavailable();
        }
 }
@@ -638,12 +679,12 @@ bool equal(AType given, AType expected){
 
 // Check the "unify" predicate
 bool unify(AType given, AType expected){
-    if(tvar(name) := given){
-        bindings[name] = expected;
+    if(tvar(tname) := given){
+        bindings[tname] = expected;
             return true;
     }
-    if(tvar(name) := expected){
-        bindings[name] = given;
+    if(tvar(tname) := expected){
+        bindings[tname] = given;
             return true;
     }
     
@@ -660,7 +701,7 @@ bool unify(AType given, AType expected){
 bool subtype(AType small, AType large){
     extractedTModel.facts = facts;
     if(isFullyInstantiated(small) && isFullyInstantiated(large)){
-       r = myIsSubType(small, large);
+       r = isSubTypeFun(small, large);
        //println("subtype: <small>, <large> ==\> <r>");
        return r;
     } else {
@@ -671,11 +712,16 @@ bool subtype(AType small, AType large){
 default bool comparable(AType atype1, AType atype2){
     extractedTModel.facts = facts;
     if(isFullyInstantiated(atype1) && isFullyInstantiated(atype2)){
-        return myIsSubType(atype1, atype2) || myIsSubType(atype2, atype1);
+        return isSubTypFun(atype1, atype2) || isSubTypeFun(atype2, atype1);
     } else {
         throw TypeUnavailable();
     }
 }
+
+// lub
+
+AType lub(AType t1, AType t2) = simplifyLub([t1, t2]);
+AType lub(list[AType] atypes) = simplifyLub(atypes);
 
 // The "fact" assertion
 void fact(Tree t, AType atype){
@@ -701,7 +747,10 @@ void reportWarning(loc src, str msg){
  *  
  */
 
-TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool debug = false){
+TModel validate(TModel tmodel, bool debug = false){
+
+    configTypePal(tmodel.config);
+    
     // Initialize global state
     extractedTModel = tmodel;
       
@@ -714,7 +763,7 @@ TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool 
     triggersFact = ();
   
     requirementJobs = {};
-    lookupFun = lookupFun;
+    //lookupFun = lookupFun;
     
     //luDebug = debug;
     cdebug = debug;
@@ -794,7 +843,7 @@ TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool 
     for(Requirement oreq <- openReqs){
        for(dep <- oreq.dependsOn){
            triggersRequirement[dep] = (triggersRequirement[dep] ? {}) + {oreq};
-           //println("add trigger <dep> ==\> <oreq.name>");
+           //println("add trigger <dep> ==\> <oreq.rname>");
        }
     }
 
@@ -815,7 +864,7 @@ TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool 
     int ncalculators = size(calculators);
     
     
-    solve(nfacts, nopenReqs, nopenFacts, nopenUses, nrequirementJobs, ncalculators){   
+    solve(nfacts, nopenReqs, nopenFacts, nopenUses, nrequirementJobs, ncalculators){ 
         
         iterations += 1;
         
@@ -865,18 +914,18 @@ TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool 
        for(Key calcKey <- sort(domain(calculators), bool(Key a, Key b){ return a.offset < b.offset; })){
        //for(Key calcKey <- calculators){
           calc = calculators[calcKey];
-          if(cdebug) println("?calc [<calc.name>] at <calc.src>"); 
+          if(cdebug) println("?calc [<calc.cname>] at <calc.src>"); 
           if(allDependenciesKnown(calc.dependsOn, calc.eager)){
               try {
                 t = calc.calculator();
                 addFact(calcKey, t);
                 bindings2facts(bindings, calc.src);
-                if(cdebug) println("+calc [<calc.name>] at <calc.src> ==\> <t>"); 
+                if(cdebug) println("+calc [<calc.cname>] at <calc.src> ==\> <t>"); 
               } catch TypeUnavailable(): {
                 continue;
               } catch checkFailed(set[Message] msgs): {
                 messages += msgs;
-                if(cdebug) println("-calc [<calc.name>] at <calc.src> ==\> <msgs>");
+                if(cdebug) println("-calc [<calc.cname>] at <calc.src> ==\> <msgs>");
               }
               calculatorsToBeRemoved += calcKey;
           }
@@ -909,7 +958,7 @@ TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool 
                         }
                     }
                  }
-                 if(cdebug)println("<ok ? "+" : "-">requ [<oreq.name>] at <oreq.src>");
+                 if(cdebug)println("<ok ? "+" : "-">requ [<oreq.rname>] at <oreq.src>");
                  openReqsToBeRemoved += oreq;
                  requirementJobsToBeRemoved += oreq;
              } catch TypeUnavailable():/* cannot yet compute type */;
@@ -951,7 +1000,6 @@ TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool 
        
        if(cdebug) println("..... solving complete");
        
-       
        //iprintln(facts, lineLimit=10000);
     
        for (Use u <- openUses) {
@@ -963,14 +1011,21 @@ TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool 
           }
        }
     
-       for(Key l <- calculators){
+       for(Key l <- sort(domain(calculators), bool(Key a, Key b) { return a.length < b.length; })){
            calc = calculators[l];
-           deps = toList(calculators[l].dependsOn);
-           forDeps = isEmpty(deps) ? "" : " for <for(int i <- index(deps)){><facts[deps[i]]? ? "`<prettyPrintAType(facts[deps[i]])>`" : "`unknown type of <deps[i]>`"><i < size(deps)-1 ? "," : ""> <}>";
-           messages += error("Type of <calc.name> could not be computed<forDeps>", calc.src);
+           if(!alreadyReported(messages, calc.src)){
+              deps = calc.dependsOn;
+              forDeps = isEmpty(deps) ? "" : " for <for(int i <- index(deps)){><facts[deps[i]]? ? "`<prettyPrintAType(facts[deps[i]])>`" : "`unknown type of <deps[i]>`"><i < size(deps)-1 ? "," : ""> <}>";
+              messages += error("Type of <calc.cname> could not be computed<forDeps>", calc.src);
+           }
        }
+       
+       tmodel.calculators = calculators;
+       tmodel.openReqs = openReqs;
   
-       messages += { error("Invalid <req.name>; type of one or more subparts could not be inferred", req.src) | req <- openReqs};
+       for(req <- openReqs, !alreadyReported(messages, req.src)){
+           messages += error("Invalid <req.rname>; type of one or more subparts could not be inferred", req.src);
+       }
    
        if(cdebug){
            //println("----");
@@ -980,7 +1035,7 @@ TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool 
                println("Unresolved calculators:");
                for(c <- calculators){
                     calc = calculators[c];
-                    println("\t<calc.name> at <calc.src>:");
+                    println("\t<calc.cname> at <calc.src>:");
                     for(atype <- calc.dependsOn){
                         println("\t  dependsOn: <atype><facts[atype]? ? "" : " ** unavailable **">");
                     }
@@ -1002,6 +1057,16 @@ TModel validate(TModel tmodel,  set[Key] (TModel, Use) lookupFun = lookup, bool 
        tmodel.facts = facts;
        tmodel.messages = sortMostPrecise([*messages]);
        
+       // Clear globals, to be sure
+        facts = ();
+        openFacts = {};
+        bindings = ();
+        openReqs = {};
+        messages = {};
+        triggersRequirement = ();
+        triggersFact = ();
+        requirementJobs = {};
+    
        if(cdebug) println("Derived facts: <size(tmodel.facts)>");
        return tmodel;
 }

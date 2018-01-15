@@ -20,22 +20,9 @@ import Set;
 import Relation;
 extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::AType;
-//import rascal::ATypeUtils;
 import util::Benchmark;
 import IO;
-
-data RuntimeException
-    = TypePalUsage(str reason)
-    | TypePalInternalError(str reason)
-    | TypeUnavailable()
-    ;
-
-// ScopeRole: the various (language-specific) roles scopes can play.
-// Initially ScopeRole only provides the rootScope but is extended in a language-specific module
-
-data ScopeRole
-    = anonymousScope()
-    ;
+import analysis::typepal::TypePalConfig;
 
 //loc getLoc(Tree t) = t@\loc ? t.args[0]@\loc;
 
@@ -50,7 +37,7 @@ RuntimeException checkFailed(Tree where, str msg) = checkFailed({ error(msg, get
 RuntimeException checkFailed(loc where, str msg) = checkFailed({ error(msg, where) });
 
 // Extract (nested) tree locations and type variables from a list of dependencies
-list[Key] dependenciesAsKeyList(list[value] dependencies){
+list[Key] dependenciesAsKeyList(list[Tree] dependencies){
     return 
         for(d <- dependencies){
             if(Tree t := d){
@@ -63,7 +50,7 @@ list[Key] dependenciesAsKeyList(list[value] dependencies){
         };
 } 
 
-set[Key] dependenciesAsKeys(list[value] dependencies)
+set[Key] dependenciesAsKeys(list[Tree] dependencies)
     = toSet(dependenciesAsKeyList(dependencies));
 
 // Definition info used during type checking
@@ -74,10 +61,11 @@ data DefInfo
     | defLub(set[Key] dependsOn, set[Key] defines, list[AType()] getATypes)   // redefine previous definition
     ;
 
-DefInfo defType(list[value] dependsOn, AType() getAType)
-    = defType(dependenciesAsKeys(dependsOn), getAType);
+DefInfo defType(list[Tree] dependsOn, AType() getAType){
+    return defType(dependenciesAsKeys(dependsOn), getAType);
+ }
     
-DefInfo defLub(list[value] dependsOn, AType() getAType)
+DefInfo defLub(list[Tree] dependsOn, AType() getAType)
     = defLub(dependenciesAsKeys(dependsOn), {}, [getAType]);
 
 str fmt(AType t, bool quoted = true)            = quoted ? "`<prettyPrintAType(t)>`" : prettyPrintAType(t);
@@ -112,12 +100,12 @@ data Fact
 // A named requirement for location src, given dependencies and a callback predicate
 // Eager requirements are tried when not all dependencies are known.
 data Requirement
-    = openReq(str name, loc src, set[loc] dependsOn, bool eager, void() preds);
+    = openReq(str rname, loc src, list[loc] dependsOn, bool eager, void() preds);
 
 // Named type calculator for location src, given args, and resolve callback 
 // Eager calculators are tried when not all dependencies are known.   
 data Calculator
-    = calculate(str name, loc src, set[loc] dependsOn, bool eager, AType() calculator);
+    = calculate(str cname, loc src, list[loc] dependsOn, bool eager, AType() calculator);
 
 // The basic Fact & Requirement Model; can be extended in specific type checkers
 data TModel (
@@ -125,10 +113,11 @@ data TModel (
         map[loc,AType] facts = (), 
         set[Fact] openFacts = {},
         set[Requirement] openReqs = {},
-        map[loc,loc] tvScopes = (),
+ //       map[loc,loc] tvScopes = (),
         list[Message] messages = [],
         map[str,value] store = (),
-        map[Key, Define] definitions = ()
+        map[Key, Define] definitions = (),
+        TypePalConfig config = tconfig()
         );
 
 void printTModel(TModel tm){
@@ -287,7 +276,7 @@ void collectLexicalParts(Tree currentTree, TBuilder tb){
    delta = 2;
 }
 
-TModel resolvePath(TModel tm, set[Key] (TModel, Use) lookupFun = lookup){
+TModel resolvePath(TModel tm){
     msgs = {};
     int n = 0;
 
@@ -341,8 +330,6 @@ data TBuilder
         void (Tree src, str msg) reportWarning,
         void (Tree src, str msg) reportInfo,
         AType (Tree src) newTypeVar,
-        //void (str key, value val) store,
-        //set[value] (str key) getStored,
         void(str key, value val) push,
         value (str key) pop,
         value (str key) top,
@@ -362,13 +349,11 @@ TBuilder defaultTBuilder(Tree t) = newTBuilder(t);
 alias LubDefine = tuple[Key lubScope, str id, Key scope, IdRole idRole, Key defined, DefInfo defInfo]; 
 alias LubDefine2 = tuple[str id, Key scope, IdRole idRole, Key defined, DefInfo defInfo];       
 
-TBuilder newTBuilder(Tree t, bool debug = false){
+TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = false){
+    configScopeGraph(config);
     loc rootLoc = getLoc(t).top;
     Key globalScope = |global-scope:///|;
     Defines defines = {};
-    //set[LubDefine] lubDefines = {};
-    
-    //rel[loc lubScope, str id, loc idScope, set[IdRole] idRoles, loc occ] lubUses = {};
     
     map[Key, set[Define]] definesPerLubScope = (globalScope: {});
     map[Key, set[LubDefine2]] lubDefinesPerLubScope = (globalScope: {});
@@ -387,8 +372,8 @@ TBuilder newTBuilder(Tree t, bool debug = false){
     set[Fact] openFacts = {};
     set[Requirement] openReqs = {};
     int ntypevar = -1;
-    map[loc,loc] tvScopes = ();
-    luDebug = debug;
+ //   map[loc,loc] tvScopes = ();
+    //luDebug = debug;
     set[Message] messages = {};
    
     Key currentScope = globalScope; //getLoc(t);
@@ -411,10 +396,13 @@ TBuilder newTBuilder(Tree t, bool debug = false){
             else if(loc ldef := def) l = ldef;
             else throw TypePalUsage("Argument `def` of `define` should be `Tree` or `loc`, found <typeOf(def)>");
             
-            if(info is defLub){
-                //println("defLub: <currentLubScope>, <{<id, currentScope, idRole, l, info>}>");           
+            //println("definesPerLubScope[currentLubScope]: <definesPerLubScope[currentLubScope]>");
+            
+            if(info is defLub /*&& isEmpty(definesPerLubScope[currentLubScope][currentScope, id])*/){
+                //if(id=="x")println("defLub: <currentLubScope>, <{<id, currentScope, idRole, l, info>}>");           
                 lubDefinesPerLubScope[currentLubScope] += {<id, currentScope, idRole, l, info>};
             } else {
+                //println("define: <<currentScope, id, idRole, l, info>>");
                 definesPerLubScope[currentLubScope] += <currentScope, id, idRole, l, info>;
             }
         } else {
@@ -455,7 +443,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
     
     void _useLub(Tree occ, set[IdRole] idRoles) {
         if(building){
-           //println("*** useLub: <occ>, <getLoc(occ)>");
+           //if("<occ>" == "x") println("*** useLub: <occ>, <getLoc(occ)>");
            lubUsesPerLubScope[currentLubScope] += <stripEscapes("<occ>"), currentScope, idRoles, getLoc(occ)>;
         } else {
             throw TypePalUsage("Cannot call `useLub` on TBuilder after `build`");
@@ -531,7 +519,8 @@ TBuilder newTBuilder(Tree t, bool debug = false){
               }
               currentScope = scopeStack[0].scope;
               if(!isEmpty(lubScopeStack) && innerLoc == lubScopeStack[0]){
-                //println("LEAVESCOPE <inner>, lubDefinesPerLubScope before");
+                //println("LEAVE LUBSCOPE <inner>"); 
+                //println("lubDefinesPerLubScope before");
                 //iprintln(lubDefinesPerLubScope);
                 
                 extraDefs = finalizeDefines(currentLubScope);
@@ -595,7 +584,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
    
     void _require(str name, Tree src, list[value] dependencies, void() preds){ 
         if(building){
-           openReqs += { openReq(name, getLoc(src), dependenciesAsKeys(dependencies), false, preds) };
+           openReqs += { openReq(name, getLoc(src), dependenciesAsKeyList(dependencies), false, preds) };
         } else {
             throw TypePalUsage("Cannot call `require` on TBuilder after `build`");
         }
@@ -603,7 +592,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
     
     void _requireEager(str name, Tree src, list[value] dependencies, void() preds){ 
         if(building){
-           openReqs += { openReq(name, getLoc(src), dependenciesAsKeys(dependencies), true, preds) };
+           openReqs += { openReq(name, getLoc(src), dependenciesAsKeyList(dependencies), true, preds) };
         } else {
             throw TypePalUsage("Cannot call `require` on TBuilder after `build`");
         }
@@ -619,7 +608,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
     
     void _calculate(str name, Tree src, list[value] dependencies, AType() calculator){
         if(building){
-           calculators[getLoc(src)] = calculate(name, getLoc(src), dependenciesAsKeys(dependencies),  false, calculator);
+           calculators[getLoc(src)] = calculate(name, getLoc(src), dependenciesAsKeyList(dependencies),  false, calculator);
         } else {
             throw TypePalUsage("Cannot call `calculate` on TBuilder after `build`");
         }
@@ -627,7 +616,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
     
     void _calculateEager(str name, Tree src, list[value] dependencies, AType() calculator){
         if(building){
-           calculators[getLoc(src)] = calculate(name, getLoc(src), dependenciesAsKeys(dependencies),  true, calculator);
+           calculators[getLoc(src)] = calculate(name, getLoc(src), dependenciesAsKeyList(dependencies),  true, calculator);
         } else {
             throw TypePalUsage("Cannot call `calculateOpen` on TBuilder after `build`");
         }
@@ -660,7 +649,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
     AType _newTypeVar(Tree src){
         if(building){
             tvLoc = getLoc(src);
-            tvScopes[tvLoc] = currentScope;
+          //  tvScopes[tvLoc] = currentScope;
             return tvar(tvLoc);
         } else {
             throw TypePalUsage("Cannot call `newTypeVar` on TBuilder after `build`");
@@ -729,11 +718,15 @@ TBuilder newTBuilder(Tree t, bool debug = false){
     }
     
     bool fixed_define_in_outer_scope(str id, Key lubScope){
+        dbg = id in {"reachableTypes"};
+        if(dbg) println("fixed_define_in_outer_scope: <id>, <lubScope>");
         outer = lubScope;
         while(scopes[outer]?){
             outer = scopes[outer];
+            //println("outer: <outer>");
+            //println("definesPerLubScope[outer] ? {}: <definesPerLubScope[outer] ? {}>");
             for(d: <Key scope, id, variableId(), Key defined, DefInfo defInfo> <- definesPerLubScope[outer] ? {}){
-                //println("fixed_define_in_outer_scope: <d>");
+                if(dbg) println("fixed_define_in_outer_scope: <d>");
                 return true;
             }
         }
@@ -782,9 +775,17 @@ TBuilder newTBuilder(Tree t, bool debug = false){
             id_defined_in_scopes = { sc1 | sc1 <- id_defined_in_scopes, isEmpty(containment) || !any(sc2 <- id_defined_in_scopes, sc1 != sc2, <sc2, sc1> in containment)};
             
             //println("Consider <id>, defined in scopes <id_defined_in_scopes>");
+            //println("local_fixed_defines: <local_fixed_defines>");
+            //println("local_fixed_defines[lubScope, id]: <local_fixed_defines[lubScope, id]>");
             
-            if({fixedDef} := local_fixed_defines[lubScope, id] || fixed_define_in_outer_scope(id, lubScope)){   // Definition exists with fixed type in the lubScope or a surrounding scope
-                                                                                                                // Use it instead of the lubDefines          
+            if({fixedDef} := local_fixed_defines[lubScope, id]){   // Definition exists with fixed type in the lubScope; Use it instead of the lubDefines          
+               //println("---top level fixedDef: <fixedDef> in <lubScope>");
+               for(<IdRole role, Key defined, DefInfo defInfo> <- deflubs_in_lubscope[id, allScopes]){
+                   u = use(id, defined, lubScope, {role});
+                   //println("add: <u>");
+                   uses += u;
+               }
+            } else if(fixed_define_in_outer_scope(id, lubScope)){   // Definition exists with fixed type in a surrounding scope; Use it instead of the lubDefines          
                //println("---top level fixedDef: <fixedDef> in <lubScope>");
                for(<IdRole role, Key defined, DefInfo defInfo> <- deflubs_in_lubscope[id, allScopes]){
                    u = use(id, defined, lubScope, {role});
@@ -848,8 +849,28 @@ TBuilder newTBuilder(Tree t, bool debug = false){
     
     void _addTModel(TModel tm){
         messages += {*tm.messages};
+        overlapping_scopes = domain(scopes) & domain(tm.scopes);
+        if(!isEmpty(overlapping_scopes)) {
+            for(s <- overlapping_scopes){
+                if(scopes[s] != tm.scopes[s]){
+                    println("current model:"); iprintln(domain(scopes));
+                    println("added model:"); iprintln(domain(tm.scopes));
+                    throw "overlapping scopes for <overlapping_scopes>";
+                }
+             }
+        }
         scopes += tm.scopes;
         defines += tm.defines;
+        overlapping_facts = domain(facts) & domain(tm.facts);
+        if(!isEmpty(overlapping_facts)) {
+             for(s <- overlapping_facts){
+                if(facts[s] != tm.facts[s]){
+                    println("current model:"); iprintln(domain(scopes));
+                    println("added model:"); iprintln(domain(tm.scopes));
+                    throw "incompatible fact for <s>: <facts[s]> != <tm.facts[s]>";
+                }
+             }
+        }
         facts += tm.facts;
         paths += tm.paths;
     }
@@ -868,6 +889,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
            }
            
            tm = tmodel();
+           tm.config = config;
            defines = finalizeDefines();
            tm.defines = defines;
            tm.scopes = scopes;  scopes = ();
@@ -879,7 +901,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
            tm.facts = facts;            facts = ();
            tm.openFacts = openFacts;    openFacts = {};    
            tm.openReqs = openReqs;  
-           tm.tvScopes = tvScopes;      tvScopes = ();
+//         tm.tvScopes = tvScopes;      tvScopes = ();
            tm.store = storeVals;        storeVals = ();
            tm.definitions = ( def.defined : def | Define def <- defines);
            definesMap = ();
@@ -895,7 +917,7 @@ TBuilder newTBuilder(Tree t, bool debug = false){
            tm.definesMap = definesMap;
            defines = {};
            tm.messages = [*messages];
-           return tm; 
+           return resolvePath(tm); 
         } else {
            throw TypePalUsage("Cannot call `build` on TBuilder after `build`");
         }
