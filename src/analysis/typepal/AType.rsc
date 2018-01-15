@@ -7,14 +7,14 @@ extend analysis::typepal::ScopeGraph;
 
 // Extend AType for type checking purposes
 data AType
-    = tvar(loc name)                             // type variable, used for type inference
+    = tvar(loc tname)                           // type variable, used for type inference
     | lazyLub(list[AType] atypes)                // lazily computed LUB of a list of types
     | atypeList(list[AType] atypes)              // built-in list-of-ATypes type
     | overloadedAType(rel[Key, IdRole, AType] overloads) // built-in-overloaded type; each key provides an alternative type
     ;
 
 // Pretty print ATypes
-str prettyPrintAType(tvar(loc name))                = "typevar(<name>)";
+str prettyPrintAType(tvar(loc tname))               = "typevar(<tname>)";
 str prettyPrintAType(lazyLub(list[AType] atypes))   = "lub(<atypes>))";
 str prettyPrintAType(atypeList(list[AType] atypes)) = size(atypes) == 0 ? "empty list of types" : intercalate(", ", [prettyPrintAType(a) | a <- atypes]);
 default str prettyPrintAType(overloadedAType(rel[Key, IdRole, AType] overloads)) 
@@ -22,10 +22,12 @@ default str prettyPrintAType(overloadedAType(rel[Key, IdRole, AType] overloads))
 default str prettyPrintAType(AType tp)              = "<tp>";
 
 // AType utilities
-bool isTypeVariable(loc tv) = startsWith(tv.scheme, "typevar+"); 
 
 data RuntimeException
-    = checkFailed(set[Message] msgs)
+    = TypePalUsage(str reason)
+    | TypePalInternalError(str reason)
+    | TypeUnavailable()
+    | checkFailed(set[Message] msgs)
     ;
 
 // Some reporting utilities
@@ -48,6 +50,11 @@ str intercalateOr(list[str] strs){
       };
 }
 
+// Is inner location textually contained in outer location?
+bool containedIn(loc inner, loc outer){
+    return inner.path == outer.path && inner.offset >= outer.offset && inner.offset + inner.length <= outer.offset + outer.length;
+}
+
 list[Message] sortMostPrecise(list[Message] messages)
     = sort(messages, bool (Message a, Message b) {
         loc al = a.at;
@@ -57,3 +64,6 @@ list[Message] sortMostPrecise(list[Message] messages)
 
 list[Message] filterMostGlobal(set[Message] messages) = [*messages];
 // = { msg | msg <- messages, !any(msg2 <- messages, surrounds(msg2, msg)) };
+ 
+bool alreadyReported(set[Message] messages, loc src) 
+    = !isEmpty(messages) && any(msg <- messages, containedIn(msg.at, src));
