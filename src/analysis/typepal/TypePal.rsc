@@ -40,11 +40,12 @@ bool(AType,AType) isSubTypeFun = defaultIsSubType;
 
 AType(AType,AType) getLubFun = defaultGetLub;
 
-AType() getMinATypeFun = defaultgetMinAType;
+AType() getMinATypeFun = defaultGetMinAType;
 
 AType theMinAType = atypeList([]);
+AType theMaxAType = atypeList([]);
 
-AType() getMaxATypeFun = defaultgetMaxAType;
+AType() getMaxATypeFun = defaultGetMaxAType;
 
 bool defaultMayOverload(set[Key] defs, map[Key, Define] defines) = false;
 
@@ -52,13 +53,35 @@ bool (set[Key] defs, map[Key, Define] defines) mayOverloadFun = defaultMayOverlo
 
 void configTypePal(TypePalConfig tc){
     analysis::typepal::ScopeGraph::configScopeGraph(tc);
-    getMinATypeFun = tc.getMinAType;
-    theMinAType = tc.getMinAType();
-    getMaxATypeFun = tc.getMaxAType;
+    
     isSubTypeFun = tc.isSubType;
     getLubFun = tc.getLub;
     mayOverloadFun = tc.mayOverload;
     lookupFun = tc.lookup;
+    
+    getLubDefined = false;
+    try {
+        getLubFun(atypeList([]), atypeList([]));
+        getLubDefined = true;
+    }  catch TypePalUsage(_): {
+        getLubDefined = false;
+    }
+    
+    try {
+        theMinAType = tc.getMinAType();
+    } catch TypePalUsage(_):{
+        if(getLubDefined) throw TypePalUsage("`getMinAType` should be defined when `getLub` is used");
+    }
+    
+    try {
+        theMaxAType = tc.getMaxAType();
+    } catch TypePalUsage(_):{
+        if(getLubDefined) throw TypePalUsage("`getMaxAType` should be defined when `getLub` is used");
+    }
+    
+    getMinATypeFun = tc.getMinAType;
+    getMaxATypeFun = tc.getMaxAType;
+   
 }
 
 // --- Error handling
@@ -619,7 +642,7 @@ AType getType(str id, Key scope, set[IdRole] idRoles){
         if({def} := foundDefs){
            return instantiate(facts[def]);
         } else {
-          if(myMayOverload(foundDefs, extractedTModel.definitions)){
+          if(mayOverloadFun(foundDefs, extractedTModel.definitions)){
                   return overloadedAType({<d, extractedTModel.definitions[d].idRole, instantiate(facts[d])> | d <- foundDefs});
           } else {
                //throw AmbiguousDefinition(foundDefs);
@@ -651,7 +674,7 @@ set[Define] getDefinitions(str id, Key scope, set[IdRole] idRoles){
         if({def} := foundDefs){
            return {extractedTModel.definitions[def]};
         } else {
-          if(myMayOverload(foundDefs, extractedTModel.definitions)){
+          if(mayOverloadFun(foundDefs, extractedTModel.definitions)){
             return {extractedTModel.definitions[def] | def <- foundDefs};
           } else {
                throw AmbiguousDefinition(foundDefs);
@@ -787,7 +810,7 @@ TModel validate(TModel tmodel, bool debug = false){
         foundDefines = extractedTModel.defines[scope, id];
         if(size(foundDefines) > 1){
            ds = {defined | <IdRole idRole, Key defined, DefInfo defInfo> <- foundDefines};
-           if(!myMayOverload(ds, extractedTModel.definitions)){
+           if(!mayOverloadFun(ds, extractedTModel.definitions)){
                 messages += {error("Double declaration of `<id>`", defined) | <IdRole idRole, Key defined, DefInfo defInfo>  <- foundDefines};
            }
         }
@@ -804,7 +827,7 @@ TModel validate(TModel tmodel, bool debug = false){
               roles = size(u.idRoles) > 3 ? "name" : intercalateOr([replaceAll(getName(idRole), "Id", "") | idRole <-u.idRoles]);
               messages += error("Undefined <roles> `<getId(u)>`", u.occ);
            } else 
-           if(size(foundDefs) == 1 || myMayOverload(foundDefs, extractedTModel.definitions)){
+           if(size(foundDefs) == 1 || mayOverloadFun(foundDefs, extractedTModel.definitions)){
               definedBy[u.occ] = foundDefs;
               openUses += u;
               if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
