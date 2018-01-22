@@ -86,8 +86,6 @@ void configTypePal(TypePalConfig tc){
 
 // --- Error handling
 
-str fmt(Tree t)  = "`<prettyPrintAType(getType(t))>`";
-
 Message error(Tree t, str msg) = error(msg, getLoc(t));
 
 Message warning(Tree t, str msg) = warning(msg, getLoc(t));
@@ -98,8 +96,59 @@ bool reportError(Tree t, str msg){
     throw checkFailed({error(msg, getLoc(t))});
 }
 
+bool reportError(loc l, str msg){
+    throw checkFailed({error(msg, l)});
+}
+
+bool reportWarning(Tree t, str msg){
+    messages += {warning(msg, getLoc(t))};
+    return true;
+}
+
+bool reportInfo(Tree t, str msg){
+    messages += {info(msg, getLoc(t))};
+    return true;
+}
+
 bool reportErrors(set[Message] msgs){
     throw checkFailed(msgs);
+}
+
+// Is inner location textually contained in outer location?
+bool containedIn(loc inner, loc outer){
+    return inner.path == outer.path && inner.offset >= outer.offset && inner.offset + inner.length <= outer.offset + outer.length;
+}
+
+list[Message] sortMostPrecise(list[Message] messages)
+    = sort(messages, bool (Message a, Message b) {
+        loc al = a.at;
+        loc bl = b.at;
+        return (al.length / 10) < (bl.length / 10) || al.top < bl.top;
+    });
+ 
+bool alreadyReported(set[Message] messages, loc src) 
+    = !isEmpty(messages) && any(msg <- messages, containedIn(msg.at, src));
+
+// ---- Some formatting utilities
+
+str fmt(Tree t)  = "`<prettyPrintAType(getType(t))>`";
+
+str intercalateAnd(list[str] strs){
+    switch(size(strs)){
+      case 0: return "";
+      case 1: return strs[0];
+      default: 
+              return intercalate(", ", strs[0..-1]) + " and " + strs[-1];
+      };
+}
+
+str intercalateOr(list[str] strs){
+    switch(size(strs)){
+      case 0: return "";
+      case 1: return strs[0];
+      default: 
+              return intercalate(", ", strs[0..-1]) + " or " + strs[-1];
+      };
 }
 
 // Global variables, used by validate and callbacks (define, require, etc.)
@@ -108,6 +157,62 @@ bool reportErrors(set[Message] msgs){
 TModel extractedTModel;
 
 map[loc, AType] facts = ();
+lrel[loc, AType] shadowFacts = [];
+
+
+void createShadowFacts(map[loc, AType] facts){
+    //shadowFacts =  [ <l, facts[l]> | l <- facts ];
+    //assert size(facts) == size(shadowFacts) : "Size of facts/shadowFacts differ: <size(facts)>/<size(shadowFacts)>";
+    //assert domain(facts) == toSet(domain(shadowFacts)) : "Domains of facts/shadowFacts differ: <size(domain(facts))>/<size(domain(shadowFacts))>";
+    //for(<l, t> <- shadowFacts, facts[l]?){
+    //    assert facts[l] == t : "facts/shadowFacts are different";
+    //}
+}
+
+void shadowFact(loc l, AType t) {
+    //if(l == |project://rascal/src/org/rascalmpl/library/ParseTree.rsc?ts=$2018-01-17T16:01:31.000+00:00$|(21475,1,<675,66>,<675,67>)){
+    //    println("shadowFact: <l>, <t>");
+    //}
+    //shadowFacts += <l, t>;
+}
+
+void deleteShadowFact(loc l, AType t){
+    //if(l == |project://rascal/src/org/rascalmpl/library/ParseTree.rsc?ts=$2018-01-17T16:01:31.000+00:00$|(21475,1,<675,66>,<675,67>)){
+    //    println("shadowFact: <l>, <t>");
+    //}
+    //n = size(shadowFacts);
+    //int i = n - 1;
+    //while(i >= 0){
+    //    if(shadowFacts[i][0] == l){
+    //        shadowFacts = delete(shadowFacts, i);
+    //        return;
+    //    }
+    //    i -= 1;
+    //}
+    //throw "deleteShadowFacts: <l> not found";
+}
+
+void compareShadowFacts(){
+   // println("COMPARE FACTS: <size(facts)>, <size(shadowFacts)>");
+   //for(<l, t> <- shadowFacts){
+   //    if(!facts[l]?){
+   //     println("key missing from facts <l>");
+   //     //throw "key <l> is missing from facts";
+   //    } else if(facts[l] != t){
+   //       values = shadowFacts[l];
+   //       if(facts[l] != values[-1])
+   //         println("value differs <l>: <facts[l]> vs <values[-1]>");
+   //         //throw "differs <l>: <facts[l]> versus <shadowFacts[l]>";
+   //    }
+   //}
+   //for(l <- facts){
+   //    if(isEmpty(shadowFacts[l])){
+   //       println("not in shadowFacts: \<<l>, <facts[l]>\>");
+   //       //throw "<l> not in shadowFacts";
+   //    }
+   //}
+
+}
 
 set[Fact] openFacts = {};
 set[Requirement] openReqs = {};
@@ -119,7 +224,7 @@ set[Requirement] requirementJobs = {};
 
 set[Message] messages = {};
 
-set[Key] (TModel, Use) lookupFun = lookup;
+public set[Key] (TModel, Use) lookupFun = lookup;
 
 TModel getTModel(){
     return extractedTModel[facts=facts];
@@ -170,40 +275,6 @@ AType simplifyLub(list[AType] atypes) {
     //println("simplifyLub: <atypes> ==\> <res>");
     return res;
 }
-
-//AType simplifyLub(list[AType] atypes) {
-//    atypes = toList(toSet(atypes));  // remove duplicates
-//    println("simplifyLub: <atypes>");
-//    if(size(atypes) == 1) return atypes[0];
-//    minType = getMinATypeFun();
-//    lubbedType = (minType | getLubFun(it, t) | t <- atypes, isFullyInstantiated(t));
-//    tvs =  [ t | t <- atypes, tvar(v) := t ];
-//    //for(tvar(v) <- tvs) println("<v>: <facts[v] ? "unknown">");
-//    other = [t | t <- atypes - tvs, !isFullyInstantiated(t) ];
-//    lubArgs = (lubbedType == minType ? [] : [lubbedType]) + [ t | t <- atypes, !isFullyInstantiated(t) ];
-//    if(size(tvs) == 1 && size(other) == 0 && lubbedType == minType){
-//        println("simplifyLub <atypes> ==\> <tvs[0]>");
-//        return tvs[0];
-//    }
-//    if(size(tvs) >= 1 && size(other) == 0 && lubbedType != minType){
-//        for(tvar(v) <- tvs){
-//            addFact(v, lubbedType);  
-//        }
-//        //println("simplifyLub: <atypes> ==\> <lubbedType>");
-//        return lubbedType;
-//    }
-//    
-//    lubArgs = lubbedType + tvs + other;
-//    res = minType;
-//    switch(size(lubArgs)){
-//        case 0: res = minType;
-//        case 1: res = lubArgs[0];
-//        default:
-//                res = lazyLub(lubArgs);
-//    }
-//    //println("simplifyLub: <atypes> ==\> <res>");
-//    return res;
-//}
 
 void printState(){
     println("Derived facts:");
@@ -258,32 +329,26 @@ bool isFullyInstantiated(AType atype){
     }
     return true;
 }
-// Find a (possibly indirect) binding
-AType find(loc src){
-    //println("find: <src>");
+// Find a (possibly indirectly defined) type for src
+AType findType(loc src){
+    //println("findType: <src>");
     if(bindings[src]?){
         v = bindings[src];
-        if(tvar(loc src1) := v && src1 != src && (bindings[src1]? || facts[src1]?)) return find(src1);
-        //println("find==\> <v>");
+        if(tvar(loc src1) := v && src1 != src && (bindings[src1]? || facts[src1]?)) return findType(src1);
+        //println("findType==\> <v>");
         return v;
     }
     if(facts[src]?){
         v = facts[src];
-        if(tvar(loc src1) := v && src1 != src && (bindings[src1]? || facts[src1]?)) return find(src1);
-        //println("find==\> <v>");
+        if(tvar(loc src1) := v && src1 != src && (bindings[src1]? || facts[src1]?)) return findType(src1);
+        //println("findType==\> <v>");
         return v;
     }
-   // if(isTypeVariable(src)) return tvar(src);  <===
-   //return tvar(src);
-   //println("find==\> <NoSuchKey(src)>");
    throw NoSuchKey(src);
 }
 
 // Substitute a type variable first using bindings, then facts; return as is when there is no binding
 AType substitute(tv: tvar(loc src)){
-    //println("substitute: <tv>
-    //        'bindings:   <bindings[src]? ? bindings[src] : "unbound">
-    //        'facts:      <facts[src]? ? facts[src] : "unbound">");
     if(bindings[src]?) { b = bindings[src]; return b == tv ? tv : substitute(b); }
     if(facts[src]?) { b = facts[src]; return b == tv ? tv : substitute(b); }
     return tv;
@@ -398,6 +463,7 @@ bool addFact(loc l, AType atype){
     iatype = instantiate(atype);
     if(!mayReplace(l, iatype)){ println("####5 <l>: <facts[l]> not replaced by <iatype>"); return false; }
     facts[l] = iatype;
+    shadowFact(l, iatype);
     if(cdebug)println(" fact <l> ==\> <iatype>");
     if(tvar(tvloc) := iatype){
         triggersFact[tvloc] = (triggersFact[tvloc] ? {}) + {openFact(l, iatype)};
@@ -432,6 +498,7 @@ bool addFact(fct:openFact(loc src, AType uninstantiated)){
             iatype = getType(uninstantiated); //instantiate(uninstantiated); //getType(uninstantiated);
             if(!mayReplace(src, iatype)){ println("####1 <src>: <facts[src]> not replaced by <iatype>"); return true; }
             facts[src] = iatype;
+            shadowFact(src, iatype);
             dependsOn = getDependencies(iatype);
             if(allDependenciesKnown(dependsOn, false) && src notin dependsOn) fireTriggers(src);
             return true;
@@ -451,6 +518,7 @@ bool addFact(fct:openFact(loc src, set[loc] dependsOn,  AType() getAType)){
             iatype = getAType();
             if(!mayReplace(src, iatype)){ println("####2 <src>: <facts[src]> =!=\> <iatype>"); return true; }
             facts[src] = iatype;
+            shadowFact(src, iatype);
             if(cdebug)println(" fact <src> ==\> <facts[src]>");
             fireTriggers(src);
             return true;
@@ -476,6 +544,7 @@ bool addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType()] ge
                   println("####3 <def>: <facts[def]> not replaced by <tp>");
               } else {
                  facts[def] = tp;  
+                 shadowFact(def, tp);
                  if(cdebug)println(" fact3 <def> ==\> <tp>");
               }
             }
@@ -506,12 +575,14 @@ bool addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType()] ge
                     println("####4 <def>: <facts[def]> not replaced by <currentLub>");
                 } else {
                     facts[def] = currentLub; 
+                    shadowFact(def, currentLub);
                 }
             }
             for(def <- defines) { 
                 try fireTriggers(def, protected=false); 
                 catch TypeUnavailable():
-                    facts = delete(facts, def);
+                    ;//facts = delete(facts, def);
+                    //deleteShadowFact(def, currentLub);
             }
         }
     }
@@ -563,7 +634,6 @@ void fireTriggers(loc l, bool protected=true){
 }
 
 // The binding of a type variable that occurs inside the scope of that type variable can be turned into a fact
-@memo
 void bindings2facts(map[loc, AType] bindings, loc occ){
    
     for(b <- bindings){
@@ -604,7 +674,7 @@ xxx
 }    
 AType getType(Tree tree) {
     try {
-        return  instantiate(find(tree@\loc));
+        return  instantiate(findType(tree@\loc));
     } catch NoSuchKey(l): {
         //println("getType: <tree@\loc> unavailable");
         throw TypeUnavailable();
@@ -660,6 +730,7 @@ AType getType(str id, Key scope, set[IdRole] idRoles){
 
 Define getDefinition(Tree tree){
     try {
+        println("getDefinition: <tree>,  <getLoc(tree)>");
         return extractedTModel.definitions[getLoc(tree)];
      } catch NoSuchKey(k):
             throw TypeUnavailable();
@@ -735,7 +806,7 @@ bool subtype(AType small, AType large){
 default bool comparable(AType atype1, AType atype2){
     extractedTModel.facts = facts;
     if(isFullyInstantiated(atype1) && isFullyInstantiated(atype2)){
-        return isSubTypFun(atype1, atype2) || isSubTypeFun(atype2, atype1);
+        return isSubTypeFun(atype1, atype2) || isSubTypeFun(atype2, atype1);
     } else {
         throw TypeUnavailable();
     }
@@ -755,15 +826,15 @@ void fact(loc src, AType atype){
         addFact(src, atype);
 }
 
-// Report an error: WARNING throws an exception and aborts normal control flow 
-void reportError(loc src, str msg){
-    throw checkFailed({Message::error(msg, src)});
-}
+//// Report an error: WARNING throws an exception and aborts normal control flow 
+//void reportError(loc src, str msg){
+//    throw checkFailed({Message::error(msg, src)});
+//}
 
-// Report a warning: WARNING throws an exception and aborts normal control flow 
-void reportWarning(loc src, str msg){
-    throw {Message::warning(msg, src)}; // TODO FIXME
-}
+//// Report a warning: WARNING throws an exception and aborts normal control flow 
+//void reportWarning(loc src, str msg){
+//    throw {Message::warning(msg, src)}; // TODO FIXME
+//}
 
 /*
  *  validate: validates an extracted TModel via constraint solving
@@ -778,6 +849,7 @@ TModel validate(TModel tmodel, bool debug = false){
     extractedTModel = tmodel;
       
     facts = extractedTModel.facts;
+    createShadowFacts(facts);
     openFacts = extractedTModel.openFacts;
     bindings = ();
     openReqs = extractedTModel.openReqs;
@@ -1080,6 +1152,8 @@ TModel validate(TModel tmodel, bool debug = false){
        tmodel.facts = facts;
        tmodel.messages = sortMostPrecise([*messages]);
        
+       compareShadowFacts();
+       
        // Clear globals, to be sure
         facts = ();
         openFacts = {};
@@ -1093,6 +1167,9 @@ TModel validate(TModel tmodel, bool debug = false){
        if(cdebug) println("Derived facts: <size(tmodel.facts)>");
        return tmodel;
 }
+
+// Utilities on TModels that can help to build IDE-features
+
 
 rel[loc, loc] getUseDef(TModel tmodel){
     res = {};

@@ -70,7 +70,7 @@ str deescape(str s)  {  // copied from RascalExpression, belongs in library
 bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, bool verbose = false){
     TTL ttlProgram;
     
-    failedTests = ();
+    map[tuple[str, loc], list[Message]]failedTests = ();
     ntests = 0;
     ok = true;
     for(suite <- suites){

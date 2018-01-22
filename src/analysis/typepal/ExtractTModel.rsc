@@ -23,6 +23,7 @@ extend analysis::typepal::AType;
 import util::Benchmark;
 import IO;
 import analysis::typepal::TypePalConfig;
+import analysis::typepal::TypePal;
 
 //loc getLoc(Tree t) = t@\loc ? t.args[0]@\loc;
 
@@ -37,7 +38,7 @@ RuntimeException checkFailed(Tree where, str msg) = checkFailed({ error(msg, get
 RuntimeException checkFailed(loc where, str msg) = checkFailed({ error(msg, where) });
 
 // Extract (nested) tree locations and type variables from a list of dependencies
-list[Key] dependenciesAsKeyList(list[Tree] dependencies){
+list[Key] dependenciesAsKeyList(list[value] dependencies){
     return 
         for(d <- dependencies){
             if(Tree t := d){
@@ -80,13 +81,17 @@ bool reportError(Tree t, str msg){
     throw checkFailed({error(msg, getLoc(t))});
 }
 
-void reportWarning(Tree t, str msg){
-    throw checkFailed({warning(msg, getLoc(t))});
+bool reportError(loc l, str msg){
+    throw checkFailed({error(msg, l)});
 }
 
-void reportInfo(Tree t, str msg){
-    throw checkFailed({info(msg, getLoc(t))});
-}
+//void reportWarning(Tree t, str msg){
+//    throw checkFailed({warning(msg, getLoc(t))});
+//}
+//
+//void reportInfo(Tree t, str msg){
+//    throw checkFailed({info(msg, getLoc(t))});
+//}
 
 // The basic ingredients for type checking: facts, requirements and overloads
 
@@ -372,8 +377,6 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     set[Fact] openFacts = {};
     set[Requirement] openReqs = {};
     int ntypevar = -1;
- //   map[loc,loc] tvScopes = ();
-    //luDebug = debug;
     set[Message] messages = {};
    
     Key currentScope = globalScope; //getLoc(t);
@@ -399,7 +402,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
             //println("definesPerLubScope[currentLubScope]: <definesPerLubScope[currentLubScope]>");
             
             if(info is defLub /*&& isEmpty(definesPerLubScope[currentLubScope][currentScope, id])*/){
-                //if(id=="x")println("defLub: <currentLubScope>, <{<id, currentScope, idRole, l, info>}>");           
+                //if(id=="ddd")println("defLub: <currentLubScope>, <{<id, currentScope, idRole, l, info>}>");           
                 lubDefinesPerLubScope[currentLubScope] += {<id, currentScope, idRole, l, info>};
             } else {
                 //println("define: <<currentScope, id, idRole, l, info>>");
@@ -443,7 +446,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     
     void _useLub(Tree occ, set[IdRole] idRoles) {
         if(building){
-           //if("<occ>" == "x") println("*** useLub: <occ>, <getLoc(occ)>");
+           if("<occ>" == "ddd") println("*** useLub: <occ>, <getLoc(occ)>");
            lubUsesPerLubScope[currentLubScope] += <stripEscapes("<occ>"), currentScope, idRoles, getLoc(occ)>;
         } else {
             throw TypePalUsage("Cannot call `useLub` on TBuilder after `build`");
@@ -624,7 +627,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     
     void _reportError(Tree src, str msg){
        if(building){
-          openReqs += { openReq("error", getLoc(src), {}, true, makeClosError(src, msg)) };
+          openReqs += { openReq("error", getLoc(src), [], true, makeClosError(src, msg)) };
        } else {
             throw TypePalUsage("Cannot call `reportError` on TBuilder after `build`");
        }
@@ -632,7 +635,8 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     
     void _reportWarning(Tree src, str msg){
         if(building){
-           openReqs += { openReq("warning", getLoc(src), {}, true, makeClosWarning(src, msg)) };
+            messages += { warning(msg, getLoc(src)); }
+           //openReqs += { openReq("warning", getLoc(src), [], true, makeClosWarning(src, msg)) };
         } else {
             throw TypePalUsage("Cannot call `reportWarning` on TBuilder after `build`");
         }
@@ -640,7 +644,8 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     
     void _reportInfo(Tree src, str msg){
         if(building){
-           openReqs += { openReq("info", getLoc(src), {}, true, makeClosInfo(src, msg)) };
+             messages += { info(msg, getLoc(src)); }
+           //openReqs += { openReq("info", getLoc(src), [], true, makeClosInfo(src, msg)) };
         } else {
             throw TypePalUsage("Cannot call `reportInfo` on TBuilder after `build`");
         }
@@ -649,7 +654,10 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     AType _newTypeVar(Tree src){
         if(building){
             tvLoc = getLoc(src);
-          //  tvScopes[tvLoc] = currentScope;
+            //ntypevar += 1;
+            //qs = tvLoc.query;
+            //qu = "uid=<ntypevar>";
+            //tvLoc.query = isEmpty(qs) ? qu : "<qs>&<qu>";
             return tvar(tvLoc);
         } else {
             throw TypePalUsage("Cannot call `newTypeVar` on TBuilder after `build`");
@@ -794,6 +802,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
                }
             } else if(id in ids_with_fixed_def){ // Definition(s) with fixed type exist in one or more subscopes, use them instead of the lubDefines 
                 //println("---fixed def(s) in subscopes: <local_fixed_defines_scope[id]>");
+                //println("containment: <containment>");
                 for(scope <- allScopes){
                     if(scope in local_fixed_defines_scope[id]){
                         for(<IdRole role, Key defined, DefInfo defInfo> <- deflubs_in_lubscope[id, containment[scope]]){

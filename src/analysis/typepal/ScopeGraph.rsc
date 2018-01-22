@@ -20,7 +20,7 @@ import List;
 import Relation;
 
 data TypePalConfig(
-        set[Key] (TModel, Use) lookup       = lookup,
+        set[Key] (TModel, Use) lookup       = lookupWide,
        
         Accept (TModel tm, Key def, Use use) isAcceptableSimple     = defaultIsAcceptableSimple,
         Accept (TModel tm, Key def, Use use) isAcceptableQualified  = defaultIsAcceptableQualified,
