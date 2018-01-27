@@ -157,62 +157,6 @@ str intercalateOr(list[str] strs){
 TModel extractedTModel;
 
 map[loc, AType] facts = ();
-lrel[loc, AType] shadowFacts = [];
-
-
-void createShadowFacts(map[loc, AType] facts){
-    //shadowFacts =  [ <l, facts[l]> | l <- facts ];
-    //assert size(facts) == size(shadowFacts) : "Size of facts/shadowFacts differ: <size(facts)>/<size(shadowFacts)>";
-    //assert domain(facts) == toSet(domain(shadowFacts)) : "Domains of facts/shadowFacts differ: <size(domain(facts))>/<size(domain(shadowFacts))>";
-    //for(<l, t> <- shadowFacts, facts[l]?){
-    //    assert facts[l] == t : "facts/shadowFacts are different";
-    //}
-}
-
-void shadowFact(loc l, AType t) {
-    //if(l == |project://rascal/src/org/rascalmpl/library/ParseTree.rsc?ts=$2018-01-17T16:01:31.000+00:00$|(21475,1,<675,66>,<675,67>)){
-    //    println("shadowFact: <l>, <t>");
-    //}
-    //shadowFacts += <l, t>;
-}
-
-void deleteShadowFact(loc l, AType t){
-    //if(l == |project://rascal/src/org/rascalmpl/library/ParseTree.rsc?ts=$2018-01-17T16:01:31.000+00:00$|(21475,1,<675,66>,<675,67>)){
-    //    println("shadowFact: <l>, <t>");
-    //}
-    //n = size(shadowFacts);
-    //int i = n - 1;
-    //while(i >= 0){
-    //    if(shadowFacts[i][0] == l){
-    //        shadowFacts = delete(shadowFacts, i);
-    //        return;
-    //    }
-    //    i -= 1;
-    //}
-    //throw "deleteShadowFacts: <l> not found";
-}
-
-void compareShadowFacts(){
-   // println("COMPARE FACTS: <size(facts)>, <size(shadowFacts)>");
-   //for(<l, t> <- shadowFacts){
-   //    if(!facts[l]?){
-   //     println("key missing from facts <l>");
-   //     //throw "key <l> is missing from facts";
-   //    } else if(facts[l] != t){
-   //       values = shadowFacts[l];
-   //       if(facts[l] != values[-1])
-   //         println("value differs <l>: <facts[l]> vs <values[-1]>");
-   //         //throw "differs <l>: <facts[l]> versus <shadowFacts[l]>";
-   //    }
-   //}
-   //for(l <- facts){
-   //    if(isEmpty(shadowFacts[l])){
-   //       println("not in shadowFacts: \<<l>, <facts[l]>\>");
-   //       //throw "<l> not in shadowFacts";
-   //    }
-   //}
-
-}
 
 set[Fact] openFacts = {};
 set[Requirement] openReqs = {};
@@ -463,7 +407,6 @@ bool addFact(loc l, AType atype){
     iatype = instantiate(atype);
     if(!mayReplace(l, iatype)){ println("####5 <l>: <facts[l]> not replaced by <iatype>"); return false; }
     facts[l] = iatype;
-    shadowFact(l, iatype);
     if(cdebug)println(" fact <l> ==\> <iatype>");
     if(tvar(tvloc) := iatype){
         triggersFact[tvloc] = (triggersFact[tvloc] ? {}) + {openFact(l, iatype)};
@@ -498,7 +441,6 @@ bool addFact(fct:openFact(loc src, AType uninstantiated)){
             iatype = getType(uninstantiated); //instantiate(uninstantiated); //getType(uninstantiated);
             if(!mayReplace(src, iatype)){ println("####1 <src>: <facts[src]> not replaced by <iatype>"); return true; }
             facts[src] = iatype;
-            shadowFact(src, iatype);
             dependsOn = getDependencies(iatype);
             if(allDependenciesKnown(dependsOn, false) && src notin dependsOn) fireTriggers(src);
             return true;
@@ -518,7 +460,6 @@ bool addFact(fct:openFact(loc src, set[loc] dependsOn,  AType() getAType)){
             iatype = getAType();
             if(!mayReplace(src, iatype)){ println("####2 <src>: <facts[src]> =!=\> <iatype>"); return true; }
             facts[src] = iatype;
-            shadowFact(src, iatype);
             if(cdebug)println(" fact <src> ==\> <facts[src]>");
             fireTriggers(src);
             return true;
@@ -544,7 +485,6 @@ bool addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType()] ge
                   println("####3 <def>: <facts[def]> not replaced by <tp>");
               } else {
                  facts[def] = tp;  
-                 shadowFact(def, tp);
                  if(cdebug)println(" fact3 <def> ==\> <tp>");
               }
             }
@@ -575,14 +515,12 @@ bool addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType()] ge
                     println("####4 <def>: <facts[def]> not replaced by <currentLub>");
                 } else {
                     facts[def] = currentLub; 
-                    shadowFact(def, currentLub);
                 }
             }
             for(def <- defines) { 
                 try fireTriggers(def, protected=false); 
                 catch TypeUnavailable():
                     ;//facts = delete(facts, def);
-                    //deleteShadowFact(def, currentLub);
             }
         }
     }
@@ -637,7 +575,7 @@ void fireTriggers(loc l, bool protected=true){
 void bindings2facts(map[loc, AType] bindings, loc occ){
    
     for(b <- bindings){
-        if(cdebug) println("bindings2facts: <b>, <facts[b]?>");
+        if(cdebug) println("bindings2facts: <b>, <facts[b]? ? facts[b] : "**undefined**">");
         if(!facts[b]? || tvar(x) := facts[b]){
            addFact(b, bindings[b]);
            if(cdebug) println("bindings2facts, added: <b> : <bindings[b]>");
@@ -849,7 +787,6 @@ TModel validate(TModel tmodel, bool debug = false){
     extractedTModel = tmodel;
       
     facts = extractedTModel.facts;
-    createShadowFacts(facts);
     openFacts = extractedTModel.openFacts;
     bindings = ();
     openReqs = extractedTModel.openReqs;
@@ -1152,17 +1089,15 @@ TModel validate(TModel tmodel, bool debug = false){
        tmodel.facts = facts;
        tmodel.messages = sortMostPrecise([*messages]);
        
-       compareShadowFacts();
-       
        // Clear globals, to be sure
-        facts = ();
-        openFacts = {};
-        bindings = ();
-        openReqs = {};
-        messages = {};
-        triggersRequirement = ();
-        triggersFact = ();
-        requirementJobs = {};
+       facts = ();
+       openFacts = {};
+       bindings = ();
+       openReqs = {};
+       messages = {};
+       triggersRequirement = ();
+       triggersFact = ();
+       requirementJobs = {};
     
        if(cdebug) println("Derived facts: <size(tmodel.facts)>");
        return tmodel;

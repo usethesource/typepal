@@ -321,6 +321,7 @@ data TBuilder
         void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) useQualified,
         void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole) useQualifiedViaPath,   
         void (Tree inner) enterScope,
+        void (Tree inner) enterLubScope,
         void (Tree inner) leaveScope,
         void (Key scope, ScopeRole scopeRole, value info) setScopeInfo,
         lrel[Key scope, value scopeInfo] (ScopeRole scopeRole) getScopeInfo,
@@ -331,9 +332,10 @@ data TBuilder
         void (Tree src, AType tp) fact,
         void (str name, Tree src, list[value] dependencies, AType() calculator) calculate,
         void (str name, Tree src, list[value] dependencies, AType() calculator) calculateEager,
-        void (Tree src, str msg) reportError,
-        void (Tree src, str msg) reportWarning,
-        void (Tree src, str msg) reportInfo,
+        bool (Tree src, str msg) reportError,
+        bool (set[Message] msgs) reportErrors,
+        bool (Tree src, str msg) reportWarning,
+        bool (Tree src, str msg) reportInfo,
         AType (Tree src) newTypeVar,
         void(str key, value val) push,
         value (str key) pop,
@@ -341,11 +343,14 @@ data TBuilder
         list[value] (str key) getStack,
         void (str key) clearStack,
         void (TModel tm) addTModel,
+        TypePalConfig () getConfig,
+        void (TypePalConfig cfg) setConfig,
         TModel () build
       ); 
 
 AType() makeClos1(AType tp) = AType (){ return tp; };                   // TODO: workaround for compiler glitch
 void() makeClosError(Tree src, str msg) = void(){ throw checkFailed(src, msg); };
+void() makeClosErrors(set[Message] msgs) = void(){ throw checkFailed(msgs); };
 void() makeClosWarning(Tree src, str msg) = void(){ throw checkFailed({ warning(msg, getLoc(src)) }); };
 void() makeClosInfo(Tree src, str msg) = void(){ checkFailed({ info(msg, getLoc(src)) }); };
              
@@ -479,8 +484,15 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
             throw TypePalUsage("Cannot call `useQualifiedViaPath` on TBuilder after `build`");
         } 
     }
+    void _enterScope(Tree inner){
+        enterScope(inner);
+    }
     
-    void _enterScope(Tree inner, bool lubScope=false){
+    void _enterLubScope(Tree inner){
+        enterScope(inner, lubScope=true);
+    }
+    
+    void enterScope(Tree inner, bool lubScope=false){
         if(building){
            innerLoc = getLoc(inner);
             if(innerLoc == rootScope){
@@ -625,27 +637,37 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
         }
     }
     
-    void _reportError(Tree src, str msg){
+    bool _reportError(Tree src, str msg){
        if(building){
           openReqs += { openReq("error", getLoc(src), [], true, makeClosError(src, msg)) };
+          return true;
        } else {
             throw TypePalUsage("Cannot call `reportError` on TBuilder after `build`");
        }
     }
     
-    void _reportWarning(Tree src, str msg){
+     bool _reportErrors(set[Message] msgs){
+       if(building){
+          openReqs += { openReq("error", getFirstFrom(msgs).at, [], true, makeClosErrors(msgs)) };
+          return true;
+       } else {
+            throw TypePalUsage("Cannot call `reportError` on TBuilder after `build`");
+       }
+    }
+    
+    bool _reportWarning(Tree src, str msg){
         if(building){
-            messages += { warning(msg, getLoc(src)); }
-           //openReqs += { openReq("warning", getLoc(src), [], true, makeClosWarning(src, msg)) };
+            messages += { warning(msg, getLoc(src)) };
+            return true;
         } else {
             throw TypePalUsage("Cannot call `reportWarning` on TBuilder after `build`");
         }
     }
     
-    void _reportInfo(Tree src, str msg){
+    bool _reportInfo(Tree src, str msg){
         if(building){
-             messages += { info(msg, getLoc(src)); }
-           //openReqs += { openReq("info", getLoc(src), [], true, makeClosInfo(src, msg)) };
+             messages += { info(msg, getLoc(src)) };
+             return true;
         } else {
             throw TypePalUsage("Cannot call `reportInfo` on TBuilder after `build`");
         }
@@ -699,6 +721,15 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     
     void _clearStack(str key){
         storeVals[key] = [];
+    }
+    
+    TypePalConfig _getConfig(){
+        return config;
+    }
+
+    
+    void _setConfig(TypePalConfig cfg){
+        config = cfg;
     }
     
    // Merge all lubDefs and appoint a definition to refer to
@@ -940,6 +971,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
                     _useQualified, 
                     _useQualifiedViaPath, 
                     _enterScope, 
+                    _enterLubScope,
                     _leaveScope,
                     _setScopeInfo,
                     _getScopeInfo,
@@ -950,6 +982,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
                     _calculate, 
                     _calculateEager,
                     _reportError, 
+                    _reportErrors,
                     _reportWarning, 
                     _reportInfo, 
                     _newTypeVar, 
@@ -959,5 +992,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
                     _getStack,
                     _clearStack,
                     _addTModel,
+                    _getConfig,
+                    _setConfig,
                     _build); 
 }
