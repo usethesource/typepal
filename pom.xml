@@ -9,7 +9,7 @@
 	</parent>
 
 	<groupId>org.rascalmpl</groupId>
-	<artifactId>TypePal</artifactId>
+	<artifactId>typepal</artifactId>
 	<version>0.2.0-SNAPSHOT</version>
 	<packaging>eclipse-plugin</packaging>
 
