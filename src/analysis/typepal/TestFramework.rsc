@@ -26,7 +26,13 @@ import analysis::grammars::Ambiguity;
 import util::Reflective;
 
 lexical TTL_id = ([A-Z][a-zA-Z0-9]* !>> [a-zA-Z0-9]) \ TTL_Reserved;
-lexical TTL_String = "\"" ![\"]*  "\"";
+lexical TTL_StringCharacter
+    = "\\" [\" \' \< \> \\ b f n r t]  
+    | ![\" \' \< \> \\]
+    | [\n][\ \t \u00A0 \u1680 \u2000-\u200A \u202F \u205F \u3000]* [\'] // margin 
+    ;
+
+lexical TTL_String = "\"" TTL_StringCharacter*  "\"";
 
 keyword TTL_Reserved = "test" | "expect" ;
 
