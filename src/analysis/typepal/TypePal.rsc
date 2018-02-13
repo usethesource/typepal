@@ -651,7 +651,7 @@ AType getType(str id, Key scope, set[IdRole] idRoles){
            return instantiate(facts[def]);
         } else {
           if(mayOverloadFun(foundDefs, extractedTModel.definitions)){
-                  return overloadedAType({<d, extractedTModel.definitions[d].idRole, instantiate(facts[d])> | d <- foundDefs});
+                  return overloadedAType({<d, idRole, instantiate(facts[d])> | d <- foundDefs, idRole := extractedTModel.definitions[d].idRole, idRole in idRoles});
           } else {
                //throw AmbiguousDefinition(foundDefs);
                 reportErrors({error("Double declaration of <fmt(id)>", d) | d <- foundDefs} /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
@@ -1038,7 +1038,7 @@ TModel validate(TModel tmodel, bool debug = false){
           foundDefs = definedBy[u.occ];
           for(def <- foundDefs){
               if (facts[def]?) {
-                messages += { error("Unresolved type for `<u.id>`", u.occ)};
+                messages += { error("Unresolved type for `<u has id ? u.id : u.ids>`", u.occ)};
               }
           }
        }
