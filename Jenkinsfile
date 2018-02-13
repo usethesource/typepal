@@ -13,7 +13,7 @@ node {
 
             stage('Deploy') {
                 if (env.BRANCH_NAME == "master") {
-                    sh "mvn -DskipTests deploy"
+                    sh "mvn -DskipTests deploy install" 
                 }
             }
         }
