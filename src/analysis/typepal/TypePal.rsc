@@ -22,7 +22,6 @@ import String;
 import Message;
 import Exception;
 
-import util::Benchmark;
 
 extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::AType;
