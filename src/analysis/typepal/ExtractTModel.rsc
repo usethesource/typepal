@@ -281,6 +281,17 @@ void collectLexicalParts(Tree currentTree, TBuilder tb){
    delta = 2;
 }
 
+tuple[bool, loc] findMostRecentDef(set[loc] defs){
+
+    d2l = (def.fragment : def | def <- defs);
+    strippedDefs = {def[fragment=""][offset=0][length=0][begin=<0,0>][end=<0,0>] | def <- defs};
+    if({def} := strippedDefs){
+        def = sort([def.fragment | def <- strippedDefs])[-1];
+        return <true, def>;
+    }
+    return <false, |unknown:///|>;
+}
+
 TModel resolvePath(TModel tm){
     msgs = {};
     int n = 0;
@@ -295,9 +306,8 @@ TModel resolvePath(TModel tm){
                    tm.paths += {<c.use.scope, c.pathRole, def>};  
                 } else {
                     // If only overloaded due to different time stamp, use most recent.
-                    foundDefs1 = {def[fragment=""] | def <- foundDefs};
-                    if({def} := foundDefs1){
-                        def = sort([def.fragment | def <- foundDefs])[-1];
+                    <ok, def> = findMostRecentDef(foundDefs);
+                    if(ok){
                         tm.paths += {<c.use.scope, c.pathRole, def>};
                      } else { 
                         msgs += error("Name <fmt(c.use.id)> is ambiguous <fmt(foundDefs)>", c.use.occ);

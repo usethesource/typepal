@@ -654,9 +654,8 @@ AType getType(str id, Key scope, set[IdRole] idRoles){
             return overloadedAType({<d, idRole, instantiate(facts[d])> | d <- foundDefs, idRole := extractedTModel.definitions[d].idRole, idRole in idRoles});
           } else {  
             // If only overloaded due to different time stamp, use most recent.
-            foundDefs1 = {def[fragment=""] | def <- foundDefs};
-            if({def} := foundDefs1){
-                def = sort([def.fragment | def <- foundDefs])[-1];
+             <ok, def> = findMostRecentDef(foundDefs);
+            if(ok){                
                 return instantiate(facts[def]);
              }
              reportErrors({error("Double declaration of <fmt(id)>", d) | d <- foundDefs} /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
@@ -692,9 +691,8 @@ set[Define] getDefinitions(str id, Key scope, set[IdRole] idRoles){
             return {extractedTModel.definitions[def] | def <- foundDefs}; 
           } else {
             // If only overloaded due to different time stamp, use most recent.
-            foundDefs1 = {def[fragment=""] | def <- foundDefs};
-            if({def} := foundDefs1){
-                def = sort([def.fragment | def <- foundDefs])[-1];
+            <ok, def> = findMostRecentDef(foundDefs);
+            if(ok){        
                 return {extractedTModel.definitions[def]};
             }
             throw AmbiguousDefinition(foundDefs);
@@ -852,8 +850,15 @@ TModel validate(TModel tmodel, bool debug = false){
               openUses += u;
               if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
             } else {
-                messages += {error("Double declaration", d) | d <- foundDefs} + error("Undefined `<getId(u)>` due to double declaration", u.occ);
-                if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
+                <ok, def> = findMostRecentDef(foundDefs);
+                if(ok){
+                    definedBy[u.occ] = {def};
+                    openUses += u;
+                    if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <{def}>");
+                } else {
+                    messages += {error("Double declaration", d) | d <- foundDefs} + error("Undefined `<getId(u)>` due to double declaration", u.occ);
+                    if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
+                }
             }
         }
         catch NoKey(): {
