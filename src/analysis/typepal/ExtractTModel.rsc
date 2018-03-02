@@ -287,8 +287,10 @@ tuple[bool, loc] findMostRecentDef(set[loc] defs){
     strippedDefs = {def[fragment=""][offset=0][length=0][begin=<0,0>][end=<0,0>] | def <- defs};
     if({def} := strippedDefs){
         def = sort([def.fragment | def <- strippedDefs])[-1];
+        println("findMostRecentDef: <defs> ==\> \<true, <def>\>");
         return <true, def>;
     }
+    println("findMostRecentDef: <defs> ==\> \<false, |unknown:///|\>");
     return <false, |unknown:///|>;
 }
 
