@@ -282,11 +282,10 @@ void collectLexicalParts(Tree currentTree, TBuilder tb){
 }
 
 tuple[bool, loc] findMostRecentDef(set[loc] defs){
-
-    d2l = (def.fragment : def | def <- defs);
+    d2l = (def.fragment : def | loc def <- defs);
     strippedDefs = {def[fragment=""][offset=0][length=0][begin=<0,0>][end=<0,0>] | def <- defs};
-    if({def} := strippedDefs){
-        def = sort([def.fragment | def <- strippedDefs])[-1];
+    if({sdef} := strippedDefs){
+        def = d2l[sort([d.fragment | loc d <- defs])[-1]];
         println("findMostRecentDef: <defs> ==\> \<true, <def>\>");
         return <true, def>;
     }
