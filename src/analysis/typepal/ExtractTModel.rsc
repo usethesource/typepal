@@ -294,7 +294,14 @@ TModel resolvePath(TModel tm){
                    //println("resolvePath: resolve <c.use> to <def>");
                    tm.paths += {<c.use.scope, c.pathRole, def>};  
                 } else {
-                   msgs += error("Name <fmt(c.use.id)> is ambiguous <fmt(foundDefs)>", c.use.occ);
+                    // If only overloaded due to different time stamp, use most recent.
+                    foundDefs1 = {def[fragment=""] | def <- foundDefs};
+                    if({def} := foundDefs1){
+                        def = sort([def.fragment | def <- foundDefs])[-1];
+                        tm.paths += {<c.use.scope, c.pathRole, def>};
+                     } else { 
+                        msgs += error("Name <fmt(c.use.id)> is ambiguous <fmt(foundDefs)>", c.use.occ);
+                     }
                 }
                 tm.referPaths -= {c}; 
             }
