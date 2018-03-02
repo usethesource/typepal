@@ -60,19 +60,6 @@ syntax TTL_Expect
 bool matches(str subject, str pat) =
     contains(toLowerCase(subject), toLowerCase(pat));
 
-
-str deescape(str s)  {  // copied from RascalExpression, belongs in library
-    res = visit(s) { 
-        case /^\\<c: [\" \' \< \> \\]>/ => c
-        case /^\\t/ => "\t"
-        case /^\\n/ => "\n"
-        case /^\\u<hex:[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]>/ => stringChar(toInt("0x<hex>"))
-        case /^\\U<hex:[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]>/ => stringChar(toInt("0x<hex>"))
-        case /^\\a<hex:[0-7][0-9a-fA-F]>/ => stringChar(toInt("0x<hex>"))
-        }; 
-    return res;
-}
-
 bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, bool verbose = false){
     TTL ttlProgram;
     
@@ -90,7 +77,7 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
             ttlProgram = visit(tr.top){ case amb(set[Tree] alternatives2) => getOneFrom(alternatives2) };
         }
 
-        for(ti <- ttlProgram.items){
+        for(TTL_TestItem ti <- ttlProgram.items){
             ntests += 1;
             try {
               newTree = visit(parse(begin, "<ti.tokens>")) {
