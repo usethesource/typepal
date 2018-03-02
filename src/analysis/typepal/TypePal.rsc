@@ -22,7 +22,6 @@ import String;
 import Message;
 import Exception;
 
-
 extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::AType;
 extend analysis::typepal::ExtractTModel;
@@ -122,7 +121,9 @@ list[Message] sortMostPrecise(list[Message] messages)
     = sort(messages, bool (Message a, Message b) {
         loc al = a.at;
         loc bl = b.at;
-        return (al.length / 10) < (bl.length / 10) || al.top < bl.top;
+        if(al.length? && al.top? && bl.length? && bl.top?)
+            return (al.length / 10) < (bl.length / 10) || al.top < bl.top;
+        return al.path < bl.path;
     });
  
 bool alreadyReported(set[Message] messages, loc src) 
@@ -642,7 +643,7 @@ AType getType(loc l){
     }
 }
 
-@memo
+//@memo
 AType getType(str id, Key scope, set[IdRole] idRoles){
     try {
         foundDefs = lookupFun(extractedTModel, use(id, anonymousOccurrence, scope, idRoles));
@@ -1089,14 +1090,14 @@ TModel validate(TModel tmodel, bool debug = false){
        tmodel.messages = sortMostPrecise([*messages]);
        
        // Clear globals, to be sure
-       facts = ();
-       openFacts = {};
-       bindings = ();
-       openReqs = {};
-       messages = {};
-       triggersRequirement = ();
-       triggersFact = ();
-       requirementJobs = {};
+       //facts = ();
+       //openFacts = {};
+       //bindings = ();
+       //openReqs = {};
+       //messages = {};
+       //triggersRequirement = ();
+       //triggersFact = ();
+       //requirementJobs = {};
     
        if(cdebug) println("Derived facts: <size(tmodel.facts)>");
        return tmodel;
