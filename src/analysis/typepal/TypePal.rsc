@@ -684,9 +684,15 @@ set[Define] getDefinitions(str id, Key scope, set[IdRole] idRoles){
            return {extractedTModel.definitions[def]};
         } else {
           if(mayOverloadFun(foundDefs, extractedTModel.definitions)){
-            return {extractedTModel.definitions[def] | def <- foundDefs};
+            return {extractedTModel.definitions[def] | def <- foundDefs}; 
           } else {
-               throw AmbiguousDefinition(foundDefs);
+            // If only overloaded due to different time stamp, use most recent.
+            foundDefs1 = {def[fragment=""] | def <- foundDefs};
+            if({def} := foundDefs1){
+                def = sort([def.fragment | def <- foundDefs])[-1];
+                return {extractedTModel.definitions[def]};
+            }
+            throw AmbiguousDefinition(foundDefs);
           }
         }
      } catch NoSuchKey(k):
