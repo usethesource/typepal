@@ -651,10 +651,15 @@ AType getType(str id, Key scope, set[IdRole] idRoles){
            return instantiate(facts[def]);
         } else {
           if(mayOverloadFun(foundDefs, extractedTModel.definitions)){
-                  return overloadedAType({<d, idRole, instantiate(facts[d])> | d <- foundDefs, idRole := extractedTModel.definitions[d].idRole, idRole in idRoles});
-          } else {
-               //throw AmbiguousDefinition(foundDefs);
-                reportErrors({error("Double declaration of <fmt(id)>", d) | d <- foundDefs} /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
+            return overloadedAType({<d, idRole, instantiate(facts[d])> | d <- foundDefs, idRole := extractedTModel.definitions[d].idRole, idRole in idRoles});
+          } else {  
+            // If only overloaded due to different time stamp, use most recent.
+            foundDefs1 = {def[fragment=""] | def <- foundDefs};
+            if({def} := foundDefs1){
+                def = sort([def.fragment | def <- foundDefs])[-1];
+                return instantiate(facts[def]);
+             }
+             reportErrors({error("Double declaration of <fmt(id)>", d) | d <- foundDefs} /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
           }
         }
      } catch NoSuchKey(k): {
