@@ -20,7 +20,7 @@ import Map;
 import List;
 
 extend analysis::typepal::TypePal;
-import analysis::grammars::Ambiguity;
+//import analysis::grammars::Ambiguity;
 
 //import util::IDE;
 import util::Reflective;

@@ -289,12 +289,12 @@ tuple[bool, loc] findMostRecentDef(set[loc] defs){
         println("findMostRecentDef: <defs> ==\> \<true, <def>\>");
         return <true, def>;
     }
-    println("findMostRecentDef: <defs> ==\> \<false, |unknown:///|\>");
+    //println("findMostRecentDef: <defs> ==\> \<false, |unknown:///|\>");
     return <false, |unknown:///|>;
 }
 
 TModel resolvePath(TModel tm){
-    msgs = {};
+    msgs = [];
     int n = 0;
 
     while(!isEmpty(tm.referPaths) && n < 3){    // explain this iteration count
@@ -325,7 +325,7 @@ TModel resolvePath(TModel tm){
     for(c <- tm.referPaths){
         msgs += error("Reference to name <fmt(c.use.id)> cannot be resolved", c.use.occ);
     }
-    tm.messages += [*msgs];
+    tm.messages += msgs;
     return tm;
 }
 
@@ -400,7 +400,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     set[Fact] openFacts = {};
     set[Requirement] openReqs = {};
     int ntypevar = -1;
-    set[Message] messages = {};
+    list[Message] messages = [];
    
     Key currentScope = globalScope; //getLoc(t);
     Key rootScope = globalScope; //currentScope;
@@ -675,7 +675,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     
     bool _reportWarning(Tree src, str msg){
         if(building){
-            messages += { warning(msg, getLoc(src)) };
+            messages += [ warning(msg, getLoc(src)) ];
             return true;
         } else {
             throw TypePalUsage("Cannot call `reportWarning` on TBuilder after `build`");
@@ -684,7 +684,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     
     bool _reportInfo(Tree src, str msg){
         if(building){
-             messages += { info(msg, getLoc(src)) };
+             messages += [ info(msg, getLoc(src)) ];
              return true;
         } else {
             throw TypePalUsage("Cannot call `reportInfo` on TBuilder after `build`");
@@ -906,7 +906,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     }
     
     void _addTModel(TModel tm){
-        messages += {*tm.messages};
+        messages += tm.messages;
         overlapping_scopes = domain(scopes) & domain(tm.scopes);
         if(!isEmpty(overlapping_scopes)) {
             for(s <- overlapping_scopes){
@@ -974,7 +974,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
            //}
            tm.definesMap = definesMap;
            defines = {};
-           tm.messages = [*messages];
+           tm.messages = messages;
            return resolvePath(tm); 
         } else {
            throw TypePalUsage("Cannot call `build` on TBuilder after `build`");

@@ -99,12 +99,12 @@ bool reportError(loc l, str msg){
 }
 
 bool reportWarning(Tree t, str msg){
-    messages += {warning(msg, getLoc(t))};
+    messages += [warning(msg, getLoc(t))];
     return true;
 }
 
 bool reportInfo(Tree t, str msg){
-    messages += {info(msg, getLoc(t))};
+    messages += [info(msg, getLoc(t))];
     return true;
 }
 
@@ -126,7 +126,7 @@ list[Message] sortMostPrecise(list[Message] messages)
         return al.path < bl.path;
     });
  
-bool alreadyReported(set[Message] messages, loc src) 
+bool alreadyReported(list[Message] messages, loc src) 
     = !isEmpty(messages) && any(msg <- messages, containedIn(msg.at, src));
 
 // ---- Some formatting utilities
@@ -166,7 +166,7 @@ map[loc, set[Fact]] triggersFact = ();
 
 set[Requirement] requirementJobs = {};
 
-set[Message] messages = {};
+list[Message] messages = [];
 
 public set[Key] (TModel, Use) lookupFun = lookup;
 
@@ -591,14 +591,14 @@ void bindings2facts(map[loc, AType] bindings, loc occ){
 }
    
 // Check whether a requirement is satisfied
-tuple[bool ok, set[Message] messages, map[loc, AType] bindings] satisfies(Requirement req){
+tuple[bool ok, list[Message] messages, map[loc, AType] bindings] satisfies(Requirement req){
     bindings = ();
     try {
         req.preds();
         bindings2facts(bindings, req.src);
-        return <true, {}, bindings>;
+        return <true, [], bindings>;
     } catch checkFailed(set[Message] msgs):
-        return <false, msgs, bindings>;
+        return <false, [*msgs], bindings>;
 }
 
 // The "run-time" functions that can be called from requirements and calculators
@@ -658,7 +658,7 @@ AType getType(str id, Key scope, set[IdRole] idRoles){
             if(ok){                
                 return instantiate(facts[def]);
              }
-             reportErrors({error("Double declaration of <fmt(id)>", d) | d <- foundDefs} /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
+             reportErrors({error("Double declaration of <fmt(id)> in <foundDefs>", d) | d <- foundDefs} /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
           }
         }
      } catch NoSuchKey(k): {
@@ -799,7 +799,7 @@ TModel validate(TModel tmodel, bool debug = false){
     openFacts = extractedTModel.openFacts;
     bindings = ();
     openReqs = extractedTModel.openReqs;
-    messages = {*extractedTModel.messages};
+    messages = extractedTModel.messages;
     triggersRequirement = ();
     triggersFact = ();
   
@@ -831,7 +831,7 @@ TModel validate(TModel tmodel, bool debug = false){
             if(!ok){
                 ds = {defined | <IdRole idRole, Key defined, DefInfo defInfo> <- foundDefines};
                 if(!mayOverloadFun(ds, extractedTModel.definitions)){
-                    messages += {error("Double declaration of `<id>`", defined) | <IdRole idRole, Key defined, DefInfo defInfo>  <- foundDefines};
+                    messages += [error("Double declaration of `<id>` in <foundDefines<1>>", defined) | <IdRole idRole, Key defined, DefInfo defInfo>  <- foundDefines];
                 }
             }
         }
@@ -859,7 +859,7 @@ TModel validate(TModel tmodel, bool debug = false){
                     openUses += u;
                     if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <{def}>");
                 } else {
-                    messages += {error("Double declaration", d) | d <- foundDefs} + error("Undefined `<getId(u)>` due to double declaration", u.occ);
+                    messages += [error("Double declaration", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
                     if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }
@@ -877,7 +877,7 @@ TModel validate(TModel tmodel, bool debug = false){
         //if(d.id in {/*"Grammar","Exception",*/"CharClass","StringConstant"}) println("Defined: <d>");
         try addFact(d);
         catch checkFailed(set[Message] msgs):
-            messages += msgs;
+            messages += [*msgs];
     }
  
     if(cdebug) println("..... handle open facts");
@@ -887,7 +887,7 @@ TModel validate(TModel tmodel, bool debug = false){
                 openFacts -= f;
             }
         } catch checkFailed(set[Message] msgs): 
-            messages += msgs;
+            messages += [*msgs];
     } 
     
     if(cdebug) println("..... handle open requirements");
@@ -975,7 +975,7 @@ TModel validate(TModel tmodel, bool debug = false){
               } catch TypeUnavailable(): {
                 continue;
               } catch checkFailed(set[Message] msgs): {
-                messages += msgs;
+                messages += [*msgs];
                 if(cdebug) println("-calc [<calc.cname>] at <calc.src> ==\> <msgs>");
               }
               calculatorsToBeRemoved += calcKey;
@@ -1035,7 +1035,7 @@ TModel validate(TModel tmodel, bool debug = false){
              	if(addFact(fct))
                     openFactsToBeRemoved += fct;
              } catch checkFailed(set[Message] msgs):
-            		messages += msgs;
+            		messages += [*msgs];
          }
          openFacts -= openFactsToBeRemoved;
          
@@ -1057,7 +1057,7 @@ TModel validate(TModel tmodel, bool debug = false){
           foundDefs = definedBy[u.occ];
           for(def <- foundDefs){
               if (facts[def]?) {
-                messages += { error("Unresolved type for `<u has id ? u.id : u.ids>`", u.occ)};
+                messages += [ error("Unresolved type for `<u has id ? u.id : u.ids>`", u.occ)];
               }
           }
        }
@@ -1113,7 +1113,7 @@ TModel validate(TModel tmodel, bool debug = false){
        //openFacts = {};
        //bindings = ();
        //openReqs = {};
-       //messages = {};
+       //messages = [];
        //triggersRequirement = ();
        //triggersFact = ();
        //requirementJobs = {};
