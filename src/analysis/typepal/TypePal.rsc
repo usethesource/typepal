@@ -827,10 +827,13 @@ TModel validate(TModel tmodel, bool debug = false){
     for(<scope, id> <- extractedTModel.defines<0,1>){
         foundDefines = extractedTModel.defines[scope, id];
         if(size(foundDefines) > 1){
-           ds = {defined | <IdRole idRole, Key defined, DefInfo defInfo> <- foundDefines};
-           if(!mayOverloadFun(ds, extractedTModel.definitions)){
-                messages += {error("Double declaration of `<id>`", defined) | <IdRole idRole, Key defined, DefInfo defInfo>  <- foundDefines};
-           }
+            <ok, def> = findMostRecentDef(foundDefines<1>);
+            if(!ok){
+                ds = {defined | <IdRole idRole, Key defined, DefInfo defInfo> <- foundDefines};
+                if(!mayOverloadFun(ds, extractedTModel.definitions)){
+                    messages += {error("Double declaration of `<id>`", defined) | <IdRole idRole, Key defined, DefInfo defInfo>  <- foundDefines};
+                }
+            }
         }
     }
    
