@@ -301,17 +301,20 @@ TModel resolvePath(TModel tm){
         n += 1;
         for(c <- tm.referPaths){
             try {
-                foundDefs = lookupFun(tm, c.use);
+                u = c.use;
+                u.scope[fragment=""];
+                u.occ[fragment=""];
+                foundDefs = lookupFun(tm, u);
                 if({def} := foundDefs){
                    //println("resolvePath: resolve <c.use> to <def>");
-                   tm.paths += {<c.use.scope, c.pathRole, def>};  
+                   tm.paths += {<u.scope, c.pathRole, def>};  
                 } else {
                     //// If only overloaded due to different time stamp, use most recent.
                     //<ok, def> = findMostRecentDef(foundDefs);
                     //if(ok){
                     //    tm.paths += {<c.use.scope, c.pathRole, def>};
                     // } else { 
-                        msgs += error("Name <fmt(c.use.id)> is ambiguous <fmt(foundDefs)>", c.use.occ);
+                        msgs += error("Name <fmt(u.id)> is ambiguous <fmt(foundDefs)>", u.occ);
                      //}
                 }
                 tm.referPaths -= {c}; 
