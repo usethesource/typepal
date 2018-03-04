@@ -302,8 +302,8 @@ TModel resolvePath(TModel tm){
         for(c <- tm.referPaths){
             try {
                 u = c.use;
-                u.scope[fragment=""];
-                u.occ[fragment=""];
+                //u.scope[fragment=""];
+                //u.occ[fragment=""];
                 foundDefs = lookupFun(tm, u);
                 if({def} := foundDefs){
                    //println("resolvePath: resolve <c.use> to <def>");
