@@ -18,6 +18,7 @@ import IO;
 import Set;
 import List;
 import Relation;
+import Message;
 
 data TypePalConfig(
         set[Key] (TModel, Use) lookup       = lookupWide,
