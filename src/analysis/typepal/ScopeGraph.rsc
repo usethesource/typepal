@@ -161,7 +161,7 @@ private list[Key] lookupPaths(TModel tm, Key scope, Use use, PathRole pathRole){
 }
 
 // Get all pathRoles and remember them
-@memo 
+//@memo 
 private set[PathRole] pathRoles(TModel tm){
     //return {pl | /PathRole pl := tm};
     return tm.paths.pathRole;
@@ -269,7 +269,7 @@ public set[Key] lookup(TModel tm, Use u){
 
 bool wdebug = false;
 
-@memo
+//@memo
 // Retrieve all bindings for use in given syntactic scope
 private set[Key] bindWide(TModel tm, Key scope, str id, set[IdRole] idRoles){
     preDefs = (tm.definesMap[scope] ? ())[id] ? {};
@@ -285,7 +285,7 @@ private set[Key] lookupScopeWide(TModel tm, Key scope, Use use){
     return {def | def <-  bindWide(tm, scope, use.id, use.idRoles), isAcceptableSimpleFun(tm, def, use) == acceptBinding()}; 
 }
 
-@memo
+//@memo
 // Find all (semantics induced, one-level) bindings for use in given syntactic scope via PathRole
 private set[Key] lookupPathsWide(TModel tm, Key scope, Use use, PathRole pathRole){
     //if(wdebug) println("\tlookupPathsWide: <use.id> in scope <scope>, role <pathRole>\n<for(p <- tm.paths){>\t---- <p>\n<}>");
