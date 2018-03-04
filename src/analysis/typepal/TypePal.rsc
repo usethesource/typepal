@@ -199,7 +199,7 @@ AType simplifyLub(list[AType] atypes) {
             other += t; 
         }
     }
-   
+
     if(lubbedType != theMinAType){
         bindings1 = bindings;
         bindings = ();
@@ -653,11 +653,11 @@ AType getType(str id, Key scope, set[IdRole] idRoles){
           if(mayOverloadFun(foundDefs, extractedTModel.definitions)){
             return overloadedAType({<d, idRole, instantiate(facts[d])> | d <- foundDefs, idRole := extractedTModel.definitions[d].idRole, idRole in idRoles});
           } else {  
-            // If only overloaded due to different time stamp, use most recent.
-             <ok, def> = findMostRecentDef(foundDefs);
-            if(ok){                
-                return instantiate(facts[def]);
-             }
+            //// If only overloaded due to different time stamp, use most recent.
+            // <ok, def> = findMostRecentDef(foundDefs);
+            //if(ok){                
+            //    return instantiate(facts[def]);
+            // }
              reportErrors({error("Double declaration of <fmt(id)> in <foundDefs>", d) | d <- foundDefs} /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
           }
         }
@@ -690,11 +690,11 @@ set[Define] getDefinitions(str id, Key scope, set[IdRole] idRoles){
           if(mayOverloadFun(foundDefs, extractedTModel.definitions)){
             return {extractedTModel.definitions[def] | def <- foundDefs}; 
           } else {
-            // If only overloaded due to different time stamp, use most recent.
-            <ok, def> = findMostRecentDef(foundDefs);
-            if(ok){        
-                return {extractedTModel.definitions[def]};
-            }
+            //// If only overloaded due to different time stamp, use most recent.
+            //<ok, def> = findMostRecentDef(foundDefs);
+            //if(ok){        
+            //    return {extractedTModel.definitions[def]};
+            //}
             throw AmbiguousDefinition(foundDefs);
           }
         }
@@ -827,13 +827,13 @@ TModel validate(TModel tmodel, bool debug = false){
     for(<scope, id> <- extractedTModel.defines<0,1>){
         foundDefines = extractedTModel.defines[scope, id];
         if(size(foundDefines) > 1){
-            <ok, def> = findMostRecentDef(foundDefines<1>);
-            if(!ok){
+            //<ok, def> = findMostRecentDef(foundDefines<1>);
+            //if(!ok){
                 ds = {defined | <IdRole idRole, Key defined, DefInfo defInfo> <- foundDefines};
                 if(!mayOverloadFun(ds, extractedTModel.definitions)){
                     messages += [error("Double declaration of `<id>` in <foundDefines<1>>", defined) | <IdRole idRole, Key defined, DefInfo defInfo>  <- foundDefines];
                 }
-            }
+            //}
         }
     }
    
@@ -853,15 +853,15 @@ TModel validate(TModel tmodel, bool debug = false){
               openUses += u;
               if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
             } else {
-                <ok, def> = findMostRecentDef(foundDefs);
-                if(ok){
-                    definedBy[u.occ] = {def};
-                    openUses += u;
-                    if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <{def}>");
-                } else {
+                //<ok, def> = findMostRecentDef(foundDefs);
+                //if(ok){
+                //    definedBy[u.occ] = {def};
+                //    openUses += u;
+                //    if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <{def}>");
+                //} else {
                     messages += [error("Double declaration", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
                     if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
-                }
+                //}
             }
         }
         catch NoKey(): {

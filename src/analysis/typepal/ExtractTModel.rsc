@@ -306,13 +306,13 @@ TModel resolvePath(TModel tm){
                    //println("resolvePath: resolve <c.use> to <def>");
                    tm.paths += {<c.use.scope, c.pathRole, def>};  
                 } else {
-                    // If only overloaded due to different time stamp, use most recent.
-                    <ok, def> = findMostRecentDef(foundDefs);
-                    if(ok){
-                        tm.paths += {<c.use.scope, c.pathRole, def>};
-                     } else { 
+                    //// If only overloaded due to different time stamp, use most recent.
+                    //<ok, def> = findMostRecentDef(foundDefs);
+                    //if(ok){
+                    //    tm.paths += {<c.use.scope, c.pathRole, def>};
+                    // } else { 
                         msgs += error("Name <fmt(c.use.id)> is ambiguous <fmt(foundDefs)>", c.use.occ);
-                     }
+                     //}
                 }
                 tm.referPaths -= {c}; 
             }
