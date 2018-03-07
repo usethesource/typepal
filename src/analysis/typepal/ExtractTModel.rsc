@@ -922,16 +922,16 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
         }
         scopes += tm.scopes;
         defines += tm.defines;
-        overlapping_facts = domain(facts) & domain(tm.facts);
-        if(!isEmpty(overlapping_facts)) {
-             for(s <- overlapping_facts){
-                if(facts[s] != tm.facts[s]){
-                    println("current model:"); iprintln(domain(scopes));
-                    println("added model:"); iprintln(domain(tm.scopes));
-                    throw "incompatible fact for <s>: <facts[s]> != <tm.facts[s]>";
-                }
-             }
-        }
+        //overlapping_facts = domain(facts) & domain(tm.facts);
+        //if(!isEmpty(overlapping_facts)) {
+        //     for(s <- overlapping_facts){
+        //        if(facts[s] != tm.facts[s]){
+        //            println("current model:"); iprintln(domain(scopes));
+        //            println("added model:"); iprintln(domain(tm.scopes));
+        //            throw "incompatible fact for <s>: <facts[s]> != <tm.facts[s]>";
+        //        }
+        //     }
+        //}
         facts += tm.facts;
         paths += tm.paths;
     }
