@@ -297,36 +297,41 @@ TModel resolvePath(TModel tm){
     msgs = [];
     int n = 0;
 
-    while(!isEmpty(tm.referPaths) && n < 3){    // explain this iteration count
+    referPaths = tm.referPaths;
+    newPaths = {};
+    
+    while(!isEmpty(referPaths) && n < 3){    // explain this iteration count
         n += 1;
-        for(c <- tm.referPaths){
+        for(rp <- referPaths){
             try {
-                u = c.use;
+                u = rp.use;
                 //u.scope[fragment=""];
                 //u.occ[fragment=""];
                 foundDefs = lookupFun(tm, u);
                 if({def} := foundDefs){
-                   //println("resolvePath: resolve <c.use> to <def>");
-                   tm.paths += {<u.scope, c.pathRole, def>};  
+                   //println("resolvePath: resolve <rp.use> to <def>");
+                   newPaths += {<u.scope, rp.pathRole, def>};  
                 } else {
                     //// If only overloaded due to different time stamp, use most recent.
                     //<ok, def> = findMostRecentDef(foundDefs);
                     //if(ok){
-                    //    tm.paths += {<c.use.scope, c.pathRole, def>};
+                    //    tm.paths += {<rp.use.scope, rp.pathRole, def>};
                     // } else { 
                         msgs += error("Name <fmt(u.id)> is ambiguous <fmt(foundDefs)>", u.occ);
                      //}
                 }
-                tm.referPaths -= {c}; 
+                referPaths -= {rp}; 
             }
             catch:{
-                println("Lookup for <c> fails"); 
-                msgs += error("Name <fmt(c.use.id)> not found", c.use.occ);
+                println("Lookup for <rp> fails"); 
+                msgs += error("Name <fmt(rp.use.id)> not found", rp.use.occ);
             }
         }
     }
-    for(c <- tm.referPaths){
-        msgs += error("Reference to name <fmt(c.use.id)> cannot be resolved", c.use.occ);
+    tm.paths += newPaths;
+    tm.referPaths = referPaths;
+    for(rp <- referPaths){
+        msgs += error("Reference to name <fmt(rp.use.id)> cannot be resolved", rp.use.occ);
     }
     tm.messages += msgs;
     return tm;
