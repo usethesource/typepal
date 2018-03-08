@@ -643,7 +643,7 @@ AType getType(loc l){
     }
 }
 
-@memo
+//@memo
 AType getType(str id, Key scope, set[IdRole] idRoles){
     try {
         foundDefs = lookupFun(extractedTModel, use(id, anonymousOccurrence, scope, idRoles));

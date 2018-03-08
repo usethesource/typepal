@@ -910,16 +910,16 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     
     void _addTModel(TModel tm){
         messages += tm.messages;
-        overlapping_scopes = domain(scopes) & domain(tm.scopes);
-        if(!isEmpty(overlapping_scopes)) {
-            for(s <- overlapping_scopes){
-                if(scopes[s] != tm.scopes[s]){
-                    println("current model:"); iprintln(domain(scopes));
-                    println("added model:"); iprintln(domain(tm.scopes));
-                    throw "overlapping scopes for <overlapping_scopes>";
-                }
-             }
-        }
+        //overlapping_scopes = domain(scopes) & domain(tm.scopes);
+        //if(!isEmpty(overlapping_scopes)) {
+        //    for(s <- overlapping_scopes){
+        //        if(scopes[s] != tm.scopes[s]){
+        //            println("current model:"); iprintln(domain(scopes));
+        //            println("added model:"); iprintln(domain(tm.scopes));
+        //            throw "overlapping scopes for <overlapping_scopes>";
+        //        }
+        //     }
+        //}
         scopes += tm.scopes;
         defines += tm.defines;
         //overlapping_facts = domain(facts) & domain(tm.facts);
