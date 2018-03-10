@@ -8,10 +8,11 @@ extend analysis::typepal::ScopeGraph;
 
 // Extend AType for type checking purposes
 data AType
-    = tvar(loc tname)                           // type variable, used for type inference
-    | lazyLub(list[AType] atypes)                // lazily computed LUB of a list of types
-    | atypeList(list[AType] atypes)              // built-in list-of-ATypes type
-    | overloadedAType(rel[Key, IdRole, AType] overloads) // built-in-overloaded type; each key provides an alternative type
+    = tvar(loc tname)                                      // type variable, used for type inference
+    | lazyLub(list[AType] atypes)                          // lazily computed LUB of a list of types
+    | atypeList(list[AType] atypes)                        // built-in list-of-ATypes type
+    | overloadedAType(rel[Key, IdRole, AType] overloads)   // built-in-overloaded type; each key provides an alternative type
+    | preAType(AType atype)                                // a "premature" type that will be expanded into a real type when possible
     ;
 
 // Pretty print ATypes

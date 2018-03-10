@@ -11,7 +11,7 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 }
 module analysis::typepal::TypePal
-
+ 
 import Set; 
 import Node;
 import Map;
@@ -49,6 +49,8 @@ bool defaultMayOverload(set[Key] defs, map[Key, Define] defines) = false;
 
 bool (set[Key] defs, map[Key, Define] defines) mayOverloadFun = defaultMayOverload;
 
+AType(AType, Key) expandPreATypeFun = defaultExpandPreAType;
+
 void configTypePal(TypePalConfig tc){
     analysis::typepal::ScopeGraph::configScopeGraph(tc);
     
@@ -56,6 +58,7 @@ void configTypePal(TypePalConfig tc){
     getLubFun = tc.getLub;
     mayOverloadFun = tc.mayOverload;
     lookupFun = tc.lookup;
+    expandPreATypeFun = tc.expandPreAType;
     
     getLubDefined = false;
     try {
@@ -311,6 +314,10 @@ AType instantiate(AType atype){
             sbs = [substitute(tp) | tp <- atypes];
             insert simplifyLub(sbs);
             }
+        //case preAType(AType pt):
+        //    try {
+        //        insert expandPreATypeFun(pt, scope);
+        //    } catch TypeUnavailable(): /* cannot yet compute type */;
       };
 }
 

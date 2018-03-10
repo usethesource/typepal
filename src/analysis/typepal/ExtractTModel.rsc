@@ -85,14 +85,6 @@ bool reportError(loc l, str msg){
     throw checkFailed({error(msg, l)});
 }
 
-//void reportWarning(Tree t, str msg){
-//    throw checkFailed({warning(msg, getLoc(t))});
-//}
-//
-//void reportInfo(Tree t, str msg){
-//    throw checkFailed({info(msg, getLoc(t))});
-//}
-
 // The basic ingredients for type checking: facts, requirements and overloads
 
 // Facts about location src, given dependencies and an AType callback
@@ -105,12 +97,12 @@ data Fact
 // A named requirement for location src, given dependencies and a callback predicate
 // Eager requirements are tried when not all dependencies are known.
 data Requirement
-    = openReq(str rname, loc src, list[loc] dependsOn, bool eager, void() preds);
+    = openReq(str rname, loc src, Key scope, list[loc] dependsOn, bool eager, void() preds);
 
 // Named type calculator for location src, given args, and resolve callback 
 // Eager calculators are tried when not all dependencies are known.   
 data Calculator
-    = calculate(str cname, loc src, list[loc] dependsOn, bool eager, AType() calculator);
+    = calculate(str cname, Key scope, loc src, list[loc] dependsOn, bool eager, AType() calculator);
 
 // The basic Fact & Requirement Model; can be extended in specific type checkers
 data TModel (
@@ -625,7 +617,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
    
     void _require(str name, Tree src, list[value] dependencies, void() preds){ 
         if(building){
-           openReqs += { openReq(name, getLoc(src), dependenciesAsKeyList(dependencies), false, preds) };
+           openReqs += { openReq(name, getLoc(src), currentScope, dependenciesAsKeyList(dependencies), false, preds) };
         } else {
             throw TypePalUsage("Cannot call `require` on TBuilder after `build`");
         }
@@ -633,7 +625,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     
     void _requireEager(str name, Tree src, list[value] dependencies, void() preds){ 
         if(building){
-           openReqs += { openReq(name, getLoc(src), dependenciesAsKeyList(dependencies), true, preds) };
+           openReqs += { openReq(name, getLoc(src), currentScope, dependenciesAsKeyList(dependencies), true, preds) };
         } else {
             throw TypePalUsage("Cannot call `require` on TBuilder after `build`");
         }
@@ -649,7 +641,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     
     void _calculate(str name, Tree src, list[value] dependencies, AType() calculator){
         if(building){
-           calculators[getLoc(src)] = calculate(name, getLoc(src), dependenciesAsKeyList(dependencies),  false, calculator);
+           calculators[getLoc(src)] = calculate(name, getLoc(src), currentScope, dependenciesAsKeyList(dependencies),  false, calculator);
         } else {
             throw TypePalUsage("Cannot call `calculate` on TBuilder after `build`");
         }
@@ -657,7 +649,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     
     void _calculateEager(str name, Tree src, list[value] dependencies, AType() calculator){
         if(building){
-           calculators[getLoc(src)] = calculate(name, getLoc(src), dependenciesAsKeyList(dependencies),  true, calculator);
+           calculators[getLoc(src)] = calculate(name, getLoc(src), currentScope, dependenciesAsKeyList(dependencies),  true, calculator);
         } else {
             throw TypePalUsage("Cannot call `calculateOpen` on TBuilder after `build`");
         }
@@ -665,7 +657,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     
     bool _reportError(Tree src, str msg){
        if(building){
-          openReqs += { openReq("error", getLoc(src), [], true, makeClosError(src, msg)) };
+          openReqs += { openReq("error", getLoc(src), currentScope, [], true, makeClosError(src, msg)) };
           return true;
        } else {
             throw TypePalUsage("Cannot call `reportError` on TBuilder after `build`");
@@ -674,7 +666,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
     
      bool _reportErrors(set[Message] msgs){
        if(building){
-          openReqs += { openReq("error", getFirstFrom(msgs).at, [], true, makeClosErrors(msgs)) };
+          openReqs += { openReq("error", getFirstFrom(msgs).at, currentScope, [], true, makeClosErrors(msgs)) };
           return true;
        } else {
             throw TypePalUsage("Cannot call `reportError` on TBuilder after `build`");

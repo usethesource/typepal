@@ -2,7 +2,7 @@ module analysis::typepal::TypePalConfig
 
 import analysis::typepal::AType;
 import analysis::typepal::ScopeGraph;
-import analysis::typepal::TypePal;
+import  ;
 import util::Reflective;
 
 AType defaultGetMinAType(){
@@ -25,6 +25,10 @@ bool defaultMayOverload (set[Key] defs, map[Key, Define] defines) {
     return false;
 }
 
+AType defaultExpandPreAType(AType atype, loc scope) {
+    return atype;
+}
+
 // Extends TypePalConfig defined in analysis::typepal::ScopeGraph
 
 data TypePalConfig(
@@ -32,5 +36,6 @@ data TypePalConfig(
         AType() getMaxAType                                         = defaultGetMaxAType,
         bool (AType t1, AType t2) isSubType                         = defaultIsSubType,
         AType (AType t1, AType t2) getLub                           = defaultGetLub,        
-        bool (set[Key] defs, map[Key, Define] defines) mayOverload  = defaultMayOverload
+        bool (set[Key] defs, map[Key, Define] defines) mayOverload  = defaultMayOverload,
+        AType (AType, Key) expandPreAType                           = defaultExpandPreAType
     );
