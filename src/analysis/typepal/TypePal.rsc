@@ -49,7 +49,7 @@ bool defaultMayOverload(set[Key] defs, map[Key, Define] defines) = false;
 
 bool (set[Key] defs, map[Key, Define] defines) mayOverloadFun = defaultMayOverload;
 
-AType(AType, Key) expandPreATypeFun = defaultExpandPreAType;
+//AType(AType, Key) expandPreATypeFun = defaultExpandPreAType;
 
 void configTypePal(TypePalConfig tc){
     analysis::typepal::ScopeGraph::configScopeGraph(tc);
@@ -58,7 +58,7 @@ void configTypePal(TypePalConfig tc){
     getLubFun = tc.getLub;
     mayOverloadFun = tc.mayOverload;
     lookupFun = tc.lookup;
-    expandPreATypeFun = tc.expandPreAType;
+    //expandPreATypeFun = tc.expandPreAType;
     
     getLubDefined = false;
     try {
