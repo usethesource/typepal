@@ -49,7 +49,7 @@ bool defaultMayOverload(set[Key] defs, map[Key, Define] defines) = false;
 
 bool (set[Key] defs, map[Key, Define] defines) mayOverloadFun = defaultMayOverload;
 
-//AType(AType, Key) expandPreATypeFun = defaultExpandPreAType;
+AType(AType, Key) expandPreATypeFun = defaultExpandPreAType;
 
 void configTypePal(TypePalConfig tc){
     analysis::typepal::ScopeGraph::configScopeGraph(tc);
@@ -58,7 +58,7 @@ void configTypePal(TypePalConfig tc){
     getLubFun = tc.getLub;
     mayOverloadFun = tc.mayOverload;
     lookupFun = tc.lookup;
-    //expandPreATypeFun = tc.expandPreAType;
+    expandPreATypeFun = tc.expandPreAType;
     
     getLubDefined = false;
     try {
@@ -598,10 +598,10 @@ void bindings2facts(map[loc, AType] bindings, loc occ){
 }
    
 // Check whether a requirement is satisfied
-tuple[bool ok, list[Message] messages, map[loc, AType] bindings] satisfies(Requirement req){
+tuple[bool ok, list[Message] messages, map[loc, AType] bindings] satisfies(Requirement req, TModel tm){
     bindings = ();
     try {
-        req.preds();
+        req.preds(tm);
         bindings2facts(bindings, req.src);
         return <true, [], bindings>;
     } catch checkFailed(set[Message] msgs):
@@ -975,7 +975,7 @@ TModel validate(TModel tmodel, bool debug = false){
           if(cdebug) println("?calc [<calc.cname>] at <calc.src>"); 
           if(allDependenciesKnown(calc.dependsOn, calc.eager)){
               try {
-                t = calc.calculator();
+                t = calc.calculator(extractedTModel);
                 addFact(calcKey, t);
                 bindings2facts(bindings, calc.src);
                 if(cdebug) println("+calc [<calc.cname>] at <calc.src> ==\> <t>"); 
@@ -998,7 +998,7 @@ TModel validate(TModel tmodel, bool debug = false){
        for(Requirement oreq <- sort(requirementJobs, bool(Requirement a, Requirement b){ return a.src.offset < b.src.offset; })){
           if(allDependenciesKnown(oreq.dependsOn, oreq.eager)){  
              try {       
-                 <ok, messages1, bindings1> = satisfies(oreq); 
+                 <ok, messages1, bindings1> = satisfies(oreq, extractedTModel); 
                  messages += messages1;
                  if(ok){
                     for(tv <- domain(bindings1), f <- triggersFact[tv] ? {}){

@@ -57,16 +57,16 @@ set[Key] dependenciesAsKeys(list[Tree] dependencies)
 // Definition info used during type checking
 data DefInfo
     = defType(AType atype)                                                    // Explicitly given AType
-    | defType(set[Key] dependsOn, AType() getAType)                           // AType given as callback.
+    | defType(set[Key] dependsOn, AType(TModel tm) getAType)                           // AType given as callback.
     | defLub(list[AType] atypes)                                              // redefine previous definition
-    | defLub(set[Key] dependsOn, set[Key] defines, list[AType()] getATypes)   // redefine previous definition
+    | defLub(set[Key] dependsOn, set[Key] defines, list[AType(TModel tm)] getATypes)   // redefine previous definition
     ;
 
-DefInfo defType(list[Tree] dependsOn, AType() getAType){
+DefInfo defType(list[Tree] dependsOn, AType(TModel tm) getAType){
     return defType(dependenciesAsKeys(dependsOn), getAType);
  }
     
-DefInfo defLub(list[Tree] dependsOn, AType() getAType)
+DefInfo defLub(list[Tree] dependsOn, AType(TModel tm) getAType)
     = defLub(dependenciesAsKeys(dependsOn), {}, [getAType]);
 
 str fmt(AType t, bool quoted = true)            = quoted ? "`<prettyPrintAType(t)>`" : prettyPrintAType(t);
@@ -97,12 +97,12 @@ data Fact
 // A named requirement for location src, given dependencies and a callback predicate
 // Eager requirements are tried when not all dependencies are known.
 data Requirement
-    = openReq(str rname, loc src, Key scope, list[loc] dependsOn, bool eager, void() preds);
+    = openReq(str rname, loc src, Key scope, list[loc] dependsOn, bool eager, void(TModel tm) preds);
 
 // Named type calculator for location src, given args, and resolve callback 
 // Eager calculators are tried when not all dependencies are known.   
 data Calculator
-    = calculate(str cname, Key scope, loc src, list[loc] dependsOn, bool eager, AType() calculator);
+    = calculate(str cname, Key scope, loc src, list[loc] dependsOn, bool eager, AType(TModel tm) calculator);
 
 // The basic Fact & Requirement Model; can be extended in specific type checkers
 data TModel (
@@ -345,11 +345,11 @@ data TBuilder
         lrel[Key scope, value scopeInfo] (ScopeRole scopeRole) getScopeInfo,
         Key () getScope,
        
-        void (str name, Tree src, list[value] dependencies, void() preds) require,
-        void (str name, Tree src, list[value] dependencies, void() preds) requireEager,
+        void (str name, Tree src, list[value] dependencies, void(TModel tm) preds) require,
+        void (str name, Tree src, list[value] dependencies, void(TModel tm) preds) requireEager,
         void (Tree src, AType tp) fact,
-        void (str name, Tree src, list[value] dependencies, AType() calculator) calculate,
-        void (str name, Tree src, list[value] dependencies, AType() calculator) calculateEager,
+        void (str name, Tree src, list[value] dependencies, AType(TModel tm) calculator) calculate,
+        void (str name, Tree src, list[value] dependencies, AType(TModel tm) calculator) calculateEager,
         bool (Tree src, str msg) reportError,
         bool (set[Message] msgs) reportErrors,
         bool (Tree src, str msg) reportWarning,
@@ -615,7 +615,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
         }
     }
    
-    void _require(str name, Tree src, list[value] dependencies, void() preds){ 
+    void _require(str name, Tree src, list[value] dependencies, void(TModel tm) preds){ 
         if(building){
            openReqs += { openReq(name, getLoc(src), currentScope, dependenciesAsKeyList(dependencies), false, preds) };
         } else {
@@ -623,7 +623,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
         }
     } 
     
-    void _requireEager(str name, Tree src, list[value] dependencies, void() preds){ 
+    void _requireEager(str name, Tree src, list[value] dependencies, void(TModel tm) preds){ 
         if(building){
            openReqs += { openReq(name, getLoc(src), currentScope, dependenciesAsKeyList(dependencies), true, preds) };
         } else {
@@ -639,7 +639,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
         }
     }
     
-    void _calculate(str name, Tree src, list[value] dependencies, AType() calculator){
+    void _calculate(str name, Tree src, list[value] dependencies, AType(TModel tm) calculator){
         if(building){
            calculators[getLoc(src)] = calculate(name, getLoc(src), currentScope, dependenciesAsKeyList(dependencies),  false, calculator);
         } else {
@@ -647,7 +647,7 @@ TBuilder newTBuilder(Tree t, TypePalConfig config = tconfig(), bool debug = fals
         }
     }
     
-    void _calculateEager(str name, Tree src, list[value] dependencies, AType() calculator){
+    void _calculateEager(str name, Tree src, list[value] dependencies, AType(TModel tm) calculator){
         if(building){
            calculators[getLoc(src)] = calculate(name, getLoc(src), currentScope, dependenciesAsKeyList(dependencies),  true, calculator);
         } else {
