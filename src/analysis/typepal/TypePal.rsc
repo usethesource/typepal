@@ -961,7 +961,7 @@ TModel validate(TModel tmodel, bool debug = false){
                     }
                 }
             } catch checkFailed(set[Message] msgs):
-                messages += msgs;
+                messages += [*msgs];
        }
        
        openUses -= openUsesToBeRemoved;
