@@ -21,11 +21,11 @@ bool defaultIsSubType(AType atype1, AType atype2) {
     throw TypePalUsage("`subtype(<atype1>, <atype2>)` called but `isSubType` is not specified in TypePalConfig");
 }
 
-bool defaultMayOverload (set[Key] defs, map[Key, Define] defines) {
+bool defaultMayOverload (set[loc] defs, map[loc, Define] defines) {
     return false;
 }
 
-AType defaultExpandPreAType(AType atype, loc scope) {
+AType defaultExpandPreAType(AType atype, loc scope, Solver s) {
     return atype;
 }
 
@@ -36,6 +36,6 @@ data TypePalConfig(
         AType() getMaxAType                                         = defaultGetMaxAType,
         bool (AType t1, AType t2) isSubType                         = defaultIsSubType,
         AType (AType t1, AType t2) getLub                           = defaultGetLub,        
-        bool (set[Key] defs, map[Key, Define] defines) mayOverload  = defaultMayOverload,
-        AType (AType, Key) expandPreAType                           = defaultExpandPreAType
+        bool (set[loc] defs, map[loc, Define] defines) mayOverload  = defaultMayOverload,
+        AType (AType, loc, Solver) expandPreAType                   = defaultExpandPreAType
     );
