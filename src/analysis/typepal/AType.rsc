@@ -12,7 +12,7 @@ data AType
     | lazyLub(list[AType] atypes)                          // lazily computed LUB of a list of types
     | atypeList(list[AType] atypes)                        // built-in list-of-ATypes type
     | overloadedAType(rel[loc, IdRole, AType] overloads)   // built-in-overloaded type; each loc provides an alternative type
-    | preAType(str name, AType atype)                     // a "premature" type that will be expanded into a real type when possible
+    | preAType(AType atype)                               // a "premature" type that will be expanded into a real type when possible
     ;
 
 // Pretty print ATypes

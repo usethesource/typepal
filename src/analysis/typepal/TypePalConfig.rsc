@@ -25,7 +25,7 @@ bool defaultMayOverload (set[loc] defs, map[loc, Define] defines) {
     return false;
 }
 
-AType defaultExpandPreAType(AType atype, loc scope, Solver s) {
+AType defaultExpandPreAType(AType atype, Solver s) {
     return atype;
 }
 
@@ -37,5 +37,5 @@ data TypePalConfig(
         bool (AType t1, AType t2) isSubType                         = defaultIsSubType,
         AType (AType t1, AType t2) getLub                           = defaultGetLub,        
         bool (set[loc] defs, map[loc, Define] defines) mayOverload  = defaultMayOverload,
-        AType (AType, loc, Solver) expandPreAType                   = defaultExpandPreAType
+        AType (AType, Solver) expandPreAType                        = defaultExpandPreAType
     );

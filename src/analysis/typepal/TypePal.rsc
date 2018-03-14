@@ -118,7 +118,7 @@ Solver newSolver(TModel tm, bool debug = true){
     
     bool (set[loc] defs, map[loc, Define] defines) mayOverloadFun = defaultMayOverload;
     
-    AType(AType, loc, Solver) expandPreATypeFun = defaultExpandPreAType;
+    AType(AType, Solver) expandPreATypeFun = defaultExpandPreAType;
     
     set[loc] (TModel, Use) lookupFun = lookup;
     
@@ -741,9 +741,9 @@ Solver newSolver(TModel tm, bool debug = true){
            //     throw TypeUnavailable();
            //}
            //}
-            case preAType(AType pt, _, _):
+            case preAType(AType pt):
                 try {
-                    insert expandPreATypeFun(pt, scope, thisSolver);
+                    insert expandPreATypeFun(pt, thisSolver);
                 } catch TypeUnavailable(): /* cannot yet compute type */;
           };
     }
