@@ -348,7 +348,7 @@ private set[loc] lookupNestWide(TModel tm, loc scope, Use u){
     if(!isEmpty(res)) return res; // <<<
 
     if(tm.scopes[scope] ?){
-      if(scope == tm.scopes[scope]) println(scope);
+      if(scope == tm.scopes[scope]) { println("Identical scope in lookupNestWide: <scope>"); return res; }
        parent = tm.scopes[scope];
        //if(wdebug) println("\tlookupNestWide: <u.id> in scope <scope> move up to <parent>");
        res += lookupNestWide(tm, parent, u);

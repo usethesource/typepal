@@ -34,8 +34,8 @@ loc getLoc(Tree t)
                  (n.end? && lst.end?) ? n[end=lst.end] : n;
                  };
 
-RuntimeException checkFailed(Tree where, str msg) = checkFailed({ error(msg, getLoc(where)) });
-RuntimeException checkFailed(loc where, str msg) = checkFailed({ error(msg, where) });
+//RuntimeException checkFailed(Tree where, str msg) = checkFailed({ error(msg, getLoc(where)) });
+//RuntimeException checkFailed(loc where, str msg) = checkFailed({ error(msg, where) });
 
 // Extract (nested) tree locations and type variables from a list of dependencies
 list[loc] dependenciesAslocList(list[value] dependencies){
@@ -70,21 +70,6 @@ DefInfo defType(list[Tree] dependsOn, AType(Solver s) getAType){
 DefInfo defLub(list[Tree] dependsOn, AType(Solver s) getAType)
     = defLub(dependenciesAslocs(dependsOn), {}, [getAType]);
 
-//str fmt(AType t, bool quoted = true)            = quoted ? "`<prettyPrintAType(t)>`" : prettyPrintAType(t);
-//str fmt(str s, bool quoted = true)              = quoted ? "`<s>`" : s;
-//str fmt(int n, bool quoted = true)              = "<n>";
-//str fmt(list[value] vals, bool quoted = true)   = isEmpty(vals) ? "nothing" : intercalateAnd([fmt(vl) | vl <- vals]);
-//str fmt(set[value] vals, bool quoted = true)    = isEmpty(vals) ? "nothing" :intercalateAnd([fmt(vl) | vl <- vals]);
-//str fmt(int n, str descr, bool quoted = true)   = n == 1 ? "<n> <descr>" : "<n> <descr>s";
-//default str fmt(value v, bool quoted = true)    = quoted ? "`<v>`" : "<v>";
-
-bool reportError(Tree t, str msg){
-    throw checkFailed({error(msg, getLoc(t))});
-}
-
-bool reportError(loc l, str msg){
-    throw checkFailed({error(msg, l)});
-}
 
 // The basic ingredients for type checking: facts, requirements and overloads
 
@@ -111,7 +96,8 @@ data TModel (
         map[loc,AType] facts = (), 
         set[Fact] openFacts = {},
         set[Requirement] openReqs = {},
-        map[AType, loc] sourceTypes = (),
+        map[AType, loc] namedTypes = (),
+        Uses indirectUses = [],
  //       map[loc,loc] tvScopes = (),
         list[Message] messages = [],
         map[str,value] store = (),
@@ -286,15 +272,123 @@ tuple[bool, loc] findMostRecentDef(set[loc] defs){
     return <false, |unknown:///|>;
 }
 
+// ---- Some formatting utilities
+    
+alias TypeProvider = AType(Tree);
+
+AType defaultGetType(Tree t) { throw TypePalUsage("Type of <getLoc(t)> unavailable during collect"); }
+
+str fmt1(AType t, TypeProvider getType)           = prettyPrintAType(t);
+str fmt1(str s, TypeProvider getType)             = s;
+str fmt1(int n, TypeProvider getType)             = "<n>";
+str fmt1(list[value] vals, TypeProvider getType)  = isEmpty(vals) ? "nothing" : intercalateAnd([fmt1(vl, getType) | vl <- vals]);
+str fmt1(set[value] vals, TypeProvider getType)   = isEmpty(vals) ? "nothing" : intercalateAnd([fmt1(vl, getType) | vl <- vals]);   
+str fmt1(Tree t, TypeProvider getType)            = prettyPrintAType(getType(t));
+     
+default str fmt1(value v, TypeProvider getType)   = "<v>";
+    
+str interpolate(str msg, TypeProvider getType, list[value] args){
+    int i = 0;
+    int a = -1;
+    int n = size(msg);
+    str result = "";
+    while(i < n){
+        c = msg[i];
+        if(c == "%"){
+            i += 1;
+            if(i >= n) throw TypePalUsage("% at end of format directive `<msg>`");
+            c = msg[i];
+            if(c != "%"){
+                a += 1;
+                if(a >= size(args)) throw TypePalUsage("Given <a> format directives, but only <size(args)> arguments");
+            }
+            switch(c){
+            case "t":
+                if(Tree tree := args[a] || AType atype := args[a]){
+                    result += "`<fmt1(args[a], getType)>`";
+                } else if(list[AType] atypes := args[a]){
+                    result += isEmpty(atypes) ? "none" : intercalateAnd(["`<fmt1(at, getType)>`" | at <- atypes]);
+                } else if(set[AType] atypes := args[a]){
+                    result += isEmpty(atypes) ? "none" : intercalateAnd(["`<fmt1(at, getType)>`" | at <- atypes]);
+                } else {
+                    throw TypePalUsage("%t format directive requires a Tree, AType or list/set of ATypes, found <args[a]>");
+                }
+            case "q":
+                result += "`<fmt1(args[a], getType)>`";
+            case "v":
+                result += "<fmt1(args[a], getType)>";
+            case "%":
+                result += "%";
+            default:
+                throw TypePalUsage("Unknown format directive `%<c>`");
+            }
+        } else {
+            result += c;
+        }
+        i += 1;
+    }
+    if(a != size(args) - 1) throw TypePalUsage("Used <a+1> arguments for format directives, but given <size(args)> arguments");
+    return result;
+}
+    
+Message fmt(str severity, value subject, str msg, TypeProvider getType, list[value] args){
+    fmsg = interpolate(msg, getType, args);
+    loc sloc = |unknown:///|;
+    if(loc l := subject) sloc = l;
+    else if(Tree t := subject) sloc = getLoc(t);
+    else throw TypePalUsage("Subject in error should be have type `Tree` or `loc`, found <typeOf(subject)>");
+
+    switch(severity){
+        case "error": return error(fmsg, sloc);
+        case "warning": return warning(fmsg, sloc);
+        case "info": return info(fmsg, sloc);
+        default: throw TypePalInternalError("Unknown severity <severity>");
+    }
+}
+    
+Message toMessage(error(value src, str msg), TypeProvider getType) 
+    = fmt("error", src, msg, getType, []);
+Message toMessage(error(value src, str msg, value arg0), TypeProvider getType) 
+    = fmt("error", src, msg, getType, [arg0]);
+Message toMessage(error(value src, str msg, value arg0, value arg1), TypeProvider getType) 
+    = fmt("error", src, msg, getType, [arg0, arg1]);
+Message toMessage(error(value src, str msg, value arg0, value arg1, value arg2), TypeProvider getType) 
+    = fmt("error", src, msg, getType, [arg0, arg1, arg2]);
+Message toMessage(error(value src, str msg, value arg0, value arg1, value arg2, value arg3), TypeProvider getType) 
+    = fmt("error", src, msg, getType, [arg0, arg1, arg2, arg3]);
+    
+
+Message toMessage(warning(value src, str msg), TypeProvider getType) 
+    = fmt("warning", src, msg, getType, []);
+Message toMessage(warning(value src, str msg, value arg0), TypeProvider getType) 
+    = fmt("warning", src, msg, getType, [arg0]);
+Message toMessage(warning(value src, str msg, value arg0, value arg1), TypeProvider getType) 
+    = fmt("warning", src, msg, getType, [arg0, arg1]);
+Message toMessage(warning(value src, str msg, value arg0, value arg1, value arg2), TypeProvider getType) 
+    = fmt("warning", src, msg, getType, [arg0, arg1, arg2]);
+Message toMessage(warning(value src, str msg, value arg0, value arg1, value arg2, value arg3), TypeProvider getType) 
+    = fmt("warning", src, msg, getType, [arg0, arg1, arg2, arg3]);
+  
+Message toMessage(info(value src, str msg), TypeProvider getType) 
+    = fmt("info", src, msg, getType, []);
+Message toMessage(info(value src, str msg, value arg0), TypeProvider getType) 
+    = fmt("info", src, msg, getType, [arg0]);
+Message toMessage(info(value src, str msg, value arg0, value arg1), TypeProvider getType) 
+    = fmt("info", src, msg, getType, [arg0, arg1]);
+Message toMessage(info(value src, str msg, value arg0, value arg1, value arg2), TypeProvider getType) 
+    = fmt("info", src, msg, getType, [arg0, arg1, arg2]);
+Message toMessage(info(value src, str msg, value arg0, value arg1, value arg2), value arg3, TypeProvider getType) 
+    = fmt("info", src, msg, getType, [arg0, arg1, arg2, arg3]);
+    
 data Collector 
     = collector(
         void (str id, IdRole idRole, value def, DefInfo info) define,
-        void (str id, IdRole idRole, Tree def, DefInfo info) defineSourceType,
+        void (str id, IdRole idRole, Tree def, DefInfo info) defineNamedType,
         void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope,
         void (Tree occ, set[IdRole] idRoles) use,
         void (Tree occ, set[IdRole] idRoles) useLub,
         void (Tree occ, set[IdRole] idRoles, PathRole pathRole) useViaPath,
-        //void (Tree container, Tree selector, set[IdRole] idRoles) useSourceType,
+        void (Tree container, set[IdRole] idRolesCont, Tree selector, set[IdRole] idRolesSel) useViaNamedType,
         void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) useQualified,
         void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole) useQualifiedViaPath,   
         void (Tree inner) enterScope,
@@ -309,10 +403,9 @@ data Collector
         void (Tree src, AType tp) fact,
         void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculate,
         void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculateEager,
-        bool (Tree src, str msg) reportError,
-        bool (set[Message] msgs) reportErrors,
-        bool (Tree src, str msg) reportWarning,
-        bool (Tree src, str msg) reportInfo,
+        void (Tree target, Tree src) sameType,
+        bool (FailMessage ) report,
+        bool (set[FailMessage] msgs) reports,
         AType (Tree src) newTypeVar,
         void(str key, value val) push,
         value (str key) pop,
@@ -326,10 +419,10 @@ data Collector
       ); 
 
 AType(Solver s) makeClos1(AType tp) = AType (Solver s){ return tp; };                   // TODO: workaround for compiler glitch
-void(Solver s) makeClosError(Tree src, str msg) = void(Solver s){ throw checkFailed(src, msg); };
+void(Solver s) makeClosError(Message msg) = void(Solver s){ throw  checkFailed({msg}); };
 void(Solver s) makeClosErrors(set[Message] msgs) = void(Solver s){ throw checkFailed(msgs); };
-void(Solver s) makeClosWarning(Tree src, str msg) = void(Solver s){ throw checkFailed({ warning(msg, getLoc(src)) }); };
-void(Solver s) makeClosInfo(Tree src, str msg) = void(Solver s){ checkFailed({ info(msg, getLoc(src)) }); };
+//void(Solver s) makeClosWarning(Tree src, str msg) = void(Solver s){ throw checkFailed({ warning(msg, getLoc(src)) }); };
+//void(Solver s) makeClosInfo(Tree src, str msg) = void(Solver s){ checkFailed({ info(msg, getLoc(src)) }); };
              
 Collector defaultCollector(Tree t) = newCollector(t);    
  
@@ -338,6 +431,8 @@ alias LubDefine2 = tuple[str id, loc scope, IdRole idRole, loc defined, DefInfo 
 
 Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = false){
     configScopeGraph(config);
+    
+    unescapeName = config.unescapeName;
     loc rootLoc = getLoc(t).top;
     loc globalScope = |global-scope:///|;
     Defines defines = {};
@@ -351,8 +446,9 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     
     Paths paths = {};
     set[ReferPath] referPaths = {};
-    map[AType,loc] sourceTypes = ();
+    map[AType,loc] namedTypes = ();
     Uses uses = [];
+    Uses indirectUses = [];
     map[str,value] storeVals = ();
     
     map[loc,Calculator] calculators = ();
@@ -372,9 +468,9 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     
     bool building = true;
     
-    // TODO This is language dependent!
-    str stripEscapes(str s) = replaceAll(s, "\\", "");
-    
+    //// TODO This is language dependent!
+    //str stripEscapes(str s) = replaceAll(s, "\\", "");
+    //
     void _define(str id, IdRole idRole, value def, DefInfo info){
         if(building){
             loc l;
@@ -382,6 +478,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
             else if(loc ldef := def) l = ldef;
             else throw TypePalUsage("Argument `def` of `define` should be `Tree` or `loc`, found <typeOf(def)>");
             
+            id = unescapeName(id);
             //println("definesPerLubScope[currentLubScope]: <definesPerLubScope[currentLubScope]>");
             
             if(info is defLub /*&& isEmpty(definesPerLubScope[currentLubScope][currentScope, id])*/){
@@ -395,14 +492,24 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
             throw TypePalUsage("Cannot call `define` on Collector after `run`");
         }
     }
+     
+    AType(Solver) makeDefineNamedTypeCalculator(loc l, AType(Solver) getAType){
+        return AType(Solver s) { println("makeDefineNamedTypeCalculator");
+         AType t = getAType(s); s.addNamedType(t, l); return t; };
+    }
     
-    void _defineSourceType(str id, IdRole idRole, Tree def, DefInfo info){
+    void _defineNamedType(str id, IdRole idRole, Tree def, DefInfo info){
         if(building){
             loc l = getLoc(def);
+            id = unescapeName(id);
             definesPerLubScope[currentLubScope] += <currentScope, id, idRole, l, info>;
-            sourceTypes[info.atype] = l;
+            if(info has atype){
+                namedTypes[info.atype] = l;
+            } else {
+              calculators[l] = calculate("defineNamedType `<id>`", l, currentScope, [],  false, makeDefineNamedTypeCalculator(l, info.getAType));
+            }
         } else {
-            throw TypePalUsage("Cannot call `defineType` on Collector after `run`");
+            throw TypePalUsage("Cannot call `defineNamedType` on Collector after `run`");
         }
     }
     
@@ -418,6 +525,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
             else if(loc ldef := def) l = ldef;
             else throw TypePalUsage("Argument `def` of `defineInScope` should be `Tree` or `loc`, found <typeOf(def)>");
             
+            id = unescapeName(id);
             if(info is defLub){
                 throw TypePalUsage("`defLub` cannot be used in combination with `defineInScope`");
             } else {
@@ -431,7 +539,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     void _use(Tree occ, set[IdRole] idRoles) {
         if(building){
           //if(currentScope == globalScope) throw TypePalUsage("`use` requires a user-defined scope; missing `enterScope`");
-           uses += use(stripEscapes("<occ>"), getLoc(occ), currentScope, idRoles);
+           uses += use(unescapeName("<occ>"), getLoc(occ), currentScope, idRoles);
         } else {
             throw TypePalUsage("Cannot call `use` on Collector after `run`");
         }
@@ -440,7 +548,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     void _useLub(Tree occ, set[IdRole] idRoles) {
         if(building){
            if("<occ>" == "ddd") println("*** useLub: <occ>, <getLoc(occ)>");
-           lubUsesPerLubScope[currentLubScope] += <stripEscapes("<occ>"), currentScope, idRoles, getLoc(occ)>;
+           lubUsesPerLubScope[currentLubScope] += <unescapeName("<occ>"), currentScope, idRoles, getLoc(occ)>;
         } else {
             throw TypePalUsage("Cannot call `useLub` on Collector after `run`");
         }
@@ -448,24 +556,42 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     
     void _useViaPath(Tree occ, set[IdRole] idRoles, PathRole pathRole) {
         if(building){
-            u = use(stripEscapes("<occ>"), getLoc(occ), currentScope, idRoles);
+            u = use(unescapeName("<occ>"), getLoc(occ), currentScope, idRoles);
             uses += u;
             referPaths += {refer(u, pathRole)};
         } else {
             throw TypePalUsage("Cannot call `useViaPath` on Collector after `run`");
         }
     }
+    
+    AType(Solver) makeGetTypeInNamedType(Tree container, set[IdRole] idRolesCont, Tree selector, set[IdRole] idRolesSel, loc scope){
+        return AType(Solver s) { 
+            return s.getTypeInNamedType(container, idRolesCont, selector, idRolesSel, scope);
+         };
+    }
+    
+    void _useViaNamedType(Tree container, set[IdRole] idRolesCont, Tree selector, set[IdRole] idRolesSel){
+        if(building){
+            name = unescapeName("<selector>");
+            sloc = getLoc(selector);
+            indirectUses += use(name, sloc, currentScope, idRolesSel);
+            calculators[sloc] = calculate("`<name>`", sloc, currentScope, [getLoc(container)],  false, makeGetTypeInNamedType(container, idRolesCont, selector, idRolesSel, currentScope));
+  
+        } else {
+            throw TypePalUsage("Cannot call `useViaNamedType` on Collector after `run`");
+        }
+    }
    
     void _useQualified(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles){
         if(building){
-           uses += useq([stripEscapes(id) | id <- ids], getLoc(occ), currentScope, idRoles, qualifierRoles);
+           uses += useq([unescapeName(id) | id <- ids], getLoc(occ), currentScope, idRoles, qualifierRoles);
         } else {
             throw TypePalUsage("Cannot call `useQualified` on Collector after `run`");
         }  
      }
      void _useQualifiedViaPath(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole){
         if(building){
-            u = useq([stripEscapes(id) | id <- ids], getLoc(occ), currentScope, idRoles, qualifierRoles);
+            u = useq([unescapeName(id) | id <- ids], getLoc(occ), currentScope, idRoles, qualifierRoles);
             uses += [u];
             referPaths += {refer(u, pathRole)};
         } else {
@@ -621,45 +747,60 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
         if(building){
            calculators[getLoc(src)] = calculate(name, getLoc(src), currentScope, dependenciesAslocList(dependencies),  true, calculator);
         } else {
-            throw TypePalUsage("Cannot call `calculateOpen` on Collector after `run`");
+            throw TypePalUsage("Cannot call `calculateEager` on Collector after `run`");
         }
     }
     
-    bool _reportError(Tree src, str msg){
+    AType(Solver) makeSameTypeCalculator(Tree src){
+        return AType(Solver s) { return s.getType(src); };
+    }
+    
+    void _sameType(Tree target, Tree src){
+        if(building){
+            ltarget = getLoc(target);
+            calculators[ltarget] = calculate("sameType", ltarget, currentScope, [getLoc(src)],  false, makeSameTypeCalculator(src));
+        } else {
+            throw TypePalUsage("Cannot call `sameType` on Collector after `run`");
+        }
+    }
+    
+    bool _report(FailMessage fm){
        if(building){
-          openReqs += { openReq("error", getLoc(src), currentScope, [], true, makeClosError(src, msg)) };
+          msg = toMessage(fm, defaultGetType);
+          openReqs += { openReq("error", msg.at, currentScope, [], true, makeClosError(msg)) };
           return true;
        } else {
-            throw TypePalUsage("Cannot call `reportError` on Collector after `run`");
+            throw TypePalUsage("Cannot call `report` on Collector after `run`");
        }
     }
     
-     bool _reportErrors(set[Message] msgs){
+     bool _reports(set[FailMessage] fms){
        if(building){
+          msgs = {toMessage(fm, defaultGetType) | fm <- fms};
           openReqs += { openReq("error", getFirstFrom(msgs).at, currentScope, [], true, makeClosErrors(msgs)) };
           return true;
        } else {
-            throw TypePalUsage("Cannot call `reportError` on Collector after `run`");
+            throw TypePalUsage("Cannot call `reports` on Collector after `run`");
        }
     }
     
-    bool _reportWarning(Tree src, str msg){
-        if(building){
-            messages += [ warning(msg, getLoc(src)) ];
-            return true;
-        } else {
-            throw TypePalUsage("Cannot call `reportWarning` on Collector after `run`");
-        }
-    }
-    
-    bool _reportInfo(Tree src, str msg){
-        if(building){
-             messages += [ info(msg, getLoc(src)) ];
-             return true;
-        } else {
-            throw TypePalUsage("Cannot call `reportInfo` on Collector after `run`");
-        }
-    }
+    //bool _reportWarning(Tree src, str msg){
+    //    if(building){
+    //        messages += [ warning(msg, getLoc(src)) ];
+    //        return true;
+    //    } else {
+    //        throw TypePalUsage("Cannot call `reportWarning` on Collector after `run`");
+    //    }
+    //}
+    //
+    //bool _reportInfo(Tree src, str msg){
+    //    if(building){
+    //         messages += [ info(msg, getLoc(src)) ];
+    //         return true;
+    //    } else {
+    //        throw TypePalUsage("Cannot call `reportInfo` on Collector after `run`");
+    //    }
+    //}
     
     AType _newTypeVar(Tree src){
         if(building){
@@ -688,7 +829,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
            storeVals[key] = tail(old);
            return pval;
         } else {
-           throw TypePalUsage("Cannot pop from empty stack for key <fmt(key)>");
+           throw TypePalUsage("Cannot pop from empty stack for key `<key>`");
         }
     }
     
@@ -696,7 +837,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
         if(storeVals[key]? && list[value] old := storeVals[key], size(old) > 0){
            return old[0];
         } else {
-           throw TypePalUsage("Cannot get top from empty stack for key <fmt(key)>");
+           throw TypePalUsage("Cannot get top from empty stack for key `<key>`");
         }
     }
     
@@ -741,7 +882,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
             //println("mergeLubDefs: add define:");  iprintln(res);
             return res;
         } else 
-             throw TypePalUsage("LubDefs should use a single role, found <fmt(roles)>");
+             throw TypePalUsage("LubDefs should use a single role, found <roles>");
     }
     
     bool fixed_define_in_outer_scope(str id, loc lubScope){
@@ -969,9 +1110,9 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
            tm.scopes = scopes;  scopes = ();
            tm.paths = paths;
            tm.referPaths = referPaths;
-           tm.sourceTypes = sourceTypes; sourceTypes = ();
-           //tm.accessors = accessors;    accessors = {};
+           tm.namedTypes = namedTypes; namedTypes = ();
            tm.uses = uses;      uses = [];
+           tm.indirectUses = indirectUses; indirectUses = [];
            
            tm.calculators = calculators;
            tm.facts = facts;            facts = ();
@@ -1000,11 +1141,12 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     }
     
     return collector(_define,
-                    _defineSourceType, 
+                    _defineNamedType, 
                     _defineInScope,
                     _use, 
                     _useLub,
                     _useViaPath,
+                    _useViaNamedType,
                     _useQualified, 
                     _useQualifiedViaPath, 
                     _enterScope, 
@@ -1018,10 +1160,9 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
                     _fact,
                     _calculate, 
                     _calculateEager,
-                    _reportError, 
-                    _reportErrors,
-                    _reportWarning, 
-                    _reportInfo, 
+                    _sameType,
+                    _report, 
+                    _reports,
                     _newTypeVar, 
                     _push,
                     _pop,

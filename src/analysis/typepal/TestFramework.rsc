@@ -56,9 +56,12 @@ syntax TTL_Expect
     = none: ()
     | "expect" "{" {TTL_String ","}* messages "}"
     ;
-    
-bool matches(str subject, str pat) =
-    contains(toLowerCase(subject), toLowerCase(pat));
+
+bool matches(str subject, str pat){
+    pat = uncapitalize(pat);
+    subject = uncapitalize(subject);
+    return all(p <- split("_", pat), contains(subject, p));
+}
 
 bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, bool verbose = false){
     TTL ttlProgram;

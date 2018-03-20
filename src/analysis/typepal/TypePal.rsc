@@ -32,13 +32,6 @@ private loc anonymousOccurrence = ([ANONYMOUS_OCCURRENCE] "anonymous_occurence")
 
 // --- Error handling
 
-Message error(Tree t, str msg) = error(msg, getLoc(t));
-
-Message warning(Tree t, str msg) = warning(msg, getLoc(t));
-
-Message info(Tree t, str msg) = info(msg, getLoc(t));
-
-
 // Is inner location textually contained in outer location?
 bool containedIn(loc inner, loc outer){
     return inner.path == outer.path && inner.offset >= outer.offset && inner.offset + inner.length <= outer.offset + outer.length;
@@ -82,22 +75,27 @@ str intercalateOr(list[str] strs){
 
 data Solver
     = solver(
-        AType(Tree t) getType,
+        AType(value) getType,
         AType (str id, loc scope, set[IdRole] idRoles) getTypeInScope,
-        AType (Tree container, Tree selector, set[IdRole] idRoles) getTypeInSourceType,
+        AType (Tree container, set[IdRole] idRolesCont, Tree selector, set[IdRole] idRolesSel, loc scope) getTypeInNamedType,
         set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions,
-        bool (value, value) equal,
-        bool (AType, AType) unify,
-        void (Tree, AType) fact,
-        bool (AType, AType) subtype,
+        void (AType t, loc l) addNamedType,
+        bool (value, value, FailMessage) equal,
+        bool (value, value, FailMessage) unify,
+        bool (value, value, FailMessage) comparable,
+        AType (AType) instantiate,
+        bool (AType atype) isFullyInstantiated,
+        void (loc tvScope) keepBindings,
+        void (value, AType) fact,
+        bool (value, value, FailMessage) subtype,
+        AType (value, value) lub,
+        AType (list[AType]) lubList,
         TModel () run,
-        str (value v) fmt,
-        bool(Tree, str) reportError,
-        bool (Tree, str) reportWarning,
-        bool (Tree, str) reportInfo
+        bool(FailMessage fm) report,
+        bool (set[FailMessage]) reports
     );
     
-Solver newSolver(TModel tm, bool debug = true){
+Solver newSolver(TModel tm, bool debug = false){
     
     // Configuration 
     
@@ -107,30 +105,22 @@ Solver newSolver(TModel tm, bool debug = true){
     
     AType(AType,AType) getLubFun = defaultGetLub;
     
-    //AType() getMinATypeFun = defaultGetMinAType;
-    
     AType theMinAType = atypeList([]);
     AType theMaxAType = atypeList([]);
-    
-    //AType() getMaxATypeFun = defaultGetMaxAType;
     
     bool defaultMayOverload(set[loc] defs, map[loc, Define] defines) = false;
     
     bool (set[loc] defs, map[loc, Define] defines) mayOverloadFun = defaultMayOverload;
     
-    AType(AType, Solver) expandPreATypeFun = defaultExpandPreAType;
-    
     set[loc] (TModel, Use) lookupFun = lookup;
     
     void configTypePal(TypePalConfig tc){
-        analysis::typepal::ScopeGraph::configScopeGraph(tc);
+        configScopeGraph(tc);
         
         isSubTypeFun = tc.isSubType;
         getLubFun = tc.getLub;
         mayOverloadFun = tc.mayOverload;
-        lookupFun = tc.lookup;
-        expandPreATypeFun = tc.expandPreAType;
-        
+        lookupFun = tc.lookup;       
         getLubDefined = false;
         try {
             getLubFun(atypeList([]), atypeList([]));
@@ -154,21 +144,6 @@ Solver newSolver(TModel tm, bool debug = true){
         //getMinATypeFun = tc.getMinAType;
         //getMaxATypeFun = tc.getMaxAType;
     }
-    
-    // ---- Some formatting utilities
-
-    str fmt(value v) = _fmt(v);
-   
-    str _fmt(AType t, bool quoted = true)            = quoted ? "`<prettyPrintAType(t)>`" : prettyPrintAType(t);
-    str _fmt(str s, bool quoted = true)              = quoted ? "`<s>`" : s;
-    str _fmt(int n, bool quoted = true)              = "<n>";
-    str _fmt(list[value] vals, bool quoted = true)   = isEmpty(vals) ? "nothing" : intercalateAnd([_fmt(vl) | vl <- vals]);
-    str _fmt(set[value] vals, bool quoted = true)    = isEmpty(vals) ? "nothing" :intercalateAnd([_fmt(vl) | vl <- vals]);
-    str _fmt(int n, str descr, bool quoted = true)   = n == 1 ? "<n> <descr>" : "<n> <descr>s";
-    
-    str _fmt(Tree t)  = "`<prettyPrintAType(getType(t))>`";
-     
-    default str _fmt(value v, bool quoted = true)    = quoted ? "`<v>`" : "<v>";
     
     // State of Solver
     
@@ -223,27 +198,27 @@ Solver newSolver(TModel tm, bool debug = true){
     
     // Error reporting
     
-    bool reportError(Tree t, str msg){
-        throw checkFailed({error(msg, getLoc(t))});
+    AType getTypeFromTree(Tree t) = getType(t);
+    
+    bool _report(FailMessage fm){
+        msg = toMessage(fm, getTypeFromTree);
+        if(getName(msg) == "error"){
+           throw checkFailed({msg});
+        } else {
+            messages += msg;
+            return true;
+        }
     }
     
-    //bool reportError(loc l, str msg){
-    //    throw checkFailed({error(msg, l)});
-    //}
-    
-    bool reportWarning(Tree t, str msg){
-        messages += [warning(msg, getLoc(t))];
-        return true;
-    }
-    
-    bool reportInfo(Tree t, str msg){
-        messages += [info(msg, getLoc(t))];
-        return true;
-    }
-    
-    bool reportErrors(set[Message] msgs){
-        throw checkFailed(msgs);
-    }
+   bool _reports(set[FailMessage] fms){
+        msgs = { toMessage(fm, getTypeFromTree) | fm <- fms };
+        if(any(msg <- msgs, getName(msg) == "error")){
+            throw checkFailed(msgs);
+        } else {
+            messages += msgs;
+            return true;
+        }
+   }
     
     // Add a fact
    
@@ -269,7 +244,7 @@ Solver newSolver(TModel tm, bool debug = true){
         //if(cdebug)println("addFact2: <fct>");
         if(allDependenciesKnown(dependsOn, true)){
             try {
-                iatype = getAType(thisSolver);
+                iatype = instantiate(getAType(thisSolver));
                 if(!mayReplace(src, iatype)){ println("####2 <src>: <facts[src]> =!=\> <iatype>"); return true; }
                 facts[src] = iatype;
                 if(cdebug)println(" fact <src> ==\> <facts[src]>");
@@ -356,7 +331,7 @@ Solver newSolver(TModel tm, bool debug = true){
     bool addFact(loc l, AType atype){
         //println("addFact: <l>, <atype>");
         iatype = instantiate(atype);
-        if(!mayReplace(l, iatype)){ println("####5 <l>: <facts[l]> not replaced by <iatype>"); return false; }
+        if(!mayReplace(l, iatype)){ println("####5 <l>: <facts[l]> replaced by <iatype>"); /*return false;*/ }
         facts[l] = iatype;
         if(cdebug)println(" fact <l> ==\> <iatype>");
         if(tvar(tvloc) := iatype){
@@ -452,37 +427,19 @@ Solver newSolver(TModel tm, bool debug = true){
     .Description
     xxx
     }    
-    AType getType(Tree tree) {
-        try {
-            return  instantiate(findType(tree@\loc));
-        } catch NoSuchKey(l): {
-            //println("getType: <tree@\loc> unavailable");
-            throw TypeUnavailable();
-        }
-    }
     
-    AType getType(tvar(loc l)){
+    AType getType(value v){
         try {
-            return facts[l];
-        } catch NoSuchKey(k): {
+            switch(v){
+                case Tree tree:   return instantiate(findType(tree@\loc));
+                case tvar(loc l): return facts[l];
+                case AType atype: return instantiate(atype);
+                case loc l:       return facts[l];
+            }
+        
+        } catch NoSuchKey(k):
             throw TypeUnavailable();
-        }
-    }
     
-    default AType getType(AType atype){
-        try {
-            return instantiate(atype);
-        } catch NoSuchKey(k): {
-            throw TypeUnavailable();
-        }
-    }
-    
-    AType getType(loc l){
-        try {
-            return facts[l];
-        } catch NoSuchKey(k): {
-            throw TypeUnavailable();
-        }
     }
     
     @memo
@@ -500,7 +457,7 @@ Solver newSolver(TModel tm, bool debug = true){
                 //if(ok){                
                 //    return instantiate(facts[def]);
                 // }
-                 reportErrors({error("Double declaration of `<id>` in <foundDefs>", d) | d <- foundDefs} /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
+                 _reports({error(d, "Double declaration of %q in %v", id, foundDefs) | d <- foundDefs} /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
               }
             }
          } catch NoSuchKey(k): {
@@ -512,13 +469,26 @@ Solver newSolver(TModel tm, bool debug = true){
            }
     }
     
-    AType getTypeInSourceType(Tree container, Tree selector, set[IdRole] idRoles){
+    AType getTypeInNamedType(Tree container, set[IdRole] idRolesCont, Tree selector, set[IdRole] idRolesSel, loc scope){
         try {
-            containerType = getType(container);              
-            containerDef =  tm.sourceTypes[containerType];
-            return getTypeInScope("<selector>", containerDef, idRoles);
+            containerType = getType(container);
+            if(containerType has name){   
+                for(containerDef <- getDefinitions(containerType.name, scope, idRolesCont)){    
+                    try {
+                        return getTypeInScope("<selector>", containerDef.defined, idRolesSel);
+                    } catch TypeUnavailable():; /* ignore */
+                }
+                throw TypeUnavailable();
+            } else {
+                _report(error(container, "Named type expected, found %t", container));
+            }
         } catch NoBinding(_): throw TypeUnavailable();
           catch NoSuchKey(_): throw TypeUnavailable();
+     }
+     
+     void addNamedType(AType t, loc l){
+        tm.namedTypes[t] = l;
+        println("addNamedType: <t> : <l>");
      }
     
     Define getDefinition(Tree tree){
@@ -565,20 +535,37 @@ Solver newSolver(TModel tm, bool debug = true){
     
     
     // Check the "equal" predicate
-    bool equal(value given, value expected) = _equal(given, expected);
-    
-    bool _equal(AType given, AType expected){
-        return instantiate(unsetRec(given)) == instantiate(unsetRec(expected));
+       
+    bool _equal(AType given, AType expected, FailMessage fm){
+        if(isFullyInstantiated(given) && isFullyInstantiated(expected)){
+           return instantiate(unsetRec(given)) == instantiate(unsetRec(expected)) || _report(fm);
+        }
+        throw TypeUnavailable();
     }
     
-    default bool _equal(Tree given, AType expected) = _equal(getType(given), expected);
+    bool _equal(Tree given, AType expected, FailMessage fm) = _equal(getType(given), expected, fm);
     
-    default bool _equal(AType given, Tree expected) = _equal(given, getType(expected));
+    bool _equal(AType given, Tree expected, FailMessage fm) = _equal(given, getType(expected), fm);
     
-    default bool _equal(Tree given, Tree expected) = _equal(getType(given), getType(expected));
+    bool _equal(Tree given, Tree expected, FailMessage fm) = _equal(getType(given), getType(expected), fm);
+    
+    default bool _equal(value given, value expected, FailMessage fm) { throw TypePalUsage("`equal` called with <given> and <expected>"); }
    
     // Check the "unify" predicate
-    bool _unify(AType given, AType expected){
+    
+    bool _unify(Tree given, AType expected, FailMessage fm) = _unify(getType(given), expected, fm);
+    
+    bool _unify(AType given, Tree expected, FailMessage fm) = _unify(given, getType(expected), fm);
+    
+    bool _unify(Tree given, Tree expected, FailMessage fm) = _unify(getType(given), getType(expected), fm);
+    
+    default bool _unify(value given, value expected, FailMessage fm) { throw TypePalUsage("`_unify` called with <given> and <expected>"); }
+    
+    bool _unify(value given, value expected, FailMessage fm) {
+        return unify(given, expected) || _report(fm);
+    }
+    
+    bool unify(AType given, AType expected){
         if(tvar(tname) := given){
             bindings[tname] = expected;
                 return true;
@@ -599,30 +586,54 @@ Solver newSolver(TModel tm, bool debug = true){
         }
     }
     
-    bool subtype(AType small, AType large){
-        //extractedTModel.facts = facts;
+    bool _subtype(Tree given, AType expected, FailMessage fm) = _subtype(getType(given), expected, fm);
+    
+    bool _subtype(AType given, Tree expected, FailMessage fm) = _subtype(given, getType(expected), fm);
+    
+    bool _subtype(Tree given, Tree expected, FailMessage fm) = _subtype(getType(given), getType(expected), fm);
+    
+    default bool _subtype(value given, value expected, FailMessage fm) { throw TypePalUsage("`subtype` called with <given> and <expected>"); }
+    
+    bool _subtype(AType small, AType large, FailMessage fm){
         if(isFullyInstantiated(small) && isFullyInstantiated(large)){
-           r = isSubTypeFun(small, large);
-           //println("subtype: <small>, <large> ==\> <r>");
-           return r;
+           return isSubTypeFun(small, large) || _report(fm);
         } else {
           throw TypeUnavailable();
         }
     }
     
-    default bool comparable(AType atype1, AType atype2){
+    bool _comparable(Tree given, AType expected, FailMessage fm) = _comparable(getType(given), expected, fm);
+    
+    bool _comparable(AType given, Tree expected, FailMessage fm) = _comparable(given, getType(expected), fm);
+    
+    bool _comparable(Tree given, Tree expected, FailMessage fm) = _comparable(getType(given), getType(expected), fm);
+    
+    default bool _comparable(value given, value expected, FailMessage fm) { throw TypePalUsage("`comparable` called with <given> and <expected>"); }
+    
+    bool _comparable(AType atype1, AType atype2, FailMessage fm){
         //extractedTModel.facts = facts;
         if(isFullyInstantiated(atype1) && isFullyInstantiated(atype2)){
-            return isSubTypeFun(atype1, atype2) || isSubTypeFun(atype2, atype1);
+            return isSubTypeFun(atype1, atype2) || isSubTypeFun(atype2, atype1) || _report(fm);
         } else {
             throw TypeUnavailable();
         }
     }
     
+    // lubList
+    
+    AType lubList(list[AType] atypes) = simplifyLub(atypes);
+     
     // lub
     
-    AType lub(AType t1, AType t2) = simplifyLub([t1, t2]);
-    AType lub(list[AType] atypes) = simplifyLub(atypes);
+    AType _lub(Tree given, AType expected) = _lub(getType(given), expected);
+    
+    AType _lub(AType given, Tree expected) = _lub(given, getType(expected));
+    
+    AType _lub(Tree given, Tree expected) = _lub(getType(given), getType(expected));
+    
+    AType _lub(AType t1, AType t2) = simplifyLub([t1, t2]);
+    
+    default AType _lub(value given, value expected) { throw TypePalUsage("`lub` called with <given> and <expected>"); }
     
     AType simplifyLub(list[AType] atypes) {
         //println("simplifyLub: <atypes>");
@@ -639,7 +650,7 @@ Solver newSolver(TModel tm, bool debug = true){
         if(lubbedType != theMinAType){
             bindings1 = bindings;
             bindings = ();
-            other = [t | t <- other, !_unify(lubbedType, t)];
+            other = [t | t <- other, !unify(lubbedType, t)];
             for(b <- bindings){
                 println("add <b>, <bindings[b]>");
                 addFact(b, bindings[b]);
@@ -657,13 +668,24 @@ Solver newSolver(TModel tm, bool debug = true){
     }
     
     // The "fact" assertion
-    void fact(Tree t, AType atype){
-            addFact(t@\loc, atype);
-    }
     
-    void fact(loc src, AType atype){
-            addFact(src, atype);
+    void fact(value v, AType atype){
+        if(Tree t := v) {
+            addFact(getLoc(t), atype);
+         } else if(loc l := v){
+            addFact(l, atype);
+         } else {
+            throw TypePalUsage("First argument of `fact` should be `Tree` or `loc`, found `<typeOf(v)>`");
+         }
+    
     }
+    //void fact(Tree t, AType atype){
+    //        addFact(t@\loc, atype);
+    //}
+    //
+    //void fact(loc src, AType atype){
+    //        addFact(src, atype);
+    //}
 
     bool allDependenciesKnown(set[loc] deps, bool eager)
         = isEmpty(deps) || (eager ? all(dep <- deps, facts[dep]?)
@@ -679,6 +701,11 @@ Solver newSolver(TModel tm, bool debug = true){
             case tvar(loc tname): if(!facts[tname]? || tvar(tname) := facts[tname]) return false; // return facts[tname]? && isFullyInstantiated(facts[tname]);
             case lazyLub(list[AType] atypes): if(!(isEmpty(atypes) || all(AType tp <- atype, isFullyInstantiated(tp)))) return false;
             case overloadedAType(rel[loc, IdRole, AType] overloads): all(<k, idr, tp> <- overloads, isFullyInstantiated(tp));
+            //case preAType(AType pt) : {
+            //    try {
+            //        insert expandPreATypeFun(pt, thisSolver);
+            //    } catch TypeUnavailable(): return false;
+            //}
         }
         return true;
     }
@@ -721,30 +748,10 @@ Solver newSolver(TModel tm, bool debug = true){
                 sbs = [substitute(tp) | tp <- atypes];
                 insert simplifyLub(sbs);
                 }
-           //case useDefinedType(Use u): {
-           // try {
-           //     foundDefs = lookupFun(tm, use(id, anonymousOccurrence, scope, idRoles));
-           //     if({def} := foundDefs){
-           //         insert instantiate(facts[def]);
-           //     } else {
-           //         if(mayOverloadFun(foundDefs, definitions)){
-           //             insert overloadedAType({<d, idRole, instantiate(facts[d])> | d <- foundDefs, idRole := definitions[d].idRole, idRole in idRoles});
-           //         } else {  
-           //             reportErrors({error("Double declaration of `<id>` in <foundDefs>", d) | d <- foundDefs} /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
-           //         }
-           //     }
-           // } catch NoBinding(k): {
-           //     throw TypeUnavailable();
-           // }
-           //catch NoBinding(): {
-           //     //println("getType: <id> in scope <scope> as <idRoles> ==\> TypeUnavailable1");
-           //     throw TypeUnavailable();
-           //}
-           //}
-            case preAType(AType pt):
-                try {
-                    insert expandPreATypeFun(pt, thisSolver);
-                } catch TypeUnavailable(): /* cannot yet compute type */;
+            //case preAType(AType pt):
+            //    //try {
+            //        insert expandPreATypeFun(pt, thisSolver);
+            //    //} catch TypeUnavailable(): /* cannot yet compute type */;
           };
     }
     
@@ -846,7 +853,7 @@ Solver newSolver(TModel tm, bool debug = true){
     bool addFact(loc l, AType atype){
         //println("addFact: <l>, <atype>");
         iatype = instantiate(atype);
-        if(!mayReplace(l, iatype)){ println("####5 <l>: <facts[l]> not replaced by <iatype>"); return false; }
+        if(!mayReplace(l, iatype)){ println("####5 <l>: <facts[l]> replaced by <iatype>");/* return false;*/ }
         facts[l] = iatype;
         if(cdebug)println(" fact <l> ==\> <iatype>");
         if(tvar(tvloc) := iatype){
@@ -868,7 +875,7 @@ Solver newSolver(TModel tm, bool debug = true){
     // If we already have type info for a location, may we replace that with newer info?
     bool mayReplace(loc src, AType newType){
         if(!facts[src]?) return true;
-        oldType = facts[src];
+        oldType = instantiate(facts[src]);
         if(tvar(x) := oldType) return true;
         if(tvar(x) := newType) return true;
         try {
@@ -896,7 +903,7 @@ Solver newSolver(TModel tm, bool debug = true){
         triggersRequirement = ();
         triggersFact = ();   
         requirementJobs = {};
-        sourceTypes = tm.sourceTypes;
+        namedTypes = tm.namedTypes;
         
         map[loc, set[loc]] definedBy = ();
         map[loc, Calculator] calculators = tm.calculators;
@@ -1148,6 +1155,12 @@ Solver newSolver(TModel tm, bool debug = true){
                   }
               }
            }
+           
+           for(fct <- openFacts){
+               if(fct has src){
+                  messages += [ error("Unresolved type", fct.src)];
+               }
+           }
         
            for(loc l <- sort(domain(calculators), bool(loc a, loc b) { return a.length < b.length; })){
                calc = calculators[l];
@@ -1204,17 +1217,23 @@ Solver newSolver(TModel tm, bool debug = true){
     Solver thisSolver = 
             solver(getType, 
                      getTypeInScope,
-                     getTypeInSourceType,
+                     getTypeInNamedType,
                      getDefinitions,
-                     equal, 
-                     _unify, 
-                     fact, 
-                     subtype, 
-                     run, 
-                     fmt, 
-                     reportError, 
-                     reportWarning,
-                     reportInfo);
+                     addNamedType,
+                     _equal,
+                     _unify,
+                     _comparable,
+                     instantiate,
+                     isFullyInstantiated,
+                     keepBindings,
+                     fact,
+                     _subtype,
+                     _lub,
+                     lubList,
+                     run,
+                     _report,
+                     _reports
+                     );
     return thisSolver;
 }
 
@@ -1230,11 +1249,11 @@ TModel collectAndSolve(Tree pt, TypePalConfig config = tconfig(), bool debug = f
 // Utilities on TModels that can help to build IDE-features
 
 
-rel[loc, loc] getUseDef(TModel tmodel){
+rel[loc, loc] getUseDef(TModel tm){
     res = {};
-    for(Use u <- tmodel.uses){
+    for(Use u <- tm.uses + tm.indirectUses){
         try {
-           foundDefs =  lookup(tmodel, u);
+           foundDefs =  lookup(tm, u);
            res += { <u.occ, def> | def <- foundDefs };
         } catch NoBinding(): {
             ;// ignore it
@@ -1245,11 +1264,11 @@ rel[loc, loc] getUseDef(TModel tmodel){
     return res;
 }
 
-set[str] getVocabulary(TModel tmodel)
-    = {d.id | Define d <- tmodel.defines};
+set[str] getVocabulary(TModel tm)
+    = {d.id | Define d <- tm.defines};
 
-map[loc, AType] getFacts(TModel tmodel)
-    = tmodel.facts;
+map[loc, AType] getFacts(TModel tm)
+    = tm.facts;
 
-list[Message] getMessages(TModel tmodel)
-    = tmodel.messages;
+list[Message] getMessages(TModel tm)
+    = tm.messages;

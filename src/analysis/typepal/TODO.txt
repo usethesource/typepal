@@ -1,0 +1,2 @@
+- make stripEscapes a configuration parameter
+- Make DefInfo parameter of define type value
