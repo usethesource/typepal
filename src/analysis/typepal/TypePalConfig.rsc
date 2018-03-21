@@ -23,8 +23,11 @@ bool defaultIsSubType(AType atype1, AType atype2) {
 }
 
 bool defaultMayOverload (set[loc] defs, map[loc, Define] defines) {
-    println("defaultMayOverload: <defs>");
     return false;
+}
+
+ AType defaultInstantiateTypeParameters(AType def, AType ins, AType act){ 
+   throw TypePalUsage("`instantiateTypeParameters(<prettyPrintAType(def)>, <prettyPrintAType(ins)>, <prettyPrintAType(act)>)` called but is not specified in TypePalConfig");
 }
 
 str defaultUnescapeName(str s) { return replaceAll(s, "\\", ""); }
@@ -43,5 +46,7 @@ data TypePalConfig(
         bool (set[loc] defs, map[loc, Define] defines) mayOverload 
             = bool (set[loc] defs, map[loc, Define] defines) { return false; },
         str(str) unescapeName                                       
-            = str (str s) { return replaceAll(s, "\\", ""); }
+            = str (str s) { return replaceAll(s, "\\", ""); },
+        AType (AType def, AType ins, AType act) instantiateTypeParameters 
+            = AType(AType def, AType ins, AType act){ return act; }
     );

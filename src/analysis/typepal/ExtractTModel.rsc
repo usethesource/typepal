@@ -383,7 +383,7 @@ Message toMessage(info(value src, str msg, value arg0, value arg1, value arg2), 
 data Collector 
     = collector(
         void (str id, IdRole idRole, value def, DefInfo info) define,
-        void (str id, IdRole idRole, Tree def, DefInfo info) defineNamedType,
+        //void (str id, IdRole idRole, Tree def, DefInfo info) defineNamedType,
         void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope,
         void (Tree occ, set[IdRole] idRoles) use,
         void (Tree occ, set[IdRole] idRoles) useLub,
@@ -498,20 +498,20 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
          AType t = getAType(s); s.addNamedType(t, l); return t; };
     }
     
-    void _defineNamedType(str id, IdRole idRole, Tree def, DefInfo info){
-        if(building){
-            loc l = getLoc(def);
-            id = unescapeName(id);
-            definesPerLubScope[currentLubScope] += <currentScope, id, idRole, l, info>;
-            if(info has atype){
-                namedTypes[info.atype] = l;
-            } else {
-              calculators[l] = calculate("defineNamedType `<id>`", l, currentScope, [],  false, makeDefineNamedTypeCalculator(l, info.getAType));
-            }
-        } else {
-            throw TypePalUsage("Cannot call `defineNamedType` on Collector after `run`");
-        }
-    }
+    //void _defineNamedType(str id, IdRole idRole, Tree def, DefInfo info){
+    //    if(building){
+    //        loc l = getLoc(def);
+    //        id = unescapeName(id);
+    //        definesPerLubScope[currentLubScope] += <currentScope, id, idRole, l, info>;
+    //        if(info has atype){
+    //            namedTypes[info.atype] = l;
+    //        } else {
+    //          calculators[l] = calculate("defineNamedType `<id>`", l, currentScope, [],  false, makeDefineNamedTypeCalculator(l, info.getAType));
+    //        }
+    //    } else {
+    //        throw TypePalUsage("Cannot call `defineNamedType` on Collector after `run`");
+    //    }
+    //}
     
     void _defineInScope(value scope, str id, IdRole idRole, value def, DefInfo info){
         if(building){
@@ -1141,7 +1141,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     }
     
     return collector(_define,
-                    _defineNamedType, 
+                    //_defineNamedType, 
                     _defineInScope,
                     _use, 
                     _useLub,

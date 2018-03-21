@@ -80,14 +80,24 @@ data Solver
         AType (Tree container, set[IdRole] idRolesCont, Tree selector, set[IdRole] idRolesSel, loc scope) getTypeInNamedType,
         set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions,
         void (AType t, loc l) addNamedType,
-        bool (value, value, FailMessage) equal,
-        bool (value, value, FailMessage) unify,
-        bool (value, value, FailMessage) comparable,
+        
+        bool (value, value) equal,
+        void (value, value, FailMessage) requireEqual,
+       
+        bool (value, value) unify,
+        void (value, value, FailMessage) requireUnify,
+        
+        bool (value, value) comparable,
+        void (value, value, FailMessage) requireComparable,
+        
         AType (AType) instantiate,
         bool (AType atype) isFullyInstantiated,
         void (loc tvScope) keepBindings,
         void (value, AType) fact,
-        bool (value, value, FailMessage) subtype,
+        
+        bool (value, value) subtype,
+        void (value, value, FailMessage) requireSubtype,
+        
         AType (value, value) lub,
         AType (list[AType]) lubList,
         TModel () run,
@@ -113,6 +123,8 @@ Solver newSolver(TModel tm, bool debug = false){
     bool (set[loc] defs, map[loc, Define] defines) mayOverloadFun = defaultMayOverload;
     
     set[loc] (TModel, Use) lookupFun = lookup;
+    
+    AType (AType def, AType ins, AType act) instantiateTypeParameters = defaultInstantiateTypeParameters;
     
     void configTypePal(TypePalConfig tc){
         configScopeGraph(tc);
@@ -143,6 +155,7 @@ Solver newSolver(TModel tm, bool debug = false){
         
         //getMinATypeFun = tc.getMinAType;
         //getMaxATypeFun = tc.getMaxAType;
+        instantiateTypeParameters = tc.instantiateTypeParameters;
     }
     
     // State of Solver
@@ -475,7 +488,8 @@ Solver newSolver(TModel tm, bool debug = false){
             if(containerType has name){   
                 for(containerDef <- getDefinitions(containerType.name, scope, idRolesCont)){    
                     try {
-                        return getTypeInScope("<selector>", containerDef.defined, idRolesSel);
+                        selectorType = getTypeInScope("<selector>", containerDef.defined, idRolesSel);
+                        return instantiateTypeParameters(containerDef.defInfo.atype, containerType, selectorType);
                     } catch TypeUnavailable():; /* ignore */
                 }
                 throw TypeUnavailable();
@@ -534,35 +548,45 @@ Solver newSolver(TModel tm, bool debug = false){
         = {<scope, id, idRole, defined, defInfo> | <str id, IdRole idRole, loc defined, DefInfo defInfo> <- tm.defines[scope], idRole in idRoles };
     
     
-    // Check the "equal" predicate
+    // ---- "equal" and "requireEqual" ----------------------------------------
        
-    bool _equal(AType given, AType expected, FailMessage fm){
+    bool _equal(AType given, AType expected){
         if(isFullyInstantiated(given) && isFullyInstantiated(expected)){
-           return instantiate(unsetRec(given)) == instantiate(unsetRec(expected)) || _report(fm);
+           return instantiate(unsetRec(given)) == instantiate(unsetRec(expected));
         }
         throw TypeUnavailable();
     }
     
-    bool _equal(Tree given, AType expected, FailMessage fm) = _equal(getType(given), expected, fm);
+    bool _equal(Tree given, AType expected) = _equal(getType(given), expected);
     
-    bool _equal(AType given, Tree expected, FailMessage fm) = _equal(given, getType(expected), fm);
+    bool _equal(AType given, Tree expected) = _equal(given, getType(expected));
     
-    bool _equal(Tree given, Tree expected, FailMessage fm) = _equal(getType(given), getType(expected), fm);
+    bool _equal(Tree given, Tree expected) = _equal(getType(given), getType(expected));
     
-    default bool _equal(value given, value expected, FailMessage fm) { throw TypePalUsage("`equal` called with <given> and <expected>"); }
+    default bool _equal(value given, value expected) { throw TypePalUsage("`equal` called with <given> and <expected>"); }
+    
+    void _requireEqual(value given, value expected, FailMessage fm) {
+        if(!_equal(given, expected)) _report(fm);
+    }
    
-    // Check the "unify" predicate
+    // ---- "unify" and "requireUnify" ----------------------------------------
     
-    bool _unify(Tree given, AType expected, FailMessage fm) = _unify(getType(given), expected, fm);
+    bool _unify(AType given, AType expected) = unify(given, expected);
     
-    bool _unify(AType given, Tree expected, FailMessage fm) = _unify(given, getType(expected), fm);
+    bool _unify(Tree given, AType expected) = unify(getType(given), expected);
     
-    bool _unify(Tree given, Tree expected, FailMessage fm) = _unify(getType(given), getType(expected), fm);
+    bool _unify(AType given, Tree expected) = unify(given, getType(expected));
     
-    default bool _unify(value given, value expected, FailMessage fm) { throw TypePalUsage("`_unify` called with <given> and <expected>"); }
+    bool _unify(Tree given, Tree expected) = unify(getType(given), getType(expected));
+    
+    default bool _unify(value given, value expected) { throw TypePalUsage("`_unify` called with <given> and <expected>"); }
     
     bool _unify(value given, value expected, FailMessage fm) {
         return unify(given, expected) || _report(fm);
+    }
+    
+    void _requireUnify(value given, value expected, FailMessage fm){
+        if(!_unify(given, expected)) _report(fm);
     }
     
     bool unify(AType given, AType expected){
@@ -586,44 +610,55 @@ Solver newSolver(TModel tm, bool debug = false){
         }
     }
     
-    bool _subtype(Tree given, AType expected, FailMessage fm) = _subtype(getType(given), expected, fm);
+    // ---- "subtype" and "requireSubtype" ------------------------------------
+     
+    bool _subtype(Tree given, AType expected) = _subtype(getType(given), expected);
     
-    bool _subtype(AType given, Tree expected, FailMessage fm) = _subtype(given, getType(expected), fm);
+    bool _subtype(AType given, Tree expected) = _subtype(given, getType(expected));
     
-    bool _subtype(Tree given, Tree expected, FailMessage fm) = _subtype(getType(given), getType(expected), fm);
+    bool _subtype(Tree given, Tree expected) = _subtype(getType(given), getType(expected));
     
-    default bool _subtype(value given, value expected, FailMessage fm) { throw TypePalUsage("`subtype` called with <given> and <expected>"); }
+    default bool _subtype(value given, value expected) { throw TypePalUsage("`subtype` called with <given> and <expected>"); }
     
-    bool _subtype(AType small, AType large, FailMessage fm){
+    bool _subtype(AType small, AType large){
         if(isFullyInstantiated(small) && isFullyInstantiated(large)){
-           return isSubTypeFun(small, large) || _report(fm);
+           return isSubTypeFun(small, large);
         } else {
           throw TypeUnavailable();
         }
     }
     
-    bool _comparable(Tree given, AType expected, FailMessage fm) = _comparable(getType(given), expected, fm);
+    void _requireSubtype(value given, value expected, FailMessage fm){
+        if(!_subtype(given, expected)) _report(fm);
+    }
     
-    bool _comparable(AType given, Tree expected, FailMessage fm) = _comparable(given, getType(expected), fm);
+    // ---- "comparable" and "requireComparable" ------------------------------
     
-    bool _comparable(Tree given, Tree expected, FailMessage fm) = _comparable(getType(given), getType(expected), fm);
+    bool _comparable(Tree given, AType expected) = _comparable(getType(given), expected);
     
-    default bool _comparable(value given, value expected, FailMessage fm) { throw TypePalUsage("`comparable` called with <given> and <expected>"); }
+    bool _comparable(AType given, Tree expected) = _comparable(given, getType(expected));
     
-    bool _comparable(AType atype1, AType atype2, FailMessage fm){
-        //extractedTModel.facts = facts;
+    bool _comparable(Tree given, Tree expected) = _comparable(getType(given), getType(expected));
+    
+    default bool _comparable(value given, value expected) { throw TypePalUsage("`comparable` called with <given> and <expected>"); }
+    
+    bool _comparable(AType atype1, AType atype2){
         if(isFullyInstantiated(atype1) && isFullyInstantiated(atype2)){
-            return isSubTypeFun(atype1, atype2) || isSubTypeFun(atype2, atype1) || _report(fm);
+            return isSubTypeFun(atype1, atype2) || isSubTypeFun(atype2, atype1);
         } else {
             throw TypeUnavailable();
         }
     }
     
-    // lubList
+     void _requireComparable(value given, value expected, FailMessage fm){
+        if(!_comparable(given, expected)) _report(fm);
+    }
+    
+    // ---- lubList -----------------------------------------------------------
     
     AType lubList(list[AType] atypes) = simplifyLub(atypes);
      
-    // lub
+    // ---- lub ---------------------------------------------------------------
     
     AType _lub(Tree given, AType expected) = _lub(getType(given), expected);
     
@@ -667,7 +702,7 @@ Solver newSolver(TModel tm, bool debug = false){
         return res;
     }
     
-    // The "fact" assertion
+    // ---- The "fact" assertion ----------------------------------------------
     
     void fact(value v, AType atype){
         if(Tree t := v) {
@@ -701,11 +736,6 @@ Solver newSolver(TModel tm, bool debug = false){
             case tvar(loc tname): if(!facts[tname]? || tvar(tname) := facts[tname]) return false; // return facts[tname]? && isFullyInstantiated(facts[tname]);
             case lazyLub(list[AType] atypes): if(!(isEmpty(atypes) || all(AType tp <- atype, isFullyInstantiated(tp)))) return false;
             case overloadedAType(rel[loc, IdRole, AType] overloads): all(<k, idr, tp> <- overloads, isFullyInstantiated(tp));
-            //case preAType(AType pt) : {
-            //    try {
-            //        insert expandPreATypeFun(pt, thisSolver);
-            //    } catch TypeUnavailable(): return false;
-            //}
         }
         return true;
     }
@@ -748,10 +778,6 @@ Solver newSolver(TModel tm, bool debug = false){
                 sbs = [substitute(tp) | tp <- atypes];
                 insert simplifyLub(sbs);
                 }
-            //case preAType(AType pt):
-            //    //try {
-            //        insert expandPreATypeFun(pt, thisSolver);
-            //    //} catch TypeUnavailable(): /* cannot yet compute type */;
           };
     }
     
@@ -1221,13 +1247,17 @@ Solver newSolver(TModel tm, bool debug = false){
                      getDefinitions,
                      addNamedType,
                      _equal,
+                     _requireEqual,
                      _unify,
+                     _requireUnify,
                      _comparable,
+                     _requireComparable,
                      instantiate,
                      isFullyInstantiated,
                      keepBindings,
                      fact,
                      _subtype,
+                     _requireSubtype,
                      _lub,
                      lubList,
                      run,
