@@ -1,11 +1,59 @@
 module analysis::typepal::Messenger
 
 import ParseTree;
-extend analysis::typepal::AType;
+import Exception;
+import String;
+import Set;
+import List;
 
-// ---- Some formatting utilities
+extend analysis::typepal::AType;
+import analysis::typepal::FailMessage;
+import analysis::typepal::Utils;
+
+// ---- Message utilities -----------------------------------------------------
+
+// Is inner location textually contained in outer location?
+bool containedIn(loc inner, loc outer){
+    return inner.path == outer.path && inner.offset >= outer.offset && inner.offset + inner.length <= outer.offset + outer.length;
+}
+
+list[Message] sortMostPrecise(list[Message] messages)
+    = sort(messages, bool (Message a, Message b) {
+        loc al = a.at;
+        loc bl = b.at;
+        if(al.length? && al.top? && bl.length? && bl.top?)
+            return (al.length / 10) < (bl.length / 10) || al.top < bl.top;
+        return al.path < bl.path;
+    });
+ 
+bool alreadyReported(list[Message] messages, loc src) {
+    try 
+        return !isEmpty(messages) && any(msg <- messages, containedIn(msg.at, src));
+    catch UnavailableInformation(): 
+        return false;
+}
+
+// ---- Formatting utilities --------------------------------------------------
+
+str intercalateAnd(list[str] strs){
+    switch(size(strs)){
+      case 0: return "";
+      case 1: return strs[0];
+      default: 
+              return intercalate(", ", strs[0..-1]) + " and " + strs[-1];
+      };
+}
+
+str intercalateOr(list[str] strs){
+    switch(size(strs)){
+      case 0: return "";
+      case 1: return strs[0];
+      default: 
+              return intercalate(", ", strs[0..-1]) + " or " + strs[-1];
+      };
+}
     
-alias TypeProvider = AType(Tree);
+alias TypeProvider = AType(Tree); // Generic provider of types during formatting
 
 AType defaultGetType(Tree t) { throw TypePalUsage("Type of <getLoc(t)> unavailable during collect"); }
 

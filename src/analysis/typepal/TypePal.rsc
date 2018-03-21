@@ -26,51 +26,14 @@ extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::AType;
 extend analysis::typepal::Collector;
 extend analysis::typepal::TypePalConfig;
-extend analysis::typepal::Messenger;
+
+import analysis::typepal::Messenger;
+extend analysis::typepal::FailMessage;
+import analysis::typepal::Utils;
+
 
 syntax ANONYMOUS_OCCURRENCE = "anonymous_occurence";
 private loc anonymousOccurrence = ([ANONYMOUS_OCCURRENCE] "anonymous_occurence")@\loc;
-
-// --- Error handling
-
-// Is inner location textually contained in outer location?
-bool containedIn(loc inner, loc outer){
-    return inner.path == outer.path && inner.offset >= outer.offset && inner.offset + inner.length <= outer.offset + outer.length;
-}
-
-list[Message] sortMostPrecise(list[Message] messages)
-    = sort(messages, bool (Message a, Message b) {
-        loc al = a.at;
-        loc bl = b.at;
-        if(al.length? && al.top? && bl.length? && bl.top?)
-            return (al.length / 10) < (bl.length / 10) || al.top < bl.top;
-        return al.path < bl.path;
-    });
- 
-bool alreadyReported(list[Message] messages, loc src) {
-    try 
-        return !isEmpty(messages) && any(msg <- messages, containedIn(msg.at, src));
-    catch UnavailableInformation(): 
-        return false;
-}
-
-str intercalateAnd(list[str] strs){
-    switch(size(strs)){
-      case 0: return "";
-      case 1: return strs[0];
-      default: 
-              return intercalate(", ", strs[0..-1]) + " and " + strs[-1];
-      };
-}
-
-str intercalateOr(list[str] strs){
-    switch(size(strs)){
-      case 0: return "";
-      case 1: return strs[0];
-      default: 
-              return intercalate(", ", strs[0..-1]) + " or " + strs[-1];
-      };
-}
 
 // The Solver data type: a collection of call backs
 

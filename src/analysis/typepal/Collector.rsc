@@ -18,22 +18,18 @@ import ParseTree;
 import String;
 import Set;
 import Relation;
-extend analysis::typepal::ScopeGraph;
-extend analysis::typepal::AType;
 import util::Benchmark;
 import IO;
+
+extend analysis::typepal::ScopeGraph;
+extend analysis::typepal::AType;
+
+import  analysis::typepal::Messenger;
+import analysis::typepal::FailMessage;
+
 import analysis::typepal::TypePalConfig;
 import analysis::typepal::TypePal;
-import analysis::typepal::Messenger;
-
-//loc getLoc(Tree t) = t@\loc ? t.args[0]@\loc;
-
-loc getLoc(Tree t)
-    = t@\loc ? { fst = t.args[0]@\loc; 
-                 lst = t.args[-1]@\loc;
-                 n = fst[length=lst.offset - fst.offset + lst.length]; 
-                 (n.end? && lst.end?) ? n[end=lst.end] : n;
-                 };
+import analysis::typepal::Utils;
 
 // Extract (nested) tree locations and type variables from a list of dependencies
 list[loc] dependenciesAslocList(list[value] dependencies){
@@ -57,7 +53,7 @@ data DefInfo
     = defType(AType atype) 
     | defGetType(Tree item)                                                   // Explicitly given AType
     | defType(set[loc] dependsOn, AType(Solver s) getAType)                           // AType given as callback.
-    | defLub(list[AType] atypes)                                              // redefine previous definition
+ //   | defLub(list[AType] atypes)                                              // redefine previous definition
     | defLub(set[loc] dependsOn, set[loc] defines, list[AType(Solver s)] getATypes)   // redefine previous definition
     ;
 

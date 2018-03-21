@@ -18,12 +18,10 @@ import String;
 import Set;
 import Map;
 import List;
-
-extend analysis::typepal::TypePal;
-//import analysis::grammars::Ambiguity;
-
-//import util::IDE;
 import util::Reflective;
+
+import analysis::typepal::Messenger;
+extend analysis::typepal::TypePal;
 
 lexical TTL_id = ([A-Z][a-zA-Z0-9]* !>> [a-zA-Z0-9]) \ TTL_Reserved;
 lexical TTL_StringCharacter
