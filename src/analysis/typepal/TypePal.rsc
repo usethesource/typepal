@@ -24,7 +24,7 @@ import Exception;
 
 extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::AType;
-extend analysis::typepal::ExtractTModel;
+extend analysis::typepal::Collector;
 extend analysis::typepal::TypePalConfig;
 extend analysis::typepal::Messenger;
 
