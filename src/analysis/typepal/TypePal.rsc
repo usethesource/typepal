@@ -26,6 +26,7 @@ extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::AType;
 extend analysis::typepal::ExtractTModel;
 extend analysis::typepal::TypePalConfig;
+extend analysis::typepal::Messenger;
 
 syntax ANONYMOUS_OCCURRENCE = "anonymous_occurence";
 private loc anonymousOccurrence = ([ANONYMOUS_OCCURRENCE] "anonymous_occurence")@\loc;
