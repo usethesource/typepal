@@ -106,13 +106,6 @@ str interpolate(str msg, TypeProvider getType, list[value] args){
                 }
             case "v":
                 result += "<fmt1(args[a], getType)>";
-            case "s":
-                if (str ss := args[a]) {
-                    result += ss;
-                }
-                else {
-                    result += "<args[a]>";
-                }
             case "%":
                 result += "%";
             default:
