@@ -2,7 +2,7 @@ module analysis::typepal::TypePalConfig
 
 import analysis::typepal::AType;
 extend analysis::typepal::ScopeGraph;
-import analysis::typepal::TypePal;
+import analysis::typepal::Solver;
 import util::Reflective;
 import String;
 

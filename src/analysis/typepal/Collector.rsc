@@ -28,7 +28,7 @@ import  analysis::typepal::Messenger;
 import analysis::typepal::FailMessage;
 
 import analysis::typepal::TypePalConfig;
-import analysis::typepal::TypePal;
+import analysis::typepal::Solver;
 import analysis::typepal::Utils;
 
 // Extract (nested) tree locations and type variables from a list of dependencies
