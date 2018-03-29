@@ -31,6 +31,43 @@ import analysis::typepal::TypePalConfig;
 import analysis::typepal::Solver;
 import analysis::typepal::Utils;
 
+data Collector 
+    = collector(
+        void (str id, IdRole idRole, value def, DefInfo info) define,
+        void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope,
+        void (Tree occ, set[IdRole] idRoles) use,
+        void (Tree occ, set[IdRole] idRoles) useLub,
+        void (Tree occ, set[IdRole] idRoles, PathRole pathRole) useViaPath,
+        void (Tree container, Tree selector, set[IdRole] idRolesSel) useViaType,
+        void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) useQualified,
+        void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole) useQualifiedViaPath,   
+        void (Tree inner) enterScope,
+        void (Tree inner) enterLubScope,
+        void (Tree inner) leaveScope,
+        void (loc scope, ScopeRole scopeRole, value info) setScopeInfo,
+        lrel[loc scope, value scopeInfo] (ScopeRole scopeRole) getScopeInfo,
+        loc () getScope,
+       
+        void (str name, Tree src, list[value] dependencies, void(Solver s) preds) require,
+        void (str name, Tree src, list[value] dependencies, void(Solver s) preds) requireEager,
+        void (Tree src, AType tp) fact,
+        void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculate,
+        void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculateEager,
+        void (Tree target, Tree src) sameType,
+        bool (FailMessage ) report,
+        bool (set[FailMessage] msgs) reports,
+        AType (Tree src) newTypeVar,
+        void(str key, value val) push,
+        value (str key) pop,
+        value (str key) top,
+        list[value] (str key) getStack,
+        void (str key) clearStack,
+        void (TModel tm) addTModel,
+        TypePalConfig () getConfig,
+        void (TypePalConfig cfg) setConfig,
+        TModel () run
+      ); 
+
 // Extract (nested) tree locations and type variables from a list of dependencies
 list[loc] dependenciesAslocList(list[value] dependencies){
     return 
@@ -51,9 +88,8 @@ set[loc] dependenciesAslocs(list[Tree] dependencies)
 // Definition info used during type checking
 data DefInfo
     = defType(AType atype) 
-    | defGetType(Tree item)                                                   // Explicitly given AType
+    | defGetType(Tree item)                                                           // Explicitly given AType (as Aype or Tree)
     | defType(set[loc] dependsOn, AType(Solver s) getAType)                           // AType given as callback.
- //   | defLub(list[AType] atypes)                                              // redefine previous definition
     | defLub(set[loc] dependsOn, set[loc] defines, list[AType(Solver s)] getATypes)   // redefine previous definition
     ;
 
@@ -92,7 +128,6 @@ data TModel (
         set[Requirement] openReqs = {},
         map[AType, loc] namedTypes = (),
         Uses indirectUses = [],
- //       map[loc,loc] tvScopes = (),
         list[Message] messages = [],
         map[str,value] store = (),
         map[loc, Define] definitions = (),
@@ -130,178 +165,6 @@ void printTModel(TModel tm){
     println("  ]");
     println(");");
 }
-
-void collect(Tree t1, Tree t2, Collector c){
-    collect(t1, c);
-    collect(t2, c);
-}
-
-void collect(Tree t1, Tree t2, Tree t3, Collector c){
-    collect(t1, c);
-    collect(t2, c);
-    collect(t3, c);
-}
-
-void collect(Tree t1, Tree t2, Tree t3, Tree t4, Collector c){
-    collect(t1, c);
-    collect(t2, c);
-    collect(t3, c);
-    collect(t4, c);
-}
-
-void collect(Tree t1, Tree t2, Tree t3, Tree t4, Tree t5, Collector c){
-    collect(t1, c);
-    collect(t2, c);
-    collect(t3, c);
-    collect(t4, c);
-    collect(t5, c);
-}
-
-void collect(Tree t1, Tree t2, Tree t3, Tree t4, Tree t5, Tree t6, Collector c){
-    collect(t1, c);
-    collect(t2, c);
-    collect(t3, c);
-    collect(t4, c);
-    collect(t5, c);
-    collect(t6, c);
-}
-
-void collect(Tree t1, Tree t2, Tree t3, Tree t4, Tree t5, Tree t6, Tree t7, Collector c){
-    collect(t1, c);
-    collect(t2, c);
-    collect(t3, c);
-    collect(t4, c);
-    collect(t5, c);
-    collect(t6, c);
-    collect(t7, c);
-}
-
-void collect(Tree t1, Tree t2, Tree t3, Tree t4, Tree t5, Tree t6, Tree t7, Tree t8, Collector c){
-    collect(t1, c);
-    collect(t2, c);
-    collect(t3, c);
-    collect(t4, c);
-    collect(t5, c);
-    collect(t6, c);
-    collect(t7, c);
-    collect(t8, c);
-}
-
-void collect(Tree t1, Tree t2, Tree t3, Tree t4, Tree t5, Tree t6, Tree t7, Tree t8, Tree t9, Collector c){
-    collect(t1, c);
-    collect(t2, c);
-    collect(t3, c);
-    collect(t4, c);
-    collect(t5, c);
-    collect(t6, c);
-    collect(t7, c);
-    collect(t8, c);
-    collect(t9, c);
-}
-
-void collect(list[Tree] currentTrees, Collector c){
-    for(t <- currentTrees) collect(t, c);
-}
-
-// Default definition for collect; to be overridden in a specific type checker
-// for handling syntax-constructs-of-interest
-default void collect(Tree currentTree, Collector c){
-   //println("default collect: <typeOf(currentTree)>: <currentTree>");
-   if(nlexical == 0)  collectParts(currentTree, c); else collectLexicalParts(currentTree, c); 
-}
-
-private  set[str] skipSymbols = {"lex", "layouts", "keywords", "lit", "cilit", "char-class"};
-
-int delta = 2;
-void collectParts(Tree currentTree, Collector c){
-   //println("collectParts: <typeOf(currentTree)>: <currentTree>");
-   if(currentTree has prod /*&& getName(currentTree.prod.def) notin skipSymbols*/){
-       args = currentTree.args;
-       int n = size(args);
-       int i = 0;
-       while(i < n){
-        collect(args[i], c);
-        i += delta;
-       }
-   } 
-   //else {
-   // println("collectParts, skipping: <typeOf(currentTree)>: <currentTree>");
-   //}
-}
-
-int nlexical = 0;
-
-void collectLexical(Tree currentTree, Collector c){
-    //println("collectLexical: <typeOf(currentTree)>: <currentTree>");
-    nlexical += 1;
-    collect(currentTree, c);
-    collectLexicalParts(currentTree, c);
-    nlexical -= 1;
-}
-
-void collectLexicalParts(Tree currentTree, Collector c){
-   //println("collectLexicalParts: <typeOf(currentTree)>: <currentTree>"); 
-   delta =1 ;
-   if(currentTree has prod /*&& getName(currentTree.prod.def) notin skipSymbols*/){
-       args = currentTree.args;
-       int n = size(args);
-       int i = 0;
-       while(i < n){
-        collectLexical(args[i], c);
-        i += 1;
-       }
-   }
-   delta = 2;
-}
-
-tuple[bool, loc] findMostRecentDef(set[loc] defs){
-    d2l = (def.fragment : def | loc def <- defs);
-    strippedDefs = {def[fragment=""][offset=0][length=0][begin=<0,0>][end=<0,0>] | def <- defs};
-    if({sdef} := strippedDefs){
-        def = d2l[sort([d.fragment | loc d <- defs])[-1]];
-        println("findMostRecentDef: <defs> ==\> \<true, <def>\>");
-        return <true, def>;
-    }
-    //println("findMostRecentDef: <defs> ==\> \<false, |unknown:///|\>");
-    return <false, |unknown:///|>;
-}
-    
-data Collector 
-    = collector(
-        void (str id, IdRole idRole, value def, DefInfo info) define,
-        void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope,
-        void (Tree occ, set[IdRole] idRoles) use,
-        void (Tree occ, set[IdRole] idRoles) useLub,
-        void (Tree occ, set[IdRole] idRoles, PathRole pathRole) useViaPath,
-        void (Tree container, set[IdRole] idRolesCont, Tree selector, set[IdRole] idRolesSel) useViaNamedType,
-        void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) useQualified,
-        void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole) useQualifiedViaPath,   
-        void (Tree inner) enterScope,
-        void (Tree inner) enterLubScope,
-        void (Tree inner) leaveScope,
-        void (loc scope, ScopeRole scopeRole, value info) setScopeInfo,
-        lrel[loc scope, value scopeInfo] (ScopeRole scopeRole) getScopeInfo,
-        loc () getScope,
-       
-        void (str name, Tree src, list[value] dependencies, void(Solver s) preds) require,
-        void (str name, Tree src, list[value] dependencies, void(Solver s) preds) requireEager,
-        void (Tree src, AType tp) fact,
-        void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculate,
-        void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculateEager,
-        void (Tree target, Tree src) sameType,
-        bool (FailMessage ) report,
-        bool (set[FailMessage] msgs) reports,
-        AType (Tree src) newTypeVar,
-        void(str key, value val) push,
-        value (str key) pop,
-        value (str key) top,
-        list[value] (str key) getStack,
-        void (str key) clearStack,
-        void (TModel tm) addTModel,
-        TypePalConfig () getConfig,
-        void (TypePalConfig cfg) setConfig,
-        TModel () run
-      ); 
 
 AType(Solver s) makeClos1(AType tp) = AType (Solver s){ return tp; };                   // TODO: workaround for compiler glitch
 void(Solver s) makeClosError(Message msg) = void(Solver s){ throw  checkFailed({msg}); };
@@ -372,12 +235,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
             throw TypePalUsage("Cannot call `define` on Collector after `run`");
         }
     }
-     
-    AType(Solver) makeDefineNamedTypeCalculator(loc l, AType(Solver) getAType){
-        return AType(Solver s) { println("makeDefineNamedTypeCalculator");
-         AType t = getAType(s); s.addNamedType(t, l); return t; };
-    }
-    
+        
     void _defineInScope(value scope, str id, IdRole idRole, value def, DefInfo info){
         if(building){
             loc definingScope;
@@ -429,19 +287,18 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
         }
     }
     
-    AType(Solver) makeGetTypeInNamedType(Tree container, set[IdRole] idRolesCont, Tree selector, set[IdRole] idRolesSel, loc scope){
+    AType(Solver) makeGetTypeInType(Tree container, Tree selector, set[IdRole] idRolesSel, loc scope){
         return AType(Solver s) { 
-            return s.getTypeInNamedType(container, idRolesCont, selector, idRolesSel, scope);
+            return s.getTypeInType(container, selector, idRolesSel, scope);
          };
     }
     
-    void _useViaNamedType(Tree container, set[IdRole] idRolesCont, Tree selector, set[IdRole] idRolesSel){
+    void _useViaType(Tree container, Tree selector, set[IdRole] idRolesSel){
         if(building){
             name = unescapeName("<selector>");
             sloc = getLoc(selector);
             indirectUses += use(name, sloc, currentScope, idRolesSel);
-            calculators[sloc] = calculate("`<name>`", sloc, currentScope, [getLoc(container)],  false, makeGetTypeInNamedType(container, idRolesCont, selector, idRolesSel, currentScope));
-  
+            calculators[sloc] = calculate("`<name>`", sloc, currentScope, [getLoc(container)],  false, makeGetTypeInType(container, selector, idRolesSel, currentScope));
         } else {
             throw TypePalUsage("Cannot call `useViaNamedType` on Collector after `run`");
         }
@@ -965,7 +822,6 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
            tm.facts = facts;            facts = ();
            tm.openFacts = openFacts;    openFacts = {};    
            tm.openReqs = openReqs;  
-//         tm.tvScopes = tvScopes;      tvScopes = ();
            tm.store = storeVals;        storeVals = ();
            tm.definitions = ( def.defined : def | Define def <- defines);
            definesMap = ();
@@ -992,7 +848,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
                     _use, 
                     _useLub,
                     _useViaPath,
-                    _useViaNamedType,
+                    _useViaType,
                     _useQualified, 
                     _useQualifiedViaPath, 
                     _enterScope, 
@@ -1019,4 +875,140 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
                     _getConfig,
                     _setConfig,
                     _run); 
+}
+
+
+void collect(Tree t1, Tree t2, Collector c){
+    collect(t1, c);
+    collect(t2, c);
+}
+
+void collect(Tree t1, Tree t2, Tree t3, Collector c){
+    collect(t1, c);
+    collect(t2, c);
+    collect(t3, c);
+}
+
+void collect(Tree t1, Tree t2, Tree t3, Tree t4, Collector c){
+    collect(t1, c);
+    collect(t2, c);
+    collect(t3, c);
+    collect(t4, c);
+}
+
+void collect(Tree t1, Tree t2, Tree t3, Tree t4, Tree t5, Collector c){
+    collect(t1, c);
+    collect(t2, c);
+    collect(t3, c);
+    collect(t4, c);
+    collect(t5, c);
+}
+
+void collect(Tree t1, Tree t2, Tree t3, Tree t4, Tree t5, Tree t6, Collector c){
+    collect(t1, c);
+    collect(t2, c);
+    collect(t3, c);
+    collect(t4, c);
+    collect(t5, c);
+    collect(t6, c);
+}
+
+void collect(Tree t1, Tree t2, Tree t3, Tree t4, Tree t5, Tree t6, Tree t7, Collector c){
+    collect(t1, c);
+    collect(t2, c);
+    collect(t3, c);
+    collect(t4, c);
+    collect(t5, c);
+    collect(t6, c);
+    collect(t7, c);
+}
+
+void collect(Tree t1, Tree t2, Tree t3, Tree t4, Tree t5, Tree t6, Tree t7, Tree t8, Collector c){
+    collect(t1, c);
+    collect(t2, c);
+    collect(t3, c);
+    collect(t4, c);
+    collect(t5, c);
+    collect(t6, c);
+    collect(t7, c);
+    collect(t8, c);
+}
+
+void collect(Tree t1, Tree t2, Tree t3, Tree t4, Tree t5, Tree t6, Tree t7, Tree t8, Tree t9, Collector c){
+    collect(t1, c);
+    collect(t2, c);
+    collect(t3, c);
+    collect(t4, c);
+    collect(t5, c);
+    collect(t6, c);
+    collect(t7, c);
+    collect(t8, c);
+    collect(t9, c);
+}
+
+void collect(list[Tree] currentTrees, Collector c){
+    for(t <- currentTrees) collect(t, c);
+}
+
+// Default definition for collect; to be overridden in a specific type checker
+// for handling syntax-constructs-of-interest
+default void collect(Tree currentTree, Collector c){
+   //println("default collect: <typeOf(currentTree)>: <currentTree>");
+   if(nlexical == 0)  collectParts(currentTree, c); else collectLexicalParts(currentTree, c); 
+}
+
+private  set[str] skipSymbols = {"lex", "layouts", "keywords", "lit", "cilit", "char-class"};
+
+int delta = 2;
+void collectParts(Tree currentTree, Collector c){
+   //println("collectParts: <typeOf(currentTree)>: <currentTree>");
+   if(currentTree has prod /*&& getName(currentTree.prod.def) notin skipSymbols*/){
+       args = currentTree.args;
+       int n = size(args);
+       int i = 0;
+       while(i < n){
+        collect(args[i], c);
+        i += delta;
+       }
+   } 
+   //else {
+   // println("collectParts, skipping: <typeOf(currentTree)>: <currentTree>");
+   //}
+}
+
+int nlexical = 0;
+
+void collectLexical(Tree currentTree, Collector c){
+    //println("collectLexical: <typeOf(currentTree)>: <currentTree>");
+    nlexical += 1;
+    collect(currentTree, c);
+    collectLexicalParts(currentTree, c);
+    nlexical -= 1;
+}
+
+void collectLexicalParts(Tree currentTree, Collector c){
+   //println("collectLexicalParts: <typeOf(currentTree)>: <currentTree>"); 
+   delta =1 ;
+   if(currentTree has prod /*&& getName(currentTree.prod.def) notin skipSymbols*/){
+       args = currentTree.args;
+       int n = size(args);
+       int i = 0;
+       while(i < n){
+        collectLexical(args[i], c);
+        i += 1;
+       }
+   }
+   delta = 2;
+}
+
+tuple[bool, loc] findMostRecentDef(set[loc] defs){
+    d2l = (def.fragment : def | loc def <- defs);
+    strippedDefs = {def[fragment=""][offset=0][length=0][begin=<0,0>][end=<0,0>] | def <- defs};
+    if({sdef} := strippedDefs){
+        def = d2l[sort([d.fragment | loc d <- defs])[-1]];
+        println("findMostRecentDef: <defs> ==\> \<true, <def>\>");
+        return <true, def>;
+    }
+    //println("findMostRecentDef: <defs> ==\> \<false, |unknown:///|\>");
+    return <false, |unknown:///|>;
 }

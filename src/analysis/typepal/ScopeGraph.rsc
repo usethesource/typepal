@@ -20,6 +20,10 @@ import List;
 import Relation;
 import Message;
 
+
+data Tree;      // workaround for bug in interpreter
+data Solver;
+
 data TypePalConfig(
         set[loc] (TModel, Use) lookup       = lookupWide,
        

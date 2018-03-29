@@ -27,9 +27,8 @@ data Solver
     = solver(
         AType(value) getType,
         AType (str id, loc scope, set[IdRole] idRoles) getTypeInScope,
-        AType (Tree container, set[IdRole] idRolesCont, Tree selector, set[IdRole] idRolesSel, loc scope) getTypeInNamedType,
+        AType (Tree container, Tree selector, set[IdRole] idRolesSel, loc scope) getTypeInType,
         set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions,
-        void (AType t, loc l) addNamedType,
         
         bool (value, value) equal,
         void (value, value, FailMessage) requireEqual,
@@ -77,6 +76,10 @@ Solver newSolver(TModel tm, bool debug = false){
     
     AType (AType def, AType ins, AType act) instantiateTypeParameters = defaultInstantiateTypeParameters;
     
+    tuple[bool isNamedType, str typeName, set[IdRole] idRoles] (AType atype) getTypeNameAndRole = defaultGetTypeNameAndRole;
+    
+    AType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope, Solver s) getTypeInNamelessTypeFun = defaultGetTypeInNamelessType;
+    
     void configTypePal(TypePalConfig tc){
         configScopeGraph(tc);
         
@@ -107,6 +110,8 @@ Solver newSolver(TModel tm, bool debug = false){
         //getMinATypeFun = tc.getMinAType;
         //getMaxATypeFun = tc.getMaxAType;
         instantiateTypeParameters = tc.instantiateTypeParameters;
+        getTypeNameAndRole = tc.getTypeNameAndRole;
+        getTypeInNamelessTypeFun = tc.getTypeInNamelessType;
     }
     
     TypePalConfig getConfig() = tm.config;
@@ -435,27 +440,28 @@ Solver newSolver(TModel tm, bool debug = false){
            }
     }
     
-    AType getTypeInNamedType(Tree container, set[IdRole] idRolesCont, Tree selector, set[IdRole] idRolesSel, loc scope){
-        try {
-            containerType = getType(container);
-            if(containerType has name){   
-                for(containerDef <- getDefinitions(containerType.name, scope, idRolesCont)){    
-                    try {
-                        selectorType = getTypeInScope("<selector>", containerDef.defined, idRolesSel);
-                        return instantiateTypeParameters(containerDef.defInfo.atype, containerType, selectorType);
-                    } catch TypeUnavailable():; /* ignore */
-                }
-                throw TypeUnavailable();
-            } else {
-                _report(error(container, "Named type expected, found %t", container));
-            }
-        } catch NoBinding(_): throw TypeUnavailable();
-          catch NoSuchKey(_): throw TypeUnavailable();
-     }
-     
-     void addNamedType(AType t, loc l){
-        tm.namedTypes[t] = l;
-        println("addNamedType: <t> : <l>");
+    AType getTypeInType(Tree container, Tree selector, set[IdRole] idRolesSel, loc scope){
+        containerType = getType(container);
+        <isNamedType, containerName, contRoles> = getTypeNameAndRole(containerType);
+        if(isNamedType){
+            overloads = {};
+            for(containerDef <- getDefinitions(containerName, scope, contRoles)){    
+                try {
+                    selectorType = getTypeInScope("<selector>", containerDef.defined, idRolesSel);
+                    //overloads += <containerDef.defined, containerDef.idRole, selectorType>;
+                    overloads += <containerDef.defined, containerDef.idRole, instantiateTypeParameters(containerDef.defInfo.atype, containerType, selectorType)>;
+                 } catch TypeUnavailable():; /* ignore */
+             }
+             if({<loc def, IdRole idRole, AType t>} := overloads){
+                return t;
+             } else if(isEmpty(overloads)){
+                _report(error(selector, "Type of %q could not be computed for %t", selector, containerType));
+             } else {
+                return overloadedAType(overloads);
+             }
+         } else {
+            return getTypeInNamelessTypeFun(containerType, selector, idRolesSel, scope, thisSolver);
+         }
      }
     
     Define getDefinition(Tree tree){
@@ -1196,9 +1202,8 @@ Solver newSolver(TModel tm, bool debug = false){
     Solver thisSolver = 
             solver(getType, 
                      getTypeInScope,
-                     getTypeInNamedType,
+                     getTypeInType,
                      getDefinitions,
-                     addNamedType,
                      _equal,
                      _requireEqual,
                      _unify,
