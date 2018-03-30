@@ -39,7 +39,7 @@ layout TTL_Layout = TTL_WhitespaceAndComment* !>> [\ \t\n\r];
 lexical TTL_WhitespaceAndComment 
    = [\ \t\n\r]
    | @category="Comment" ws2: "@@" ![\n]+ $
-   | @category="Comment" ws3: "\<@@" ![]*  "@@\>"
+   | @category="Comment" ws3: "\<@@" (![@] | "@" !>> "@" | "@@" !>> [\>])*  "@@\>"
    ;
    
 start syntax TTL = ttl: TTL_TestItem* items ;
