@@ -135,36 +135,11 @@ Message fmt(str severity, value subject, str msg, TypeProvider getType, list[val
     }
 }
     
-Message toMessage(error(value src, str msg), TypeProvider getType) 
-    = fmt("error", src, msg, getType, []);
-Message toMessage(error(value src, str msg, value arg0), TypeProvider getType) 
-    = fmt("error", src, msg, getType, [arg0]);
-Message toMessage(error(value src, str msg, value arg0, value arg1), TypeProvider getType) 
-    = fmt("error", src, msg, getType, [arg0, arg1]);
-Message toMessage(error(value src, str msg, value arg0, value arg1, value arg2), TypeProvider getType) 
-    = fmt("error", src, msg, getType, [arg0, arg1, arg2]);
-Message toMessage(error(value src, str msg, value arg0, value arg1, value arg2, value arg3), TypeProvider getType) 
-    = fmt("error", src, msg, getType, [arg0, arg1, arg2, arg3]);
-    
+Message toMessage(_error(value src, str msg, list[value] args), TypeProvider getType) 
+    = fmt("error", src, msg, getType, args);
 
-Message toMessage(warning(value src, str msg), TypeProvider getType) 
-    = fmt("warning", src, msg, getType, []);
-Message toMessage(warning(value src, str msg, value arg0), TypeProvider getType) 
-    = fmt("warning", src, msg, getType, [arg0]);
-Message toMessage(warning(value src, str msg, value arg0, value arg1), TypeProvider getType) 
-    = fmt("warning", src, msg, getType, [arg0, arg1]);
-Message toMessage(warning(value src, str msg, value arg0, value arg1, value arg2), TypeProvider getType) 
-    = fmt("warning", src, msg, getType, [arg0, arg1, arg2]);
-Message toMessage(warning(value src, str msg, value arg0, value arg1, value arg2, value arg3), TypeProvider getType) 
-    = fmt("warning", src, msg, getType, [arg0, arg1, arg2, arg3]);
-  
-Message toMessage(info(value src, str msg), TypeProvider getType) 
-    = fmt("info", src, msg, getType, []);
-Message toMessage(info(value src, str msg, value arg0), TypeProvider getType) 
-    = fmt("info", src, msg, getType, [arg0]);
-Message toMessage(info(value src, str msg, value arg0, value arg1), TypeProvider getType) 
-    = fmt("info", src, msg, getType, [arg0, arg1]);
-Message toMessage(info(value src, str msg, value arg0, value arg1, value arg2), TypeProvider getType) 
-    = fmt("info", src, msg, getType, [arg0, arg1, arg2]);
-Message toMessage(info(value src, str msg, value arg0, value arg1, value arg2), value arg3, TypeProvider getType) 
-    = fmt("info", src, msg, getType, [arg0, arg1, arg2, arg3]);
+Message toMessage(_warning(value src, str msg, list[value] args), TypeProvider getType) 
+    = fmt("warning", src, msg, getType, args);
+    
+Message toMessage(_info(value src, str msg, list[value] args), TypeProvider getType) 
+    = fmt("info", src, msg, getType, args);
