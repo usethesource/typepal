@@ -32,7 +32,7 @@ bool defaultMayOverload (set[loc] defs, map[loc, Define] defines) {
     return false;
 }
 
- AType defaultInstantiateTypeParameters(AType def, AType ins, AType act){ 
+ AType defaultInstantiateTypeParameters(Tree selector, AType def, AType ins, AType act, Solver s){ 
    throw TypePalUsage("`instantiateTypeParameters(<prettyPrintAType(def)>, <prettyPrintAType(ins)>, <prettyPrintAType(act)>)` called but is not specified in TypePalConfig");
 }
 
@@ -40,7 +40,7 @@ tuple[bool isNamedType, str typeName, set[IdRole] idRoles] defaultGetTypeNameAnd
     throw TypePalUsage("`useViaType` used without definition of `getTypeNameAndRole`");
 }
 
-AType defaultGetTypeInNamelessType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope, Solver s){
+AType defaultGetTypeInNamelessType(AType containerType, Tree selector, loc scope, Solver s){
     throw TypePalUsage("`useViaType` used without definition of `getTypeInNamelessType`");
 }
 
@@ -67,16 +67,16 @@ data TypePalConfig(
         str(str) unescapeName                                       
             = str (str s) { return replaceAll(s, "\\", ""); },
         
-        AType (AType def, AType ins, AType act) instantiateTypeParameters 
-            = AType(AType def, AType ins, AType act){ return act; },
+        AType (Tree selector, AType def, AType ins, AType act, Solver s) instantiateTypeParameters 
+            = AType(Tree selector, AType def, AType ins, AType act, Solver s){ return act; },
        
         tuple[bool isNamedType, str typeName, set[IdRole] idRoles] (AType atype) getTypeNameAndRole
             = tuple[bool isNamedType, str typeName, set[IdRole] idRoles](AType atype){
                 throw TypePalUsage("`useViaType` used without definition of `getTypeNameAndRole`");
             },
        
-        AType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope, Solver s) getTypeInNamelessType
-            = AType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope, Solver s){
+        AType(AType containerType, Tree selector, loc scope, Solver s) getTypeInNamelessType
+            = AType(AType containerType, Tree selector, loc scope, Solver s){
                 throw TypePalUsage("`useViaType` used without definition of `getTypeInNamelessType`");
             }
     );
