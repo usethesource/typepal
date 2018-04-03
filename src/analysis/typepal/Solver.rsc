@@ -29,6 +29,8 @@ data Solver
         AType (str id, loc scope, set[IdRole] idRoles) getTypeInScope,
         AType (Tree container, Tree selector, set[IdRole] idRolesSel, loc scope) getTypeInType,
         set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions,
+        void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope,
+        set[AType] (AType containerType, loc scope) getAllTypesInType,
         
         bool (value, value) equal,
         void (value, value, FailMessage) requireEqual,
@@ -38,6 +40,9 @@ data Solver
         
         bool (value, value) comparable,
         void (value, value, FailMessage) requireComparable,
+        
+        void (bool, FailMessage) requireTrue,
+        void (bool, FailMessage) requireFalse,
         
         AType (AType) instantiate,
         bool (AType atype) isFullyInstantiated,
@@ -52,15 +57,17 @@ data Solver
         TModel () run,
         bool(FailMessage fm) report,
         bool (set[FailMessage]) reports,
-        TypePalConfig () getConfig
+        TypePalConfig () getConfig,
+        TModel () getTModel
     );
     
 Solver newSolver(TModel tm, bool debug = false){
     
-    // Configuration 
+    // Configuration (and related state)
     
     bool cdebug = debug;
     
+    str(str) unescapeName  = defaultUnescapeName;
     bool(AType,AType) isSubTypeFun = defaultIsSubType;
     
     AType(AType,AType) getLubFun = defaultGetLub;
@@ -74,15 +81,16 @@ Solver newSolver(TModel tm, bool debug = false){
     
     set[loc] (TModel, Use) lookupFun = lookup;
     
-    AType (AType def, AType ins, AType act) instantiateTypeParameters = defaultInstantiateTypeParameters;
+    AType (Tree subject, AType def, AType ins, AType act, Solver s) instantiateTypeParameters = defaultInstantiateTypeParameters;
     
     tuple[bool isNamedType, str typeName, set[IdRole] idRoles] (AType atype) getTypeNameAndRole = defaultGetTypeNameAndRole;
     
-    AType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope, Solver s) getTypeInNamelessTypeFun = defaultGetTypeInNamelessType;
+    AType(AType containerType, Tree selector, loc scope, Solver s) getTypeInNamelessTypeFun = defaultGetTypeInNamelessType;
     
     void configTypePal(TypePalConfig tc){
         configScopeGraph(tc);
         
+        unescapeName = tc.unescapeName;
         isSubTypeFun = tc.isSubType;
         getLubFun = tc.getLub;
         mayOverloadFun = tc.mayOverload;
@@ -115,10 +123,13 @@ Solver newSolver(TModel tm, bool debug = false){
     }
     
     TypePalConfig getConfig() = tm.config;
+    TModel getTModel() = tm;
     
     // State of Solver
     
     map[loc, AType] facts = ();
+    set[Define] defines = {};
+    bool definesAdded = false;
     
     set[Fact] openFacts = {};
     map[loc, Define] definitions = ();
@@ -398,7 +409,7 @@ Solver newSolver(TModel tm, bool debug = false){
     .Description
     xxx
     }    
-    
+    //@memo
     AType getType(value v){
         try {
             switch(v){
@@ -406,11 +417,16 @@ Solver newSolver(TModel tm, bool debug = false){
                 case tvar(loc l): return facts[l];
                 case AType atype: return instantiate(atype);
                 case loc l:       return facts[l];
+                case defType(AType atype): return atype;
+                case defGetType(Tree tree): instantiate(findType(tree@\loc));
+                case defType(set[loc] dependsOn, AType(Solver s) getAType):
+                    return getAType(thisSolver);
+                case defLub(set[loc] dependsOn, set[loc] defines, list[AType(Solver s)] getATypes):
+                    throw "Cannot yet handle defLub in getType";
             }
         
         } catch NoSuchKey(k):
             throw TypeUnavailable();
-    
     }
     
     @memo
@@ -449,18 +465,48 @@ Solver newSolver(TModel tm, bool debug = false){
                 try {
                     selectorType = getTypeInScope("<selector>", containerDef.defined, idRolesSel);
                     //overloads += <containerDef.defined, containerDef.idRole, selectorType>;
-                    overloads += <containerDef.defined, containerDef.idRole, instantiateTypeParameters(containerDef.defInfo.atype, containerType, selectorType)>;
+                    overloads += <containerDef.defined, containerDef.idRole, instantiateTypeParameters(selector, getType(containerDef.defInfo), containerType, selectorType, thisSolver)>;
                  } catch TypeUnavailable():; /* ignore */
              }
-             if({<loc def, IdRole idRole, AType t>} := overloads){
-                return t;
-             } else if(isEmpty(overloads)){
+             if(isEmpty(overloads)){
                 _report(error(selector, "Type of %q could not be computed for %t", selector, containerType));
              } else {
                 return overloadedAType(overloads);
              }
          } else {
-            return getTypeInNamelessTypeFun(containerType, selector, idRolesSel, scope, thisSolver);
+            if(overloadedAType(rel[loc, IdRole, AType] overloads) := containerType){
+                overloads = {};
+                for(<key, role, tp> <- overloads){
+                    try {
+                        selectorType = getTypeInNamelessTypeFun(tp, selector, scope, thisSolver);
+                        overloads += <key, role, selectorType>;
+                    } catch checkFailed(set[Message] msgs): {
+                        ; // do nothing and try next overload
+                    } catch e:;  
+                }
+                if(isEmpty(overloads)){
+                    _report(error(selector, "Cannot access fields on type %t", containerType));
+                } else {
+                    return overloadedAType(overloads);
+                }
+            } else {
+                return getTypeInNamelessTypeFun(containerType, selector, scope, thisSolver);
+            }
+         }
+     }
+     
+     set[AType] getAllTypesInType(AType containerType, loc scope){
+        <isNamedType, containerName, contRoles> = getTypeNameAndRole(containerType);
+        if(isNamedType){
+            results = {};
+            for(containerDef <- getDefinitions(containerName, scope, contRoles)){   
+                try {
+                    results += { getType(def.defInfo) |  tuple[str id, IdRole idRole, loc defined, DefInfo defInfo] def  <- defines[containerDef.defined] ? {} };
+                } catch TypeUnavailable():; /* ignore */
+            }
+            return results;
+         } else {
+            throw "allTypesInType on <containerType>";
          }
      }
     
@@ -506,6 +552,37 @@ Solver newSolver(TModel tm, bool debug = false){
     set[Define] getDefinitions(loc scope, set[IdRole] idRoles)
         = {<scope, id, idRole, defined, defInfo> | <str id, IdRole idRole, loc defined, DefInfo defInfo> <- tm.defines[scope], idRole in idRoles };
     
+    void defineInScope(value scope, str id, IdRole idRole, value def, DefInfo info){
+        loc definingScope;
+        if(Tree tscope := scope) definingScope = getLoc(tscope);
+        else if(loc lscope := scope) definingScope = lscope;
+        else throw TypePalUsage("Argument `scope` of `defineInScope` should be `Tree` or `loc`, found <typeOf(scope)>");
+        
+        loc l;
+        if(Tree tdef := def) l = getLoc(tdef);
+        else if(loc ldef := def) l = ldef;
+        else throw TypePalUsage("Argument `def` of `defineInScope` should be `Tree` or `loc`, found <typeOf(def)>");
+        
+        id = unescapeName(id);
+        if(info is defLub){
+            throw TypePalUsage("`defLub` cannot be used in combination with `defineInScope`");
+        } else {
+            definesAdded = true;
+            d = <definingScope, id, idRole, l, info>;
+            tm.defines += {d};
+            defines += {d};
+            tm.definitions[l] = d;
+            definitions[l] = d;
+             
+            dm = ();
+            if(tm.definesMap[definingScope]?) dm = tm.definesMap[definingScope];
+            dm[id] =  (dm[id] ? {}) + {<idRole, l>};
+            tm.definesMap[definingScope] = dm;
+            try addDefineAsFact(d);
+            catch checkFailed(set[Message] msgs):
+                messages += [*msgs];
+        }
+    }
     
     // ---- "equal" and "requireEqual" ----------------------------------------
        
@@ -613,6 +690,16 @@ Solver newSolver(TModel tm, bool debug = false){
         if(!_comparable(given, expected)) _report(fm);
     }
     
+    // ---- requireTrue and requireFalse --------------------------------------
+    
+    void _requireTrue(bool b, FailMessage fm){
+        if(!b) _report(fm);
+    }
+    
+    void _requireFalse(bool b, FailMessage fm){
+        if(b) _report(fm);
+    }
+    
     // ---- lubList -----------------------------------------------------------
     
     AType lubList(list[AType] atypes) = simplifyLub(atypes);
@@ -671,15 +758,7 @@ Solver newSolver(TModel tm, bool debug = false){
          } else {
             throw TypePalUsage("First argument of `fact` should be `Tree` or `loc`, found `<typeOf(v)>`");
          }
-    
     }
-    //void fact(Tree t, AType atype){
-    //        addFact(t@\loc, atype);
-    //}
-    //
-    //void fact(loc src, AType atype){
-    //        addFact(src, atype);
-    //}
 
     bool allDependenciesKnown(set[loc] deps, bool eager)
         = isEmpty(deps) || (eager ? all(dep <- deps, facts[dep]?)
@@ -814,7 +893,7 @@ Solver newSolver(TModel tm, bool debug = false){
     }
 
     AType(Solver) makeGetType(Tree t) =
-        AType(Solver c) { return c.getType(t); };
+        AType(Solver s) { return s.getType(t); };
         
     bool addDefineAsFact(<loc scope, str id, IdRole idRole, loc defined, noDefInfo()>) 
         = true;
@@ -880,6 +959,7 @@ Solver newSolver(TModel tm, bool debug = false){
    
         facts = tm.facts;
         defines = tm.defines;
+        definesAdded = false;
         definitions = tm.definitions;
         openFacts = tm.openFacts;
         bindings = ();
@@ -893,6 +973,7 @@ Solver newSolver(TModel tm, bool debug = false){
         map[loc, set[loc]] definedBy = ();
         map[loc, Calculator] calculators = tm.calculators;
         set[Use] openUses = {};
+        set[Use] notYetDefinedUses = {};
         
         int iterations = 0;
        
@@ -925,36 +1006,25 @@ Solver newSolver(TModel tm, bool debug = false){
                foundDefs = lookupFun(tm, u);
                
                if(isEmpty(foundDefs)){
-                    roles = size(u.idRoles) > 3 ? "name" : intercalateOr([replaceAll(getName(idRole), "Id", "") | idRole <-u.idRoles]);
-                    messages += error("Undefined <roles> `<getId(u)>`", u.occ);             
+                    notYetDefinedUses += u;
                } else 
                if(size(foundDefs) == 1 || mayOverloadFun(foundDefs, definitions)){
                   definedBy[u.occ] = foundDefs;
                   openUses += u;
                   if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
                 } else {
-                    //<ok, def> = findMostRecentDef(foundDefs);
-                    //if(ok){
-                    //    definedBy[u.occ] = {def};
-                    //    openUses += u;
-                    //    if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <{def}>");
-                    //} else {
-                        messages += [error("Double declaration", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
-                        if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
-                    //}
+                    messages += [error("Double declaration", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
+                    if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }
             catch NoBinding(): {
-                    roles = size(u.idRoles) > 5 ? "" : intercalateOr([replaceAll(getName(idRole), "Id", "") | idRole <-u.idRoles]);
-                    messages += error("Undefined <roles> `<getId(u)>`", u.occ);
-                    if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** undefined **");
+                    notYetDefinedUses += u;
             }
         }
         
         if(cdebug) println("..... handle defines");
     
         for(Define d <- defines){
-            //if(d.id in {/*"Grammar","Exception",*/"CharClass","StringConstant"}) println("Defined: <d>");
             try addDefineAsFact(d);
             catch checkFailed(set[Message] msgs):
                 messages += [*msgs];
@@ -993,20 +1063,44 @@ Solver newSolver(TModel tm, bool debug = false){
         int nopenUses = size(openUses);
         int nrequirementJobs = size(requirementJobs);
         int ncalculators = size(calculators);
+        int nNotYetDefinedUses = size(notYetDefinedUses);
         
-        solve(nfacts, nopenReqs, nopenFacts, nopenUses, nrequirementJobs, ncalculators){ 
+        solve(nfacts, nopenReqs, nopenFacts, nopenUses, nrequirementJobs, ncalculators, nNotYetDefinedUses){ 
             
             iterations += 1;
             
             println("iteration: <iterations>; calculators: <size(calculators)>; facts: <size(facts)>; openFacts: <size(openFacts)>; openReqs: <size(openReqs)>");
             
+           // ---- notYetDefinedUses
+           if(definesAdded){
+               definesAdded = false;
+               for(Use u <- notYetDefinedUses){
+                   try {
+                       foundDefs = lookupFun(tm, u);
+                       
+                       if(size(foundDefs) == 1 || mayOverloadFun(foundDefs, definitions)){
+                          definedBy[u.occ] = foundDefs;
+                          openUses += u;
+                          notYetDefinedUses -= u;
+                          if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
+                        } else {
+                            notYetDefinedUses -= u;
+                            messages += [error("Double declaration", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
+                            if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
+                        }
+                    }
+                    catch NoBinding():
+                        ;// Do nothing u is already on notYetDefinedUses
+                }
+            }
+           
            // ---- openUses
            
            openUsesToBeRemoved = {};
            
            handleOpenUses:
-           for(Use u <- sort(openUses, bool(Use a, Use b){ return a.occ.offset < b.occ.offset; })){
-           //for(Use u <- openUses){
+           //for(Use u <- sort(openUses, bool(Use a, Use b){ return a.occ.offset < b.occ.offset; })){
+           for(Use u <- openUses){
                foundDefs = definedBy[u.occ];
                if (cdebug) println("Consider unresolved use: <u>, foundDefs=<foundDefs>");
                
@@ -1021,11 +1115,13 @@ Solver newSolver(TModel tm, bool debug = false){
                        }
                     } else {                // Multiple definitions found
                         foundDefs1 = {d | d <- foundDefs, definitions[d].idRole in u.idRoles}; 
+                     
                         for(dkey <- foundDefs1){
-                            try  addDefineAsFact(definitions[dkey]);
-                             catch TypeUnavailable():
+                            try  { addDefineAsFact(definitions[dkey]); }
+                            catch TypeUnavailable():
                                 continue handleOpenUses;
                         }
+                        
                         if(all(d <- foundDefs1, facts[d]?)){ 
                            addFact(u.occ, overloadedAType({<d, definitions[d].idRole, instantiate(facts[d])> | d <- foundDefs1}));
                            openUsesToBeRemoved += u;
@@ -1041,8 +1137,8 @@ Solver newSolver(TModel tm, bool debug = false){
            // ---- calculators
           
            calculatorsToBeRemoved = {};
-           for(loc calcloc <- sort(domain(calculators), bool(loc a, loc b){ return a.offset < b.offset; })){
-           //for(loc calcloc <- calculators){
+           //for(loc calcloc <- sort(domain(calculators), bool(loc a, loc b){ return a.offset < b.offset; })){
+           for(loc calcloc <- calculators){
               calc = calculators[calcloc];
               if(cdebug) println("?calc [<calc.cname>] at <calc.src>"); 
               if(allDependenciesKnown(calc.dependsOn, calc.eager)){
@@ -1067,7 +1163,8 @@ Solver newSolver(TModel tm, bool debug = false){
            openFactsToBeRemoved = {};
            openReqsToBeRemoved = {};
            requirementJobsToBeRemoved = {};
-           for(Requirement oreq <- sort(requirementJobs, bool(Requirement a, Requirement b){ return a.src.offset < b.src.offset; })){
+           //for(Requirement oreq <- sort(requirementJobs, bool(Requirement a, Requirement b){ return a.src.offset < b.src.offset; })){
+           for(Requirement oreq <- requirementJobs){
               if(allDependenciesKnown(oreq.dependsOn, oreq.eager)){  
                  try {       
                      <ok, messages1, bindings1> = satisfies(oreq); 
@@ -1104,12 +1201,12 @@ Solver newSolver(TModel tm, bool debug = false){
              if(cdebug) println("..... handle openFacts");
         
              openFactsToBeRemoved = {};
-             for(Fact fct <- sort(openFacts, 
-                                  bool(Fact a, Fact b){
-                                    asrc = a has src ? a.src.offset : sort(a.srcs)[0].offset;
-                                    bsrc = b has src ? b.src.offset : sort(b.srcs)[0].offset;
-                                    return asrc < bsrc; })){
-             //for(Fact fct <- openFacts){
+             //for(Fact fct <- sort(openFacts, 
+             //                     bool(Fact a, Fact b){
+             //                       asrc = a has src ? a.src.offset : sort(a.srcs)[0].offset;
+             //                       bsrc = b has src ? b.src.offset : sort(b.srcs)[0].offset;
+             //                       return asrc < bsrc; })){
+             for(Fact fct <- openFacts){
                  try {
                     if(addFact(fct))
                         openFactsToBeRemoved += fct;
@@ -1118,12 +1215,15 @@ Solver newSolver(TModel tm, bool debug = false){
              }
              openFacts -= openFactsToBeRemoved;         
              
-            nfacts = size(facts);
-            nopenReqs = size(openReqs);
-            nopenFacts = size(openFacts);
-            nopenUses = size(openUses);
-            nrequirementJobs = size(requirementJobs);
-            ncalculators = size(calculators);            
+             if(iterations >= 0){  // stop updating counters => stop solve
+                nfacts = size(facts);
+                nopenReqs = size(openReqs);
+                nopenFacts = size(openFacts);
+                nopenUses = size(openUses);
+                nrequirementJobs = size(requirementJobs);
+                ncalculators = size(calculators);   
+                nNotYetDefinedUses = size(notYetDefinedUses); 
+             }        
            }
            
            /****************** end of main solve loop *****************************/
@@ -1131,6 +1231,11 @@ Solver newSolver(TModel tm, bool debug = false){
            if(cdebug) println("..... solving complete");
            
            //iprintln(facts, lineLimit=10000);
+           
+           for(Use u <- notYetDefinedUses){
+                roles = size(u.idRoles) > 5 ? "" : intercalateOr([replaceAll(getName(idRole), "Id", "") | idRole <- u.idRoles]);
+                messages += error("Undefined <roles> `<getId(u)>`", u.occ);
+           }
         
            for (Use u <- openUses) {
               foundDefs = definedBy[u.occ];
@@ -1204,12 +1309,16 @@ Solver newSolver(TModel tm, bool debug = false){
                      getTypeInScope,
                      getTypeInType,
                      getDefinitions,
+                     defineInScope,
+                     getAllTypesInType,
                      _equal,
                      _requireEqual,
                      _unify,
                      _requireUnify,
                      _comparable,
                      _requireComparable,
+                     _requireTrue,
+                     _requireFalse,
                      instantiate,
                      isFullyInstantiated,
                      keepBindings,
@@ -1221,7 +1330,8 @@ Solver newSolver(TModel tm, bool debug = false){
                      run,
                      _report,
                      _reports,
-                     getConfig
+                     getConfig,
+                     getTModel
                      );
     return thisSolver;
 }
