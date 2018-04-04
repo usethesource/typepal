@@ -193,6 +193,9 @@ Solver newSolver(TModel tm, bool debug = false){
     }
     
    bool _reports(set[FailMessage] fms){
+        if (fms == {}) {
+            return true;
+        }
         msgs = { toMessage(fm, getTypeFromTree) | fm <- fms };
         if(any(msg <- msgs, getName(msg) == "error")){
             throw checkFailed(msgs);
