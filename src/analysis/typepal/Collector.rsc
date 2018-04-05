@@ -50,6 +50,9 @@ data Collector
        
         void (str name, Tree src, list[value] dependencies, void(Solver s) preds) require,
         void (str name, Tree src, list[value] dependencies, void(Solver s) preds) requireEager,
+        void (value l, value r, FailMessage fm) requireEqual,
+        void (value l, value r, FailMessage fm) requireComparable,
+        void (value l, value r, FailMessage fm) requireSubtype,
         void (Tree src, AType tp) fact,
         void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculate,
         void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculateEager,
@@ -112,13 +115,32 @@ data Fact
 
 // A named requirement for location src, given dependencies and a callback predicate
 // Eager requirements are tried when not all dependencies are known.
-data Requirement
-    = openReq(str rname, loc src, loc scope, list[loc] dependsOn, bool eager, void(Solver s) preds);
+data Requirement(bool eager = false)
+    = openReq(str rname, loc src, /*loc scope,*/ list[loc] dependsOn, void(Solver s) preds)
+    | openReqEqual(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)
+    | openReqComparable(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)
+    | openReqSubtype(str rname, value l, value r, list[loc] dependsOn, FailMessage fm) 
+    | openReqError (list[loc] dependsOn, Message msg)
+    | openReqErrors(list[loc] dependsOn, set[Message] msgs)
+    ;
 
+loc getReqSrc(Requirement req){
+    if(req has src) return req.src;
+    return req.dependsOn[0];
+}
 // Named type calculator for location src, given args, and resolve callback 
 // Eager calculators are tried when not all dependencies are known.   
-data Calculator
-    = calculate(str cname, loc scope, loc src, list[loc] dependsOn, bool eager, AType(Solver s) calculator);
+data Calculator(bool eager = false)
+    = calculate(str cname, loc src, /*loc scope,*/ list[loc] dependsOn, AType(Solver s) calculator)
+    | calculateSameType(str cname, loc src, list[loc] dependsOn)
+    ;
+
+loc getCalcSrc(Calculator calc){
+    if(calc has src) return calc.src;
+    return calc.dependsOn[0];
+}
+    
+    
 
 // The basic Fact & Requirement Model; can be extended in specific type checkers
 data TModel (
@@ -167,8 +189,8 @@ void printTModel(TModel tm){
 }
 
 AType(Solver s) makeClos1(AType tp) = AType (Solver s){ return tp; };                   // TODO: workaround for compiler glitch
-void(Solver s) makeClosError(Message msg) = void(Solver s){ throw  checkFailed({msg}); };
-void(Solver s) makeClosErrors(set[Message] msgs) = void(Solver s){ throw checkFailed(msgs); };
+//void(Solver s) makeClosError(Message msg) = void(Solver s){ throw  checkFailed({msg}); };
+//void(Solver s) makeClosErrors(set[Message] msgs) = void(Solver s){ throw checkFailed(msgs); };
              
 Collector defaultCollector(Tree t) = newCollector(t);    
  
@@ -298,7 +320,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
             name = unescapeName("<selector>");
             sloc = getLoc(selector);
             indirectUses += use(name, sloc, currentScope, idRolesSel);
-            calculators[sloc] = calculate("`<name>`", sloc, currentScope, [getLoc(container)],  false, makeGetTypeInType(container, selector, idRolesSel, currentScope));
+            calculators[sloc] = calculate("`<name>`", sloc, /*currentScope,*/ [getLoc(container)],  makeGetTypeInType(container, selector, idRolesSel, currentScope));
         } else {
             throw TypePalUsage("Cannot call `useViaNamedType` on Collector after `run`");
         }
@@ -435,7 +457,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
    
     void _require(str name, Tree src, list[value] dependencies, void(Solver s) preds){ 
         if(building){
-           openReqs += { openReq(name, getLoc(src), currentScope, dependenciesAslocList(dependencies), false, preds) };
+           openReqs += { openReq(name, getLoc(src), /*currentScope,*/ dependenciesAslocList(dependencies), preds) };
         } else {
             throw TypePalUsage("Cannot call `require` on Collector after `run`");
         }
@@ -443,15 +465,48 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     
     void _requireEager(str name, Tree src, list[value] dependencies, void(Solver s) preds){ 
         if(building){
-           openReqs += { openReq(name, getLoc(src), currentScope, dependenciesAslocList(dependencies), true, preds) };
+           openReqs += { openReq(name, getLoc(src), /*currentScope,*/ dependenciesAslocList(dependencies), preds, eager=true) };
         } else {
             throw TypePalUsage("Cannot call `require` on Collector after `run`");
         }
     } 
     
+    list[loc] getDeps(value l, value r){
+        if(AType ltype := l){
+           return Tree rtree := r ? [getLoc(rtree)] : []; 
+        }
+        return AType rtype := r ? [getLoc(l)] : [getLoc(l), getLoc(r)];
+    }
+    
+    value getLocIfTree(value v) = Tree tree := v ? getLoc(tree) : v;
+    
+    void _requireEqual(value l, value r, FailMessage fm){
+        if(building){
+           openReqs += { openReqEqual("<l> equal <r>", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm) };
+        } else {
+            throw TypePalUsage("Cannot call `requireEqual` on Collector after `run`");
+        }
+    }
+    
+    void _requireComparable(value l, value r, FailMessage fm){
+        if(building){
+           openReqs += { openReqComparable("<l> comparable <r>", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm) };
+        } else {
+            throw TypePalUsage("Cannot call `requireComparable` on Collector after `run`");
+        }
+    }
+    
+    void _requireSubtype(value l, value r, FailMessage fm){
+        if(building){
+           openReqs += { openReqSubtype("<l> subtype <r>", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm) };
+        } else {
+            throw TypePalUsage("Cannot call `requireSubtype` on Collector after `run`");
+        }
+    }
+    
     void _fact(Tree tree, AType tp){  
         if(building){
-           openFacts += { openFact(getLoc(tree), {}, AType (Solver s){ return tp; } /*makeClos1(tp)*/) };
+           openFacts += { openFact(getLoc(tree), {}, AType (Solver s){ return tp; }) };
         } else {
             throw TypePalUsage("Cannot call `atomicFact` on Collector after `run`");
         }
@@ -459,7 +514,8 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     
     void _calculate(str name, Tree src, list[value] dependencies, AType(Solver s) calculator){
         if(building){
-           calculators[getLoc(src)] = calculate(name, getLoc(src), currentScope, dependenciesAslocList(dependencies),  false, calculator);
+           srcLoc = getLoc(src);
+           calculators[srcLoc] = calculate(name, srcLoc, dependenciesAslocList(dependencies), calculator);
         } else {
             throw TypePalUsage("Cannot call `calculate` on Collector after `run`");
         }
@@ -467,20 +523,21 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     
     void _calculateEager(str name, Tree src, list[value] dependencies, AType(Solver s) calculator){
         if(building){
-           calculators[getLoc(src)] = calculate(name, getLoc(src), currentScope, dependenciesAslocList(dependencies),  true, calculator);
+            srcLoc = getLoc(src);
+           calculators[srcLoc] = calculate(name, srcLoc, dependenciesAslocList(dependencies), calculator, eager=true);
         } else {
             throw TypePalUsage("Cannot call `calculateEager` on Collector after `run`");
         }
     }
     
-    AType(Solver) makeSameTypeCalculator(Tree src){
-        return AType(Solver s) { return s.getType(src); };
-    }
+    //AType(Solver) makeSameTypeCalculator(Tree src){
+    //    return AType(Solver s) { return s.getType(src); };
+    //}
     
     void _sameType(Tree target, Tree src){
         if(building){
             ltarget = getLoc(target);
-            calculators[ltarget] = calculate("sameType", ltarget, currentScope, [getLoc(src)],  false, makeSameTypeCalculator(src));
+            calculators[ltarget] = calculateSameType("<target> same type as <src>", ltarget, [getLoc(src)]);
         } else {
             throw TypePalUsage("Cannot call `sameType` on Collector after `run`");
         }
@@ -489,7 +546,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     bool _report(FailMessage fm){
        if(building){
           msg = toMessage(fm, defaultGetType);
-          openReqs += { openReq("error", msg.at, currentScope, [], true, makeClosError(msg)) };
+          openReqs += { openReqError(msg.at, [], msg) };
           return true;
        } else {
             throw TypePalUsage("Cannot call `report` on Collector after `run`");
@@ -499,7 +556,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
      bool _reports(set[FailMessage] fms){
        if(building){
           msgs = {toMessage(fm, defaultGetType) | fm <- fms};
-          openReqs += { openReq("error", getFirstFrom(msgs).at, currentScope, [], true, makeClosErrors(msgs)) };
+          openReqs += { openReqErrors(getFirstFrom(msgs).at, [], msgs) };
           return true;
        } else {
             throw TypePalUsage("Cannot call `reports` on Collector after `run`");
@@ -859,6 +916,9 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
                     _getScope,
                     _require, 
                     _requireEager,
+                    _requireEqual,
+                    _requireComparable,
+                    _requireSubtype,
                     _fact,
                     _calculate, 
                     _calculateEager,
