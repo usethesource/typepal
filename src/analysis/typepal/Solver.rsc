@@ -349,7 +349,7 @@ Solver newSolver(TModel tm, bool debug = false){
         for(req <- triggersRequirement[l] ? {}){
             if(allDependenciesKnown(req.dependsOn, true)){
                requirementJobs += req;
-               //if(cdebug)println("\tfireTriggers: adding requirementJob: <req.rname>, <req.src>");
+               //if(cdebug)println("\tfireTriggers: adding requirementJob: <req.rname>, <getReqSrc(req)>");
             }
         }
     }
@@ -387,17 +387,6 @@ Solver newSolver(TModel tm, bool debug = false){
                if(cdebug) println("bindings2facts, not added: <b>");
             }
         }
-    }
-       
-    // Check whether a requirement is satisfied
-    tuple[bool ok, list[Message] messages, map[loc, AType] bindings] satisfies(Requirement req){
-        bindings = ();
-        try {
-            req.preds(thisSolver);
-            bindings2facts(bindings, req.src);
-            return <true, [], bindings>;
-        } catch checkFailed(set[Message] msgs):
-            return <false, [*msgs], bindings>;
     }
     
     // The "run-time" functions that can be called from requirements and calculators
@@ -1143,17 +1132,30 @@ Solver newSolver(TModel tm, bool debug = false){
               if(cdebug) println("?calc [<calc.cname>] at <calc.src>"); 
               if(allDependenciesKnown(calc.dependsOn, calc.eager)){
                   try {
-                    t = calc.calculator(thisSolver);
-                    addFact(calcloc, t);
-                    bindings2facts(bindings, calc.src);
+                    bool ok = true;
+                    t = avoid();
+                    switch(getName(calc)){
+                        case "calculateSameType": {
+                            t = getType(calc.dependsOn[0]);
+                            addFact(calcloc, t);
+                            calculatorsToBeRemoved += calcloc;
+                        }
+                    
+                        default: {
+                            t = calc.calculator(thisSolver);
+                            addFact(calcloc, t);
+                            bindings2facts(bindings, calc.src);
+                            calculatorsToBeRemoved += calcloc;
+                        }
+                    }
                     if(cdebug) println("+calc [<calc.cname>] at <calc.src> ==\> <t>"); 
-                  } catch TypeUnavailable(): {
-                    continue;
                   } catch checkFailed(set[Message] msgs): {
                     messages += [*msgs];
                     if(cdebug) println("-calc [<calc.cname>] at <calc.src> ==\> <msgs>");
                   }
-                  calculatorsToBeRemoved += calcloc;
+                  catch TypeUnavailable(): {
+                    ; // types not yet available
+                  }
               }
            }
            calculators = domainX(calculators, calculatorsToBeRemoved);
@@ -1166,30 +1168,54 @@ Solver newSolver(TModel tm, bool debug = false){
            //for(Requirement oreq <- sort(requirementJobs, bool(Requirement a, Requirement b){ return a.src.offset < b.src.offset; })){
            for(Requirement oreq <- requirementJobs){
               if(allDependenciesKnown(oreq.dependsOn, oreq.eager)){  
-                 try {       
-                     <ok, messages1, bindings1> = satisfies(oreq); 
-                     messages += messages1;
-                     if(ok){
-                        for(tv <- domain(bindings1), f <- triggersFact[tv] ? {}){
-                            if(f has uninstantiated){
-                             try {
-                                    if(addFact(f.src, instantiate(f.uninstantiated)))
-                                       openFactsToBeRemoved += f;
-                                } catch TypeUnavailable(): /* cannot yet compute type */;
-                            }
-                            else if(allDependenciesKnown(f.dependsOn, true)){
-                                try {
-                                    if(addFact(f.src, f.getAType(thisSolver)))
-                                       openFactsToBeRemoved += f;
-                                } catch TypeUnavailable(): /* cannot yet compute type */;
+                 try {  
+                    bool ok = true;
+                    switch(getName(oreq)){
+                    
+                        case "openReqEqual":
+                            if(!_equal(getType(oreq.l), getType(oreq.r))) { ok = false; messages += toMessage(oreq.fm, getTypeFromTree);  }
+                            
+                        case "openReqComparable":
+                            if(!_comparable(getType(oreq.l), getType(oreq.r))){ ok = false; messages += toMessage(oreq.fm, getTypeFromTree); }
+                            
+                        case "openReqSubtype":
+                            if(!_subtype(getType(oreq.l), getType(oreq.r))) { ok = false; messages += toMessage(oreq.fm, getTypeFromTree); }
+                            
+                        case "openReqError": { ok = false; messages += oreq.msg; }
+                        
+                        case "openReqErrors": { ok = false; messages += oreq.msgs; }
+                            
+                        default: {
+                            bindings1 = ();
+                            try {
+                                oreq.preds(thisSolver);
+                                bindings2facts(bindings1, getReqSrc(oreq));
+                                for(tv <- domain(bindings1), f <- triggersFact[tv] ? {}){
+                                    if(f has uninstantiated){
+                                     try {
+                                            if(addFact(f.src, instantiate(f.uninstantiated)))
+                                               openFactsToBeRemoved += f;
+                                        } catch TypeUnavailable(): /* cannot yet compute type */;
+                                    }
+                                    else if(allDependenciesKnown(f.dependsOn, true)){
+                                        try {
+                                            if(addFact(f.src, f.getAType(thisSolver)))
+                                               openFactsToBeRemoved += f;
+                                        } catch TypeUnavailable(): /* cannot yet compute type */;
+                                    }
+                                }
+                            } catch checkFailed(set[Message] msgs): {
+                               ok = false; messages += [*msgs];
                             }
                         }
-                     }
-                     if(cdebug)println("<ok ? "+" : "-">requ [<oreq.rname>] at <oreq.src>");
-                     openReqsToBeRemoved += oreq;
-                     requirementJobsToBeRemoved += oreq;
+                    }
+                     
+                    if(cdebug)println("<ok ? "+" : "-">requ [<oreq.rname>] at <getReqSrc(oreq)>");
+                    openReqsToBeRemoved += oreq;
+                    requirementJobsToBeRemoved += oreq;
                  } catch TypeUnavailable():/* cannot yet compute type */;
                }
+                    
              }
              
              openFacts -= openFactsToBeRemoved;
@@ -1264,8 +1290,8 @@ Solver newSolver(TModel tm, bool debug = false){
            tm.calculators = calculators;
            tm.openReqs = openReqs;
       
-           for(req <- openReqs, !alreadyReported(messages, req.src)){
-               messages += error("Invalid <req.rname>; type of one or more subparts could not be inferred", req.src);
+           for(req <- openReqs, !alreadyReported(messages, getReqSrc(req))){
+               messages += error("Invalid <req.rname>; type of one or more subparts could not be inferred", getReqSrc(req));
            }
        
            if(cdebug){
