@@ -134,6 +134,7 @@ Solver newSolver(TModel tm, bool debug = false){
     set[Fact] openFacts = {};
     map[loc, Define] definitions = ();
     set[Requirement] openReqs = {};
+    map[loc, Calculator] calculators = ();
     map[loc, AType] bindings = ();
     map[loc, set[Requirement]] triggersRequirement = ();
     map[loc, set[Fact]] triggersFact = ();
@@ -143,39 +144,65 @@ Solver newSolver(TModel tm, bool debug = false){
     list[Message] messages = [];
     
     void printState(){
-        println("Derived facts:");
+        println("\nDERIVED FACTS");
             for(loc fact <- facts){
                 println("\t<fact>: <facts[fact]>");
             }
-        if(size(openFacts) > 0){
-            println("Unresolved facts:");
+        if(size(openFacts) +  size(openReqs) + size(calculators) > 0){
+            println("\nUNRESOLVED");
             for(Fact fact <- openFacts){
-                if(fact has src){
-                    println("\t<fact.src>"); 
-                } else {
-                    println("\t<fact.srcs>");
-                }
-                if(fact has uninstantiated){
-                    println("\t  dependsOn: <fact.uninstantiated>");
-                } else if(isEmpty(fact.dependsOn)){
-                    println("\t  dependsOn: nothing");
-                } else {
-                    for(dep <- fact.dependsOn){
-                        println("\t  dependsOn: <dep><facts[dep]? ? "" : " ** unavailable **">");
-                    }
-                }
-                println("\t<fact>");
+                print(fact, "\t", facts);
             }
-        }
-        if(size(openReqs) > 0){
-            println("Unresolved requirements:");
             for(rq <- openReqs){
-                println("\t<rq.rname> at <rq.src>:");
-                for(atype <- rq.dependsOn){
-                    println("\t  dependsOn: <atype><facts[atype]? ? "" : " ** unavailable **">");
+                print(rq, "\t", facts);
+            }
+            
+            for(c <- calculators){
+                print(calculators[c], "\t", facts);
+            }
+         }
+    }
+    
+    void printTriggers(){
+        if(!isEmpty(triggersFact)) println("\nFACT TRIGGERS");
+        for(l <- triggersFact){
+            println("\ttrig: <l> ===\>");
+            for(fct <- triggersFact[l]) print(fct, "\t", facts);
+        }
+       if(!isEmpty(triggersRequirement)) println("\nREQUIREMENT TRIGGERS");
+        for(l <- triggersRequirement){
+            println("\ttrig: <l> ===\>");
+            for(req <- triggersRequirement[l]) print(req, "\t", facts);
+        }
+    }
+    
+    void validateTriggers(){
+        int nissues = 0;
+        for(fct <- openFacts){
+            deps = openFactAType(loc src, AType atype) := fct ? getDependencies(atype) : fct.dependsOn;
+            
+            for(dep <- deps){
+                if(!(facts[dep]? || fct in (triggersFact[dep] ? {}))){
+                    println("Not a fact or trigger for: <dep>");
+                    print(fct, "\t", facts);
+                    println("\t<fct>");
+                    nissues += 1;
                 }
             }
         }
+    
+        for(req <- openReqs){
+            for(dep <- req.dependsOn){
+                if(!(facts[dep]? || req in (triggersRequirement[dep] ? {}))){
+                    println("Not a fact or trigger for: <dep>");
+                    print(req, "\t", facts);
+                    println("\t<req>");
+                    nissues += 1;
+                }
+            }
+        }
+        throw "Incomplete triggers: <nissues>";
+        
     }
     
     // Error reporting
@@ -207,11 +234,12 @@ Solver newSolver(TModel tm, bool debug = false){
     
     // Add a fact
    
-    bool addFact(fct:openFact(loc src, AType uninstantiated)){
+    bool addFact(fct:openFactAType(loc src, AType uninstantiated)){
+        println("addFact: openFactAType(<src>, <uninstantiated>)");
         if(!(uninstantiated is lazyLub)){
             try {
                 iatype = getType(uninstantiated); //instantiate(uninstantiated); //getType(uninstantiated);
-                if(!mayReplace(src, iatype)){ println("####1 <src>: <facts[src]> not replaced by <iatype>"); return true; }
+                if(!mayReplace(src, iatype)){ println("####1a <src>: <facts[src]> not replaced by <iatype>"); return true; }
                 facts[src] = iatype;
                 dependsOn = getDependencies(iatype);
                 if(allDependenciesKnown(dependsOn, false) && src notin dependsOn) fireTriggers(src);
@@ -225,8 +253,30 @@ Solver newSolver(TModel tm, bool debug = false){
         return false;
     }
     
+    bool addFact(fct:openFactLoc(loc src, {loc from})){
+        println("addFact: openFactLoc(<src>, <from>)");
+        try {
+            tp = getType(from);
+            if(!(tp is lazyLub)){
+                iatype = instantiate(tp);
+                if(!mayReplace(src, iatype)){ println("####1b <src>: <facts[src]> =!=\> <iatype>"); return true; }
+                facts[src] = iatype;
+                if(cdebug)println(" fact <src> ==\> <facts[src]>");
+                dependsOn = getDependencies(iatype);
+                if(allDependenciesKnown(dependsOn, false) && src notin dependsOn) fireTriggers(src);
+                return true;
+            }
+        } catch TypeUnavailable(): /* cannot yet compute type */;
+
+        openFacts += fct;
+        triggersFact[from] = (triggersFact[from] ? {}) + {fct};
+        fireTriggers(src);
+        return false;
+    }
+    
+    
     bool addFact(fct:openFact(loc src, set[loc] dependsOn,  AType(Solver tm) getAType)){
-        //if(cdebug)println("addFact2: <fct>");
+        println("addFact: <fct>");
         if(allDependenciesKnown(dependsOn, true)){
             try {
                 iatype = instantiate(getAType(thisSolver));
@@ -244,7 +294,7 @@ Solver newSolver(TModel tm, bool debug = false){
     }
     
     bool addFact(fct:openFact(set[loc] defines, set[loc] dependsOn, list[AType(Solver tm)] getATypes)){
-        if(cdebug)println("addFact LUB: <fct>");
+        println("addFact LUB: <fct>");
         
         if(allDependenciesKnown(dependsOn, true)){
             try {    
@@ -310,28 +360,42 @@ Solver newSolver(TModel tm, bool debug = false){
     }
     
     default void addFact(Fact fct) {
-        throw TypePalInternalError("Cannot handle <fct>");
+        throw TypePalInternalError("addFact cannot handle <fct>");
     }
     
     bool addFact(loc l, AType atype){
-        //println("addFact: <l>, <atype>");
+        println("addFact: <l>, <atype>");
         iatype = instantiate(atype);
-        if(!mayReplace(l, iatype)){ println("####5 <l>: <facts[l]> replaced by <iatype>"); /*return false;*/ }
+        if(!mayReplace(l, iatype)){ println("####5 <l>: <facts[l]> replaced by <iatype>");/* return false;*/ }
         facts[l] = iatype;
         if(cdebug)println(" fact <l> ==\> <iatype>");
         if(tvar(tvloc) := iatype){
-            triggersFact[tvloc] = (triggersFact[tvloc] ? {}) + {openFact(l, iatype)};
+            triggersFact[tvloc] = (triggersFact[tvloc] ? {}) + {openFactAType(l, iatype)};
         } else {
             fireTriggers(l);
         }
         return true;
-    }
+    } 
+    
+    //bool addFact(loc l, AType atype){
+    //    //println("addFact: <l>, <atype>");
+    //    iatype = instantiate(atype);
+    //    if(!mayReplace(l, iatype)){ println("####5 <l>: <facts[l]> replaced by <iatype>"); /*return false;*/ }
+    //    facts[l] = iatype;
+    //    if(cdebug)println(" fact <l> ==\> <iatype>");
+    //    if(tvar(tvloc) := iatype){
+    //        triggersFact[tvloc] = (triggersFact[tvloc] ? {}) + {openFactAType(l, iatype)};
+    //    } else {
+    //        fireTriggers(l);
+    //    }
+    //    return true;
+    //}
     
     void fireTriggers(loc l, bool protected=true){
-        //if(cdebug) println("\tfireTriggers: <l>");
+        if(cdebug) println("\tfireTriggers: <l>");
         
         for(fct <- triggersFact[l] ? {}){        
-            if(fct has uninstantiated || allDependenciesKnown(fct.dependsOn, true)){
+            if(fct has atype || allDependenciesKnown(fct.dependsOn, true)){
                try {
                   if(cdebug) println("\tfireTriggers: adding fact: <fct>");
                   openFacts -= fct;
@@ -410,7 +474,7 @@ Solver newSolver(TModel tm, bool debug = false){
                 case AType atype: return instantiate(atype);
                 case loc l:       return facts[l];
                 case defType(AType atype): return atype;
-                case defGetType(Tree tree): instantiate(findType(tree@\loc));
+                case defType(Tree tree): instantiate(findType(tree@\loc));
                 case defType(set[loc] dependsOn, AType(Solver s) getAType):
                     return getAType(thisSolver);
                 case defLub(set[loc] dependsOn, set[loc] defines, list[AType(Solver s)] getATypes):
@@ -462,6 +526,8 @@ Solver newSolver(TModel tm, bool debug = false){
              }
              if(isEmpty(overloads)){
                 _report(error(selector, "Type of %q could not be computed for %t", selector, containerType));
+              } else if({<loc key, IdRole role, AType tp>} := overloads){
+                return tp;
              } else {
                 return overloadedAType(overloads);
              }
@@ -478,6 +544,8 @@ Solver newSolver(TModel tm, bool debug = false){
                 }
                 if(isEmpty(overloads)){
                     _report(error(selector, "Cannot access fields on type %t", containerType));
+                } else if({<key, role, tp>} := overloads){
+                    return tp;
                 } else {
                     return overloadedAType(overloads);
                 }
@@ -890,13 +958,18 @@ Solver newSolver(TModel tm, bool debug = false){
     bool addDefineAsFact(<loc scope, str id, IdRole idRole, loc defined, noDefInfo()>) 
         = true;
      
-    bool addDefineAsFact(<loc scope, str id, IdRole idRole, loc defined, defType(AType atype)>) 
-        = isFullyInstantiated(atype) ? addFact(defined, atype) : addFact(openFact(defined, atype));
-        
-    bool addDefineAsFact(<loc scope, str id, IdRole idRole, loc defined, defGetType(Tree t)>) {  
-        tloc = getLoc(t);   
-        return addFact(openFact(defined, {tloc}, makeGetType(t)));
+    bool addDefineAsFact(<loc scope, str id, IdRole idRole, loc defined, defType(value tp)>) {
+        if(AType atype := tp){
+            return isFullyInstantiated(atype) ? addFact(defined, atype) : addFact(openFactAType(defined, atype));
+        } else if(Tree from := tp){
+            return addFact(openFactLoc(defined, {getLoc(from)}));
+        }
     }
+        
+    //bool addDefineAsFact(<loc scope, str id, IdRole idRole, loc defined, defGetType(Tree t)>) {  
+    //    tloc = getLoc(t);   
+    //    return addFact(openFact(defined, {tloc}, makeGetType(t)));
+    //}
         
     bool addDefineAsFact(<loc scope, str id, IdRole idRole, loc defined, defType(set[loc] dependsOn, AType(Solver tm) getAType)>) 
         = addFact(openFact(defined, dependsOn, getAType));
@@ -904,22 +977,8 @@ Solver newSolver(TModel tm, bool debug = false){
     bool addDefineAsFact(<loc scope, str id, IdRole idRole, loc defined, defLub(set[loc] dependsOn, set[loc] defines, list[AType(Solver tm)] getATypes)>) 
         = addFact(openFact(defines, dependsOn, getATypes));
     
-    default bool addDefineAsFact(Define d) {  throw TypePalInternalError("Cannot handle <d>"); }
-    
-    bool addFact(loc l, AType atype){
-        //println("addFact: <l>, <atype>");
-        iatype = instantiate(atype);
-        if(!mayReplace(l, iatype)){ println("####5 <l>: <facts[l]> replaced by <iatype>");/* return false;*/ }
-        facts[l] = iatype;
-        if(cdebug)println(" fact <l> ==\> <iatype>");
-        if(tvar(tvloc) := iatype){
-            triggersFact[tvloc] = (triggersFact[tvloc] ? {}) + {openFact(l, iatype)};
-        } else {
-            fireTriggers(l);
-        }
-        return true;
-    } 
-    
+    default bool addDefineAsFact(Define d) {  throw TypePalInternalError("addDefineAsFact cannot handle <d>"); }
+
     set[loc] getDependencies(AType atype){
         deps = {};
         visit(atype){
@@ -963,7 +1022,7 @@ Solver newSolver(TModel tm, bool debug = false){
         namedTypes = tm.namedTypes;
         
         map[loc, set[loc]] definedBy = ();
-        map[loc, Calculator] calculators = tm.calculators;
+        calculators = tm.calculators;
         set[Use] openUses = {};
         set[Use] notYetDefinedUses = {};
         
@@ -1033,18 +1092,22 @@ Solver newSolver(TModel tm, bool debug = false){
         } 
         
         if(cdebug) println("..... handle open requirements");
+        
+        // register all dependencies
         for(Requirement oreq <- openReqs){
            for(dep <- oreq.dependsOn){
                triggersRequirement[dep] = (triggersRequirement[dep] ? {}) + {oreq};
                //println("add trigger <dep> ==\> <oreq.rname>");
            }
         }
-    
+        // schedule requirements with known dependencies
         for(Requirement oreq <- openReqs){
             if(allDependenciesKnown(oreq.dependsOn, oreq.eager)){
                requirementJobs += oreq;
             }
         }
+        
+        validateTriggers();
       
         /****************** main solve loop *********************************/
         
@@ -1058,7 +1121,6 @@ Solver newSolver(TModel tm, bool debug = false){
         int nNotYetDefinedUses = size(notYetDefinedUses);
         
         solve(nfacts, nopenReqs, nopenFacts, nopenUses, nrequirementJobs, ncalculators, nNotYetDefinedUses){ 
-            
             iterations += 1;
             
             println("iteration: <iterations>; calculators: <size(calculators)>; facts: <size(facts)>; openFacts: <size(openFacts)>; openReqs: <size(openReqs)>");
@@ -1136,7 +1198,7 @@ Solver newSolver(TModel tm, bool debug = false){
               if(allDependenciesKnown(calc.dependsOn, calc.eager)){
                   try {
                     bool ok = true;
-                    t = avoid();
+                    t = atypeList([]);
                     switch(getName(calc)){
                         case "calculateSameType": {
                             t = getType(calc.dependsOn[0]);
@@ -1189,14 +1251,13 @@ Solver newSolver(TModel tm, bool debug = false){
                         case "openReqErrors": { ok = false; messages += oreq.msgs; }
                             
                         default: {
-                            bindings1 = ();
                             try {
                                 oreq.preds(thisSolver);
-                                bindings2facts(bindings1, getReqSrc(oreq));
-                                for(tv <- domain(bindings1), f <- triggersFact[tv] ? {}){
-                                    if(f has uninstantiated){
+                                bindings2facts(bindings, getReqSrc(oreq));
+                                for(tv <- domain(bindings), f <- triggersFact[tv] ? {}){
+                                    if(f has atype){
                                      try {
-                                            if(addFact(f.src, instantiate(f.uninstantiated)))
+                                            if(addFact(f.src, instantiate(f.atype)))
                                                openFactsToBeRemoved += f;
                                         } catch TypeUnavailable(): /* cannot yet compute type */;
                                     }
@@ -1298,21 +1359,9 @@ Solver newSolver(TModel tm, bool debug = false){
            }
        
            if(cdebug){
-               //println("----");
                println("iterations: <iterations>; calculators: <size(calculators)>; facts: <size(facts)>; openFacts: <size(openFacts)>; openReqs: <size(openReqs)>");
                printState();
-               if(size(calculators) > 0){
-                   println("Unresolved calculators:");
-                   for(c <- calculators){
-                        calc = calculators[c];
-                        println("\t<calc.cname> at <calc.src>:");
-                        for(atype <- calc.dependsOn){
-                            println("\t  dependsOn: <atype><facts[atype]? ? "" : " ** unavailable **">");
-                        }
-                   }
-               }
-               
-               //println("----");
+               printTriggers();
                if(isEmpty(messages) && isEmpty(openReqs) && isEmpty(openFacts)){
                   println("No type errors found");
                } else {

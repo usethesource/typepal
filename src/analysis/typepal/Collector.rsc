@@ -53,7 +53,7 @@ data Collector
         void (value l, value r, FailMessage fm) requireEqual,
         void (value l, value r, FailMessage fm) requireComparable,
         void (value l, value r, FailMessage fm) requireSubtype,
-        void (Tree src, AType tp) fact,
+        void (Tree src, value tp) fact,
         void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculate,
         void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculateEager,
         void (Tree target, Tree src) sameType,
@@ -90,8 +90,8 @@ set[loc] dependenciesAslocs(list[Tree] dependencies)
 
 // Definition info used during type checking
 data DefInfo
-    = defType(AType atype) 
-    | defGetType(Tree item)                                                           // Explicitly given AType (as Aype or Tree)
+    = defType(value contrib) 
+ //   | defGetType(Tree item)                                                           // Explicitly given AType (as Atype or Tree)
     | defType(set[loc] dependsOn, AType(Solver s) getAType)                           // AType given as callback.
     | defLub(set[loc] dependsOn, set[loc] defines, list[AType(Solver s)] getATypes)   // redefine previous definition
     ;
@@ -108,30 +108,100 @@ DefInfo defLub(list[Tree] dependsOn, AType(Solver s) getAType)
 
 // Facts about location src, given dependencies and an AType callback
 data Fact
-    = openFact(loc src, AType uninstantiated)
+    = openFactAType(loc src, AType atype)
+    | openFactLoc(loc src, set[loc] dependsOn)
     | openFact(loc src, set[loc] dependsOn, AType(Solver s) getAType)
     | openFact(set[loc] srcs, set[loc] dependsOn, list[AType(Solver s)] getATypes)
     ;
 
+void printDeps(list[loc] dependsOn, str indent, map[loc,AType] facts){
+    if(isEmpty(dependsOn)){
+        println("<indent>  dependsOn: nothing");
+    } else {
+        for(dep <- dependsOn){
+            println("<indent>  dependsOn: <dep><facts[dep]? ? "" : " ** unavailable **">");
+        }
+    }
+}
+
+void printDeps(set[loc] dependsOn, str indent, map[loc,AType] facts){
+    printDeps(toList(dependsOn), indent, facts);
+}
+
+void print(fact:openFactAType(loc src, AType atype), str indent, map[loc,AType] facts){
+    println("<indent>fact: <src>");
+    println("<indent>  dependsOn: <atype>");
+    //println("<indent>  <fact>");
+}
+
+void print(fact:openFactLoc(loc src, set[loc] dependsOn), str indent, map[loc,AType] facts){
+    println("<indent>fact: <src>");
+    printDeps(dependsOn, indent, facts);
+    //println("<indent>  <fact>");
+}
+
+void print(fact:openFact(loc src, set[loc] dependsOn, AType(Solver s) getAType), str indent, map[loc,AType] facts){
+    println("<indent>fact: <src>");
+    printDeps(dependsOn, indent, facts);
+    //println("<indent>  <fact>");
+}
+
+void print(fact:openFact(set[loc] srcs, set[loc] dependsOn, list[AType(Solver s)] getATypes), str indent, map[loc,AType] facts){
+    println("<indent>facts: <srcs>");
+    printDeps(dependsOn, indent, facts);
+    //println("<indent>  <fact>");
+}
+
 // A named requirement for location src, given dependencies and a callback predicate
 // Eager requirements are tried when not all dependencies are known.
 data Requirement(bool eager = false)
-    = openReq(str rname, loc src, /*loc scope,*/ list[loc] dependsOn, void(Solver s) preds)
+    = openReq(str rname, loc src,  list[loc] dependsOn, void(Solver s) preds)
     | openReqEqual(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)
     | openReqComparable(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)
     | openReqSubtype(str rname, value l, value r, list[loc] dependsOn, FailMessage fm) 
-    | openReqError (list[loc] dependsOn, Message msg)
-    | openReqErrors(list[loc] dependsOn, set[Message] msgs)
+    | openReqError (loc src, list[loc] dependsOn, Message msg)
+    | openReqErrors(loc src, list[loc] dependsOn, set[Message] msgs)
     ;
 
 loc getReqSrc(Requirement req){
     if(req has src) return req.src;
     return req.dependsOn[0];
 }
+
+void print(req:openReq(str rname, loc src,  list[loc] dependsOn, void(Solver s) preds), str indent, map[loc,AType] facts){
+    println("<indent>requ: <rname> at <src>:");
+    printDeps(dependsOn, indent, facts);
+}
+
+void print(req:openReqEqual(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts){
+    println("<indent>requ: <rname> at <dependsOn[0]>:");
+    printDeps(dependsOn, indent, facts);
+}
+void print(req:openReqComparable(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts){
+    println("<indent>requ: <rname> at <dependsOn[0]>:");
+    printDeps(dependsOn, indent, facts);
+}
+
+void print(req:openReqSubtype(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts){
+    println("<indent>requ: <rname> at <dependsOn[0]>:");
+    printDeps(dependsOn, indent, facts);
+}
+
+void print(req:openReqError (loc src, list[loc] dependsOn, Message msg), str indent, map[loc,AType] facts){
+    println("<indent>requ: <rname> at <src>:");
+    printDeps(dependsOn, indent, facts);
+}
+
+void print(req:openReqErrors(loc src, list[loc] dependsOn, set[Message] msgs), str indent, map[loc,AType] facts){
+    println("<indent>requ: <rname> at <src>:");
+    printDeps(dependsOn, indent, facts);
+}
+
+
 // Named type calculator for location src, given args, and resolve callback 
 // Eager calculators are tried when not all dependencies are known.   
 data Calculator(bool eager = false)
-    = calculate(str cname, loc src, /*loc scope,*/ list[loc] dependsOn, AType(Solver s) calculator)
+    = calculate(str cname, loc src, list[loc] dependsOn, AType(Solver s) calculator)
     | calculateSameType(str cname, loc src, list[loc] dependsOn)
     ;
 
@@ -139,9 +209,20 @@ loc getCalcSrc(Calculator calc){
     if(calc has src) return calc.src;
     return calc.dependsOn[0];
 }
-    
-    
 
+void print(calc:calculate(str cname, loc src, list[loc] dependsOn, AType(Solver s) calculator), str indent, map[loc,AType] facts){
+    println("<indent>calc: <cname> at <src>:");
+    printDeps(dependsOn, indent, facts);
+    //println("<indent><calc>");
+}
+
+void print(calc:calculateSameType(str cname, loc src, list[loc] dependsOn), str indent, map[loc,AType] facts){
+    println("<indent>calc: <cname> at <src>:");
+    printDeps(dependsOn, indent, facts);
+    //println("<indent><calc>");
+}
+    
+   
 // The basic Fact & Requirement Model; can be extended in specific type checkers
 data TModel (
         map[loc,Calculator] calculators = (),
@@ -187,10 +268,6 @@ void printTModel(TModel tm){
     println("  ]");
     println(");");
 }
-
-AType(Solver s) makeClos1(AType tp) = AType (Solver s){ return tp; };                   // TODO: workaround for compiler glitch
-//void(Solver s) makeClosError(Message msg) = void(Solver s){ throw  checkFailed({msg}); };
-//void(Solver s) makeClosErrors(set[Message] msgs) = void(Solver s){ throw checkFailed(msgs); };
              
 Collector defaultCollector(Tree t) = newCollector(t);    
  
@@ -504,11 +581,18 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
         }
     }
     
-    void _fact(Tree tree, AType tp){  
+    void _fact(Tree tree, value tp){  
         if(building){
-           openFacts += { openFact(getLoc(tree), {}, AType (Solver s){ return tp; }) };
+          if(AType atype := tp){
+            openFacts += { openFactAType(getLoc(tree), atype) };
+          } else if(Tree tree2 := tp){
+            openFacts += { openFactLoc(getLoc(tree), {getLoc(tree2)}) };
+          } else {
+            throw TypePalUsage("Argument of `fact` should be `AType` or `Tree`");
+          }
+           //openFacts += { openFact(getLoc(tree), {}, tp /*AType (Solver s){ return tp; }*/) };
         } else {
-            throw TypePalUsage("Cannot call `atomicFact` on Collector after `run`");
+            throw TypePalUsage("Cannot call `fact` on Collector after `run`");
         }
     }
     
@@ -523,16 +607,12 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     
     void _calculateEager(str name, Tree src, list[value] dependencies, AType(Solver s) calculator){
         if(building){
-            srcLoc = getLoc(src);
+           srcLoc = getLoc(src);
            calculators[srcLoc] = calculate(name, srcLoc, dependenciesAslocList(dependencies), calculator, eager=true);
         } else {
             throw TypePalUsage("Cannot call `calculateEager` on Collector after `run`");
         }
     }
-    
-    //AType(Solver) makeSameTypeCalculator(Tree src){
-    //    return AType(Solver s) { return s.getType(src); };
-    //}
     
     void _sameType(Tree target, Tree src){
         if(building){
