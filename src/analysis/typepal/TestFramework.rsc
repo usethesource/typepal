@@ -85,6 +85,7 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
                 case Tree t => t[@\loc = relocate(t@\loc, ti.tokens@\loc)]
                     when t has \loc
               };
+              resetCollect();
               model = getModel(newTree);
               list[Message] messages = model.messages;
               if(verbose) println("runTests: <messages>");

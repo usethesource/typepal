@@ -143,3 +143,4 @@ Message toMessage(_warning(value src, str msg, list[value] args), TypeProvider g
     
 Message toMessage(_info(value src, str msg, list[value] args), TypeProvider getType) 
     = fmt("info", src, msg, getType, args);
+    

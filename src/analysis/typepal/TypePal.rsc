@@ -38,7 +38,7 @@ TModel collectAndSolve(Tree pt, TypePalConfig config = tconfig(), bool debug = f
     if(pt has top) pt = pt.top;
     c = newCollector(pt, config=config, debug=debug);
     collect(pt, c);
-    return newSolver(c.run(), debug=debug).run();
+    return newSolver(pt, c.run(), debug=debug).run();
 }
 
 // Utilities on TModels that can help to build IDE-features

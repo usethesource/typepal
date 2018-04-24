@@ -50,16 +50,18 @@ data Collector
        
         void (str name, Tree src, list[value] dependencies, void(Solver s) preds) require,
         void (str name, Tree src, list[value] dependencies, void(Solver s) preds) requireEager,
+        
         void (value l, value r, FailMessage fm) requireEqual,
         void (value l, value r, FailMessage fm) requireComparable,
         void (value l, value r, FailMessage fm) requireSubtype,
-        void (Tree src, value tp) fact,
-        void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculate,
-        void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculateEager,
-        void (Tree target, Tree src) sameType,
+        void (value l, value r, FailMessage fm) requireUnify, 
+    
+        void (str name, Tree src, list[value] dependencies, AType(Solver s) getAType) calculate,
+        void (str name, Tree src, list[value] dependencies, AType(Solver s) getAType) calculateEager,
+        void (Tree target, value src) fact,
         bool (FailMessage ) report,
-        bool (set[FailMessage] msgs) reports,
-        AType (Tree src) newTypeVar,
+        bool (list[FailMessage] msgs) reports,
+        AType (value src) newTypeVar,
         void(str key, value val) push,
         value (str key) pop,
         value (str key) top,
@@ -85,34 +87,35 @@ list[loc] dependenciesAslocList(list[value] dependencies){
         };
 } 
 
-set[loc] dependenciesAslocs(list[Tree] dependencies)
-    = toSet(dependenciesAslocList(dependencies));
+bool isTypeVarFree(AType t)
+    =  !(/tvar(loc tname) := t);
+
+list[loc] dependenciesAslocs(list[Tree] dependencies)
+    = dependenciesAslocList(dependencies);
 
 // Definition info used during type checking
 data DefInfo
     = defType(value contrib) 
- //   | defGetType(Tree item)                                                           // Explicitly given AType (as Atype or Tree)
-    | defType(set[loc] dependsOn, AType(Solver s) getAType)                           // AType given as callback.
-    | defLub(set[loc] dependsOn, set[loc] defines, list[AType(Solver s)] getATypes)   // redefine previous definition
+    | defTypeCall(list[loc] dependsOn, AType(Solver s) getAType)                           // AType given as callback.
+    | defTypeLub(list[loc] dependsOn, list[loc] defines, list[AType(Solver s)] getATypes)   // redefine previous definition
     ;
 
 DefInfo defType(list[Tree] dependsOn, AType(Solver s) getAType){
-    return defType(dependenciesAslocs(dependsOn), getAType);
- }
+    return defTypeCall(dependenciesAslocList(dependsOn), getAType);
+}
+
+list[loc] getDependencies(DefInfo di){
+    if(defType(value contrib) := di){
+        return (loc dependsOn := di.contrib) ? [dependsOn] : [];
+    }
+    return di.dependsOn; //di has defines ? di.dependsOn - di.defines : di.dependsOn;
+}
     
 DefInfo defLub(list[Tree] dependsOn, AType(Solver s) getAType)
-    = defLub(dependenciesAslocs(dependsOn), {}, [getAType]);
+    = defTypeLub(dependenciesAslocs(dependsOn), [], [getAType]);
 
 
-// The basic ingredients for type checking: facts, requirements and overloads
-
-// Facts about location src, given dependencies and an AType callback
-data Fact
-    = openFactAType(loc src, AType atype)
-    | openFactLoc(loc src, set[loc] dependsOn)
-    | openFact(loc src, set[loc] dependsOn, AType(Solver s) getAType)
-    | openFact(set[loc] srcs, set[loc] dependsOn, list[AType(Solver s)] getATypes)
-    ;
+// The basic ingredients for type checking: requirements and calculators
 
 void printDeps(list[loc] dependsOn, str indent, map[loc,AType] facts){
     if(isEmpty(dependsOn)){
@@ -124,43 +127,16 @@ void printDeps(list[loc] dependsOn, str indent, map[loc,AType] facts){
     }
 }
 
-void printDeps(set[loc] dependsOn, str indent, map[loc,AType] facts){
-    printDeps(toList(dependsOn), indent, facts);
-}
-
-void print(fact:openFactAType(loc src, AType atype), str indent, map[loc,AType] facts){
-    println("<indent>fact: <src>");
-    println("<indent>  dependsOn: <atype>");
-    //println("<indent>  <fact>");
-}
-
-void print(fact:openFactLoc(loc src, set[loc] dependsOn), str indent, map[loc,AType] facts){
-    println("<indent>fact: <src>");
-    printDeps(dependsOn, indent, facts);
-    //println("<indent>  <fact>");
-}
-
-void print(fact:openFact(loc src, set[loc] dependsOn, AType(Solver s) getAType), str indent, map[loc,AType] facts){
-    println("<indent>fact: <src>");
-    printDeps(dependsOn, indent, facts);
-    //println("<indent>  <fact>");
-}
-
-void print(fact:openFact(set[loc] srcs, set[loc] dependsOn, list[AType(Solver s)] getATypes), str indent, map[loc,AType] facts){
-    println("<indent>facts: <srcs>");
-    printDeps(dependsOn, indent, facts);
-    //println("<indent>  <fact>");
-}
-
 // A named requirement for location src, given dependencies and a callback predicate
 // Eager requirements are tried when not all dependencies are known.
 data Requirement(bool eager = false)
-    = openReq(str rname, loc src,  list[loc] dependsOn, void(Solver s) preds)
-    | openReqEqual(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)
-    | openReqComparable(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)
-    | openReqSubtype(str rname, value l, value r, list[loc] dependsOn, FailMessage fm) 
-    | openReqError (loc src, list[loc] dependsOn, Message msg)
-    | openReqErrors(loc src, list[loc] dependsOn, set[Message] msgs)
+    = req(str rname, loc src,  list[loc] dependsOn, void(Solver s) preds)
+    | reqEqual(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)
+    | reqComparable(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)
+    | reqSubtype(str rname, value l, value r, list[loc] dependsOn, FailMessage fm) 
+    | reqUnify(str rname, value l, value r, list[loc] dependsOn, FailMessage fm) 
+    | reqError (loc src, list[loc] dependsOn, FailMessage fm)
+    | reqErrors(loc src, list[loc] dependsOn, list[FailMessage] fms)
     ;
 
 loc getReqSrc(Requirement req){
@@ -168,69 +144,92 @@ loc getReqSrc(Requirement req){
     return req.dependsOn[0];
 }
 
-void print(req:openReq(str rname, loc src,  list[loc] dependsOn, void(Solver s) preds), str indent, map[loc,AType] facts){
-    println("<indent>requ: <rname> at <src>:");
-    printDeps(dependsOn, indent, facts);
+void print(req:req(str rname, loc src,  list[loc] dependsOn, void(Solver s) preds), str indent, map[loc,AType] facts, bool full=true){
+    println("<indent>requ `<rname>` for <src>:");
+    if(full) printDeps(dependsOn, indent, facts);
 }
 
-void print(req:openReqEqual(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts){
-    println("<indent>requ: <rname> at <dependsOn[0]>:");
-    printDeps(dependsOn, indent, facts);
-}
-void print(req:openReqComparable(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts){
-    println("<indent>requ: <rname> at <dependsOn[0]>:");
-    printDeps(dependsOn, indent, facts);
+void print(req:req(str rname, loc src,  list[loc] dependsOn, void(Solver s) preds), str indent, map[loc,AType] facts, bool full=true){
+    println("<indent>requ `<rname>` for <src>");
 }
 
-void print(req:openReqSubtype(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts){
-    println("<indent>requ: <rname> at <dependsOn[0]>:");
-    printDeps(dependsOn, indent, facts);
+void print(req:reqEqual(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
+    println("<indent>requ `<rname>` for <dependsOn[0]>");
+    if(full) printDeps(dependsOn, indent, facts);
+}
+void print(req:reqComparable(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
+    println("<indent>requ `<rname>` for <dependsOn[0]>");
+    if(full) printDeps(dependsOn, indent, facts);
 }
 
-void print(req:openReqError (loc src, list[loc] dependsOn, Message msg), str indent, map[loc,AType] facts){
-    println("<indent>requ: <rname> at <src>:");
-    printDeps(dependsOn, indent, facts);
+void print(req:reqSubtype(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
+    println("<indent>requ `<rname>` for <dependsOn[0]>");
+    if(full) printDeps(dependsOn, indent, facts);
 }
 
-void print(req:openReqErrors(loc src, list[loc] dependsOn, set[Message] msgs), str indent, map[loc,AType] facts){
-    println("<indent>requ: <rname> at <src>:");
-    printDeps(dependsOn, indent, facts);
+void print(req:reqUnify(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
+    println("<indent>requ `<rname>` for <dependsOn[0]>");
+    if(full) printDeps(dependsOn, indent, facts);
 }
 
+
+void print(req:reqError (loc src, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
+    println("<indent>requ `<rname>` for <src>");
+    if(full) printDeps(dependsOn, indent, facts);
+}
+
+void print(req:reqErrors(loc src, list[loc] dependsOn, list[FailMessage] fms), str indent, map[loc,AType] facts, bool full=true){
+    println("<indent>requ: `<rname>` for <src>");
+   if(full) printDeps(dependsOn, indent, facts);
+}
 
 // Named type calculator for location src, given args, and resolve callback 
 // Eager calculators are tried when not all dependencies are known.   
-data Calculator(bool eager = false)
-    = calculate(str cname, loc src, list[loc] dependsOn, AType(Solver s) calculator)
-    | calculateSameType(str cname, loc src, list[loc] dependsOn)
+data Calculator
+    = calcType(loc src, AType atype)
+    | calcLoc(loc src, list[loc] dependsOn)
+    | calc(str cname, loc src, list[loc] dependsOn, AType(Solver s) getAType, bool eager=false)
+    | calcLub(str cnname, list[loc] srcs, list[loc] dependsOn, list[AType(Solver s)] getATypes, bool eager=false)
     ;
 
-loc getCalcSrc(Calculator calc){
-    if(calc has src) return calc.src;
-    return calc.dependsOn[0];
+list[loc] dependsOn(Calculator calc){
+    return calc has dependsOn ? calc.dependsOn : [];
 }
 
-void print(calc:calculate(str cname, loc src, list[loc] dependsOn, AType(Solver s) calculator), str indent, map[loc,AType] facts){
-    println("<indent>calc: <cname> at <src>:");
-    printDeps(dependsOn, indent, facts);
-    //println("<indent><calc>");
+list[loc] srcs(Calculator calc){
+    return calc has src ? [calc.src] : calc.srcs;
 }
 
-void print(calc:calculateSameType(str cname, loc src, list[loc] dependsOn), str indent, map[loc,AType] facts){
-    println("<indent>calc: <cname> at <src>:");
-    printDeps(dependsOn, indent, facts);
-    //println("<indent><calc>");
+void print(calc: calcType(loc src, AType atype), str indent, map[loc,AType] facts, bool full=true){
+    println("<indent>calc <src> as <atype>");
 }
-    
+
+void print(calc:calcLoc(loc src, list[loc] dependsOn), str indent, map[loc,AType] facts, bool full=true){
+    println("<indent>calc <src> same type as <dependsOn>");
+}
+
+void print(calc:calc(str cname, loc src, list[loc] dependsOn, AType(Solver s) calculator), str indent, map[loc,AType] facts, bool full=true){
+    println("<indent>calc `<cname>` for <src>");
+    if(full) printDeps(dependsOn, indent, facts);
+}
+
+void print(calc:calcLub(str cname, list[loc] srcs, list[loc] dependsOn, list[AType(Solver s)] getATypes), str indent, map[loc,AType] facts, bool full=true){
+    println("<indent>calc lub `<cname>` for <srcs>");
+    if(full) printDeps(dependsOn, indent, facts);
+}
+
+void print(tuple[loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo] def, str indent, map[loc, AType] facts, bool full=true){
+    println("<indent>def: `<def.id>` as <def.idRole> at <def.defined>");
+    if(full) printDeps(getDependencies(def.defInfo), indent, facts);
+}
    
 // The basic Fact & Requirement Model; can be extended in specific type checkers
 data TModel (
-        map[loc,Calculator] calculators = (),
+        set[Calculator] calculators = {},
         map[loc,AType] facts = (), 
-        set[Fact] openFacts = {},
-        set[Requirement] openReqs = {},
-        map[AType, loc] namedTypes = (),
+        set[Requirement] requirements = {},
         Uses indirectUses = [],
+        //set[loc] typeVars = {},
         list[Message] messages = [],
         map[str,value] store = (),
         map[loc, Define] definitions = (),
@@ -281,6 +280,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     loc rootLoc = getLoc(t).top;
     loc globalScope = |global-scope:///|;
     Defines defines = {};
+    //set[loc] typeVars = {};
     
     map[loc, set[Define]] definesPerLubScope = (globalScope: {});
     map[loc, set[LubDefine2]] lubDefinesPerLubScope = (globalScope: {});
@@ -291,16 +291,14 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     
     Paths paths = {};
     set[ReferPath] referPaths = {};
-    map[AType,loc] namedTypes = ();
     Uses uses = [];
     Uses indirectUses = [];
     map[str,value] storeVals = ();
     
-    map[loc,Calculator] calculators = ();
     map[loc,AType] facts = ();
-    set[Fact] openFacts = {};
-    set[Requirement] openReqs = {};
-    int ntypevar = -1;
+    set[Calculator] calculators = {};
+    set[Requirement] requirements = {};
+    int ntypevar = 0;
     list[Message] messages = [];
    
     loc currentScope = globalScope; //getLoc(t);
@@ -323,9 +321,9 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
             id = unescapeName(id);
             //println("definesPerLubScope[currentLubScope]: <definesPerLubScope[currentLubScope]>");
             
-            if(info is defLub /*&& isEmpty(definesPerLubScope[currentLubScope][currentScope, id])*/){
+            if(info is defTypeLub /*&& isEmpty(definesPerLubScope[currentLubScope][currentScope, id])*/){
                 //if(id=="ddd")println("defLub: <currentLubScope>, <{<id, currentScope, idRole, l, info>}>");           
-                lubDefinesPerLubScope[currentLubScope] += {<id, currentScope, idRole, l, info>};
+                lubDefinesPerLubScope[currentLubScope] += <id, currentScope, idRole, l, info>;
             } else {
                 //println("define: <<currentScope, id, idRole, l, info>>");
                 definesPerLubScope[currentLubScope] += <currentScope, id, idRole, l, info>;
@@ -348,7 +346,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
             else throw TypePalUsage("Argument `def` of `defineInScope` should be `Tree` or `loc`, found <typeOf(def)>");
             
             id = unescapeName(id);
-            if(info is defLub){
+            if(info is defTypeLub){
                 throw TypePalUsage("`defLub` cannot be used in combination with `defineInScope`");
             } else {
                 defines += <definingScope, id, idRole, l, info>;
@@ -380,7 +378,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
         if(building){
             u = use(unescapeName("<occ>"), getLoc(occ), currentScope, idRoles);
             uses += u;
-            referPaths += {refer(u, pathRole)};
+            referPaths += refer(u, pathRole);
         } else {
             throw TypePalUsage("Cannot call `useViaPath` on Collector after `run`");
         }
@@ -397,9 +395,9 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
             name = unescapeName("<selector>");
             sloc = getLoc(selector);
             indirectUses += use(name, sloc, currentScope, idRolesSel);
-            calculators[sloc] = calculate("`<name>`", sloc, /*currentScope,*/ [getLoc(container)],  makeGetTypeInType(container, selector, idRolesSel, currentScope));
+            calculators += calc("`<name>`", sloc,  [getLoc(container)],  makeGetTypeInType(container, selector, idRolesSel, currentScope));
         } else {
-            throw TypePalUsage("Cannot call `useViaNamedType` on Collector after `run`");
+            throw TypePalUsage("Cannot call `useViaType` on Collector after `run`");
         }
     }
    
@@ -413,8 +411,8 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
      void _useQualifiedViaPath(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole){
         if(building){
             u = useq([unescapeName(id) | id <- ids], getLoc(occ), currentScope, idRoles, qualifierRoles);
-            uses += [u];
-            referPaths += {refer(u, pathRole)};
+            uses += u;
+            referPaths += refer(u, pathRole);
         } else {
             throw TypePalUsage("Cannot call `useQualifiedViaPath` on Collector after `run`");
         } 
@@ -534,7 +532,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
    
     void _require(str name, Tree src, list[value] dependencies, void(Solver s) preds){ 
         if(building){
-           openReqs += { openReq(name, getLoc(src), /*currentScope,*/ dependenciesAslocList(dependencies), preds) };
+           requirements += req(name, getLoc(src), /*currentScope,*/ dependenciesAslocList(dependencies), preds);
         } else {
             throw TypePalUsage("Cannot call `require` on Collector after `run`");
         }
@@ -542,7 +540,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     
     void _requireEager(str name, Tree src, list[value] dependencies, void(Solver s) preds){ 
         if(building){
-           openReqs += { openReq(name, getLoc(src), /*currentScope,*/ dependenciesAslocList(dependencies), preds, eager=true) };
+           requirements += req(name, getLoc(src), /*currentScope,*/ dependenciesAslocList(dependencies), preds, eager=true);
         } else {
             throw TypePalUsage("Cannot call `require` on Collector after `run`");
         }
@@ -556,10 +554,10 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     }
     
     value getLocIfTree(value v) = Tree tree := v ? getLoc(tree) : v;
-    
+   
     void _requireEqual(value l, value r, FailMessage fm){
         if(building){
-           openReqs += { openReqEqual("<l> equal <r>", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm) };
+           requirements += reqEqual("<l> equal <r>", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
         } else {
             throw TypePalUsage("Cannot call `requireEqual` on Collector after `run`");
         }
@@ -567,7 +565,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     
     void _requireComparable(value l, value r, FailMessage fm){
         if(building){
-           openReqs += { openReqComparable("<l> comparable <r>", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm) };
+           requirements += reqComparable("<l> comparable <r>", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
         } else {
             throw TypePalUsage("Cannot call `requireComparable` on Collector after `run`");
         }
@@ -575,22 +573,41 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     
     void _requireSubtype(value l, value r, FailMessage fm){
         if(building){
-           openReqs += { openReqSubtype("<l> subtype <r>", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm) };
+           requirements += reqSubtype("<l> subtype <r>", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
         } else {
             throw TypePalUsage("Cannot call `requireSubtype` on Collector after `run`");
         }
     }
     
-    void _fact(Tree tree, value tp){  
+    void _requireUnify(value l, value r, FailMessage fm){
         if(building){
+           requirements += reqUnify("<l> unify <r>", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
+        } else {
+            throw TypePalUsage("Cannot call `requireUnify` on Collector after `run`");
+        }
+    }
+    
+     void _fact(Tree tree, value tp){  
+        if(building){
+          srcLoc = getLoc(tree);
           if(AType atype := tp){
-            openFacts += { openFactAType(getLoc(tree), atype) };
+            if(isTypeVarFree(atype)) {
+                facts[srcLoc] = atype;
+            } else {
+                calculators += calcType(srcLoc, atype);
+            }
           } else if(Tree tree2 := tp){
-            openFacts += { openFactLoc(getLoc(tree), {getLoc(tree2)}) };
+            fromLoc = getLoc(tree2);
+            if(srcLoc != fromLoc){
+                if(facts[fromLoc]?){
+                    facts[srcLoc] = facts[fromLoc];
+                } else {
+                    calculators += calcLoc(srcLoc, [fromLoc]);
+                }
+            }
           } else {
             throw TypePalUsage("Argument of `fact` should be `AType` or `Tree`");
           }
-           //openFacts += { openFact(getLoc(tree), {}, tp /*AType (Solver s){ return tp; }*/) };
         } else {
             throw TypePalUsage("Cannot call `fact` on Collector after `run`");
         }
@@ -599,7 +616,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     void _calculate(str name, Tree src, list[value] dependencies, AType(Solver s) calculator){
         if(building){
            srcLoc = getLoc(src);
-           calculators[srcLoc] = calculate(name, srcLoc, dependenciesAslocList(dependencies), calculator);
+           calculators += calc(name, srcLoc, dependenciesAslocList(dependencies) - srcLoc, calculator);
         } else {
             throw TypePalUsage("Cannot call `calculate` on Collector after `run`");
         }
@@ -608,48 +625,52 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     void _calculateEager(str name, Tree src, list[value] dependencies, AType(Solver s) calculator){
         if(building){
            srcLoc = getLoc(src);
-           calculators[srcLoc] = calculate(name, srcLoc, dependenciesAslocList(dependencies), calculator, eager=true);
+           calculators += calc(name, srcLoc, dependenciesAslocList(dependencies) - srcLoc, calculator, eager=true);
         } else {
             throw TypePalUsage("Cannot call `calculateEager` on Collector after `run`");
         }
     }
     
-    void _sameType(Tree target, Tree src){
-        if(building){
-            ltarget = getLoc(target);
-            calculators[ltarget] = calculateSameType("<target> same type as <src>", ltarget, [getLoc(src)]);
-        } else {
-            throw TypePalUsage("Cannot call `sameType` on Collector after `run`");
-        }
-    }
-    
     bool _report(FailMessage fm){
        if(building){
-          msg = toMessage(fm, defaultGetType);
-          openReqs += { openReqError(msg.at, [], msg) };
+            loc sloc = |unknown:///|;
+            if(loc l := fm.src) sloc = l;
+            else if(Tree t := fm.src) sloc = getLoc(t);
+            else throw TypePalUsage("Subject in error should be have type `Tree` or `loc`, found <typeOf(fm.src)>");
+          requirements += reqError(sloc, [], fm);
           return true;
        } else {
             throw TypePalUsage("Cannot call `report` on Collector after `run`");
        }
     }
     
-     bool _reports(set[FailMessage] fms){
+     bool _reports(list[FailMessage] fms){
        if(building){
-          msgs = {toMessage(fm, defaultGetType) | fm <- fms};
-          openReqs += { openReqErrors(getFirstFrom(msgs).at, [], msgs) };
+            fm = getFirstFrom(fms);
+            loc sloc = |unknown:///|;
+            if(loc l := fm.src) sloc = l;
+            else if(Tree t := fm.src) sloc = getLoc(t);
+            else throw TypePalUsage("Subject in error should be have type `Tree` or `loc`, found <typeOf(fm.src)>");
+          requirements += reqErrors(sloc, [], fms);
           return true;
        } else {
             throw TypePalUsage("Cannot call `reports` on Collector after `run`");
        }
     }
     
-    AType _newTypeVar(Tree src){
+    AType _newTypeVar(value src){
         if(building){
-            tvLoc = getLoc(src);
-            //ntypevar += 1;
-            //qs = tvLoc.query;
-            //qu = "uid=<ntypevar>";
-            //tvLoc.query = isEmpty(qs) ? qu : "<qs>&<qu>";
+            tvLoc = |unknown:///|;
+            if(Tree t := src){
+                tvLoc = getLoc(src);
+            } else if(loc l := src){
+                tvLoc = l;
+            } else {
+                throw TypePalUsage("`newTypeVar` requires argument of type `Tree` or `loc`");
+            }
+            tvLoc.fragment = "<ntypevar>";
+            ntypevar += 1;
+            //typeVars += tvLoc;
             return tvar(tvLoc);
         } else {
             throw TypePalUsage("Cannot call `newTypeVar` on Collector after `run`");
@@ -705,8 +726,8 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
    // Merge all lubDefs and appoint a definition to refer to
     
     Define mergeLubDefs(str id, loc scope, rel[IdRole role, loc defined, DefInfo defInfo] lubDefs){
-        deps = {}; getATypes = [];
-        defineds = {};
+        deps = []; getATypes = [];
+        defineds = [];
         loc firstDefined = |undef:///|;
         roles = {};
         for(tuple[IdRole role, loc defined, DefInfo defInfo] info <- lubDefs){
@@ -719,7 +740,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
             getATypes += info.defInfo.getATypes;
         }
         if({role} := roles){
-            res = <scope, id, role, firstDefined, defLub(deps - defineds, defineds, getATypes)>;
+            res = <scope, id, role, firstDefined, defTypeLub(deps - defineds, defineds, getATypes)>;
             //println("mergeLubDefs: add define:");  iprintln(res);
             return res;
         } else 
@@ -945,20 +966,19 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
            }
            
            tm = tmodel();
+           tm.facts = facts; facts = ();
            tm.config = config;
            defines = finalizeDefines();
            tm.defines = defines;
+           //tm.typeVars = typeVars; typeVars = {};
            tm.scopes = scopes;  scopes = ();
            tm.paths = paths;
            tm.referPaths = referPaths;
-           tm.namedTypes = namedTypes; namedTypes = ();
            tm.uses = uses;      uses = [];
            tm.indirectUses = indirectUses; indirectUses = [];
            
            tm.calculators = calculators;
-           tm.facts = facts;            facts = ();
-           tm.openFacts = openFacts;    openFacts = {};    
-           tm.openReqs = openReqs;  
+           tm.requirements = requirements;  
            tm.store = storeVals;        storeVals = ();
            tm.definitions = ( def.defined : def | Define def <- defines);
            definesMap = ();
@@ -999,10 +1019,11 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
                     _requireEqual,
                     _requireComparable,
                     _requireSubtype,
-                    _fact,
+                    _requireUnify,
+                    
                     _calculate, 
                     _calculateEager,
-                    _sameType,
+                    _fact,
                     _report, 
                     _reports,
                     _newTypeVar, 
@@ -1099,7 +1120,14 @@ default void collect(Tree currentTree, Collector c){
 
 private  set[str] skipSymbols = {"lex", "layouts", "keywords", "lit", "cilit", "char-class"};
 
+void resetCollect(){
+    delta = 2;
+    nlexical = 0;
+}
+
 int delta = 2;
+int nlexical = 0;
+
 void collectParts(Tree currentTree, Collector c){
    //println("collectParts: <typeOf(currentTree)>: <currentTree>");
    if(currentTree has prod /*&& getName(currentTree.prod.def) notin skipSymbols*/){
@@ -1116,7 +1144,7 @@ void collectParts(Tree currentTree, Collector c){
    //}
 }
 
-int nlexical = 0;
+
 
 void collectLexical(Tree currentTree, Collector c){
     //println("collectLexical: <typeOf(currentTree)>: <currentTree>");

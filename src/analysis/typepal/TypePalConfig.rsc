@@ -9,8 +9,8 @@ import util::Reflective;
 import String;
 extend ParseTree;
 
-//data Solver;
-//data Tree;
+syntax ANONYMOUS_OCCURRENCE = "anonymous_occurence";
+private loc anonymousOccurrence = ([ANONYMOUS_OCCURRENCE] "anonymous_occurence")@\loc;
 
 AType defaultGetMinAType(){
     throw TypePalUsage("`getMinAType()` called but is not specified in TypePalConfig");
@@ -44,6 +44,10 @@ AType defaultGetTypeInNamelessType(AType containerType, Tree selector, loc scope
     throw TypePalUsage("`useViaType` used without definition of `getTypeInNamelessType`");
 }
 
+AType defaultGetTypeInTypeFromDefine(Define containerDef, str selectorName, set[IdRole] idRolesSel, Solver s) {
+    throw NoBinding();
+}   
+  
 str defaultUnescapeName(str s) { return replaceAll(s, "\\", ""); }
 
 // Extends TypePalConfig defined in analysis::typepal::ScopeGraph
@@ -74,9 +78,15 @@ data TypePalConfig(
             = tuple[bool isNamedType, str typeName, set[IdRole] idRoles](AType atype){
                 throw TypePalUsage("`useViaType` used without definition of `getTypeNameAndRole`");
             },
-       
+            
+        AType (Define containerDef, str selectorName, set[IdRole] idRolesSel, Solver s) getTypeInTypeFromDefine
+            = AType (Define containerDef, str selectorName, set[IdRole] idRolesSel, Solver s) { throw NoBinding(); },
+ 
         AType(AType containerType, Tree selector, loc scope, Solver s) getTypeInNamelessType
             = AType(AType containerType, Tree selector, loc scope, Solver s){
                 throw TypePalUsage("`useViaType` used without definition of `getTypeInNamelessType`");
-            }
+            }, 
+            
+        TModel(Tree pt, TModel tm) preSolver = TModel(Tree pt, TModel tm) { return tm; },    
+        void (Tree pt, Solver s) postSolver  = void(Tree pm, Solver s) { return ; }
     );

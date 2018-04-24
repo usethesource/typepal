@@ -3,7 +3,7 @@ module analysis::typepal::AType
 import String;
 import List;
 import Set;
-import Message;
+import analysis::typepal::FailMessage;
 extend analysis::typepal::ScopeGraph;
 
 // Extend AType for type checking purposes
@@ -28,5 +28,5 @@ data RuntimeException
     = TypePalUsage(str reason)              // TypePal used incorrectly
     | TypePalInternalError(str reason)      // TypePal internal error
     | TypeUnavailable()                     // Type is not available: used in control flow of solver
-    | checkFailed(set[Message] msgs)        // Type check failed: used in control flow of solver
+    | checkFailed(list[FailMessage] msgs)   // Type check failed: used in control flow of solver
     ;
