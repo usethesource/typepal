@@ -145,7 +145,7 @@ private list[loc] lookupPaths(TModel tm, loc scope, Use use, PathRole pathRole){
     res = 
       for(<scope, pathRole, loc parent> <- tm.paths){
         try {
-            def = lookupScope(tm, parent, use);
+            loc def = lookupScope(tm, parent, use);
             switch(isAcceptablePathFun(tm, parent, def, use, pathRole)){
             case acceptBinding():
                append def;
@@ -299,7 +299,7 @@ private set[loc] lookupPathsWide(TModel tm, loc scope, Use use, PathRole pathRol
             seenParents += parent;
             //if(wdebug) println("\tlookupPathsWide: scope: <scope>, trying semantic path to: <parent>");
             
-            for(def <- lookupScopeWide(tm, parent, use)){
+            for(loc def <- lookupScopeWide(tm, parent, use)){
                 switch(isAcceptablePathFun(tm, parent, def, use, pathRole)){
                 case acceptBinding():
                    res += def;
@@ -366,7 +366,7 @@ public set[loc] lookupWide(TModel tm, Use u){
  
     //if(wdebug) println("lookupWide: <u>");
     if(!(u has qualifierRoles)){
-       defs = {def | def <- lookupNestWide(tm, scope, u), isAcceptableSimpleFun(tm, def, u) == acceptBinding()};
+       defs = {def | loc def <- lookupNestWide(tm, scope, u), isAcceptableSimpleFun(tm, def, u) == acceptBinding()};
        //if(wdebug) println("lookupWide: <u> returns:\n<for(d <- defs){>\t==\> <d><}>");
        if(isEmpty(defs)) throw NoBinding(); else return defs;
     } else {

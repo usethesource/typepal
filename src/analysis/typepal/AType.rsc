@@ -14,6 +14,31 @@ data AType
     | overloadedAType(rel[loc, IdRole, AType] overloads)   // built-in-overloaded type; each loc provides an alternative type
     ;
 
+
+AType lazyLub([*AType atypes1, lazyLub([*AType atypes2]), *AType atypes3]) = lazyLub([*atypes1, *atypes2, *atypes3]);
+AType lazyLub([*AType atypes1, AType atypea, *AType atypes2, AType atypeb, *AType atypes3]) = lazyLub([*atypes1, atypea, *atypes2, *atypes3]);
+
+
+rel[loc, IdRole, AType] flatten(rel[loc, IdRole, AType] overloads){
+    flatOverloads = {};
+    for(ovl:<key, idr, tp> <- overloads){
+        if(overloadedAType(rel[loc, IdRole, AType] overloads1) := tp){
+            flat = false;
+            for(ovl1 <- overloads1) flatOverloads += ovl1;
+        } else {
+            flatOverloads += ovl;
+        }
+    }
+    return flatOverloads;
+}
+
+bool containsNestedOverloading(rel[loc, IdRole, AType] overloads)
+    = any(<key, idr, tp> <- overloads, tp is overloadedAType);
+
+// Flatten nested overloads
+AType overloadedAType(rel[loc, IdRole, AType] overloads) 
+    = overloadedAType(flatten(overloads)) when containsNestedOverloading(overloads); 
+
 // Pretty print ATypes
 str prettyPrintAType(tvar(loc tname))               = "typevar(<tname>)";
 str prettyPrintAType(lazyLub(list[AType] atypes))   = "lub(<atypes>))";

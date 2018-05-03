@@ -174,12 +174,12 @@ void print(req:reqUnify(str rname, value l, value r, list[loc] dependsOn, FailMe
 
 
 void print(req:reqError (loc src, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
-    println("<indent>requ `<rname>` for <src>");
+    println("<indent>requ for <src>");
     if(full) printDeps(dependsOn, indent, facts);
 }
 
 void print(req:reqErrors(loc src, list[loc] dependsOn, list[FailMessage] fms), str indent, map[loc,AType] facts, bool full=true){
-    println("<indent>requ: `<rname>` for <src>");
+    println("<indent>requ for <src>");
    if(full) printDeps(dependsOn, indent, facts);
 }
 
@@ -319,13 +319,23 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
             else throw TypePalUsage("Argument `def` of `define` should be `Tree` or `loc`, found <typeOf(def)>");
             
             id = unescapeName(id);
+           
+           // println("define: <id>, <idRole>, <def>");
             //println("definesPerLubScope[currentLubScope]: <definesPerLubScope[currentLubScope]>");
             
-            if(info is defTypeLub /*&& isEmpty(definesPerLubScope[currentLubScope][currentScope, id])*/){
-                //if(id=="ddd")println("defLub: <currentLubScope>, <{<id, currentScope, idRole, l, info>}>");           
+            if(info is defTypeLub /*&& isEmpty(definesPerLubScope[currentLubScope][currentScope, id])*/){  
+                // Look for an outer variable declaration of id that overrules the defTypeLub   
+                for(Define def <- defines){
+                    if(def.id == id && def.idRole == variableId()){
+                        if(def.scope in scopeStack<0>) {
+                            uses += use(id, l, currentScope, {idRole});
+                            return;
+                        }
+                    }
+                }   
                 lubDefinesPerLubScope[currentLubScope] += <id, currentScope, idRole, l, info>;
             } else {
-                //println("define: <<currentScope, id, idRole, l, info>>");
+                //println("define: add to definesPerLubScope[<currentLubScope>]: <<currentScope, id, idRole, l, info>>");
                 definesPerLubScope[currentLubScope] += <currentScope, id, idRole, l, info>;
             }
         } else {
@@ -386,7 +396,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
     
     AType(Solver) makeGetTypeInType(Tree container, Tree selector, set[IdRole] idRolesSel, loc scope){
         return AType(Solver s) { 
-            return s.getTypeInType(container, selector, idRolesSel, scope);
+            return s.getTypeInType(s.getType(container), selector, idRolesSel, scope);
          };
     }
     
@@ -671,7 +681,9 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
             tvLoc.fragment = "<ntypevar>";
             ntypevar += 1;
             //typeVars += tvLoc;
-            return tvar(tvLoc);
+            tv = tvar(tvLoc);
+            facts[tvLoc] = tv;
+            return tv;
         } else {
             throw TypePalUsage("Cannot call `newTypeVar` on Collector after `run`");
         }
@@ -740,23 +752,20 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
             getATypes += info.defInfo.getATypes;
         }
         if({role} := roles){
-            res = <scope, id, role, firstDefined, defTypeLub(deps - defineds, defineds, getATypes)>;
-            //println("mergeLubDefs: add define:");  iprintln(res);
-            return res;
+            return <scope, id, role, firstDefined, defTypeLub(deps - defineds, defineds, getATypes)>;
         } else 
              throw TypePalUsage("LubDefs should use a single role, found <roles>");
     }
     
     bool fixed_define_in_outer_scope(str id, loc lubScope){
-        dbg = id in {"reachableTypes"};
-        if(dbg) println("fixed_define_in_outer_scope: <id>, <lubScope>");
+        //println("fixed_define_in_outer_scope: <id>, <lubScope>");
         outer = lubScope;
-        while(scopes[outer]?){
+        while(scopes[outer]? && scopes[outer] != |global-scope:///|){
             outer = scopes[outer];
             //println("outer: <outer>");
             //println("definesPerLubScope[outer] ? {}: <definesPerLubScope[outer] ? {}>");
             for(d: <loc scope, id, variableId(), loc defined, DefInfo defInfo> <- definesPerLubScope[outer] ? {}){
-                if(dbg) println("fixed_define_in_outer_scope: <d>");
+                //println("d = <d>");
                 return true;
             }
         }
@@ -920,20 +929,12 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
             for(rp <- referPaths){
                 try {
                     u = rp.use;
-                    //u.scope[fragment=""];
-                    //u.occ[fragment=""];
                     foundDefs = lookupFun(tm, u);
                     if({def} := foundDefs){
                        //println("resolvePath: resolve <rp.use> to <def>");
                        newPaths += {<u.scope, rp.pathRole, def>};  
                     } else {
-                        //// If only overloaded due to different time stamp, use most recent.
-                        //<ok, def> = findMostRecentDef(foundDefs);
-                        //if(ok){
-                        //    tm.paths += {<rp.use.scope, rp.pathRole, def>};
-                        // } else { 
-                            msgs += error("Name `<u.id>` is ambiguous <foundDefs>", u.occ);
-                         //}
+                        msgs += error("Name `<u.id>` is ambiguous <foundDefs>", u.occ);
                     }
                     referPaths -= {rp}; 
                 }
@@ -1038,6 +1039,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
                     _run); 
 }
 
+void resetCollect(){ }
 
 void collect(Tree t1, Tree t2, Collector c){
     collect(t1, c);
@@ -1111,72 +1113,115 @@ void collect(list[Tree] currentTrees, Collector c){
     for(t <- currentTrees) collect(t, c);
 }
 
-// Default definition for collect; to be overridden in a specific type checker
-// for handling syntax-constructs-of-interest
-default void collect(Tree currentTree, Collector c){
-   //println("default collect: <typeOf(currentTree)>: <currentTree>");
-   if(nlexical == 0)  collectParts(currentTree, c); else collectLexicalParts(currentTree, c); 
-}
-
 private  set[str] skipSymbols = {"lex", "layouts", "keywords", "lit", "cilit", "char-class"};
 
-void resetCollect(){
-    delta = 2;
-    nlexical = 0;
-}
-
-int delta = 2;
-int nlexical = 0;
-
-void collectParts(Tree currentTree, Collector c){
-   //println("collectParts: <typeOf(currentTree)>: <currentTree>");
-   if(currentTree has prod /*&& getName(currentTree.prod.def) notin skipSymbols*/){
-       args = currentTree.args;
-       int n = size(args);
-       int i = 0;
-       while(i < n){
-        collect(args[i], c);
-        i += delta;
-       }
-   } 
-   //else {
-   // println("collectParts, skipping: <typeOf(currentTree)>: <currentTree>");
-   //}
-}
-
-
-
-void collectLexical(Tree currentTree, Collector c){
-    //println("collectLexical: <typeOf(currentTree)>: <currentTree>");
-    nlexical += 1;
-    collect(currentTree, c);
-    collectLexicalParts(currentTree, c);
-    nlexical -= 1;
-}
-
-void collectLexicalParts(Tree currentTree, Collector c){
-   //println("collectLexicalParts: <typeOf(currentTree)>: <currentTree>"); 
-   delta =1 ;
-   if(currentTree has prod /*&& getName(currentTree.prod.def) notin skipSymbols*/){
-       args = currentTree.args;
-       int n = size(args);
-       int i = 0;
-       while(i < n){
-        collectLexical(args[i], c);
-        i += 1;
-       }
-   }
-   delta = 2;
-}
-
-tuple[bool, loc] findMostRecentDef(set[loc] defs){
-    d2l = (def.fragment : def | loc def <- defs);
-    strippedDefs = {def[fragment=""][offset=0][length=0][begin=<0,0>][end=<0,0>] | def <- defs};
-    if({sdef} := strippedDefs){
-        def = d2l[sort([d.fragment | loc d <- defs])[-1]];
-        println("findMostRecentDef: <defs> ==\> \<true, <def>\>");
-        return <true, def>;
+void collectArgs(list[Tree] args, Collector c){
+    for(arg <- args){
+        collect(arg, c);
     }
-    //println("findMostRecentDef: <defs> ==\> \<false, |unknown:///|\>");
-    return <false, |unknown:///|>;
 }
+
+default void collect(Tree t, Collector c){
+    switch(t){
+        case appl(prod(label(_, Symbol sym), list[Symbol] symbols, set[Attr] attributes), list[Tree] args): collect(appl(prod(sym, symbols, attributes), args), c);
+         case appl(prod(\start(Symbol sym), list[Symbol] symbols, set[Attr] attributes), list[Tree] args): collect(appl(prod(sym, symbols, attributes), args), c);
+        
+        case appl(prod(lex(_),_,_), list[Tree] args): collectArgs(args, c);
+        //case appl(prod(label(_, lex(_)),_,_), list[Tree] args): collectArgs(args, c);
+        
+        case appl(prod(\parameterized-lex(_,_),_,_), list[Tree] args): collectArgs(args, c);
+        //case appl(prod(label(_, \parameterized-lex(_,_)),_,_), list[Tree] args): collectArgs(args, c);
+        
+        case appl(prod(sort(_),_,_), list[Tree] args): collectArgs(args, c);
+        //case appl(prod(label(_, sort(_)),_,_), list[Tree] args): collectArgs(args, c);
+        
+        case appl(prod(\parameterized-sort(_,_),_,_), list[Tree] args): collectArgs(args, c);
+        //case appl(prod(label(_, \parameterized-sort(_,_)),_,_), list[Tree] args): collectArgs(args, c);
+        
+        case appl(regular(\iter(Symbol symbol)), list[Tree] args): collectArgs(args, c);
+        //case appl(label(_,regular(\iter(Symbol symbol))), list[Tree] args): collectArgs(args, c);
+        
+        case appl(regular(\iter-star(Symbol symbol)), list[Tree] args): collectArgs(args, c);
+        //case appl(label(_, regular(\iter-star(Symbol symbol))), list[Tree] args): collectArgs(args, c);
+      
+        case appl(regular(\iter-seps(Symbol symbol, list[Symbol] separators)), list[Tree] args): collectArgs(args, c);
+        //case appl(label(_, regular(\iter-seps(Symbol symbol, list[Symbol] separators))), list[Tree] args): collectArgs(args, c);
+      
+        case appl(regular(\iter-star-seps(Symbol symbol, list[Symbol] separators)), list[Tree] args): collectArgs(args, c);
+        //case appl(label(_, regular(\iter-star-seps(Symbol symbol, list[Symbol] separators))), list[Tree] args): collectArgs(args, c);
+        
+        case appl(regular(seq(list[Symbol] symbols)), list[Tree] args): collectArgs(args, c);
+        
+        case appl(regular(alt(set[Symbol] alts)), list[Tree] args): collectArgs(args, c);
+        
+        // opt
+        
+        case appl(conditional(Symbol symbol, set[Condition] conditions), list[Tree] args): collectArgs(args, c);
+        
+        default: {
+            //println("SKIPPED: `<"<t>">`");
+            //iprintln(t);
+            return;
+        }
+    }
+}
+
+
+//
+//// Default definition for collect; to be overridden in a specific type checker
+//// for handling syntax-constructs-of-interest
+//default void collect(Tree currentTree, Collector c){
+//   //println("default collect: <typeOf(currentTree)>: <currentTree>");
+//   if(nlexical == 0)  collectParts(currentTree, c); else collectLexicalParts(currentTree, c); 
+//}
+//
+//private  set[str] skipSymbols = {"lex", "layouts", "keywords", "lit", "cilit", "char-class"};
+//
+//void resetCollect(){
+//    delta = 2;
+//    nlexical = 0;
+//}
+//
+//int delta = 2;
+//int nlexical = 0;
+//
+//void collectParts(Tree currentTree, Collector c){
+//   //println("collectParts: <typeOf(currentTree)>: <currentTree>");
+//   if(currentTree has prod /*&& getName(currentTree.prod.def) notin skipSymbols*/){
+//       args = currentTree.args;
+//       int n = size(args);
+//       int i = 0;
+//       while(i < n){
+//        collect(args[i], c);
+//        i += delta;
+//       }
+//   } 
+//   //else {
+//   // println("collectParts, skipping: <typeOf(currentTree)>: <currentTree>");
+//   //}
+//}
+//
+//
+//
+//void collectLexical(Tree currentTree, Collector c){
+//    //println("collectLexical: <typeOf(currentTree)>: <currentTree>");
+//    nlexical += 1;
+//    collect(currentTree, c);
+//    collectLexicalParts(currentTree, c);
+//    nlexical -= 1;
+//}
+//
+//void collectLexicalParts(Tree currentTree, Collector c){
+//   //println("collectLexicalParts: <typeOf(currentTree)>: <currentTree>"); 
+//   delta =1 ;
+//   if(currentTree has prod /*&& getName(currentTree.prod.def) notin skipSymbols*/){
+//       args = currentTree.args;
+//       int n = size(args);
+//       int i = 0;
+//       while(i < n){
+//        collectLexical(args[i], c);
+//        i += 1;
+//       }
+//   }
+//   delta = 2;
+//}

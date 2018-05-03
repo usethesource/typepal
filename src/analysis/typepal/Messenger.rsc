@@ -1,6 +1,7 @@
 module analysis::typepal::Messenger
 
 import ParseTree;
+import Message;
 import Exception;
 import String;
 import Set;
@@ -79,7 +80,7 @@ str interpolate(str msg, TypeProvider getType, list[value] args){
             c = msg[i];
             if(c != "%"){
                 a += 1;
-                if(a >= size(args)) throw TypePalUsage("Given <a> format directives, but only <size(args)> arguments");
+                if(a >= size(args)) throw TypePalUsage("Given <a> format directives in `<msg>`, but only <size(args)> arguments");
             }
             switch(c){
             case "t":
@@ -90,7 +91,7 @@ str interpolate(str msg, TypeProvider getType, list[value] args){
                 } else if(set[AType] atypes := args[a]){
                     result += isEmpty(atypes) ? "none" : intercalateAnd(["`<fmt1(at, getType)>`" | at <- atypes]);
                 } else {
-                    throw TypePalUsage("%t format directive requires a Tree, AType or list/set of ATypes, found <args[a]>");
+                    throw TypePalUsage("%t format directive `<msg>` requires a Tree, AType or list/set of ATypes, found <args[a]>");
                 }
             case "q":
                 //result += "`<fmt1(args[a], getType)>`";
@@ -109,7 +110,7 @@ str interpolate(str msg, TypeProvider getType, list[value] args){
             case "%":
                 result += "%";
             default:
-                throw TypePalUsage("Unknown format directive `%<c>`");
+                throw TypePalUsage("Unknown format directive `%<c>` in `<msg>`");
             }
         } else {
             result += c;
