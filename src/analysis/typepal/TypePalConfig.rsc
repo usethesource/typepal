@@ -1,7 +1,7 @@
 module analysis::typepal::TypePalConfig
 
 extend analysis::typepal::Solver;
-import analysis::typepal::AType;
+extend analysis::typepal::AType;
 extend analysis::typepal::ScopeGraph;
 
 

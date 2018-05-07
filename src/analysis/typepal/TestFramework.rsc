@@ -20,7 +20,7 @@ import Map;
 import List;
 import util::Reflective;
 
-import analysis::typepal::Messenger;
+extend analysis::typepal::Messenger;
 extend analysis::typepal::Solver;
 
 lexical TTL_id = ([A-Z][a-zA-Z0-9]* !>> [a-zA-Z0-9]) \ TTL_Reserved;
