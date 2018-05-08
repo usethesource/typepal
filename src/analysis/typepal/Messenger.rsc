@@ -62,8 +62,14 @@ str fmt1(AType t, TypeProvider getType)           = prettyPrintAType(t);
 str fmt1(str s, TypeProvider getType)             = s;
 str fmt1(int n, TypeProvider getType)             = "<n>";
 str fmt1(list[value] vals, TypeProvider getType)  = isEmpty(vals) ? "nothing" : intercalateAnd([fmt1(vl, getType) | vl <- vals]);
-str fmt1(set[value] vals, TypeProvider getType)   = isEmpty(vals) ? "nothing" : intercalateAnd([fmt1(vl, getType) | vl <- vals]);   
-str fmt1(Tree t, TypeProvider getType)            = prettyPrintAType(getType(t));
+str fmt1(set[value] vals, TypeProvider getType)   = isEmpty(vals) ? "nothing" : intercalateAnd([fmt1(vl, getType) | vl <- vals]);  
+ 
+str fmt1(Tree t, TypeProvider getType) {
+    try return prettyPrintAType(getType(t));
+    catch TypeUnavailable():{
+        return "\<*** unavailable type of `<t>` ***\>";
+    }
+}
      
 default str fmt1(value v, TypeProvider getType)   = "<v>";
     
