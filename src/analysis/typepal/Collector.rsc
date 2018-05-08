@@ -225,6 +225,7 @@ void print(tuple[loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo]
    
 // The basic Fact & Requirement Model; can be extended in specific type checkers
 data TModel (
+        str modelName = "",
         set[Calculator] calculators = {},
         map[loc,AType] facts = (), 
         set[Requirement] requirements = {},
@@ -268,12 +269,12 @@ void printTModel(TModel tm){
     println(");");
 }
              
-Collector defaultCollector(Tree t) = newCollector(t);    
+Collector defaultCollector(Tree t) = newCollector("defaultModel", t);    
  
 alias LubDefine = tuple[loc lubScope, str id, loc scope, IdRole idRole, loc defined, DefInfo defInfo]; 
 alias LubDefine2 = tuple[str id, loc scope, IdRole idRole, loc defined, DefInfo defInfo];       
 
-Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = false){
+Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), bool debug = false){
     configScopeGraph(config);
     
     unescapeName = config.unescapeName;
@@ -967,6 +968,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
            }
            
            tm = tmodel();
+           tm.modelName = modelName;
            tm.facts = facts; facts = ();
            tm.config = config;
            defines = finalizeDefines();
@@ -1039,7 +1041,7 @@ Collector newCollector(Tree t, TypePalConfig config = tconfig(), bool debug = fa
                     _run); 
 }
 
-void resetCollect(){ }
+// ---- collect utilities -----------------------------------------------------
 
 void collect(Tree t1, Tree t2, Collector c){
     collect(t1, c);
@@ -1110,118 +1112,86 @@ void collect(Tree t1, Tree t2, Tree t3, Tree t4, Tree t5, Tree t6, Tree t7, Tree
 }
 
 void collect(list[Tree] currentTrees, Collector c){
-    for(t <- currentTrees) collect(t, c);
-}
-
-private  set[str] skipSymbols = {"lex", "layouts", "keywords", "lit", "cilit", "char-class"};
-
-void collectArgs(list[Tree] args, Collector c){
-    for(arg <- args){
-        collect(arg, c);
+    n = size(currentTrees);
+    i = 0;
+    while(i < n){
+        collect(currentTrees[i], c);
+        i += 1;
     }
 }
 
-default void collect(Tree t, Collector c){
-    switch(t){
-        case appl(prod(label(_, Symbol sym), list[Symbol] symbols, set[Attr] attributes), list[Tree] args): collect(appl(prod(sym, symbols, attributes), args), c);
-         case appl(prod(\start(Symbol sym), list[Symbol] symbols, set[Attr] attributes), list[Tree] args): collect(appl(prod(sym, symbols, attributes), args), c);
+// ---- default collector -----------------------------------------------------
+
+void collectArgs1(list[Tree] args, Collector c){
+    int n = size(args);
+    int i = 0;
+    while(i < n){
+        collect(args[i], c);
+        i += 1;
+    }
+}
+
+void collectArgs2(list[Tree] args, Collector c){
+    int n = size(args);
+    int i = 0;
+    while(i < n){
+        collect(args[i], c);
+        i += 2;
+    }
+}
+
+void collectArgsN(list[Tree] args, int delta, Collector c){
+    int n = size(args);
+    int i = 0;
+    while(i < n){
+        collect(args[i], c);
+        i += delta;
+    }
+}
+
+default void collect(Tree currentTree, Collector c){
+    if(currentTree has prod){
+        switch(getName(currentTree.prod.def)){
+        case "label":  
+            { p = currentTree.prod; collect(appl(prod(p.def.symbol, p.symbols, p.attributes), currentTree.args), c); }
+        case "start":  
+            { p = currentTree.prod; collect(appl(prod(p.def.symbol, p.symbols, p.attributes), currentTree.args), c); }
+        case "sort": 
+            collectArgs2(currentTree.args, c);
+        case "parameterized-sort": 
+            collectArgs2(currentTree.args, c);
+        case "lex": 
+            collectArgs1(currentTree.args, c);
+        case "parameterized-lex":
+            collectArgs1(currentTree.args, c);
+        case "conditional": 
+            { p = currentTree.prod; collect(appl(prod(p.def.symbol, p.symbols, p.attributes), currentTree.args), c); }
+        case "iter":
+            if(getName(currentTree.prod.def.symbol) == "lex")  collectArgs1(currentTree.args, c); else collectArgs2(currentTree.args, c);
+        case "iter-star":
+            if(getName(currentTree.prod.def.symbol) == "lex")  collectArgs1(currentTree.args, c); else collectArgs2(currentTree.args, c);
+        case "iter-seps":
+            collectArgsN(currentTree.args, 1 + size(currentTree.prod.def.separators), c);
+        case "iter-star-seps":
+            collectArgsN(currentTree.args, 1 + size(currentTree.prod.def.separators), c);
+        case "seq":
+            collectArgs2(currentTree.args, c);
+        case "alt":
+            collectArgs2(currentTree.args, c);
+        case "opt":
+            collectArgs2(currentTree.args, c);
+        case "lit":;
         
-        case appl(prod(lex(_),_,_), list[Tree] args): collectArgs(args, c);
-        //case appl(prod(label(_, lex(_)),_,_), list[Tree] args): collectArgs(args, c);
+        default: println("collect, default: <getName(currentTree.prod.def)>");
         
-        case appl(prod(\parameterized-lex(_,_),_,_), list[Tree] args): collectArgs(args, c);
-        //case appl(prod(label(_, \parameterized-lex(_,_)),_,_), list[Tree] args): collectArgs(args, c);
+        // Just skip the cases "lit", "layouts": ;
         
-        case appl(prod(sort(_),_,_), list[Tree] args): collectArgs(args, c);
-        //case appl(prod(label(_, sort(_)),_,_), list[Tree] args): collectArgs(args, c);
-        
-        case appl(prod(\parameterized-sort(_,_),_,_), list[Tree] args): collectArgs(args, c);
-        //case appl(prod(label(_, \parameterized-sort(_,_)),_,_), list[Tree] args): collectArgs(args, c);
-        
-        case appl(regular(\iter(Symbol symbol)), list[Tree] args): collectArgs(args, c);
-        //case appl(label(_,regular(\iter(Symbol symbol))), list[Tree] args): collectArgs(args, c);
-        
-        case appl(regular(\iter-star(Symbol symbol)), list[Tree] args): collectArgs(args, c);
-        //case appl(label(_, regular(\iter-star(Symbol symbol))), list[Tree] args): collectArgs(args, c);
-      
-        case appl(regular(\iter-seps(Symbol symbol, list[Symbol] separators)), list[Tree] args): collectArgs(args, c);
-        //case appl(label(_, regular(\iter-seps(Symbol symbol, list[Symbol] separators))), list[Tree] args): collectArgs(args, c);
-      
-        case appl(regular(\iter-star-seps(Symbol symbol, list[Symbol] separators)), list[Tree] args): collectArgs(args, c);
-        //case appl(label(_, regular(\iter-star-seps(Symbol symbol, list[Symbol] separators))), list[Tree] args): collectArgs(args, c);
-        
-        case appl(regular(seq(list[Symbol] symbols)), list[Tree] args): collectArgs(args, c);
-        
-        case appl(regular(alt(set[Symbol] alts)), list[Tree] args): collectArgs(args, c);
-        
-        // opt
-        
-        case appl(conditional(Symbol symbol, set[Condition] conditions), list[Tree] args): collectArgs(args, c);
-        
-        default: {
-            //println("SKIPPED: `<"<t>">`");
-            //iprintln(t);
-            return;
         }
-    }
-}
-
-
-//
-//// Default definition for collect; to be overridden in a specific type checker
-//// for handling syntax-constructs-of-interest
-//default void collect(Tree currentTree, Collector c){
-//   //println("default collect: <typeOf(currentTree)>: <currentTree>");
-//   if(nlexical == 0)  collectParts(currentTree, c); else collectLexicalParts(currentTree, c); 
-//}
-//
-//private  set[str] skipSymbols = {"lex", "layouts", "keywords", "lit", "cilit", "char-class"};
-//
-//void resetCollect(){
-//    delta = 2;
-//    nlexical = 0;
-//}
-//
-//int delta = 2;
-//int nlexical = 0;
-//
-//void collectParts(Tree currentTree, Collector c){
-//   //println("collectParts: <typeOf(currentTree)>: <currentTree>");
-//   if(currentTree has prod /*&& getName(currentTree.prod.def) notin skipSymbols*/){
-//       args = currentTree.args;
-//       int n = size(args);
-//       int i = 0;
-//       while(i < n){
-//        collect(args[i], c);
-//        i += delta;
-//       }
-//   } 
-//   //else {
-//   // println("collectParts, skipping: <typeOf(currentTree)>: <currentTree>");
-//   //}
-//}
-//
-//
-//
-//void collectLexical(Tree currentTree, Collector c){
-//    //println("collectLexical: <typeOf(currentTree)>: <currentTree>");
-//    nlexical += 1;
-//    collect(currentTree, c);
-//    collectLexicalParts(currentTree, c);
-//    nlexical -= 1;
-//}
-//
-//void collectLexicalParts(Tree currentTree, Collector c){
-//   //println("collectLexicalParts: <typeOf(currentTree)>: <currentTree>"); 
-//   delta =1 ;
-//   if(currentTree has prod /*&& getName(currentTree.prod.def) notin skipSymbols*/){
-//       args = currentTree.args;
-//       int n = size(args);
-//       int i = 0;
-//       while(i < n){
-//        collectLexical(args[i], c);
-//        i += 1;
-//       }
-//   }
-//   delta = 2;
-//}
+      } else {
+        if(char(_) := currentTree){
+        ;
+        } else {
+            println("collect, else"); iprintln(currentTree);
+        }
+      }
+   }

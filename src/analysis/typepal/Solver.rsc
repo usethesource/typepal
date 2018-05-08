@@ -1153,7 +1153,7 @@ Solver newSolver(Tree tree, TModel tm, bool debug = false){
         messages = tm.messages;
         failMessages = [];
            
-        println("initial -- calculators: <size(calculators)>; requirements: <size(requirements)>; uses: <size(tm.uses)>; facts: <size(facts)>");
+        println("<tm.modelName>, initial -- calculators: <size(calculators)>; requirements: <size(requirements)>; uses: <size(tm.uses)>; facts: <size(facts)>");
              
         if(cdebug){
             printTModel(tm);
@@ -1294,7 +1294,7 @@ Solver newSolver(Tree tree, TModel tm, bool debug = false){
         
         solve(ncalculators, nrequirements, nfacts, nopenUses){ 
             iterations += 1;
-            println("iter #<iterations> -- calculators: <ncalculators>; calculatorJobs: <size(calculatorJobs)>; requirements: <nrequirements>; requirementJobs: <size(requirementJobs)>; uses: <size(openUses)>; facts: <size(facts)>; ");
+            println("<tm.modelName>, iter #<iterations> -- calculators: <ncalculators>; calculatorJobs: <size(calculatorJobs)>; requirements: <nrequirements>; requirementJobs: <size(requirementJobs)>; uses: <size(openUses)>; facts: <size(facts)>; ");
        
             // ---- calculatorJobs
            
@@ -1355,7 +1355,7 @@ Solver newSolver(Tree tree, TModel tm, bool debug = false){
         
         reportedLocations = { msg.at | msg <- messages };
         
-        println("..... remaining <size(openUses)> uses");
+        println("<tm.modelName>, remaining <size(openUses)> uses; <size(calculators)> calculators; <size(requirements)> requirements");
         
         for (Use u <- openUses) {
             foundDefs = definedBy[u.occ];
@@ -1363,8 +1363,6 @@ Solver newSolver(Tree tree, TModel tm, bool debug = false){
                 messages += error("Unresolved type for `<u has id ? u.id : u.ids>`", u.occ);
             }
         }
-        
-        println("..... remaining <size(calculators)> calculators");
         
         calcNoLubs = [calc | calc <- calculators, !(calc is calcLub)];
       
@@ -1407,7 +1405,6 @@ Solver newSolver(Tree tree, TModel tm, bool debug = false){
         tm.calculators = calculators;
         tm.requirements = requirements;
       
-        println("..... remaining <size(requirements)> requirements");
         for(req <- requirements){
             src =  getReqSrc(req);
             if(isEmpty(reportedLocations & toSet(req.dependsOn)) && !alreadyReported(messages, src)){
@@ -1442,12 +1439,7 @@ Solver newSolver(Tree tree, TModel tm, bool debug = false){
           solverEnded = cpuTime();
           str fmt(int n) = right("<n>", 8);
           M = 1000000;
-          println("Solver total:    <fmt((solverEnded - solverStarted)/M)> ms
-                  '  run init:      <fmt((mainStarted - runStarted)/M)> ms [ doubles <initFilterDoublesTime/M>; uses <initCheckUsesTime/M>; def <initDefTime/M>; register <initRegisterTime/M>; fact triggers <initFactTriggerTime/M>; calc <initCalcTime/M>; req <initReqTime/M> ]
-                  '  run main loop: <fmt((mainEnded - mainStarted)/M)> ms [ calc <mainCalcTime/M>; req <mainReqTime/M> ]
-                  '  run finish:    <fmt((solverEnded - mainEnded)/M)> ms [ postSolver <postSolverTime/M> ]
-                  '");
-           
+          println("<tm.modelName>, solver total: <(solverEnded - solverStarted)/M> ms; init: <(mainStarted - runStarted)/M> ms [ doubles <initFilterDoublesTime/M>; uses <initCheckUsesTime/M>; def <initDefTime/M>; register <initRegisterTime/M>; fact triggers <initFactTriggerTime/M>; calc <initCalcTime/M>; req <initReqTime/M> ]; run main loop: <(mainEnded - mainStarted)/M> ms [ calc <mainCalcTime/M>; req <mainReqTime/M> ]; finish: <(solverEnded - mainEnded)/M> ms [ postSolver <postSolverTime/M> ]");
           return tm;
     }
     

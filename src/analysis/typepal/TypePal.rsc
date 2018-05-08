@@ -28,7 +28,7 @@ extend analysis::typepal::FailMessage;
 extend analysis::typepal::Messenger;
 extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::Solver;
-extend analysis::typepal::TestFramework;
+import analysis::typepal::TestFramework;
 extend analysis::typepal::TypePalConfig;
 extend analysis::typepal::Utils;
 
@@ -36,7 +36,7 @@ extend analysis::typepal::Utils;
 
 TModel collectAndSolve(Tree pt, TypePalConfig config = tconfig(), bool debug = false){
     if(pt has top) pt = pt.top;
-    c = newCollector(pt, config=config, debug=debug);
+    c = newCollector("Pico", pt, config=config, debug=debug);
     collect(pt, c);
     return newSolver(pt, c.run(), debug=debug).run();
 }
