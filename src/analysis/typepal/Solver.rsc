@@ -58,11 +58,12 @@ data Solver
         map[loc, AType]() getFacts
     );
     
-Solver newSolver(Tree tree, TModel tm, bool debug = false){
+Solver newSolver(Tree tree, TModel tm){
     
     // Configuration (and related state)
     
-    bool cdebug = debug;
+    bool cdebug = tm.debug;
+    bool verbose = tm.verbose;
     int solverStarted = cpuTime();
     
     str(str) unescapeName  = defaultUnescapeName;
@@ -314,7 +315,7 @@ Solver newSolver(Tree tree, TModel tm, bool debug = false){
         
         for(Use u <- def2uses[trigger] ? {}){
             foundDefs = definedBy[u.occ];
-            if({def} := foundDefs){ 
+            if({def} := foundDefs, facts[def]?){ 
                 openUses -= u;
                 addFact(u.occ, facts[def]);
                 //if(cdebug) println("  use of \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <facts[u.occ]>");
