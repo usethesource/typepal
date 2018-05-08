@@ -44,7 +44,10 @@ lexical TTL_WhitespaceAndComment
    
 start syntax TTL = ttl: TTL_TestItem* items ;
 
-lexical TTL_Token = ![\[\]] | "[" ![\[]* "]";
+lexical TTL_Token 
+    = ![\]] 
+    | "]" !<< "]" !>> "]"
+    ;
 
 syntax TTL_TestItem
     = "test" TTL_id name "[[" TTL_Token* tokens "]]" TTL_Expect expect
