@@ -24,11 +24,11 @@ import IO;
 extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::AType;
 
-import  analysis::typepal::Messenger;
+extend analysis::typepal::Messenger;
 import analysis::typepal::FailMessage;
 
-import analysis::typepal::TypePalConfig;
-import analysis::typepal::Solver;
+extend analysis::typepal::TypePalConfig;
+extend analysis::typepal::Solver;
 import analysis::typepal::Utils;
 
 data Collector 

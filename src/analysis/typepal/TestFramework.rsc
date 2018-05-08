@@ -20,7 +20,7 @@ import Map;
 import List;
 import util::Reflective;
 
-import analysis::typepal::Messenger;
+extend analysis::typepal::Messenger;
 extend analysis::typepal::Solver;
 
 lexical TTL_id = ([A-Z][a-zA-Z0-9]* !>> [a-zA-Z0-9]) \ TTL_Reserved;
@@ -44,7 +44,10 @@ lexical TTL_WhitespaceAndComment
    
 start syntax TTL = ttl: TTL_TestItem* items ;
 
-lexical TTL_Token = ![\[\]] | "[" ![\[]* "]";
+lexical TTL_Token 
+    = ![\]] 
+    | "]" !<< "]" !>> "]"
+    ;
 
 syntax TTL_TestItem
     = "test" TTL_id name "[[" TTL_Token* tokens "]]" TTL_Expect expect
