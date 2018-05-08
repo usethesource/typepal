@@ -234,7 +234,9 @@ data TModel (
         list[Message] messages = [],
         map[str,value] store = (),
         map[loc, Define] definitions = (),
-        TypePalConfig config = tconfig()
+        TypePalConfig config = tconfig(),
+        bool debug = false,
+        bool verbose = false
         );
 
 void printTModel(TModel tm){
@@ -274,14 +276,13 @@ Collector defaultCollector(Tree t) = newCollector("defaultModel", t);
 alias LubDefine = tuple[loc lubScope, str id, loc scope, IdRole idRole, loc defined, DefInfo defInfo]; 
 alias LubDefine2 = tuple[str id, loc scope, IdRole idRole, loc defined, DefInfo defInfo];       
 
-Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), bool debug = false){
+Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), bool debug = false, bool verbose = false){
     configScopeGraph(config);
     
     unescapeName = config.unescapeName;
     loc rootLoc = getLoc(t).top;
     loc globalScope = |global-scope:///|;
     Defines defines = {};
-    //set[loc] typeVars = {};
     
     map[loc, set[Define]] definesPerLubScope = (globalScope: {});
     map[loc, set[LubDefine2]] lubDefinesPerLubScope = (globalScope: {});
@@ -302,8 +303,8 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
     int ntypevar = 0;
     list[Message] messages = [];
    
-    loc currentScope = globalScope; //getLoc(t);
-    loc rootScope = globalScope; //currentScope;
+    loc currentScope = globalScope;
+    loc rootScope = globalScope;
   
     scopes[getLoc(t)] = globalScope;
     lrel[loc scope, bool lubScope, map[ScopeRole, value] scopeInfo] scopeStack = [<globalScope, false, (anonymousScope(): false)>];
@@ -969,11 +970,12 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
            
            tm = tmodel();
            tm.modelName = modelName;
+           if(debug) tm.debug = true;
+           if(verbose) tm.verbose = true;
            tm.facts = facts; facts = ();
            tm.config = config;
            defines = finalizeDefines();
            tm.defines = defines;
-           //tm.typeVars = typeVars; typeVars = {};
            tm.scopes = scopes;  scopes = ();
            tm.paths = paths;
            tm.referPaths = referPaths;
