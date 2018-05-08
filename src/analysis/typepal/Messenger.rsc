@@ -6,6 +6,7 @@ import Exception;
 import String;
 import Set;
 import List;
+import IO;
 
 extend analysis::typepal::AType;
 import analysis::typepal::FailMessage;
@@ -128,7 +129,13 @@ str interpolate(str msg, TypeProvider getType, list[value] args){
 }
     
 Message fmt(str severity, value subject, str msg, TypeProvider getType, list[value] args){
-    fmsg = interpolate(msg, getType, args);
+    fmsg = "";
+    try {
+        fmsg = interpolate(msg, getType, args);
+    } catch e: {
+        println("formatting the message: `<msg>` failed for `<subject>` with args: <args>");
+        throw e;
+    }
     loc sloc = |unknown:///|;
     if(loc l := subject) sloc = l;
     else if(Tree t := subject) sloc = getLoc(t);
