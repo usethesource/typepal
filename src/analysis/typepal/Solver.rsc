@@ -742,9 +742,14 @@ Solver newSolver(Tree tree, TModel tm){
                     return tp2;
                 }
             } else {
-                tp2 = getTypeInNamelessTypeFun(containerType, selector, scope, thisSolver);
-                addFact(selectorLoc, tp2);
-                return tp2;
+                try {
+                    tp2 = getTypeInNamelessTypeFun(containerType, selector, scope, thisSolver);
+                    addFact(selectorLoc, tp2);
+                    return tp2;
+                } catch NoBinding(): {
+                    _report(error(selector, "No definition for %q in type %t", "<selector>", containerType));
+                
+                }
             }
          }
     }
@@ -1356,7 +1361,9 @@ Solver newSolver(Tree tree, TModel tm){
         
         reportedLocations = { msg.at | msg <- messages };
         
-        println("<tm.modelName>, remaining <size(openUses)> uses; <size(calculators)> calculators; <size(requirements)> requirements");
+        if(nopenUses + ncalculators + nrequirements > 0){
+            println("<tm.modelName>, REMAINING <nopenUses> uses; <ncalculators> calculators; <nrequirements> requirements");
+        }
         
         for (Use u <- openUses) {
             foundDefs = definedBy[u.occ];
