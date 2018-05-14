@@ -64,7 +64,7 @@ bool matches(str subject, str pat){
     return all(p <- split("_", pat), contains(subject, p));
 }
 
-bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, bool verbose = false){
+bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, bool verbose = false, set[str] runOnly = {}){
     TTL ttlProgram;
     
     map[tuple[str, loc], list[Message]]failedTests = ();
@@ -82,6 +82,9 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
         }
 
         for(TTL_TestItem ti <- ttlProgram.items){
+            if (runOnly != {} && "<ti.name>" notin runOnly) {
+                continue;
+            }
             ntests += 1;
             try {
               newTree = visit(parse(begin, "<ti.tokens>")) {
