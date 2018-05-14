@@ -226,6 +226,7 @@ void print(tuple[loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo]
 // The basic Fact & Requirement Model; can be extended in specific type checkers
 data TModel (
         str modelName = "",
+        loc moduleLoc = |unknown:///|,
         set[Calculator] calculators = {},
         map[loc,AType] facts = (), 
         set[Requirement] requirements = {},
@@ -618,7 +619,7 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
                 }
             }
           } else {
-            throw TypePalUsage("Argument of `fact` should be `AType` or `Tree`");
+            throw TypePalUsage("Argument of `fact` should be `AType` or `Tree`, found `<typeOf(tp)>` at <srcLoc>");
           }
         } else {
             throw TypePalUsage("Cannot call `fact` on Collector after `run`");
@@ -942,7 +943,9 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
                 }
                 catch:{
                     println("Lookup for <rp> fails"); 
+                    iprintln(tm.paths, lineLimit=10000);
                     msgs += error("Name `<rp.use.id>` not found", rp.use.occ);
+                  
                 }
             }
         }
@@ -970,6 +973,7 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
            
            tm = tmodel();
            tm.modelName = modelName;
+           tm.moduleLoc = getLoc(t);
            if(debug) tm.debug = true;
            if(verbose) tm.verbose = true;
            tm.facts = facts; facts = ();
@@ -1151,6 +1155,18 @@ void collectArgsN(list[Tree] args, int delta, Collector c){
     }
 }
 
+set[str] ignored = {"lit", "cilit", "char-class"};
+
+bool allSymbolsIgnored(list[Symbol] symbols){
+    n = size(symbols);
+    int i = 0;
+    while(i < n){
+        if(getName(symbols[i]) notin ignored) return false;
+        i += 1;
+    }
+    return true;
+}
+
 default void collect(Tree currentTree, Collector c){
     if(currentTree has prod){
         switch(getName(currentTree.prod.def)){
@@ -1159,14 +1175,45 @@ default void collect(Tree currentTree, Collector c){
         case "start":  
             { p = currentTree.prod; collect(appl(prod(p.def.symbol, p.symbols, p.attributes), currentTree.args), c); }
         case "sort": 
-            collectArgs2(currentTree.args, c);
-        case "parameterized-sort": 
-            collectArgs2(currentTree.args, c);
-        case "lex": 
-            collectArgs1(currentTree.args, c);
+            { args = currentTree.args;
+              nargs = size(args);
+              if(nargs == 1) collectArgs2(args, c); 
+              else if(nargs > 0) { 
+                 throw TypePalUsage("Missing `collect` for <currentTree.prod>: `<currentTree>`"); 
+              }
+            }
+        case "parameterized-sort":
+            { args = currentTree.args;
+              nargs = size(args);
+                             // Hack to circumvent improper handling of parameterized sorts in interpreter
+              if(nargs == 1 || currentTree.prod.def.name in { "Mapping", "KeywordArgument", "KeywordArguments"}) collectArgs2(args, c); 
+              else if(nargs > 0) { 
+                throw TypePalUsage("Missing `collect` for <currentTree.prod>: `<currentTree>`");
+              }
+            }
+       case "lex":
+            { p = currentTree.prod;
+              if(!allSymbolsIgnored(p.symbols)){
+                args = currentTree.args;
+                nargs = size(args);
+                if(nargs == 1 || p.def.name in {"DecimalIntegerLiteral"}) collectArgs1(args, c); 
+                else if(nargs > 0) { 
+                    throw TypePalUsage("Missing `collect` for <p>: `<currentTree>`");
+                }
+              }
+            }
         case "parameterized-lex":
-            collectArgs1(currentTree.args, c);
-        case "conditional": 
+            { p = currentTree.prod;
+              if(!allSymbolsIgnored(p.symbols)){
+                args = currentTree.args;
+                nargs = size(args);
+                if(nargs == 1) collectArgs1(args, c); 
+                else if(nargs > 0) { 
+                    throw TypePalUsage("Missing `collect` for <currentTree.prod>: `<currentTree>`"); 
+                }
+              }
+            }
+       case "conditional": 
             { p = currentTree.prod; collect(appl(prod(p.def.symbol, p.symbols, p.attributes), currentTree.args), c); }
         case "iter":
             if(getName(currentTree.prod.def.symbol) == "lex")  collectArgs1(currentTree.args, c); else collectArgs2(currentTree.args, c);
@@ -1182,18 +1229,12 @@ default void collect(Tree currentTree, Collector c){
             collectArgs2(currentTree.args, c);
         case "opt":
             collectArgs2(currentTree.args, c);
-        case "lit":;
+        //case "lit":;
         
-        default: println("collect, default: <getName(currentTree.prod.def)>");
+        //default: { println("COLLECT, default: <getName(currentTree.prod.def)>: <currentTree>");  }
         
         // Just skip the cases "lit", "layouts": ;
         
-        }
-      } else {
-        if(char(_) := currentTree){
-        ;
-        } else {
-            println("collect, else"); iprintln(currentTree);
         }
       }
    }
