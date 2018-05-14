@@ -603,6 +603,9 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
      void _fact(Tree tree, value tp){  
         if(building){
           srcLoc = getLoc(tree);
+          if(facts[srcLoc]? && facts[srcLoc] != tp){
+            throw TypePalUsage("Double fact declaration for <srcLoc>: <facts[srcLoc]> != <tp>");
+          }
           if(AType atype := tp){
             if(isTypeVarFree(atype)) {
                 facts[srcLoc] = atype;
@@ -683,9 +686,8 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
             }
             tvLoc.fragment = "<ntypevar>";
             ntypevar += 1;
-            //typeVars += tvLoc;
             tv = tvar(tvLoc);
-            facts[tvLoc] = tv;
+            //facts[tvLoc] = tv;
             return tv;
         } else {
             throw TypePalUsage("Cannot call `newTypeVar` on Collector after `run`");

@@ -27,8 +27,7 @@ data Solver
         AType(value) getType,
         AType (str id, loc scope, set[IdRole] idRoles) getTypeInScope,
         AType (AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope) getTypeInType,
-        set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions,
-        set[AType] (AType containerType, loc scope) getAllTypesInType,
+        rel[str id, AType atype] (AType containerType, loc scope, set[IdRole] idRoles) getAllDefinedInType,
         
         bool (value, value) equal,
         void (value, value, FailMessage) requireEqual,
@@ -55,7 +54,9 @@ data Solver
         bool(FailMessage fm) report,
         bool (list[FailMessage]) reports,
         TypePalConfig () getConfig,
-        map[loc, AType]() getFacts
+        map[loc, AType]() getFacts,
+        map[str,value]() getStore,
+        set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions    // deprecated
     );
     
 Solver newSolver(Tree tree, TModel tm){
@@ -124,9 +125,11 @@ Solver newSolver(Tree tree, TModel tm){
         getTypeInNamelessTypeFun = tc.getTypeInNamelessType;
     }
     
-    TypePalConfig getConfig() = tm.config;
+    TypePalConfig _getConfig() = tm.config;
     
-    map[loc, AType] getFacts() = facts;
+    map[loc, AType] _getFacts() = facts;
+    
+    map[str, value] _getStore() = tm.store;
     
     // State of Solver
     
@@ -158,7 +161,7 @@ Solver newSolver(Tree tree, TModel tm){
     
     // ---- printing
     
-    void printState(){
+    void printSolverState(){
         println("\nDERIVED FACTS");
             for(loc fact <- facts){
                 println("\t<fact>: <facts[fact]>");
@@ -259,26 +262,29 @@ Solver newSolver(Tree tree, TModel tm){
     }
        
     void validateDependencies(){
-        //availableCalcs = {};
-        //calcMap = ();
-        //dependencies = {};
-        //for(calc <- calculators){
-        //    srcs = calc has src ? {calc.src} : calc.srcs;
-        //    for(src <- srcs){
-        //        if(src in calcMap){
-        //            println("Multiple calculators for the same location");
-        //            print(calcMap[src], "\t", facts, full=false);
-        //            print(calc, "\t", facts, full=false);
-        //        }
-        //        calcMap[src] = calc;
-        //    }
-        //    dependencies += toSet(dependsOn(calc)) - srcs;
-        //}
-        //uses = {u.occ | u <- openUses};
-        //dependencies += {req.dependsOn | req <- requirements};
-        //for(m <- dependencies - availableCalcs - uses){
-        //    println("Missing calculator for <m>");
-        //}
+        availableCalcs = {};
+        calcMap = ();
+        dependencies = {};
+        for(Calculator calc <- calculators){
+            csrcs = calc has src ? [calc.src] : calc.srcs;
+            for(src <-  csrcs){
+                if(src in calcMap){
+                    println("Multiple calculators for the same location");
+                    print(calcMap[src], "\t", facts, full=false);
+                    print(calc, "\t", facts, full=false);
+                }
+                calcMap[src] = calc;
+            }
+            dependencies += toSet(dependsOn(calc) - csrcs);
+        }
+        uses = {u.occ | u <- tm.uses};
+        defs = tm.defines.defined;
+        dependencies += {*req.dependsOn | req <- requirements};
+        missing = dependencies - domain(calcMap) - domain(facts) - uses - defs;
+        if(!isEmpty(missing)){
+            printSolverState();
+            throw TypePalUsage("Missing calculators for <missing>");
+        }
     }
     
     // ---- Register triggers
@@ -674,7 +680,7 @@ Solver newSolver(Tree tree, TModel tm){
     }
     
     //@memo
-    AType getTypeInScope(str id, loc scope, set[IdRole] idRoles){
+    AType _getTypeInScope(str id, loc scope, set[IdRole] idRoles){
         try {
             return getTypeInScope0(id, scope, idRoles);
         } catch NoSuchKey(k):
@@ -683,7 +689,11 @@ Solver newSolver(Tree tree, TModel tm){
         //        throw TypeUnavailable();
     }
     
-    AType getTypeInType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope){
+    rel[str, AType] getNamesInType(AType container,  set[IdRole] idRolesSel, loc scope){
+    
+    }
+    
+    AType _getTypeInType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope){
         selectorLoc = getLoc(selector);
         selectorName = unescapeName("<selector>");
         <isNamedType, containerName, contRoles> = getTypeNameAndRole(containerType);
@@ -754,14 +764,14 @@ Solver newSolver(Tree tree, TModel tm){
          }
     }
      
-    set[AType] getAllTypesInType(AType containerType, loc scope){
+    rel[str id, AType atype] _getAllDefinedInType(AType containerType, loc scope, set[IdRole] idRoles){
         <isNamedType, containerName, contRoles> = getTypeNameAndRole(containerType);
         if(isNamedType){
             results = {};
             try {
                 for(containerDef <- getDefinitions(containerName, scope, contRoles)){   
                     try {
-                        results += { getType(def.defInfo) |  tuple[str id, IdRole idRole, loc defined, DefInfo defInfo] def  <- defines[containerDef.defined] ? {} };
+                        results += { <id, getType(def.defInfo)> |  tuple[str id, IdRole idRole, loc defined, DefInfo defInfo] def  <- defines[containerDef.defined] ? {}, def.idRole in idRoles };
                     } catch TypeUnavailable():; /* ignore */
                 }
                 return results;
@@ -773,7 +783,7 @@ Solver newSolver(Tree tree, TModel tm){
                 return results;
              }      
          } else {
-            throw TypePalUsage("`getAllTypesInType` is only defined on a named type, found `<prettyPrintAType(containerType)>`");
+            throw TypePalUsage("`getAllDefinedInType` is only defined on a named type, found `<prettyPrintAType(containerType)>`");
          }
     }
     
@@ -938,7 +948,7 @@ Solver newSolver(Tree tree, TModel tm){
     
     // ---- lubList -----------------------------------------------------------
     
-    AType lubList(list[AType] atypes) = simplifyLub(atypes);
+    AType _lubList(list[AType] atypes) = simplifyLub(atypes);
      
     // ---- lub ---------------------------------------------------------------
     
@@ -1141,7 +1151,7 @@ Solver newSolver(Tree tree, TModel tm){
      *  run: validates an extracted TModel via constraint solving
      *  
      */
-    TModel run(){
+    TModel _run(){
     
         int runStarted = cpuTime();
         
@@ -1165,6 +1175,8 @@ Solver newSolver(Tree tree, TModel tm){
             printTModel(tm);
         }
         
+         validateDependencies();
+        
         // Check for illegal overloading in the same scope
         if(cdebug) println("..... filter doubles in <size(defines)> defines");
         int now = cpuTime();
@@ -1178,7 +1190,7 @@ Solver newSolver(Tree tree, TModel tm){
                 }
             }
         }
-         
+      
         int initFilterDoublesTime = cpuTime() - now;
        
         // Check that all uses have a definition and that all overloading is allowed
@@ -1238,6 +1250,8 @@ Solver newSolver(Tree tree, TModel tm){
             register(req);
         }
         
+        validateTriggers();
+        
         int initRegisterTime = cpuTime() - now;
        
         // See what the facts derived sofar can trigger
@@ -1280,8 +1294,7 @@ Solver newSolver(Tree tree, TModel tm){
         
         // Here we have jobs for calculators and requirements with known dependencies
         
-        validateDependencies();
-        validateTriggers();
+      
         updateJobs();
       
         int mainStarted = cpuTime();
@@ -1426,7 +1439,7 @@ Solver newSolver(Tree tree, TModel tm){
        
         if(cdebug){
             println("iterations: <iterations>; calculators: <ncalculators>; calculatorJobs: <size(calculatorJobs)>; requirements: <nrequirements>; requirementJobs: <size(requirementJobs)>; uses: <size(openUses)>; facts: <size(facts)>; ");
-            printState();
+            printSolverState();
             //printTriggers();
             printDef2uses();
             if(isEmpty(messages) && isEmpty(requirements) && isEmpty(calculators)){
@@ -1455,10 +1468,9 @@ Solver newSolver(Tree tree, TModel tm){
     
     Solver thisSolver = 
             solver(getType, 
-                     getTypeInScope,
-                     getTypeInType,
-                     getDefinitions,
-                     getAllTypesInType,
+                     _getTypeInScope,
+                     _getTypeInType,
+                     _getAllDefinedInType,
                      _equal,
                      _requireEqual,
                      _unify,
@@ -1473,12 +1485,14 @@ Solver newSolver(Tree tree, TModel tm){
                      _subtype,
                      _requireSubtype,
                      _lub,
-                     lubList,
-                     run,
+                     _lubList,
+                     _run,
                      _report,
                      _reports,
-                     getConfig,
-                     getFacts
+                     _getConfig,
+                     _getFacts,
+                     _getStore,
+                     getDefinitions
                      );
     return thisSolver;
 }
