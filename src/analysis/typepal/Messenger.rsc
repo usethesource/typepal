@@ -132,7 +132,7 @@ Message fmt(str severity, value subject, str msg, TypeProvider getType, list[val
     fmsg = "";
     try {
         fmsg = interpolate(msg, getType, args);
-    } catch e: {
+    } catch value e: {
         println("formatting the message: `<msg>` failed for `<subject>` with args: <args>");
         throw e;
     }
