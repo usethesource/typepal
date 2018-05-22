@@ -770,9 +770,7 @@ Solver newSolver(Tree tree, TModel tm){
             results = {};
             try {
                 for(containerDef <- getDefinitions(containerName, scope, contRoles)){   
-                    try {
-                        results += { <id, getType(defInfo)> |  <str id, IdRole idRole, loc defined, DefInfo defInfo> <- defines[containerDef.defined] ? {}, idRole in idRoles };
-                    } catch TypeUnavailable():; /* ignore */
+                    results += { <id, getType(defInfo)> |  <str id, IdRole idRole, loc defined, DefInfo defInfo> <- defines[containerDef.defined] ? {}, idRole in idRoles };
                 }
                 return results;
              } catch AmbiguousDefinition(set[loc] foundDefs): {
