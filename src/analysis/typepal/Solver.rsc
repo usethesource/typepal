@@ -771,7 +771,7 @@ Solver newSolver(Tree tree, TModel tm){
             try {
                 for(containerDef <- getDefinitions(containerName, scope, contRoles)){   
                     try {
-                        results += { <id, getType(def.defInfo)> |  tuple[str id, IdRole idRole, loc defined, DefInfo defInfo] def  <- defines[containerDef.defined] ? {}, def.idRole in idRoles };
+                        results += { <id, getType(defInfo)> |  <str id, IdRole idRole, loc defined, DefInfo defInfo> <- defines[containerDef.defined] ? {}, idRole in idRoles };
                     } catch TypeUnavailable():; /* ignore */
                 }
                 return results;
