@@ -1370,70 +1370,73 @@ Solver newSolver(Tree tree, TModel tm){
             messages += toMessage(fm, getType);
         }
         
+        errorsFound = any(error(_,_) <- messages);
+        
         reportedLocations = { msg.at | msg <- messages };
         
         if(nopenUses + ncalculators + nrequirements > 0){
             println("<tm.modelName>, REMAINING <nopenUses> uses; <ncalculators> calculators; <nrequirements> requirements");
         }
         
-        for (Use u <- openUses) {
-            foundDefs = definedBy[u.occ];
-            for(def <- foundDefs, !facts[u.occ]?, !alreadyReported(messages, u.occ)) {
-                messages += error("Unresolved type for `<u has id ? u.id : u.ids>`", u.occ);
+        if(!errorsFound){
+            for (Use u <- openUses) {
+                foundDefs = definedBy[u.occ];
+                for(def <- foundDefs, !facts[u.occ]?, !alreadyReported(messages, u.occ)) {
+                    messages += error("Unresolved type for `<u has id ? u.id : u.ids>`", u.occ);
+                }
             }
-        }
-        
-        calcNoLubs = [calc | calc <- calculators, !(calc is calcLub)];
-      
-        for(calc <- sort(calcNoLubs, bool(Calculator a, Calculator b){ return a.src.length < b.src.length; })){
-            src = calc.src;
-            if(!facts[src]?, !alreadyReported(messages, src)){
+            
+            calcNoLubs = [calc | calc <- calculators, !(calc is calcLub)];
+          
+            for(calc <- sort(calcNoLubs, bool(Calculator a, Calculator b){ return a.src.length < b.src.length; })){
+                src = calc.src;
+                if(!facts[src]?, !alreadyReported(messages, src)){
+                    cdeps = toSet(dependsOn(calc));
+                    if(!facts[src]? && isEmpty(reportedLocations & cdeps)){
+                        messages += error("Unresolved type<calc has cname ? " for <calc.cname>" : "">", src);
+                        reportedLocations += src;
+                    }
+                }
+            }
+               
+            calcLubs = [calc | calc <- calculators, calc is calcLub];
+            for(calc <- calcLubs){
+                csrcs = srcs(calc);
                 cdeps = toSet(dependsOn(calc));
-                if(!facts[src]? && isEmpty(reportedLocations & cdeps)){
-                    messages += error("Unresolved type<calc has cname ? " for <calc.cname>" : "">", src);
+                for(src <- csrcs){
+                    if(!facts[src]? && isEmpty(reportedLocations & cdeps)){
+                        messages += error("Unresolved type<calc has cname ? " for <calc.cname>" : "">", src);
+                        reportedLocations += src;
+                    }
+                }
+            }
+            
+            //for(calc <- calculators, calc has src, !facts[calc.src]?, !alreadyReported(messages, calc.src)){
+            //    messages += error("Unresolved type<calc has cname ? " for <calc.cname>" : "">" , calc.src);
+            //}
+            //
+            //for(calc <- calculators){
+            //    src = calc has src ? calc.src : (isEmpty(calc.srcs) ? |unknown:///| :calc.srcs[0]);
+            //    if(!facts[src]? && !alreadyReported(messages, src)){
+            //        deps = calc.dependsOn;
+            //        forDeps = isEmpty(deps) ? "" : " for <for(int i <- index(deps)){><facts[deps[i]]? ? "`<prettyPrintAType(facts[deps[i]])>`" : "`unknown type of <deps[i]>`"><i < size(deps)-1 ? "," : ""> <}>";
+            //        messages += error("Type <calc has cname ? " of <calc.cname>" : ""> could not be computed<forDeps>", src);
+            //     }
+            //}
+               
+            
+            for(req <- requirements){
+                src =  getReqSrc(req);
+                if(isEmpty(reportedLocations & toSet(req.dependsOn)) && !alreadyReported(messages, src)){
+                    messages += error("Invalid <req.rname>; type of one or more subparts could not be inferred", src);
                     reportedLocations += src;
                 }
             }
-        }
-           
-        calcLubs = [calc | calc <- calculators, calc is calcLub];
-        for(calc <- calcLubs){
-            csrcs = srcs(calc);
-            cdeps = toSet(dependsOn(calc));
-            for(src <- csrcs){
-                if(!facts[src]? && isEmpty(reportedLocations & cdeps)){
-                    messages += error("Unresolved type<calc has cname ? " for <calc.cname>" : "">", src);
-                    reportedLocations += src;
-                }
-            }
-        }
+            //for(req <- requirements, !alreadyReported(messages, getReqSrc(req))){
+            //    messages += error("Invalid <req.rname>; type of one or more subparts could not be inferred", getReqSrc(req));
+            //}
         
-        //for(calc <- calculators, calc has src, !facts[calc.src]?, !alreadyReported(messages, calc.src)){
-        //    messages += error("Unresolved type<calc has cname ? " for <calc.cname>" : "">" , calc.src);
-        //}
-        //
-        //for(calc <- calculators){
-        //    src = calc has src ? calc.src : (isEmpty(calc.srcs) ? |unknown:///| :calc.srcs[0]);
-        //    if(!facts[src]? && !alreadyReported(messages, src)){
-        //        deps = calc.dependsOn;
-        //        forDeps = isEmpty(deps) ? "" : " for <for(int i <- index(deps)){><facts[deps[i]]? ? "`<prettyPrintAType(facts[deps[i]])>`" : "`unknown type of <deps[i]>`"><i < size(deps)-1 ? "," : ""> <}>";
-        //        messages += error("Type <calc has cname ? " of <calc.cname>" : ""> could not be computed<forDeps>", src);
-        //     }
-        //}
-           
-        tm.calculators = calculators;
-        tm.requirements = requirements;
-      
-        for(req <- requirements){
-            src =  getReqSrc(req);
-            if(isEmpty(reportedLocations & toSet(req.dependsOn)) && !alreadyReported(messages, src)){
-                messages += error("Invalid <req.rname>; type of one or more subparts could not be inferred", src);
-                reportedLocations += src;
-            }
         }
-        //for(req <- requirements, !alreadyReported(messages, getReqSrc(req))){
-        //    messages += error("Invalid <req.rname>; type of one or more subparts could not be inferred", getReqSrc(req));
-        //}
        
         if(cdebug){
             println("iterations: <iterations>; calculators: <ncalculators>; calculatorJobs: <size(calculatorJobs)>; requirements: <nrequirements>; requirementJobs: <size(requirementJobs)>; uses: <size(openUses)>; facts: <size(facts)>; ");
@@ -1451,6 +1454,10 @@ Solver newSolver(Tree tree, TModel tm){
                 if(!isEmpty(calculators)) println("*** <size(calculators)> unresolved calculators ***");
              }
           }
+          
+          tm.calculators = calculators;
+          tm.requirements = requirements;
+ 
           tm.facts = facts;
           tm.messages = sortMostPrecise(toList(toSet(messages)));
          
