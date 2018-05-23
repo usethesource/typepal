@@ -230,7 +230,8 @@ data TModel (
         set[Calculator] calculators = {},
         map[loc,AType] facts = (), 
         set[Requirement] requirements = {},
-        Uses indirectUses = [],
+        rel[loc, loc] useDef = {},
+//        Uses indirectUses = [],
         //set[loc] typeVars = {},
         list[Message] messages = [],
         map[str,value] store = (),
@@ -295,7 +296,7 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
     Paths paths = {};
     set[ReferPath] referPaths = {};
     Uses uses = [];
-    Uses indirectUses = [];
+//    Uses indirectUses = [];
     map[str,value] storeVals = ();
     
     map[loc,AType] facts = ();
@@ -407,7 +408,7 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
         if(building){
             name = unescapeName("<selector>");
             sloc = getLoc(selector);
-            indirectUses += use(name, sloc, currentScope, idRolesSel);
+ //           indirectUses += use(name, sloc, currentScope, idRolesSel);
             calculators += calc("`<name>`", sloc,  [getLoc(container)],  makeGetTypeInType(container, selector, idRolesSel, currentScope));
         } else {
             throw TypePalUsage("Cannot call `useViaType` on Collector after `run`");
@@ -986,7 +987,7 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
            tm.paths = paths;
            tm.referPaths = referPaths;
            tm.uses = uses;      uses = [];
-           tm.indirectUses = indirectUses; indirectUses = [];
+ //          tm.indirectUses = indirectUses; indirectUses = [];
            
            tm.calculators = calculators;
            tm.requirements = requirements;  

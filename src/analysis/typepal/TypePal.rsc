@@ -44,20 +44,8 @@ TModel collectAndSolve(Tree pt, TypePalConfig config = tconfig(), bool debug = f
 // Utilities on TModels that can help to build IDE-features
 
 
-rel[loc, loc] getUseDef(TModel tm){
-    res = {};
-    for(Use u <- tm.uses + tm.indirectUses){
-        try {
-           foundDefs =  lookup(tm, u);
-           res += { <u.occ, def> | def <- foundDefs };
-        } catch NoBinding(): {
-            ;// ignore it
-        } catch AmbiguousDefinition(_):{
-            ;// ignore it
-        }
-    };
-    return res;
-}
+rel[loc, loc] getUseDef(TModel tm)
+    = tm.useDef;
 
 set[str] getVocabulary(TModel tm)
     = {d.id | Define d <- tm.defines};

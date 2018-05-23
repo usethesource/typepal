@@ -25,7 +25,7 @@ extend analysis::typepal::Utils;
 data Solver
     = solver(
         AType(value) getType,
-        AType (str id, loc scope, set[IdRole] idRoles) getTypeInScope,
+        AType (Tree occ, loc scope, set[IdRole] idRoles) getTypeInScope,
         AType (AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope) getTypeInType,
         rel[str id, AType atype] (AType containerType, loc scope, set[IdRole] idRoles) getAllDefinedInType,
         
@@ -202,6 +202,13 @@ Solver newSolver(Tree tree, TModel tm){
         if(!isEmpty(def2uses)) println("\nDEFINE TO USES");
         for(def <- def2uses){
             println("\t<def> ==\> <def2uses[def]>");
+        }
+    }
+    
+    void printUse2Def(){
+        if(!isEmpty(definedBy)) println("\nUSE TO DEFINES");
+        for(occ <- definedBy){
+            println("\t<occ> ==\> <definedBy[occ]>");
         }
     }
     
@@ -666,13 +673,17 @@ Solver newSolver(Tree tree, TModel tm){
         throw "getType cannot handle <v>";
     }
     
-    AType getTypeInScope0(str id, loc scope, set[IdRole] idRoles){
-        foundDefs = lookupFun(tm, use(id, anonymousOccurrence, scope, idRoles));
+    AType getTypeInScope0(Tree occ, loc scope, set[IdRole] idRoles){
+        u = use(unescapeName("<occ>"), getLoc(occ), scope, idRoles);
+        foundDefs = lookupFun(tm, u);
         if({def} := foundDefs){
-           return instantiate(facts[def]);
+            addUse({def}, u);
+            return instantiate(facts[def]);
         } else {
           if(mayOverloadFun(foundDefs, definitions)){
-            return overloadedAType({<d, idRole, instantiate(facts[d])> | d <- foundDefs, idRole := definitions[d].idRole, idRole in idRoles});
+            overloads = {<d, idRole, instantiate(facts[d])> | d <- foundDefs, idRole := definitions[d].idRole, idRole in idRoles};
+            addUse(overloads<0>, u);
+            return overloadedAType(overloads);
           } else {
              _reports([error(d, "Double declaration of %q in %v", id, foundDefs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
           }
@@ -680,29 +691,37 @@ Solver newSolver(Tree tree, TModel tm){
     }
     
     //@memo
-    AType _getTypeInScope(str id, loc scope, set[IdRole] idRoles){
+    AType _getTypeInScope(Tree occ, loc scope, set[IdRole] idRoles){
         try {
-            return getTypeInScope0(id, scope, idRoles);
+            return getTypeInScope0(occ, scope, idRoles);
         } catch NoSuchKey(k):
                 throw TypeUnavailable();
         //catch NoBinding():
         //        throw TypeUnavailable();
     }
     
-    rel[str, AType] getNamesInType(AType container,  set[IdRole] idRolesSel, loc scope){
-    
+    void addUse(set[loc] defs, Use u){
+        for(def <-  defs){
+            definedBy[u.occ] = {def};
+            if(def2uses[def]?){
+                def2uses[def] += {u};
+            } else {
+                def2uses[def] = {u};
+            }
+        }  
     }
-    
+      
     AType _getTypeInType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope){
         selectorLoc = getLoc(selector);
         selectorName = unescapeName("<selector>");
+        selectorUse = use(selectorName, selectorLoc, scope, idRolesSel);
         <isNamedType, containerName, contRoles> = getTypeNameAndRole(containerType);
         if(isNamedType){
             overloads = {};
             unavailable = false;
             for(containerDef <- getDefinitions(containerName, scope, contRoles)){    
                 try {
-                    selectorType = getTypeInScope0(selectorName, containerDef.defined, idRolesSel);
+                    selectorType = getTypeInScope0(selector, containerDef.defined, idRolesSel);
                     overloads += <containerDef.defined, containerDef.idRole, instantiateTypeParameters(selector, getType(containerDef.defInfo), containerType, selectorType, thisSolver)>;
                  } catch TypeUnavailable():
                         unavailable = true;
@@ -719,14 +738,17 @@ Solver newSolver(Tree tree, TModel tm){
                            // _report(error(selector, "No definition for %v %q in type %t", intercalateOr([replaceAll(getName(idRole), "Id", "") | idRole <- idRolesSel]), "<selector>", containerType));
                     }
              }
+             if(unavailable) throw TypeUnavailable();
              if(isEmpty(overloads)){
                 if(unavailable) throw TypeUnavailable();
                 _report(error(selector, "No definition for %v %q in type %t", intercalateOr([replaceAll(getName(idRole), "Id", "") | idRole <- idRolesSel]), "<selector>", containerType));
               } else if({<loc key, IdRole role, AType tp>} := overloads){
+                addUse({key}, selectorUse);
                 addFact(selectorLoc, tp);
                 return tp;
              } else {
                 tp2 = overloadedAType(overloads);
+                addUse(overloads<0>, selectorUse);
                 addFact(selectorLoc, tp2);
                 return tp2;
              }
@@ -744,10 +766,12 @@ Solver newSolver(Tree tree, TModel tm){
                 if(isEmpty(overloads)){
                     _report(error(selector, "Cannot access fields on type %t", containerType));
                 } else if({<key, role, tp>} := overloads){
+                    addUse({key}, selectorUse);
                     addFact(selectorLoc, tp);
                     return tp;
                 } else {
                     tp2 = overloadedAType(overloads);
+                    addUse(overloads<0>, selectorUse);
                     addFact(selectorLoc, tp2);
                     return tp2;
                 }
@@ -1443,6 +1467,7 @@ Solver newSolver(Tree tree, TModel tm){
             printSolverState();
             //printTriggers();
             printDef2uses();
+            printUse2Def();
             if(isEmpty(messages) && isEmpty(requirements) && isEmpty(calculators)){
                 println("No type errors found");
              } else {
@@ -1460,6 +1485,8 @@ Solver newSolver(Tree tree, TModel tm){
  
           tm.facts = facts;
           tm.messages = sortMostPrecise(toList(toSet(messages)));
+          
+          tm.useDef = { *{<u, d> | d <- definedBy[u]} | u <- definedBy };
          
           if(cdebug) println("Derived facts: <size(tm.facts)>");
           solverEnded = cpuTime();
