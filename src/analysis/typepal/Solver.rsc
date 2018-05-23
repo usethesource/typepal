@@ -701,8 +701,12 @@ Solver newSolver(Tree tree, TModel tm){
     }
     
     void addUse(set[loc] defs, Use u){
-        for(def <-  defs){
-            definedBy[u.occ] = {def};
+        for(def <- defs){
+            if(definedBy[u.occ]?){
+                definedBy[u.occ]  = { containedIn(def, d) ? def : d | d <- definedBy[u.occ] };
+            } else {
+                definedBy[u.occ] = {def};
+            }
             if(def2uses[def]?){
                 def2uses[def] += {u};
             } else {
