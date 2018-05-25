@@ -26,6 +26,7 @@ data Solver
     = solver(
         AType(value) getType,
         AType (Tree occ, loc scope, set[IdRole] idRoles) getTypeInScope,
+        AType (str name, loc scope, set[IdRole] idRoles) getTypeInScopeFromName,
         AType (AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope) getTypeInType,
         rel[str id, AType atype] (AType containerType, loc scope, set[IdRole] idRoles) getAllDefinedInType,
         
@@ -671,6 +672,31 @@ Solver newSolver(Tree tree, TModel tm){
             throw TypeUnavailable();
             
         throw "getType cannot handle <v>";
+    }
+    
+     AType getTypeInScopeFromName0(str name, loc scope, set[IdRole] idRoles){
+        u = use(name, anonymousOccurrence, scope, idRoles);
+        foundDefs = lookupFun(tm, u);
+        if({def} := foundDefs){
+            return instantiate(facts[def]);
+        } else {
+          if(mayOverloadFun(foundDefs, definitions)){
+            overloads = {<d, idRole, instantiate(facts[d])> | d <- foundDefs, idRole := definitions[d].idRole, idRole in idRoles};
+            return overloadedAType(overloads);
+          } else {
+             _reports([error(d, "Double declaration of %q in %v", id, foundDefs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
+          }
+        }
+    }
+    
+    //@memo
+    AType _getTypeInScopeFromName(str name, loc scope, set[IdRole] idRoles){
+        try {
+            return getTypeInScopeFromName0(name, scope, idRoles);
+        } catch NoSuchKey(k):
+                throw TypeUnavailable();
+        //catch NoBinding():
+        //        throw TypeUnavailable();
     }
     
     AType getTypeInScope0(Tree occ, loc scope, set[IdRole] idRoles){
@@ -1505,6 +1531,7 @@ Solver newSolver(Tree tree, TModel tm){
     Solver thisSolver = 
             solver(getType, 
                      _getTypeInScope,
+                     _getTypeInScopeFromName,
                      _getTypeInType,
                      _getAllDefinedInType,
                      _equal,
