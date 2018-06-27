@@ -87,6 +87,6 @@ data TypePalConfig(
                 throw TypePalUsage("`useViaType` used without definition of `getTypeInNamelessType`");
             }, 
             
-        TModel(Tree pt, TModel tm) preSolver = TModel(Tree pt, TModel tm) { return tm; },    
-        void (Tree pt, Solver s) postSolver  = void(Tree pm, Solver s) { return ; }
+        TModel(map[str,Tree] namedTrees, TModel tm) preSolver = TModel(map[str,Tree] namedTrees, TModel tm) { return tm; },    
+        void (map[str,Tree] namedTrees, Solver s) postSolver  = void(map[str,Tree] namedTrees, Solver s) { return ; }
     );

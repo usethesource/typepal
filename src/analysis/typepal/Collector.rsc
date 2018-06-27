@@ -20,6 +20,7 @@ import Set;
 import Relation;
 import util::Benchmark;
 import IO;
+import Type;
 
 extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::AType;
@@ -28,8 +29,8 @@ extend analysis::typepal::Messenger;
 import analysis::typepal::FailMessage;
 
 extend analysis::typepal::TypePalConfig;
-extend analysis::typepal::Solver;
 import analysis::typepal::Utils;
+import util::Reflective;
 
 data Collector 
     = collector(
@@ -76,10 +77,10 @@ data Collector
 // Extract (nested) tree locations and type variables from a list of dependencies
 list[loc] dependenciesAslocList(list[value] dependencies){
     return 
-        for(d <- dependencies){
+        for(value d <- dependencies){
             if(Tree t := d){
                 append getLoc(t);
-            } else if(tvar(tv) := d){
+            } else if(tvar(loc tv) := d){
                 append tv;
             } else {
                 throw TypePalUsage("Dependency should be a tree or type variable, found <d>");
@@ -209,12 +210,12 @@ void print(calc:calcLoc(loc src, list[loc] dependsOn), str indent, map[loc,AType
 }
 
 void print(calc:calc(str cname, loc src, list[loc] dependsOn, AType(Solver s) calculator), str indent, map[loc,AType] facts, bool full=true){
-    println("<indent>calc `<cname>` for <src>");
+    print("<indent>calc `<cname>` for <src> using "); iprintln(calculator);
     if(full) printDeps(dependsOn, indent, facts);
 }
 
 void print(calc:calcLub(str cname, list[loc] srcs, list[loc] dependsOn, list[AType(Solver s)] getATypes), str indent, map[loc,AType] facts, bool full=true){
-    println("<indent>calc lub `<cname>` for <srcs>");
+    print("<indent>calc lub `<cname>` for <srcs> using "); iprintln(getATypes);
     if(full) printDeps(dependsOn, indent, facts);
 }
 
@@ -226,13 +227,11 @@ void print(tuple[loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo]
 // The basic Fact & Requirement Model; can be extended in specific type checkers
 data TModel (
         str modelName = "",
-        loc moduleLoc = |unknown:///|,
+        map[str,loc] moduleLocs = (),
         set[Calculator] calculators = {},
         map[loc,AType] facts = (), 
         set[Requirement] requirements = {},
         rel[loc, loc] useDef = {},
-//        Uses indirectUses = [],
-        //set[loc] typeVars = {},
         list[Message] messages = [],
         map[str,value] store = (),
         map[loc, Define] definitions = (),
@@ -264,7 +263,6 @@ void printTModel(TModel tm){
     }
     println("  },");
 
-    //iprintln(tm.uses);
     println("  uses = [");
     for(Use u <- tm.uses){
         println("    use(<u.ids? ? u.ids : u.id>, <u.occ>, <u.scope>, <u.idRoles>, <u.qualifierRoles? ? u.qualifierRoles : "">)");
@@ -278,11 +276,14 @@ Collector defaultCollector(Tree t) = newCollector("defaultModel", t);
 alias LubDefine = tuple[loc lubScope, str id, loc scope, IdRole idRole, loc defined, DefInfo defInfo]; 
 alias LubDefine2 = tuple[str id, loc scope, IdRole idRole, loc defined, DefInfo defInfo];       
 
-Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), bool debug = false, bool verbose = false){
+Collector newCollector(str modelName, Tree pt, TypePalConfig config = tconfig(), bool debug = false, bool verbose = false){
+    return newCollector(modelName, (modelName : pt), config=config, debug=debug, verbose=verbose);
+}
+
+Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config = tconfig(), bool debug = false, bool verbose = false){
     configScopeGraph(config);
     
     unescapeName = config.unescapeName;
-    loc rootLoc = getLoc(t).top;
     loc globalScope = |global-scope:///|;
     Defines defines = {};
     
@@ -296,7 +297,6 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
     Paths paths = {};
     set[ReferPath] referPaths = {};
     Uses uses = [];
-//    Uses indirectUses = [];
     map[str,value] storeVals = ();
     
     map[loc,AType] facts = ();
@@ -308,7 +308,7 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
     loc currentScope = globalScope;
     loc rootScope = globalScope;
   
-    scopes[getLoc(t)] = globalScope;
+    for(nm <- namedTrees) scopes[getLoc(namedTrees[nm])] = globalScope;
     lrel[loc scope, bool lubScope, map[ScopeRole, value] scopeInfo] scopeStack = [<globalScope, false, (anonymousScope(): false)>];
     list[loc] lubScopeStack = [];
     loc currentLubScope = globalScope;
@@ -322,7 +322,7 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
             else if(loc ldef := def) l = ldef;
             else throw TypePalUsage("Argument `def` of `define` should be `Tree` or `loc`, found <typeOf(def)>");
             
-            id = unescapeName(id);
+            uid = unescapeName(id);
            
            // println("define: <id>, <idRole>, <def>");
             //println("definesPerLubScope[currentLubScope]: <definesPerLubScope[currentLubScope]>");
@@ -332,15 +332,15 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
                 for(Define def <- defines){
                     if(def.id == id && def.idRole == variableId()){
                         if(def.scope in scopeStack<0>) {
-                            uses += use(id, l, currentScope, {idRole});
+                            uses += use(uid, l, currentScope, {idRole});
                             return;
                         }
                     }
                 }   
-                lubDefinesPerLubScope[currentLubScope] += <id, currentScope, idRole, l, info>;
+                lubDefinesPerLubScope[currentLubScope] += <uid, currentScope, idRole, l, info>;
             } else {
                 //println("define: add to definesPerLubScope[<currentLubScope>]: <<currentScope, id, idRole, l, info>>");
-                definesPerLubScope[currentLubScope] += <currentScope, id, idRole, l, info>;
+                definesPerLubScope[currentLubScope] += <currentScope, uid, idRole, l, info>;
             }
         } else {
             throw TypePalUsage("Cannot call `define` on Collector after `run`");
@@ -359,11 +359,11 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
             else if(loc ldef := def) l = ldef;
             else throw TypePalUsage("Argument `def` of `defineInScope` should be `Tree` or `loc`, found <typeOf(def)>");
             
-            id = unescapeName(id);
+            uid = unescapeName(id);
             if(info is defTypeLub){
                 throw TypePalUsage("`defLub` cannot be used in combination with `defineInScope`");
             } else {
-                defines += <definingScope, id, idRole, l, info>;
+                defines += <definingScope, uid, idRole, l, info>;
             }
         } else {
             throw TypePalUsage("Cannot call `defineInScope` on Collector after `run`");
@@ -381,7 +381,6 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
     
     void _useLub(Tree occ, set[IdRole] idRoles) {
         if(building){
-           if("<occ>" == "ddd") println("*** useLub: <occ>, <getLoc(occ)>");
            lubUsesPerLubScope[currentLubScope] += <unescapeName("<occ>"), currentScope, idRoles, getLoc(occ)>;
         } else {
             throw TypePalUsage("Cannot call `useLub` on Collector after `run`");
@@ -408,8 +407,7 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
         if(building){
             name = unescapeName("<selector>");
             sloc = getLoc(selector);
- //           indirectUses += use(name, sloc, currentScope, idRolesSel);
-            calculators += calc("`<name>`", sloc,  [getLoc(container)],  makeGetTypeInType(container, selector, idRolesSel, currentScope));
+            calculators += calc("useViaType `<name>` in <getLoc(container)>", sloc,  [getLoc(container)],  makeGetTypeInType(container, selector, idRolesSel, currentScope));
         } else {
             throw TypePalUsage("Cannot call `useViaType` on Collector after `run`");
         }
@@ -445,7 +443,7 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
             if(innerLoc == rootScope){
               currentScope = innerLoc;
               scopeStack = push(<innerLoc, lubScope, ()>, scopeStack);
-           } else { //if(innerLoc != currentScope){
+           } else {
               scopes[innerLoc] = currentScope; 
               scopesPerLubScope[currentLubScope] += <currentScope, innerLoc>;
               currentScope = innerLoc;
@@ -459,13 +457,6 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
                 scopesPerLubScope[currentLubScope] = {};
               }
            } 
-           //else 
-           //if(innerLoc == rootScope){
-           //   currentScope = innerLoc;
-           //   scopeStack = push(<innerLoc, lubScope, ()>, scopeStack);
-           //} else {
-           //   ;// do nothing throw TypePalUsage("Cannot call `enterScope` with inner scope <innerLoc> that is equal to currentScope");
-           //}
         } else {
           throw TypePalUsage("Cannot call `enterScope` on Collector after `run`");
         }
@@ -546,7 +537,7 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
    
     void _require(str name, Tree src, list[value] dependencies, void(Solver s) preds){ 
         if(building){
-           requirements += req(name, getLoc(src), /*currentScope,*/ dependenciesAslocList(dependencies), preds);
+           requirements += req(name, getLoc(src), dependenciesAslocList(dependencies), preds);
         } else {
             throw TypePalUsage("Cannot call `require` on Collector after `run`");
         }
@@ -554,7 +545,7 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
     
     void _requireEager(str name, Tree src, list[value] dependencies, void(Solver s) preds){ 
         if(building){
-           requirements += req(name, getLoc(src), /*currentScope,*/ dependenciesAslocList(dependencies), preds, eager=true);
+           requirements += req(name, getLoc(src), dependenciesAslocList(dependencies), preds, eager=true);
         } else {
             throw TypePalUsage("Cannot call `require` on Collector after `run`");
         }
@@ -601,15 +592,24 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
         }
     }
     
+    bool isValidReplacement(AType old, AType new){
+        if(tvar(_) := old) return true;
+        try {
+            return old == new || config.isSubType(old, new) || config.isSubType(new, old);
+        } catch value e:
+            return false;
+    }
+    
      void _fact(Tree tree, value tp){  
         if(building){
           srcLoc = getLoc(tree);
-          if(facts[srcLoc]? && facts[srcLoc] != tp){
-            throw TypePalUsage("Double fact declaration for <srcLoc>: <facts[srcLoc]> != <tp>");
-          }
           if(AType atype := tp){
             if(isTypeVarFree(atype)) {
-                facts[srcLoc] = atype;
+                if(facts[srcLoc]? && !isValidReplacement(facts[srcLoc], atype)){
+                    println("Double fact declaration for <srcLoc>: <facts[srcLoc]> != <atype>");
+                } else {
+                    facts[srcLoc] = atype;
+                }
             } else {
                 calculators += calcType(srcLoc, atype);
             }
@@ -617,7 +617,12 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
             fromLoc = getLoc(tree2);
             if(srcLoc != fromLoc){
                 if(facts[fromLoc]?){
-                    facts[srcLoc] = facts[fromLoc];
+                    fromType = facts[fromLoc];
+                    if(facts[srcLoc]? && !isValidReplacement(facts[srcLoc], fromType)){
+                        println("Double fact declaration for <srcLoc>: <facts[srcLoc]> != <fromType>");
+                    } else {
+                        facts[srcLoc] = facts[fromLoc];
+                    }
                 } else {
                     calculators += calcLoc(srcLoc, [fromLoc]);
                 }
@@ -688,7 +693,6 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
             tvLoc.fragment = "<ntypevar>";
             ntypevar += 1;
             tv = tvar(tvLoc);
-            //facts[tvLoc] = tv;
             return tv;
         } else {
             throw TypePalUsage("Cannot call `newTypeVar` on Collector after `run`");
@@ -735,7 +739,6 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
     TypePalConfig _getConfig(){
         return config;
     }
-
     
     void _setConfig(TypePalConfig cfg){
         config = cfg;
@@ -817,7 +820,7 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
         
         for(str id <- deflub_names){
             set[loc] id_defined_in_scopes = deflubs_in_lubscope[id]<0>;
-            id_defined_in_scopes = { sc1 | sc1 <- id_defined_in_scopes, isEmpty(containment) || !any(sc2 <- id_defined_in_scopes, sc1 != sc2, <sc2, sc1> in containment)};
+            id_defined_in_scopes = { sc1 | loc sc1 <- id_defined_in_scopes, isEmpty(containment) || !any(loc sc2 <- id_defined_in_scopes, sc1 != sc2, <sc2, sc1> in containment)};
             
             //println("Consider <id>, defined in scopes <id_defined_in_scopes>");
             //println("local_fixed_defines: <local_fixed_defines>");
@@ -932,12 +935,11 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
         
         while(!isEmpty(referPaths) && n < 3){    // explain this iteration count
             n += 1;
-            for(rp <- referPaths){
+            for(ReferPath rp <- referPaths){
                 try {
                     u = rp.use;
                     foundDefs = lookupFun(tm, u);
-                    if({def} := foundDefs){
-                       //println("resolvePath: resolve <rp.use> to <def>");
+                    if({loc def} := foundDefs){
                        newPaths += {<u.scope, rp.pathRole, def>};  
                     } else {
                         msgs += error("Name `<u.id>` is ambiguous <foundDefs>", u.occ);
@@ -946,9 +948,7 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
                 }
                 catch:{
                     println("Lookup for <rp> fails"); 
-                    iprintln(tm.paths, lineLimit=10000);
                     msgs += error("Name `<rp.use.id>` not found", rp.use.occ);
-                  
                 }
             }
         }
@@ -976,7 +976,9 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
            
            tm = tmodel();
            tm.modelName = modelName;
-           tm.moduleLoc = getLoc(t);
+           
+           tm.moduleLocs = (nm : getLoc(namedTrees[nm]) | nm <- namedTrees);
+           
            if(debug) tm.debug = true;
            if(verbose) tm.verbose = true;
            tm.facts = facts; facts = ();
@@ -987,7 +989,6 @@ Collector newCollector(str modelName, Tree t, TypePalConfig config = tconfig(), 
            tm.paths = paths;
            tm.referPaths = referPaths;
            tm.uses = uses;      uses = [];
- //          tm.indirectUses = indirectUses; indirectUses = [];
            
            tm.calculators = calculators;
            tm.requirements = requirements;  
@@ -1199,10 +1200,11 @@ default void collect(Tree currentTree, Collector c){
               if(!allSymbolsIgnored(p.symbols)){
                 args = currentTree.args;
                 nargs = size(args);
-                if(nargs == 1 || p.def.name in {"DecimalIntegerLiteral"}) collectArgs1(args, c); 
-                else if(nargs > 0) { 
-                    throw TypePalUsage("Missing `collect` for <p>: `<currentTree>`");
-                }
+                collectArgsN(args, 1, c);
+                //if(nargs == 1 || p.def.name in {"DecimalIntegerLiteral"}) collectArgs1(args, c); 
+                //else if(nargs > 0) { 
+                //    throw TypePalUsage("Missing `collect` for <p>: `<currentTree>`");
+                //}
               }
             }
         case "parameterized-lex":

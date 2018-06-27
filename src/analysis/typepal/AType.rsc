@@ -52,6 +52,7 @@ default str prettyPrintAType(AType tp)              = "<tp>";
 data RuntimeException
     = TypePalUsage(str reason)              // TypePal used incorrectly
     | TypePalInternalError(str reason)      // TypePal internal error
-    | TypeUnavailable()                     // Type is not available: used in control flow of solver
+    | TypeUnavailable(loc src)              // Type of src is not available: used in control flow of solver
+    | TypeUnavailable(value val)            // Uninstantiated type
     | checkFailed(list[FailMessage] msgs)   // Type check failed: used in control flow of solver
     ;
