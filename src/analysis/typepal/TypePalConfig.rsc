@@ -36,8 +36,8 @@ bool defaultMayOverload (set[loc] defs, map[loc, Define] defines) {
    throw TypePalUsage("`instantiateTypeParameters(<prettyPrintAType(def)>, <prettyPrintAType(ins)>, <prettyPrintAType(act)>)` called but is not specified in TypePalConfig");
 }
 
-tuple[bool isNamedType, str typeName, set[IdRole] idRoles] defaultGetTypeNameAndRole(AType atype){
-    throw TypePalUsage("`useViaType` used without definition of `getTypeNameAndRole`");
+tuple[list[str] typeNames, set[IdRole] idRoles] defaultGetTypeNamesAndRole(AType atype){
+    throw TypePalUsage("`useViaType` used without definition of `getTypeNamesAndRole`");
 }
 
 AType defaultGetTypeInNamelessType(AType containerType, Tree selector, loc scope, Solver s){
@@ -53,6 +53,14 @@ str defaultUnescapeName(str s) { return replaceAll(s, "\\", ""); }
 // Extends TypePalConfig defined in analysis::typepal::ScopeGraph
 
 data TypePalConfig(
+        bool verbose                = false,
+        bool showTimes              = false,
+        bool showSolverSteps        = false,
+        bool showSolverIterations   = false,
+        bool showAttempts           = false,
+        bool showTModel             = false,
+        bool validateConstraints    = true,
+    
         AType() getMinAType                                         
             = AType (){  throw TypePalUsage("`getMinAType()` called but is not specified in TypePalConfig"); },
             
@@ -74,9 +82,9 @@ data TypePalConfig(
         AType (Tree selector, AType def, AType ins, AType act, Solver s) instantiateTypeParameters 
             = AType(Tree selector, AType def, AType ins, AType act, Solver s){ return act; },
        
-        tuple[bool isNamedType, str typeName, set[IdRole] idRoles] (AType atype) getTypeNameAndRole
-            = tuple[bool isNamedType, str typeName, set[IdRole] idRoles](AType atype){
-                throw TypePalUsage("`useViaType` used without definition of `getTypeNameAndRole`");
+        tuple[list[str] typeNames, set[IdRole] idRoles] (AType atype) getTypeNamesAndRole
+            = tuple[list[str] typeNames, set[IdRole] idRoles](AType atype){
+                throw TypePalUsage("`useViaType` used without definition of `getTypeNamesAndRole`");
             },
             
         AType (Define containerDef, str selectorName, set[IdRole] idRolesSel, Solver s) getTypeInTypeFromDefine

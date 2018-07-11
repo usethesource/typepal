@@ -235,9 +235,7 @@ data TModel (
         list[Message] messages = [],
         map[str,value] store = (),
         map[loc, Define] definitions = (),
-        TypePalConfig config = tconfig(),
-        bool debug = false,
-        bool verbose = false
+        TypePalConfig config = tconfig()
         );
 
 void printTModel(TModel tm){
@@ -283,7 +281,7 @@ Collector newCollector(str modelName, Tree pt, TypePalConfig config = tconfig(),
 Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config = tconfig(), bool debug = false, bool verbose = false){
     configScopeGraph(config);
     
-    unescapeName = config.unescapeName;
+    str(str) unescapeName = config.unescapeName;
     loc globalScope = |global-scope:///|;
     Defines defines = {};
     
@@ -504,7 +502,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                if(i == 0){
                   scopeStack =  <scope, lubScope, scopeInfo2> + tail(scopeStack);
                } else {
-                 scopeStack =  scopeStack[0..i] + <scope, lubScope, scopeInfo2> + scopeStack[i+1..];
+                 scopeStack =  scopeStack[0..i] + [<scope, lubScope, scopeInfo2>] + scopeStack[i+1..];
                }
                return;
            }
@@ -979,8 +977,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
            
            tm.moduleLocs = (nm : getLoc(namedTrees[nm]) | nm <- namedTrees);
            
-           if(debug) tm.debug = true;
-           if(verbose) tm.verbose = true;
            tm.facts = facts; facts = ();
            tm.config = config;
            defines = finalizeDefines();

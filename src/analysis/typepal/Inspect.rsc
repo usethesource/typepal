@@ -14,10 +14,9 @@ void show(loc tmodelLoc){
         return;
     }
     tm = readBinaryValueFile(#TModel, tmodelLoc);
-    //iprintln(tm.store);
-    //iprintln(tm.paths);
-    iprintln(tm.defines);
-    for(d <- tm.defines, d.id == "config"){
-        println(d, lineLimit=10000); 
-    }
+    //iprintln(tm.facts);
+    iprintln(tm.uses);
+    //for(d <- tm.defines, d.id == "Assignable"){
+    //    println(d, lineLimit=10000); 
+    //}
 }
