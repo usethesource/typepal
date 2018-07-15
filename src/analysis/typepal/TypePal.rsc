@@ -28,7 +28,7 @@ extend analysis::typepal::FailMessage;
 extend analysis::typepal::Messenger;
 extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::Solver;
-extend analysis::typepal::TestFramework;
+//extend analysis::typepal::TestFramework;
 extend analysis::typepal::TypePalConfig;
 extend analysis::typepal::Utils;
 
