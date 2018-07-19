@@ -1,5 +1,4 @@
 - Add feature to test framework to explicitly specify the type of parts of the test input
-- Add options to control verbosity of output
 - Add a selective "ignore" mechanism to suppress warnings
 - Try to generalize the module & import handling in the Rascal type checker and incorporate in TypePal
 - Identify more consistency checks on TypePal-based checkers
