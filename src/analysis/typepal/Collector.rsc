@@ -34,44 +34,44 @@ import util::Reflective;
 
 data Collector 
     = collector(
-        void (str id, IdRole idRole, value def, DefInfo info) define,
-        void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope,
-        void (Tree occ, set[IdRole] idRoles) use,
-        void (Tree occ, set[IdRole] idRoles) useLub,
-        void (Tree occ, set[IdRole] idRoles, PathRole pathRole) useViaPath,
-        void (Tree container, Tree selector, set[IdRole] idRolesSel) useViaType,
-        void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) useQualified,
-        void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole) useQualifiedViaPath,   
-        void (Tree inner) enterScope,
-        void (Tree inner) enterLubScope,
-        void (Tree inner) leaveScope,
-        void (loc scope, ScopeRole scopeRole, value info) setScopeInfo,
-        lrel[loc scope, value scopeInfo] (ScopeRole scopeRole) getScopeInfo,
-        loc () getScope,
-       
-        void (str name, Tree src, list[value] dependencies, void(Solver s) preds) require,
-        void (str name, Tree src, list[value] dependencies, void(Solver s) preds) requireEager,
+      /* Life cycle */   TModel () run,
+     /* Configuration */ TypePalConfig () getConfig,
+                         void (TypePalConfig cfg) setConfig,
+     /* Scoping */       void (Tree inner) enterScope,
+                         void (Tree inner) enterLubScope,
+                         void (Tree outer) leaveScope,
+                         loc () getScope,
+     /* Scope Info */    void (loc scope, ScopeRole scopeRole, value info) setScopeInfo,
+                         lrel[loc scope, value scopeInfo] (ScopeRole scopeRole) getScopeInfo,
+     /* Nested Info */   void(str key, value val) push,
+                         value (str key) pop,
+                         value (str key) top,
+                         list[value] (str key) getStack,
+                         void (str key) clearStack,
+     /* Composition */   void (TModel tm) addTModel,
+     /* Reporting */     bool (FailMessage ) report,
+                         bool (list[FailMessage] msgs) reports,
+     /* Define */        void (str id, IdRole idRole, value def, DefInfo info) define,
+                         void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope,
+     /* Use */           void (Tree occ, set[IdRole] idRoles) use,
+                         void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) useQualified,
+                         void (Tree container, Tree selector, set[IdRole] idRolesSel) useViaType,
+                         void (Tree occ, set[IdRole] idRoles) useLub,
+     /* Path addition */ void (Tree occ, set[IdRole] idRoles, PathRole pathRole) addPathToDef,
+                         void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole) addPathToQualifiedDef, 
+                         void (Tree occ, PathRole pathRole) addPathToType,
+                       
+     /* Inference */     AType (value src) newTypeVar,
+     /* Fact */          void (Tree src, value atype) fact,
+     /* Calculate */     void (str name, Tree src, list[value] dependencies, AType(Solver s) getAType) calculate,
+                         void (str name, Tree src, list[value] dependencies, AType(Solver s) getAType) calculateEager,
+     /* Require */       void (str name, Tree src, list[value] dependencies, void(Solver s) preds) require,
+                         void (str name, Tree src, list[value] dependencies, void(Solver s) preds) requireEager,
         
-        void (value l, value r, FailMessage fm) requireEqual,
-        void (value l, value r, FailMessage fm) requireComparable,
-        void (value l, value r, FailMessage fm) requireSubtype,
-        void (value l, value r, FailMessage fm) requireUnify, 
-    
-        void (str name, Tree src, list[value] dependencies, AType(Solver s) getAType) calculate,
-        void (str name, Tree src, list[value] dependencies, AType(Solver s) getAType) calculateEager,
-        void (Tree target, value src) fact,
-        bool (FailMessage ) report,
-        bool (list[FailMessage] msgs) reports,
-        AType (value src) newTypeVar,
-        void(str key, value val) push,
-        value (str key) pop,
-        value (str key) top,
-        list[value] (str key) getStack,
-        void (str key) clearStack,
-        void (TModel tm) addTModel,
-        TypePalConfig () getConfig,
-        void (TypePalConfig cfg) setConfig,
-        TModel () run
+                         void (value l, value r, FailMessage fm) requireEqual,
+                         void (value l, value r, FailMessage fm) requireComparable,
+                         void (value l, value r, FailMessage fm) requireSubType,
+                         void (value l, value r, FailMessage fm) requireUnify
       ); 
 
 // Extract (nested) tree locations and type variables from a list of dependencies
@@ -385,13 +385,13 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    void _useViaPath(Tree occ, set[IdRole] idRoles, PathRole pathRole) {
+    void _addPathToDef(Tree occ, set[IdRole] idRoles, PathRole pathRole) {
         if(building){
             u = use(unescapeName("<occ>"), getLoc(occ), currentScope, idRoles);
             uses += u;
-            referPaths += refer(u, pathRole);
+            referPaths += referToDef(u, pathRole);
         } else {
-            throw TypePalUsage("Cannot call `useViaPath` on Collector after `run`");
+            throw TypePalUsage("Cannot call `_addPathToDef` on Collector after `run`");
         }
     }
     
@@ -418,15 +418,25 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             throw TypePalUsage("Cannot call `useQualified` on Collector after `run`");
         }  
      }
-     void _useQualifiedViaPath(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole){
+     
+     void _addPathToQualifiedDef(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole){
         if(building){
             u = useq([unescapeName(id) | id <- ids], getLoc(occ), currentScope, idRoles, qualifierRoles);
             uses += u;
-            referPaths += refer(u, pathRole);
+            referPaths += referToDef(u, pathRole);
         } else {
-            throw TypePalUsage("Cannot call `useQualifiedViaPath` on Collector after `run`");
+            throw TypePalUsage("Cannot call `addPathToQualifiedDef` on Collector after `run`");
         } 
     }
+    
+    void _addPathToType(Tree occ, PathRole pathRole){
+         if(building){
+            referPaths += referToType(getLoc(occ), currentScope, pathRole);
+        } else {
+            throw TypePalUsage("Cannot call `addPathToType` on Collector after `run`");
+        } 
+    }
+    
     void _enterScope(Tree inner){
         enterScope(inner);
     }
@@ -526,7 +536,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     loc _getScope(){
         if(building){
-           if(currentScope == globalScope) throw TypePalUsage("`getScope` requires a user-defined scope; missing `enterScope`");
+           //if(currentScope == globalScope) throw TypePalUsage("`getScope` requires a user-defined scope; missing `enterScope`");
             return currentScope;
         } else {
             throw TypePalUsage("Cannot call `getScope` on Collector after `run`");
@@ -560,7 +570,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
    
     void _requireEqual(value l, value r, FailMessage fm){
         if(building){
-           requirements += reqEqual("<l> equal <r>", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
+           requirements += reqEqual("`<l>` requireEqual `<r>`", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
         } else {
             throw TypePalUsage("Cannot call `requireEqual` on Collector after `run`");
         }
@@ -568,23 +578,23 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     void _requireComparable(value l, value r, FailMessage fm){
         if(building){
-           requirements += reqComparable("<l> comparable <r>", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
+           requirements += reqComparable("`<l>` requireEqual `<r>`", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
         } else {
             throw TypePalUsage("Cannot call `requireComparable` on Collector after `run`");
         }
     }
     
-    void _requireSubtype(value l, value r, FailMessage fm){
+    void _requireSubType(value l, value r, FailMessage fm){
         if(building){
-           requirements += reqSubtype("<l> subtype <r>", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
+           requirements += reqSubtype("`<l>` requireSubType `<r>`", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
         } else {
-            throw TypePalUsage("Cannot call `requireSubtype` on Collector after `run`");
+            throw TypePalUsage("Cannot call `requireSubType` on Collector after `run`");
         }
     }
     
     void _requireUnify(value l, value r, FailMessage fm){
         if(building){
-           requirements += reqUnify("<l> unify <r>", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
+           requirements += reqUnify("`<l>` requireUnify `<r>`", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
         } else {
             throw TypePalUsage("Cannot call `requireUnify` on Collector after `run`");
         }
@@ -922,42 +932,42 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         paths += tm.paths;
     }
     
-    TModel resolvePath(TModel tm){
-        msgs = [];
-        int n = 0;
-    
-        referPaths = tm.referPaths;
-        newPaths = {};
-        
-        lookupFun = config.lookup;
-        
-        while(!isEmpty(referPaths) && n < 3){    // explain this iteration count
-            n += 1;
-            for(ReferPath rp <- referPaths){
-                try {
-                    u = rp.use;
-                    foundDefs = lookupFun(tm, u);
-                    if({loc def} := foundDefs){
-                       newPaths += {<u.scope, rp.pathRole, def>};  
-                    } else {
-                        msgs += error("Name `<u.id>` is ambiguous <foundDefs>", u.occ);
-                    }
-                    referPaths -= {rp}; 
-                }
-                catch:{
-                    println("Lookup for <rp> fails"); 
-                    msgs += error("Name `<rp.use.id>` not found", rp.use.occ);
-                }
-            }
-        }
-        tm.paths += newPaths;
-        tm.referPaths = referPaths;
-        for(rp <- referPaths){
-            msgs += error("Reference to name `<rp.use.id>` cannot be resolved", rp.use.occ);
-        }
-        tm.messages += msgs;
-        return tm;
-    }
+    //TModel resolvePath(TModel tm){
+    //    msgs = [];
+    //    int n = 0;
+    //
+    //    referPaths = tm.referPaths;
+    //    newPaths = {};
+    //    
+    //    lookupFun = config.lookup;
+    //    
+    //    while(!isEmpty(referPaths) && n < 3){    // explain this iteration count
+    //        n += 1;
+    //        for(ReferPath rp <- referPaths){
+    //            try {
+    //                u = rp.use;
+    //                foundDefs = lookupFun(tm, u);
+    //                if({loc def} := foundDefs){
+    //                   newPaths += {<u.scope, rp.pathRole, def>};  
+    //                } else {
+    //                    msgs += error("Name `<u.id>` is ambiguous <foundDefs>", u.occ);
+    //                }
+    //                referPaths -= {rp}; 
+    //            }
+    //            catch:{
+    //                println("Lookup for <rp> fails"); 
+    //                msgs += error("Name `<rp.use.id>` not found", rp.use.occ);
+    //            }
+    //        }
+    //    }
+    //    tm.paths += newPaths;
+    //    tm.referPaths = referPaths;
+    //    for(rp <- referPaths){
+    //        msgs += error("Reference to name `<rp.use.id>` cannot be resolved", rp.use.occ);
+    //    }
+    //    tm.messages += msgs;
+    //    return tm;
+    //}
     
     TModel _run(){
         if(building){
@@ -1003,48 +1013,52 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
            tm.definesMap = definesMap;
            defines = {};
            tm.messages = messages;
-           return resolvePath(tm); 
+           //return resolvePath(tm); 
+           return tm;
         } else {
            throw TypePalUsage("Cannot call `run` on Collector after `run`");
         }
     }
     
-    return collector(_define,
-                    _defineInScope,
-                    _use, 
-                    _useLub,
-                    _useViaPath,
-                    _useViaType,
-                    _useQualified, 
-                    _useQualifiedViaPath, 
-                    _enterScope, 
-                    _enterLubScope,
-                    _leaveScope,
-                    _setScopeInfo,
-                    _getScopeInfo,
-                    _getScope,
-                    _require, 
-                    _requireEager,
-                    _requireEqual,
-                    _requireComparable,
-                    _requireSubtype,
-                    _requireUnify,
-                    
-                    _calculate, 
-                    _calculateEager,
-                    _fact,
-                    _report, 
-                    _reports,
-                    _newTypeVar, 
-                    _push,
-                    _pop,
-                    _top,
-                    _getStack,
-                    _clearStack,
-                    _addTModel,
-                    _getConfig,
-                    _setConfig,
-                    _run); 
+    return collector(
+        /* Life cycle */    _run,
+        /* Configure */     _getConfig,
+                            _setConfig,
+        /* Scoping */       _enterScope, 
+                            _enterLubScope,
+                            _leaveScope,
+                            _getScope,
+        /* Scope Info */    _setScopeInfo,
+                            _getScopeInfo,
+        /* Nested Info */   _push,
+                            _pop,
+                            _top,
+                            _getStack,
+                            _clearStack,
+        /* Compose */       _addTModel,
+        /* Reporting */     _report, 
+                            _reports,
+        /* Define */        _define,
+                            _defineInScope,
+        /* Use */           _use, 
+                            _useQualified, 
+                            _useViaType,
+                            _useLub,
+        /* Add Path */      _addPathToDef,
+                            _addPathToQualifiedDef,
+                            _addPathToType,
+                           
+        /* Inference */     _newTypeVar,          
+        /* Fact */          _fact,
+        /* Calculate */     _calculate, 
+                            _calculateEager,
+        /* Require */       _require, 
+                            _requireEager,
+                            _requireEqual,
+                            _requireComparable,
+                            _requireSubType,
+                            _requireUnify
+                    ); 
 }
 
 // ---- collect utilities -----------------------------------------------------

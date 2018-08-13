@@ -77,7 +77,8 @@ alias Uses = list[Use];
 str getId(Use u) = u has id ? u.id : intercalate(".", u.ids);
 
 data ReferPath
-    = refer(Use use, PathRole pathRole)
+    = referToDef(Use use, PathRole pathRole)
+    | referToType(loc occ, loc scope, PathRole pathRole)
     ;
 
 alias ReferPaths = set[ReferPath];

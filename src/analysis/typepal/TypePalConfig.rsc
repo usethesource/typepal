@@ -33,7 +33,7 @@ bool defaultMayOverload (set[loc] defs, map[loc, Define] defines) {
 }
 
  AType defaultInstantiateTypeParameters(Tree selector, AType def, AType ins, AType act, Solver s){ 
-   throw TypePalUsage("`instantiateTypeParameters(<prettyPrintAType(def)>, <prettyPrintAType(ins)>, <prettyPrintAType(act)>)` called but is not specified in TypePalConfig");
+   throw TypePalUsage("`instantiateTypeParameters(<prettyAType(def)>, <prettyAType(ins)>, <prettyAType(act)>)` called but is not specified in TypePalConfig");
 }
 
 tuple[list[str] typeNames, set[IdRole] idRoles] defaultGetTypeNamesAndRole(AType atype){

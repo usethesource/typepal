@@ -39,13 +39,13 @@ bool containsNestedOverloading(rel[loc, IdRole, AType] overloads)
 AType overloadedAType(rel[loc, IdRole, AType] overloads) 
     = overloadedAType(flatten(overloads)) when containsNestedOverloading(overloads); 
 
-// Pretty print ATypes
-str prettyPrintAType(tvar(loc tname))               = "typevar(<tname>)";
-str prettyPrintAType(lazyLub(list[AType] atypes))   = "lub(<atypes>))";
-str prettyPrintAType(atypeList(list[AType] atypes)) = size(atypes) == 0 ? "empty list of types" : intercalate(", ", [prettyPrintAType(a) | a <- atypes]);
-default str prettyPrintAType(overloadedAType(rel[loc, IdRole, AType] overloads)) 
-                                                    = "overloaded: {" + intercalate(", ", [prettyPrintAType(t) | <k, r, t> <- overloads]) + "}";
-default str prettyPrintAType(AType tp)              = "<tp>";
+// Convert ATypes to string
+str prettyAType(tvar(loc tname))               = "typevar(<tname>)";
+str prettyAType(lazyLub(list[AType] atypes))   = "lub(<atypes>))";
+str prettyAType(atypeList(list[AType] atypes)) = size(atypes) == 0 ? "empty list of types" : intercalate(", ", [prettyAType(a) | a <- atypes]);
+default str prettyAType(overloadedAType(rel[loc, IdRole, AType] overloads)) 
+                                              = "overloaded: {" + intercalate(", ", [prettyAType(t) | <k, r, t> <- overloads]) + "}";
+default str prettyAType(AType tp)              = "<tp>";
        
 // --- Exceptions
 
