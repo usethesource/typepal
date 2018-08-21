@@ -1000,7 +1000,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
            tm.requirements = requirements;  
            tm.store = storeVals;        storeVals = ();
            tm.definitions = ( def.defined : def | Define def <- defines);
-           definesMap = ();
+           map[loc, map[str, rel[IdRole idRole, loc defined]]] definesMap = ();
            for(<loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo> <- defines){
                 dm = ();
                 if(definesMap[scope]?) dm = definesMap[scope];

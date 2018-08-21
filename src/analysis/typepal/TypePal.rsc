@@ -28,7 +28,6 @@ extend analysis::typepal::FailMessage;
 extend analysis::typepal::Messenger;
 extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::Solver;
-//extend analysis::typepal::TestFramework;
 extend analysis::typepal::TypePalConfig;
 extend analysis::typepal::Utils;
 
@@ -42,7 +41,6 @@ TModel collectAndSolve(Tree pt, TypePalConfig config = tconfig(), bool debug = f
 }
 
 // Utilities on TModels that can help to build IDE-features
-
 
 rel[loc, loc] getUseDef(TModel tm)
     = tm.useDef;

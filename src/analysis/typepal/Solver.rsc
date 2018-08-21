@@ -972,7 +972,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                        definedBy[u.occ] = foundDefs;
                        newPaths += {<u.scope, rp.pathRole, def>};  
                     } else {
-                        msgs += error("Name `<u.id>` is ambiguous <foundDefs>", u.occ);
+                        messages += error("Name `<u.id>` is ambiguous <foundDefs>", u.occ);
                     }
                     referPaths -= {rp}; 
                 } else {
