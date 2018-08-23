@@ -73,7 +73,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     // Configuration (and related state)
     
-    bool showSolverSteps =tm.config.showSolverSteps;
+    bool showSolverSteps = tm.config.showSolverSteps;
     bool showSolverIterations = tm.config.showSolverIterations;
     bool showAttempts = tm.config.showAttempts;
     bool showTModel = tm.config.showTModel;
@@ -1058,17 +1058,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
     
     bool unify(AType given, AType expected){
-        if(tvar(tname) := given){
-            bindings[tname] = expected;
-                return true;
-        }
-        if(tvar(tname) := expected){
-            bindings[tname] = given;
-                return true;
-        }
-        given2 = instantiate(given);
-        expected2 = instantiate(expected);
-        <ok, bindings1> = unify(given2, expected2, bindings);
+        <ok, bindings1> = unify(given, expected, bindings);
         if(showSolverSteps)println("unify(<given>, <expected>) ==\> <ok>, <bindings1>");
         if(ok){
             bindings += bindings1;
@@ -1076,6 +1066,93 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         } else {
             return false;
         }
+    }
+    
+    // Unification of two types, for now, without checks on variables
+    tuple[bool, map[loc, AType]] unify(AType t1, AType t2, map[loc, AType] bindings){
+        //println("unify: <t1>, <t2>");
+        if(t1 == t2) return <true, bindings>;
+       
+        if(tvar(loc tv1) := t1){
+        
+            try {
+                t11 = findType(tv1);
+                if(t11 != t1){
+                    if(tm.config.isSubType? && _subtype(t11, t1)) 
+                        return <true, bindings>;
+                    return unify(t11, t2, bindings);
+                }
+           } catch NoSuchKey(k):
+                ; // unbound, so we will bind it
+           
+           return <true, (tv1 : t2) + bindings>;
+        }
+          
+        if(tvar(loc tv2) := t2){
+            try {
+                t21 = findType(tv2);
+                if(t21 != t2) {
+                   if(tm.config.isSubType? && _subtype(t21, t2)) 
+                    return <true, bindings>;
+                   return unify(t21, t1, bindings);
+                }
+           } catch NoSuchKey(k):
+                ;   // unbound, so we will bind it
+           
+           return <true, (tv2 : t1) + bindings>;
+        }
+        
+        if(atypeList(atypes1) := t1){
+           if(atypeList(atypes2) := t2){
+              if(size(atypes1) == size(atypes2)){
+                for(int i <- index(atypes1)){
+                    <res, bindings1> = unify(atypes1[i], atypes2[i], bindings);
+                    if(!res) return <res, bindings>;
+                    bindings += bindings1;
+                }
+                return <true, bindings>;
+              }
+           }
+           return <false, ()>;
+        }
+        
+        // TODO:introducing lazyLub in unify is an interesting idea but is it correct?
+        if(lazyLub(lubbables1) := t1 && lazyLub(lubbables2) !:= t2){
+            for(lb <- toSet(lubbables1)){
+                if(tvar(loc tv) := lb){
+                   bindings += (tv : t2) + bindings;
+                }
+            }
+            return <true, bindings>;
+        }
+        
+        if(lazyLub(lubbables1) !:= t1 && lazyLub(lubbables2) := t2){
+            for(lb <- toSet(lubbables2)){
+                if(tvar(loc tv) := lb){
+                   bindings += (tv : t1) + bindings;
+                }
+            }
+            return <true, bindings>;
+        }
+        a1 = arity(t1); a2 = arity(t2);
+        if(a1 != a2) return <false, bindings>;
+        c1 = getName(t1); c2 = getName(t2);
+        if(c1 != c2) return <false, bindings>;
+       
+        kids1 = getChildren(t1); kids2 = getChildren(t2);
+      
+        for(int i <- [0 .. a1]){
+            if(AType k1 := kids1[i], AType k2 := kids2[i]){
+                <res, bindings1> = unify(k1, k2, bindings);
+                if(!res) return <res, bindings>;
+                bindings += bindings1;
+            } else {
+                if( kids1[i] != kids2[i] ){
+                    return <false, bindings>;
+                }
+            }
+        }
+        return <true, bindings>;
     }
     
     // ---- instantiate -------------------------------------------------------
@@ -1267,80 +1344,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 insert simplifyLub(sbs);
                 }
           };
-    }
-    
-    // Unification of two types, for now, without checks on variables
-    tuple[bool, map[loc, AType]] unify(AType t1, AType t2, map[loc, AType] bindings){
-        //println("unify: <t1>, <t2>");
-        if(t1 == t2) return <true, bindings>;
-       
-        if(tvar(loc tv1) := t1){
-           if(bindings[tv1]?){
-              return unify(bindings[tv1], t2, bindings);
-           } else {
-                return <true, (tv1 : t2) + bindings>;
-           }
-        }
-          
-        if(tvar(loc tv2) := t2){
-           if(bindings[tv2]?){
-              return unify(bindings[tv2], t1, bindings); 
-           } else {
-            return <true, (tv2 : t1) + bindings>;
-          }
-        }
-        
-        if(atypeList(atypes1) := t1){
-           if(atypeList(atypes2) := t2){
-              if(size(atypes1) == size(atypes2)){
-                for(int i <- index(atypes1)){
-                    <res, bindings1> = unify(atypes1[i], atypes2[i], bindings);
-                    if(!res) return <res, bindings>;
-                    bindings += bindings1;
-                }
-                return <true, bindings>;
-              }
-           }
-           return <false, ()>;
-        }
-        
-        // TODO:introducing lazyLub in unify is an interesting idea but is it correct?
-        if(lazyLub(lubbables1) := t1 && lazyLub(lubbables2) !:= t2){
-            for(lb <- toSet(lubbables1)){
-                if(tvar(loc tv) := lb){
-                   bindings += (tv : t2) + bindings;
-                }
-            }
-            return <true, bindings>;
-        }
-        
-        if(lazyLub(lubbables1) !:= t1 && lazyLub(lubbables2) := t2){
-            for(lb <- toSet(lubbables2)){
-                if(tvar(loc tv) := lb){
-                   bindings += (tv : t1) + bindings;
-                }
-            }
-            return <true, bindings>;
-        }
-        a1 = arity(t1); a2 = arity(t2);
-        if(a1 != a2) return <false, bindings>;
-        c1 = getName(t1); c2 = getName(t2);
-        if(c1 != c2) return <false, bindings>;
-       
-        kids1 = getChildren(t1); kids2 = getChildren(t2);
-      
-        for(int i <- [0 .. a1]){
-            if(AType k1 := kids1[i], AType k2 := kids2[i]){
-                <res, bindings1> = unify(k1, k2, bindings);
-                if(!res) return <res, bindings>;
-                bindings += bindings1;
-            } else {
-                if( kids1[i] != kids2[i] ){
-                    return <false, bindings>;
-                }
-            }
-        }
-        return <true, bindings>;
     }
         
     /*
