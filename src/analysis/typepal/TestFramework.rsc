@@ -64,7 +64,7 @@ bool matches(str subject, str pat){
     return all(p <- split("_", pat), contains(subject, p));
 }
 
-bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, bool verbose = false, set[str] runOnly = {}){
+bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, bool verbose = false, set[str] runOnly = {}, str runName = ""){
     TTL ttlProgram;
     
     map[tuple[str, loc], list[Message]]failedTests = ();
@@ -81,6 +81,7 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
             ttlProgram = visit(tr.top){ case amb(set[Tree] alternatives2) => getOneFrom(alternatives2) };
         }
 
+        if(runName?) println("Running <runName> Tests");
         for(TTL_TestItem ti <- ttlProgram.items){
             if (runOnly != {} && "<ti.name>" notin runOnly) {
                 continue;
@@ -109,7 +110,8 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
         }
     }
     nfailed = size(failedTests);
-    println("Test summary: <ntests> tests executed, <ntests - nfailed> succeeded, <nfailed> failed");
+    heading = (runName? ? (runName + " ") : "") + "Test Summary";
+    println("<heading>: <ntests> tests executed, <ntests - nfailed> succeeded, <nfailed> failed");
     if(!isEmpty(failedTests)){
         println("Failed tests:");
         for(failed <- failedTests){
