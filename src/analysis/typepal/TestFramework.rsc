@@ -64,6 +64,9 @@ bool matches(str subject, str pat){
     return all(p <- split("_", pat), contains(subject, p));
 }
 
+str spinChar(int n)
+    = n < 0 ? "|" : (0: "|", 1: "/", 2: "-", 3: "\\")[n%4];
+
 bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, bool verbose = false, set[str] runOnly = {}, str runName = ""){
     TTL ttlProgram;
     
@@ -98,7 +101,7 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
               expected = ti.expect is none ? {} : {deescape("<s>"[1..-1]) | TTL_String s <- ti.expect.messages};
               result = (isEmpty(messages) && isEmpty(expected)) || all(emsg <- expected, any(eitem <- messages, matches(eitem.msg, emsg)));
               ok = ok && result;
-              println("Test <ti.name>: <result>");
+              print("<spinChar(ntests)> Test <ti.name>: <result>          \r");
               if(!result) failedTests[<"<ti.name>", suite>] = messages; 
               //if(!result) iprintln(model);  
            } catch ParseError(loc l): {
