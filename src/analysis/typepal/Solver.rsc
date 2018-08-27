@@ -233,23 +233,23 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     AType getTypeFromTree(Tree t) = getType(t);
     
-    bool _report(FailMessage fm){
-        if(getName(fm) == "_error"){
-           throw checkFailed([fm]);
+    bool _report(FailMessage fmsg){
+        if(getName(fmsg) == "_error"){
+           throw checkFailed([fmsg]);
         } else {
-            failMessages += fm;
+            failMessages += fmsg;
             return true;
         }
     }
     
-    bool _reports(list[FailMessage] fms){
-        if (fms == []) {
+    bool _reports(list[FailMessage] fmsgs){
+        if (fmsgs == []) {
             return true;
         }
-        if(any(fm <- fms, getName(fm) == "_error")){
-            throw checkFailed(fms);
+        if(any(fmsg <- fmsgs, getName(fmsg) == "_error")){
+            throw checkFailed(fmsgs);
         } else {
-            failMessages += fms;
+            failMessages += fmsgs;
             return true;
         }
     }
@@ -486,11 +486,16 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     // ---- Evaluate/schedule calculators -------------------------------------
     
     void evalOrScheduleCalc(Calculator calc){
-        if(evalCalc(calc)){
+        try {
+            if(evalCalc(calc)){
+                solved(calc);
+            } else {
+                scheduleCalc(calc);
+            }
+         } catch checkFailed(list[FailMessage] fmsgs): {
+            failMessages += fmsgs;
             solved(calc);
-        } else {
-            scheduleCalc(calc);
-        }
+         }
     }
     
     void scheduleCalc(Calculator calc, list[loc] dependsOn){
@@ -601,10 +606,15 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     // ---- evaluate/schedule requirements ------------------------------------
     
      void evalOrScheduleReq(Requirement req){
-        if(allDependenciesKnown(req.dependsOn, req.eager) && evalReq(req)){
-            solved(req);  
-        } else {
-            scheduleReq(req);
+        try {
+            if(allDependenciesKnown(req.dependsOn, req.eager) && evalReq(req)){
+                solved(req);  
+            } else {
+                scheduleReq(req);
+            }
+        } catch checkFailed(list[FailMessage] fmsgs): {
+            failMessages += fmsgs;
+            solved(req);
         }
      }
     
