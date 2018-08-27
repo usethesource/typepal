@@ -52,7 +52,7 @@ data Solver
                         void (bool, FailMessage) requireTrue,
                         void (bool, FailMessage) requireFalse,
         
-    /* Inference */     AType (AType) instantiate,
+    /* Inference */     AType (AType atype) instantiate,
                         bool (AType atype) isFullyInstantiated,
     
     /* Reporting */     bool(FailMessage fm) report,
@@ -1395,7 +1395,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             if(size(foundDefines) > 1){
                  ds = {defined | <IdRole idRole, loc defined, DefInfo defInfo> <- foundDefines};
                 if(!mayOverloadFun(ds, definitions)){
-                    println("DOUBLE DEFINITIONS: <scope>, <id>");
                     for(d <- foundDefines){
                         println(d);
                     }
@@ -1565,7 +1564,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                             }
                           } 
                         } else {
-                            println("DOUBLE DEFINITIONS");
                             for(d <- foundDefs){
                                 println(d);
                             }

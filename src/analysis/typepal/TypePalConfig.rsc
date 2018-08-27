@@ -32,7 +32,7 @@ bool defaultMayOverload (set[loc] defs, map[loc, Define] defines) {
     return false;
 }
 
- AType defaultInstantiateTypeParameters(Tree selector, AType def, AType ins, AType act, Solver s){ 
+ AType defaultInstantiateTypeParameters(Tree current, AType def, AType ins, AType act, Solver s){ 
    throw TypePalUsage("`instantiateTypeParameters(<prettyAType(def)>, <prettyAType(ins)>, <prettyAType(act)>)` called but is not specified in TypePalConfig");
 }
 
