@@ -830,8 +830,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 //>>              catch e: 
             }
             if(isEmpty(valid_overloads)){
-                println("******* error ");
-                iprintln(containerType);
                 _report(error(selector, "_getTypeInType: Cannot access fields on type %t", containerType));
             } else if({<loc key, IdRole role, AType tp>} := valid_overloads){
                 addUse({key}, selectorUse);
@@ -1013,7 +1011,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                      }
                 }
              } catch:{
-                println("Lookup/getType for <rp> fails"); 
+                ;//println("Lookup/getType for <rp> fails"); 
                 /* ignore until end */
              }
         }
@@ -1395,9 +1393,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             if(size(foundDefines) > 1){
                  ds = {defined | <IdRole idRole, loc defined, DefInfo defInfo> <- foundDefines};
                 if(!mayOverloadFun(ds, definitions)){
-                    for(d <- foundDefines){
-                        println(d);
-                    }
                     messages += [error("Double declaration of `<id>` found at <foundDefines<1>>", defined) | <IdRole idRole, loc defined, DefInfo defInfo>  <- foundDefines];
                 }
             }
@@ -1422,10 +1417,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                   openUses += u;
                   if(showSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
                 } else {
-                    println("DOUBLE DEFINITIONS");
-                    for(d <- foundDefs){
-                        println(d);
-                    }
                     messages += [error("Double declaration", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
                     if(showSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
@@ -1564,9 +1555,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                             }
                           } 
                         } else {
-                            for(d <- foundDefs){
-                                println(d);
-                            }
                             messages += [error("Double declaration", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
                             if(showSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                         }
