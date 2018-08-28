@@ -73,6 +73,7 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
     map[tuple[str, loc], list[Message]]failedTests = ();
     ntests = 0;
     ok = true;
+    if(runName?) print("Running <runName> Tests\r");
     for(suite <- suites){
         tr = parse(#start[TTL], suite, allowAmbiguity=true);
     
@@ -83,8 +84,7 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
         } else {
             ttlProgram = visit(tr.top){ case amb(set[Tree] alternatives2) => getOneFrom(alternatives2) };
         }
-
-        if(runName?) println("Running <runName> Tests");
+        
         for(TTL_TestItem ti <- ttlProgram.items){
             if (runOnly != {} && "<ti.name>" notin runOnly) {
                 continue;
@@ -114,7 +114,7 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
     }
     nfailed = size(failedTests);
     heading = (runName? ? (runName + " ") : "") + "Test Summary";
-    println("<heading>: <ntests> tests executed, <ntests - nfailed> succeeded, <nfailed> failed");
+    println("<heading>: <ntests> tests executed, <ntests - nfailed> succeeded, <nfailed> <nfailed == 0 ? "failed" : "FAILED">");
     if(!isEmpty(failedTests)){
         println("Failed tests:");
         for(failed <- failedTests){
