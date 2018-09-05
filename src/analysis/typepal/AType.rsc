@@ -14,11 +14,12 @@ data AType
     | overloadedAType(rel[loc, IdRole, AType] overloads)   // built-in-overloaded type; each loc provides an alternative type
     ;
 
+bool isOverloadedAType(overloadedAType(rel[loc, IdRole, AType] overloads)) = true;
+default bool isOverloadedAType(AType t) = false;
 
 AType lazyLub([*AType atypes1, lazyLub([*AType atypes2]), *AType atypes3]) = lazyLub([*atypes1, *atypes2, *atypes3]);
 AType lazyLub([*AType atypes1, AType atypea, *AType atypes2, AType atypeb, *AType atypes3]) = lazyLub([*atypes1, atypea, *atypes2, *atypes3]);
 AType lazyLub([AType atype]) = atype;
-
 
 rel[loc, IdRole, AType] flatten(rel[loc, IdRole, AType] overloads){
     flatOverloads = {};
