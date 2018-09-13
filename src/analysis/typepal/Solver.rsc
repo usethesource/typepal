@@ -33,6 +33,7 @@ data Solver
                         AType (AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope) getTypeInType,
                         rel[str id, AType atype] (AType containerType, loc scope, set[IdRole] idRoles) getAllDefinedInType,
     /* Fact */          void (value, AType) fact,
+                        void (value, AType) specializedFact,
     /* Calculate & Require */    
                         bool (value, value) equal,
                         void (value, value, FailMessage) requireEqual,
@@ -148,6 +149,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     // State of Solver
     
     map[loc, AType] facts = ();
+    map[loc, AType] specializedFacts = ();
     
     set[Define] defines = {};
     
@@ -880,7 +882,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     //if(unavailable) throw TypeUnavailable(selectorLoc);
                      if(i == ncontainerNames){
                         if(some_accessible_def)
-                            _report(error(selector, "No definition found for %v %q in type %t", intercalateOr([replaceAll(getName(idRole), "Id", "") | idRole <- idRolesSel]), "<selector>", containerType));
+                            _report(error(selector, "No definition found for %v %q in type %t", intercalateOr([prettyRole(idRole) | idRole <- idRolesSel]), "<selector>", containerType));
                         else
                             _report(error(selector, "No definition for type %t is available here", containerType));
                      }
@@ -1284,6 +1286,16 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             throw TypePalUsage("First argument of `fact` should be `Tree` or `loc`, found `<typeOf(v)>`");
          }
     }
+    
+    void specializedFact(value v, AType atype){
+        if(Tree t := v) {
+            specializedFacts[getLoc(t)] = atype;
+         } else if(loc l := v){
+            specializedFacts[l] = atype;
+         } else {
+            throw TypePalUsage("First argument of `specializedFact` should be `Tree` or `loc`, found `<typeOf(v)>`");
+         }
+    }
 
     bool allDependenciesKnown(set[loc] deps, bool eager)
         = isEmpty(deps) || (eager ? all(dep <- deps, facts[dep]?)
@@ -1610,6 +1622,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         }
            
         /****************** end of main solve loop *****************************/
+        
+        str prettyRole(IdRole idRole){
+            stripped1 = replaceAll(getName(idRole), "Id", "");
+            return visit(stripped1) { case /<ch:[A-Z]>/ => " " + toLowerCase(ch) };
+        }
            
         int mainEnded = cpuTime();
            
@@ -1628,13 +1645,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             try {
                  foundDefs = lookupFun(tm, u);
              } catch NoBinding(): {
-                roles = size(u.idRoles) > 5 ? "" : intercalateOr([replaceAll(getName(idRole), "Id", "") | idRole <- u.idRoles]);
+                roles = size(u.idRoles) > 5 ? "" : intercalateOr([prettyRole(idRole) | idRole <- u.idRoles]);
                 messages += error("Undefined <roles> `<getId(u)>`", u.occ);
              }
         }
         
         for(u <- notYetDefinedUses){
-            roles = size(u.idRoles) > 5 ? "" : intercalateOr([replaceAll(getName(idRole), "Id", "") | idRole <- u.idRoles]);
+            roles = size(u.idRoles) > 5 ? "" : intercalateOr([prettyRole(idRole) | idRole <- u.idRoles]);
             messages += error("Undefined <roles> `<getId(u)>`", u.occ);
         }
          
@@ -1691,21 +1708,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         reportedLocations += src;
                     }
                 }
-            }
-            
-            //for(calc <- calculators, calc has src, !facts[calc.src]?, !alreadyReported(messages, calc.src)){
-            //    messages += error("Unresolved type<calc has cname ? " for <calc.cname>" : "">" , calc.src);
-            //}
-            //
-            //for(calc <- calculators){
-            //    src = calc has src ? calc.src : (isEmpty(calc.srcs) ? |unknown:///| :calc.srcs[0]);
-            //    if(!facts[src]? && !alreadyReported(messages, src)){
-            //        deps = calc.dependsOn;
-            //        forDeps = isEmpty(deps) ? "" : " for <for(int i <- index(deps)){><facts[deps[i]]? ? "`<prettyAType(facts[deps[i]])>`" : "`unknown type of <deps[i]>`"><i < size(deps)-1 ? "," : ""> <}>";
-            //        messages += error("Type <calc has cname ? " of <calc.cname>" : ""> could not be computed<forDeps>", src);
-            //     }
-            //}
-               
+            }  
             
             for(Requirement req <- requirements){
                 src =  getReqSrc(req);
@@ -1714,16 +1717,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     reportedLocations += src;
                 }
             }
-            //for(req <- requirements, !alreadyReported(messages, getReqSrc(req))){
-            //    messages += error("Invalid <req.rname>; type of one or more subparts could not be inferred", getReqSrc(req));
-            //}
         
         }
-        
-        //if(size(messages) > 0){
-        //    println("### NUMBER OF MESSAGES for <tm.modelName>: <size(messages)> ###");
-        //    iprintln(messages);
-        //}
         
         if(showAttempts){
             lrel[Calculator, int] sortedCalcFreqs = sort(toList(calculatorAttempts), bool(tuple[Calculator calc, int freq] a, tuple[Calculator calc, int freq] b) { return a.freq > b.freq; });
@@ -1764,6 +1759,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
           tm.requirements = requirements;
  
           tm.facts = facts;
+          tm.specializedFacts = specializedFacts;
           tm.messages = sortMostPrecise(toList(toSet(messages)));
           
           tm.useDef = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
@@ -1789,6 +1785,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                                 _getTypeInType,
                                 _getAllDefinedInType,
            /*Fact */            fact,
+                                specializedFact,
           /* Calculate & Require */ 
                                 _equal,
                                 _requireEqual,
