@@ -19,6 +19,8 @@ import Set;
 import List;
 import Relation;
 import Message;
+import Node;
+import String;
 
 
 data Tree;      // workaround for bug in interpreter
