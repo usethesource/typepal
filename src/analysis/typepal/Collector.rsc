@@ -230,6 +230,7 @@ data TModel (
         map[str,loc] moduleLocs = (),
         set[Calculator] calculators = {},
         map[loc,AType] facts = (), 
+        map[loc,AType] specializedFacts = (), 
         set[Requirement] requirements = {},
         rel[loc, loc] useDef = {},
         list[Message] messages = [],
@@ -327,10 +328,10 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             
             if(info is defTypeLub /*&& isEmpty(definesPerLubScope[currentLubScope][currentScope, id])*/){  
                 // Look for an outer variable declaration of id that overrules the defTypeLub   
-                for(Define def <- defines){
-                    if(def.id == id && def.idRole == variableId()){
+                for(Define def <- defines + definesPerLubScope[currentLubScope]){
+                    if(def.id == id && config.isInferrable(def.idRole) /* == variableId()*/){
                         if(def.scope in scopeStack<0>) {
-                            uses += use(uid, l, currentScope, {idRole});
+                            uses += use(uid, l, currentScope, {def.idRole});
                             return;
                         }
                     }
@@ -754,7 +755,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
    // Merge all lubDefs and appoint a definition to refer to
     
-    Define mergeLubDefs(str id, loc scope, rel[IdRole role, loc defined, DefInfo defInfo] lubDefs){
+    set[Define] mergeLubDefs(str id, loc scope, rel[IdRole role, loc defined, DefInfo defInfo] lubDefs){
         deps = []; getATypes = [];
         defineds = [];
         loc firstDefined = |undef:///|;
@@ -768,10 +769,13 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             deps += info.defInfo.dependsOn;
             getATypes += info.defInfo.getATypes;
         }
-        if({role} := roles){
-            return <scope, id, role, firstDefined, defTypeLub(deps - defineds, defineds, getATypes)>;
-        } else 
-             throw TypePalUsage("LubDefs should use a single role, found <roles>");
+        return {<scope, id, role, firstDefined, defTypeLub(deps - defineds, defineds, getATypes)> | role <- roles};
+        //if({role} := roles){
+        //    return <scope, id, role, firstDefined, defTypeLub(deps - defineds, defineds, getATypes)>;
+        //} else {
+        //     println("mergeLubDefs <id>, <scope>, <lubDefs>");
+        //     throw TypePalUsage("LubDefs should use a single role, found <roles>");
+        //}
     }
     
     bool fixed_define_in_outer_scope(str id, loc lubScope){
@@ -781,7 +785,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             outer = scopes[outer];
             //println("outer: <outer>");
             //println("definesPerLubScope[outer] ? {}: <definesPerLubScope[outer] ? {}>");
-            for(d: <loc scope, id, variableId(), loc defined, DefInfo defInfo> <- definesPerLubScope[outer] ? {}){
+            for(d: <loc scope, id, idRole /*variableId()*/, loc defined, DefInfo defInfo> <- definesPerLubScope[outer] ? {}, config.isInferrable(idRole)){
                 //println("d = <d>");
                 return true;
             }
