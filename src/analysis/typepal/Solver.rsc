@@ -540,7 +540,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 fireTrigger(l);
             }
             return true;
-        } catch TypeUnavailable(u): return false; /* cannot yet compute type */
+        } catch TypeUnavailable(): return false; /* cannot yet compute type */
         
         return false;
     }
@@ -552,7 +552,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             if(showSolverSteps)println("!fact <src> ==\> <facts[src]>");
             fireTrigger(src);
             return true;
-        } catch TypeUnavailable(u): return false; /* cannot yet compute type */
+        } catch TypeUnavailable(): return false; /* cannot yet compute type */
 
         return false;
     }
@@ -566,7 +566,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 if(showSolverSteps)println("!fact <src> ==\> <facts[src]>");
                 fireTrigger(src);
                 return true;
-            } catch TypeUnavailable(u): return false; /* cannot yet compute type */
+            } catch TypeUnavailable(): return false; /* cannot yet compute type */
         }
         return false;
     }
@@ -588,7 +588,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         }
                     }
                     known += instantiate(tp);
-                } catch TypeUnavailable(_): /* cannot yet compute type */;
+                } catch TypeUnavailable(): /* cannot yet compute type */;
             }
             
             if(size(known) >= 1){
@@ -638,7 +638,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         try {
             if(!_equal(getType(l), getType(r))) { failMessages += fm; }
             return true;
-        } catch TypeUnavailable(_): return false; 
+        } catch TypeUnavailable(): return false; 
         return false;
     }
     
@@ -647,7 +647,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         try {
             if(!_comparable(getType(l), getType(r))) { failMessages += fm; }
             return true;
-        } catch TypeUnavailable(_): return false;
+        } catch TypeUnavailable(): return false;
         return false;
     }
     
@@ -656,7 +656,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         try {
             if(!_subtype(getType(l), getType(r))) { failMessages += fm; }
             return true;
-        } catch TypeUnavailable(_): return false;
+        } catch TypeUnavailable(): return false;
         return false;
     }
     
@@ -665,7 +665,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         try {
             if(!_unify(getType(l), getType(r))) { failMessages += fm; }
             return true;
-        } catch TypeUnavailable(_): return false;
+        } catch TypeUnavailable(): return false;
         return false;
     }
     
@@ -687,7 +687,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             preds(thisSolver);
             bindings2facts(bindings, getReqSrc(req));
             solved(req);
-        } catch TypeUnavailable(_): return false;
+        } catch TypeUnavailable(): return false;
         return false;
     }
     
@@ -732,7 +732,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             }
         
         } catch NoSuchKey(value k):
-            throw TypeUnavailable(k);
+            throw TypeUnavailable();
             
         throw "getType cannot handle <v>";
     }
@@ -757,9 +757,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         try {
             return getTypeInScopeFromName0(name, scope, idRoles);
         } catch NoSuchKey(value k):
-                throw TypeUnavailable(k);
+                throw TypeUnavailable();
         //catch NoBinding():
-        //        throw TypeUnavailable(_);
+        //        throw TypeUnavailable();
     }
     
     AType getTypeInScope0(Tree occ, loc scope, set[IdRole] idRoles){
@@ -773,7 +773,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             try {
                 return instantiate(facts[def]);
             } catch NoSuchKey(value k):
-                throw TypeUnavailable(k);
+                throw TypeUnavailable();
         } else {
           if(mayOverloadFun(foundDefs, definitions)){
             try {
@@ -781,7 +781,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 addUse(overloads<0>, u);
                 return overloadedAType(overloads);
             } catch NoSuchKey(value k):
-                throw TypeUnavailable(k);
+                throw TypeUnavailable();
           } else {
              _reports([error(d, "Double declaration of %q in %v", id, foundDefs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
           }
@@ -793,9 +793,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         try {
             return getTypeInScope0(occ, scope, idRoles);
         } catch NoSuchKey(value k):
-                throw TypeUnavailable(k);
+                throw TypeUnavailable();
         //catch NoBinding():
-        //        throw TypeUnavailable(_);
+        //        throw TypeUnavailable();
     }
     
     void addUse(set[loc] defs, Use u){
@@ -862,7 +862,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     try {
                         selectorType = getTypeInScope0(selector, containerDef.defined, idRolesSel);
                         valid_overloads += <containerDef.defined, containerDef.idRole, instantiateTypeParameters(selector, getType(containerDef.defInfo), containerType, selectorType, thisSolver)>;
-                     } //catch TypeUnavailable(_):
+                     } //catch TypeUnavailable():
                             //unavailable = true;
                        catch NoSuchKey(k):
                             ;//navailable = true;
@@ -870,16 +870,16 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                             try {
                                 selectorType = getTypeInTypeFromDefineFun(containerDef, selectorName, idRolesSel, thisSolver);
                                 valid_overloads += <containerDef.defined, containerDef.idRole, instantiateTypeParameters(selector, getType(containerDef.defInfo), containerType, selectorType, thisSolver)>;
-                            } //catch TypeUnavailable(_):
+                            } //catch TypeUnavailable():
                               //  unavailable = true;
                               catch NoBinding():
                                 ;//unavailable = true;
                                // _report(error(selector, "No definition for %v %q in type %t", intercalateOr([replaceAll(getName(idRole), "Id", "") | idRole <- idRolesSel]), "<selector>", containerType));
                         }
                  }
-                 //if(unavailable) throw TypeUnavailable(selectorLoc);
+                 //if(unavailable) throw TypeUnavailable();
                  if(isEmpty(valid_overloads)){
-                    //if(unavailable) throw TypeUnavailable(selectorLoc);
+                    //if(unavailable) throw TypeUnavailable();
                      if(i == ncontainerNames){
                         if(some_accessible_def)
                             _report(error(selector, "No definition found for %v %q in type %t", intercalateOr([prettyRole(idRole) | idRole <- idRolesSel]), "<selector>", containerType));
@@ -935,9 +935,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             //println("getDefinition: <tree>,  <getLoc(tree)>");
             return definitions[getLoc(tree)];
          } catch NoSuchKey(value k):
-                throw TypeUnavailable(k);
+                throw TypeUnavailable();
            catch NoBinding(): {
-                throw TypeUnavailable(_); //<<<
+                throw TypeUnavailable(); //<<<
            }
     }
     
@@ -954,10 +954,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
               }
             }
          } catch NoSuchKey(value k):
-                throw TypeUnavailable(k);
+                throw TypeUnavailable();
            catch NoBinding(): {
                 //println("getDefinitions: <id> in scope <scope> <idRoles> ==\> TypeUnavailable2");
-                //throw TypeUnavailable(avalue()); // <<<<
+                //throw TypeUnavailable(); // <<<<
                 return {};
            }
     }
@@ -1030,9 +1030,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
              if(isFullyInstantiated(expected)){
                 return instantiate(unsetRec(given)) == instantiate(unsetRec(expected));
              } else
-                 throw TypeUnavailable(expected);
+                 throw TypeUnavailable();
         } else
-            throw TypeUnavailable(given);
+            throw TypeUnavailable();
     }
     
     bool _equal(Tree given, AType expected) = _equal(getType(given), expected);
@@ -1184,9 +1184,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             if(isFullyInstantiated(large)){
                 return isSubTypeFun(small, large);
             } else  
-                throw TypeUnavailable(large);
+                throw TypeUnavailable();
         } else {
-          throw TypeUnavailable(small);
+          throw TypeUnavailable();
         }
     }
     
@@ -1209,7 +1209,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         if(isFullyInstantiated(atype1) && isFullyInstantiated(atype2)){
             return isSubTypeFun(atype1, atype2) || isSubTypeFun(atype2, atype1);
         } else {
-            throw TypeUnavailable(_);
+            throw TypeUnavailable();
         }
     }
     

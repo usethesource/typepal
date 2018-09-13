@@ -67,7 +67,7 @@ str fmt1(set[value] vals, TypeProvider getType)   = isEmpty(vals) ? "nothing" : 
  
 str fmt1(Tree t, TypeProvider getType) {
     try return prettyAType(getType(t));
-    catch TypeUnavailable(_):{
+    catch TypeUnavailable():{
         return "\<*** unavailable type of `<t>` ***\>";
     }
 }
