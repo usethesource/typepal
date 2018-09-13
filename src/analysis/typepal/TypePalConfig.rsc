@@ -75,6 +75,9 @@ data TypePalConfig(
         
         bool (set[loc] defs, map[loc, Define] defines) mayOverload 
             = bool (set[loc] defs, map[loc, Define] defines) { return false; },
+            
+        bool (IdRole idRole) isInferrable
+            = bool(IdRole idRole) { return false; },
         
         str(str) unescapeName                                       
             = str (str s) { return replaceAll(s, "\\", ""); },
