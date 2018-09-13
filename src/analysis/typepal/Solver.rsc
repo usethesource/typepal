@@ -1622,11 +1622,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         }
            
         /****************** end of main solve loop *****************************/
-        
-        str prettyRole(IdRole idRole){
-            stripped1 = replaceAll(getName(idRole), "Id", "");
-            return visit(stripped1) { case /<ch:[A-Z]>/ => " " + toLowerCase(ch) };
-        }
            
         int mainEnded = cpuTime();
            

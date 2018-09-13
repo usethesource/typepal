@@ -52,6 +52,11 @@ data IdRole
     = variableId()
     ;
 
+str prettyRole(IdRole idRole){
+    stripped1 = replaceAll(getName(idRole), "Id", "");
+    return visit(stripped1) { case /<ch:[A-Z]>/ => " " + toLowerCase(ch) };
+}      
+
 // PathRole: the various (language-specific) labelled semantic paths
 // between program parts
 // Initially PathRole is empty but may be extended in a language-specific module
