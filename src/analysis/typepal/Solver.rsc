@@ -104,6 +104,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     AType(AType containerType, Tree selector, loc scope, Solver s) getTypeInNamelessTypeFun = defaultGetTypeInNamelessType;
     
+    bool(loc def, map[loc, Define] definitions, map[loc,loc] scopes) reportUnused = defaultReportUnused;
+    
     void configTypePal(TypePalConfig tc){
         configScopeGraph(tc);
         
@@ -138,6 +140,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         getTypeNamesAndRole = tc.getTypeNamesAndRole;
         getTypeInTypeFromDefineFun = tc.getTypeInTypeFromDefine;
         getTypeInNamelessTypeFun = tc.getTypeInNamelessType;
+        reportUnused = tc.reportUnused;
     }
     
     TypePalConfig _getConfig() = tm.config;
@@ -1448,10 +1451,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         for(Define def <- defines){
             try {
                 // TODO: enable when there is a config function to filter this
-                //if(def.defined notin def2uses){ 
-                //    if(def.id notin {"type"})
-                //        messages += warning("Unused <def.id>", def.defined); 
-                //}
+                if(def.defined notin def2uses && reportUnused(def.defined, tm.definitions, tm.scopes)){ 
+                    messages += warning("Unused <prettyRole(def.idRole)> `<def.id>`", def.defined); 
+                }
                 evalDef(def);
             } catch checkFailed(list[FailMessage] fms): {
                 failMessages += fms;
