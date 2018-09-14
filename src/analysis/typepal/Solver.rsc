@@ -80,8 +80,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     bool showTModel = tm.config.showTModel;
     bool showTimes = tm.config.showTimes;
     
-    int solverStarted = cpuTime();
-    
     str(str) unescapeName  = defaultUnescapeName;
     bool(AType,AType) isSubTypeFun = defaultIsSubType;
     
@@ -104,7 +102,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     AType(AType containerType, Tree selector, loc scope, Solver s) getTypeInNamelessTypeFun = defaultGetTypeInNamelessType;
     
-    bool(loc def, map[loc, Define] definitions, map[loc,loc] scopes) reportUnused = defaultReportUnused;
+    bool(loc def, map[loc, Define] definitions, map[loc,loc] scopes, TypePalConfig config) reportUnused = defaultReportUnused;
     
     void configTypePal(TypePalConfig tc){
         configScopeGraph(tc);
@@ -160,12 +158,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     set[Calculator] calculators = tm.calculators;
     set[Calculator] calculatorJobs = {};
-    set[Calculator] solvedCalculatorJobs = {};
     map[loc, set[Calculator]] triggersCalculator = ();
      
     set[Requirement] requirements = tm.requirements;
     set[Requirement] requirementJobs = {};
-    set[Requirement] solvedRequirementJobs = {};
     map[loc, set[Requirement]] triggersRequirement = ();
     
     set[loc] activeTriggers = {};
@@ -382,63 +378,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     void solved(Requirement req){
         requirements -= req;
         requirementJobs -= req;
-    }
-    
-    void updateJobs(){  }
-    
-    
-  //  void solved(Calculator calc){
-  //      solvedCalculatorJobs += calc;
-  //      if(showSolverSteps){ print("!"); print(calc, "", facts, full=false); }
-  //  }
-  //  
-  //  void solved(Requirement req){
-  //      solvedRequirementJobs += req;
-  //      if(showSolverSteps){ print("!"); print(req, "", facts, full=false); }
-  //  }
-  //
-  //  void updateJobs(){        
-  //      calculators -= solvedCalculatorJobs;
-  //      calculatorJobs -= solvedCalculatorJobs;
-  //      solvedCalculatorJobs = {};
-  //       
-  //      requirements -= solvedRequirementJobs;
-  //      requirementJobs -= solvedRequirementJobs;
-  //      solvedRequirementJobs = {};
-  //  }
-    
-    //tuple[set[Calculator] calculators, set[Calculator] calculatorJobs, set[Calculator] solvedCalculatorJobs,
-    //      set[Requirement] requirements, set[Requirement] requirementJobs, set[Requirement] solvedRequirementJobs,
-    //      set[Use] openUses, map[loc,AType] facts, map[loc, AType] bindings, set[loc] activeTriggers] checkPointSolverState() {
-    //    return <calculators, calculatorJobs, solvedCalculatorJobs, 
-    //            requirements, requirementJobs, solvedRequirementJobs, openUses, facts, bindings, activeTriggers>;
-    //}
-    
-    //void restoreSolverState(tuple[set[Calculator] calculators, set[Calculator] calculatorJobs, set[Calculator] solvedCalculatorJobs,
-    //      set[Requirement] requirements, set[Requirement] requirementJobs, set[Requirement] solvedRequirementJobs,
-    //       set[Use] openUses, map[loc,AType] facts, map[loc, AType] bindings, set[loc] activeTriggers]  cp){
-    //      
-    //      calculators = cp.calculators;
-    //      calculatorJobs = cp.calculatorJobs;
-    //      solvedCalculatorJobs = cp.solvedCalculatorJobs;
-    //      requirements = cp.requirements;
-    //      requirementJobs = cp.requirementJobs;
-    //      solvedRequirementJobs = cp.solvedRequirementJobs;
-    //      openUses = cp.openUses;
-    //      if(showSolverSteps){
-    //          for(f <- domain(facts) - domain(cp.facts)){
-    //            println("removing fact: <f> ==\> <facts[f]>");
-    //          }
-    //          for(f <- domain(facts)){
-    //            if(cp.facts[f]? && cp.facts[f] != facts[f]){
-    //                println("restoring <f> from <facts[f]> to <cp.facts[f]>");
-    //            }
-    //          }
-    //      }
-    //      //facts = cp.facts;  
-    //      bindings = cp.bindings;
-    //      activeTriggers = cp.activeTriggers;
-    //} 
+    }    
     
     // ---- Add a fact --------------------------------------------------------
     
@@ -483,7 +423,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     list[loc] getDependencies(AType atype){
         deps = [];
         visit(atype){
-            case tv: tvar(loc src) : deps += src;
+            case tvar(loc src) : deps += src;
         };
         return deps; 
     }    
@@ -734,7 +674,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     throw "getType cannot handle <v>";
             }
         
-        } catch NoSuchKey(value k):
+        } catch NoSuchKey(_):
             throw TypeUnavailable();
             
         throw "getType cannot handle <v>";
@@ -775,7 +715,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             addUse({def}, u);
             try {
                 return instantiate(facts[def]);
-            } catch NoSuchKey(value k):
+            } catch NoSuchKey(_):
                 throw TypeUnavailable();
         } else {
           if(mayOverloadFun(foundDefs, definitions)){
@@ -783,7 +723,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 overloads = {<d, idRole, instantiate(facts[d])> | d <- foundDefs, idRole := definitions[d].idRole, idRole in idRoles};
                 addUse(overloads<0>, u);
                 return overloadedAType(overloads);
-            } catch NoSuchKey(value k):
+            } catch NoSuchKey(_):
                 throw TypeUnavailable();
           } else {
              _reports([error(d, "Double declaration of %q in %v", id, foundDefs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
@@ -795,7 +735,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     AType _getTypeInScope(Tree occ, loc scope, set[IdRole] idRoles){
         try {
             return getTypeInScope0(occ, scope, idRoles);
-        } catch NoSuchKey(value k):
+        } catch NoSuchKey(_):
                 throw TypeUnavailable();
         //catch NoBinding():
         //        throw TypeUnavailable();
@@ -830,7 +770,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     selectorType = _getTypeInType(tp, selector, idRolesSel, scope);
                     //selectorType = getTypeInNamelessTypeFun(tp, selector, scope, thisSolver);
                     valid_overloads += <key, role, selectorType>;
-                } catch checkFailed(list[Message] msgs): ; // do nothing and try next overload
+                } catch checkFailed(list[Message] _): ; // do nothing and try next overload
                   catch NoBinding(): ; // do nothing and try next overload
 //>>              catch e: 
             }
@@ -867,7 +807,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         valid_overloads += <containerDef.defined, containerDef.idRole, instantiateTypeParameters(selector, getType(containerDef.defInfo), containerType, selectorType, thisSolver)>;
                      } //catch TypeUnavailable():
                             //unavailable = true;
-                       catch NoSuchKey(k):
+                       catch NoSuchKey(_):
                             ;//navailable = true;
                        catch NoBinding(): {
                             try {
@@ -937,7 +877,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         try {
             //println("getDefinition: <tree>,  <getLoc(tree)>");
             return definitions[getLoc(tree)];
-         } catch NoSuchKey(value k):
+         } catch NoSuchKey(_):
                 throw TypeUnavailable();
            catch NoBinding(): {
                 throw TypeUnavailable(); //<<<
@@ -956,7 +896,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 throw AmbiguousDefinition(foundDefs);
               }
             }
-         } catch NoSuchKey(value k):
+         } catch NoSuchKey(_):
                 throw TypeUnavailable();
            catch NoBinding(): {
                 //println("getDefinitions: <id> in scope <scope> <idRoles> ==\> TypeUnavailable2");
@@ -1095,7 +1035,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         return <true, bindings>;
                     return unify(t11, t2, bindings);
                 }
-           } catch NoSuchKey(k):
+           } catch NoSuchKey(_):
                 ; // unbound, so we will bind it
            
            return <true, (tv1 : t2) + bindings>;
@@ -1109,7 +1049,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     return <true, bindings>;
                    return unify(t21, t1, bindings);
                 }
-           } catch NoSuchKey(k):
+           } catch NoSuchKey(_):
                 ;   // unbound, so we will bind it
            
            return <true, (tv2 : t1) + bindings>;
@@ -1130,7 +1070,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         }
         
         // TODO:introducing lazyLub in unify is an interesting idea but is it correct?
-        if(lazyLub(lubbables1) := t1 && lazyLub(lubbables2) !:= t2){
+        if(lazyLub(lubbables1) := t1 && lazyLub(_) !:= t2){
             for(lb <- toSet(lubbables1)){
                 if(tvar(loc tv) := lb){
                    bindings += (tv : t2) + bindings;
@@ -1139,7 +1079,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             return <true, bindings>;
         }
         
-        if(lazyLub(lubbables1) !:= t1 && lazyLub(lubbables2) := t2){
+        if(lazyLub(_) !:= t1 && lazyLub(lubbables2) := t2){
             for(lb <- toSet(lubbables2)){
                 if(tvar(loc tv) := lb){
                    bindings += (tv : t1) + bindings;
@@ -1308,7 +1248,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         = isEmpty(deps) || (eager ? all(dep <- deps, facts[dep]?)
                                   : all(dep <- deps, facts[dep]?, isFullyInstantiated(facts[dep])));
    
-    bool allCalcDependenciesKnown(calcType(loc src, AType atype)){
+    bool allCalcDependenciesKnown(calcType(loc _, AType _)){
         return true;
     }
     
@@ -1361,7 +1301,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     AType instantiate(AType atype){
       return
           visit(atype){
-            case tv: tvar(loc src) => substitute(tv)
+            case tv: tvar(_) => substitute(tv)
             case lazyLub(list[AType] atypes) : {
                 list[AType] sbs = [substitute(tp) | AType tp <- atypes];
                 insert simplifyLub(sbs);
@@ -1374,9 +1314,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
      *  
      */
     TModel _run(){
-    
-        int runStarted = cpuTime();
-        
+          
         tm = tm.config.preSolver(namedTrees, tm);
         
         configTypePal(tm.config);
@@ -1412,8 +1350,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 }
             }
         }
-      
-        int initFilterDoublesTime = cpuTime() - now;
        
         // Check that all uses have a definition and that all overloading is allowed
         if(showSolverSteps) println("..... lookup <size(tm.uses)> uses");
@@ -1442,7 +1378,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 //messages += error("Undefined <roles> `<getId(u)>`", u.occ);
             }
         }
-        int initCheckUsesTime = cpuTime() - now;
         
         // Process all defines (which may create new calculators/facts)
         
@@ -1451,7 +1386,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         for(Define def <- defines){
             try {
                 // TODO: enable when there is a config function to filter this
-                if(def.defined notin def2uses && reportUnused(def.defined, tm.definitions, tm.scopes)){ 
+                if(def.defined notin def2uses && reportUnused(def.defined, tm.definitions, tm.scopes, tm.config)){ 
                     messages += warning("Unused <prettyRole(def.idRole)> `<def.id>`", def.defined); 
                 }
                 evalDef(def);
@@ -1459,7 +1394,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 failMessages += fms;
             }
         }
-        int initDefTime = cpuTime() - now;
         
         // Register all dependencies
         
@@ -1473,8 +1407,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         }
         
         validateTriggers();
-        
-        int initRegisterTime = cpuTime() - now;
        
         // See what the facts derived sofar can trigger
         now = cpuTime();
@@ -1485,8 +1417,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 failMessages += fms;
             }
         }
-        updateJobs(); 
-        int initFactTriggerTime = cpuTime() - now;
         
         // Try to evaluate or schedule the calculators
         now = cpuTime();
@@ -1500,7 +1430,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 failMessages += fms;
             }
         }
-        int initCalcTime = cpuTime() - now;
         
         // Try to evaluate or schedule the requirements
         now = cpuTime();
@@ -1513,14 +1442,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 failMessages += fms;
              }
         }
-        int initReqTime = cpuTime() - now;
         
         // Here we have jobs for calculators and requirements with known dependencies
-        
       
-        updateJobs();
-      
-        int mainStarted = cpuTime();
         int mainCalcTime = 0;
         int mainReqTime = 0;
         
@@ -1614,8 +1538,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 }
             }
             mainReqTime += cpuTime() - now;
-            
-            updateJobs();    
+             
             ncalculators = size(calculators);
             nrequirements = size(requirements);
             nfacts = size(facts);
@@ -1625,13 +1548,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
            
         /****************** end of main solve loop *****************************/
            
-        int mainEnded = cpuTime();
-           
         if(showSolverSteps) println("..... solving complete");
            
         tm.config.postSolver(namedTrees, thisSolver);
-        
-        int postSolverTime = cpuTime() - mainEnded;
         
         // Convert all FaillMessages into Messages
         for(fm <- failMessages){
