@@ -203,19 +203,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
          }
     }
     
-    void printTriggers(){
-        if(!isEmpty(triggersCalculator)) println("\nCALCULATOR TRIGGERS");
-        for(l <- triggersCalculator){
-            println("  trig: <l> ===\>");
-            for(Calculator calc <- triggersCalculator[l]) print(calc, "\t", facts);
-        }
-       if(!isEmpty(triggersRequirement)) println("\nREQUIREMENT TRIGGERS");
-        for(l <- triggersRequirement){
-            println("  trig: <l> ===\>");
-            for(Requirement req <- triggersRequirement[l]) print(req, "\t", facts);
-        }
-    }
-    
     void printDef2uses(){
         if(!isEmpty(def2uses)) println("\nDEFINE TO USES");
         for(def <- def2uses){
@@ -231,8 +218,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
     
      // Error reporting
-    
-    AType getTypeFromTree(Tree t) = getType(t);
     
     bool _report(FailMessage fmsg){
         if(getName(fmsg) == "_error"){
@@ -873,17 +858,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
          }
     }
     
-    Define getDefinition(Tree tree){
-        try {
-            //println("getDefinition: <tree>,  <getLoc(tree)>");
-            return definitions[getLoc(tree)];
-         } catch NoSuchKey(_):
-                throw TypeUnavailable();
-           catch NoBinding(): {
-                throw TypeUnavailable(); //<<<
-           }
-    }
-    
     set[Define] getDefinitions(str id, loc scope, set[IdRole] idRoles){
         try {
             foundDefs = lookupFun(tm, use(id, anonymousOccurrence, scope, idRoles));
@@ -1184,7 +1158,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     AType _lub(AType t1, AType t2) = simplifyLub([t1, t2]);
     
-    default AType _lub(value given, value expected) { throw TypePalUsage("`lub` called with <given> and <expected>"); }
+    default AType _lub(value given, value _ /*expected*/) { throw TypePalUsage("`lub` called with <given> and <expected>"); }
     
     AType simplifyLub(list[AType] atypes) {
         //println("simplifyLub: <atypes>");
@@ -1247,18 +1221,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     bool allDependenciesKnown(list[loc] deps, bool eager)
         = isEmpty(deps) || (eager ? all(dep <- deps, facts[dep]?)
                                   : all(dep <- deps, facts[dep]?, isFullyInstantiated(facts[dep])));
-   
-    bool allCalcDependenciesKnown(calcType(loc _, AType _)){
-        return true;
-    }
-    
-    bool allCalcDependenciesKnown(calcLoc(loc src, list[loc] dependsOn)){
-         return allDependenciesKnown(dependsOn - src, true);
-    }
-    
-    default bool allCalcDependenciesKnown(Calculator calc){
-        return allDependenciesKnown(calc.dependsOn, calc.eager);
-    }
     
     bool isFullyInstantiated(AType atype){
         visit(atype){
@@ -1656,7 +1618,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
          }
          if(showTModel){
             printSolverState();
-            //printTriggers();
             printDef2uses();
             printUse2Def();
             if(isEmpty(messages) && isEmpty(requirements) && isEmpty(calculators)){
@@ -1682,7 +1643,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
          
           if(showSolverSteps) println("Derived facts: <size(tm.facts)>");
           solverEnded = cpuTime();
-          str fmt(int n) = right("<n>", 8);
           M = 1000000;
           if(showTimes){
             println("<tm.modelName>, solver total: <(solverEnded - solverStarted)/M> ms; init: <(mainStarted - runStarted)/M> ms [ doubles <initFilterDoublesTime/M>; uses <initCheckUsesTime/M>; def <initDefTime/M>; register <initRegisterTime/M>; fact triggers <initFactTriggerTime/M>; calc <initCalcTime/M>; req <initReqTime/M> ]; run main loop: <(mainEnded - mainStarted)/M> ms [ calc <mainCalcTime/M>; req <mainReqTime/M> ]; finish: <(solverEnded - mainEnded)/M> ms [ postSolver <postSolverTime/M> ]");
