@@ -18,7 +18,6 @@ import String;
 import Set;
 import Map;
 import List;
-import util::Reflective;
 
 extend analysis::typepal::Messenger;
 extend analysis::typepal::Solver;

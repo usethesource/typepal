@@ -4,8 +4,6 @@ extend analysis::typepal::Solver;
 extend analysis::typepal::AType;
 extend analysis::typepal::ScopeGraph;
 
-
-import util::Reflective;
 import String;
 extend ParseTree;
 

@@ -11,7 +11,6 @@ import String;
 import Message;
 import Exception;
 import util::Benchmark;
-import util::Reflective;
 
 extend analysis::typepal::AType;
 extend analysis::typepal::Collector;
@@ -79,6 +78,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     bool showAttempts = tm.config.showAttempts;
     bool showTModel = tm.config.showTModel;
     bool showTimes = tm.config.showTimes;
+    
+    int solverStarted = cpuTime();
     
     str(str) unescapeName  = defaultUnescapeName;
     bool(AType,AType) isSubTypeFun = defaultIsSubType;
@@ -490,7 +491,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         if(allDependenciesKnown(dependsOn, calc.eager)){
             try {
                 facts[src] = instantiate(getAType(thisSolver));
-                bindings2facts(bindings, src);
+                bindings2facts(bindings);
                 if(showSolverSteps)println("!fact <src> ==\> <facts[src]>");
                 fireTrigger(src);
                 return true;
@@ -613,7 +614,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         if(showAttempts) requirementAttempts[req] = (requirementAttempts[req] ? 0) + 1; 
         try {
             preds(thisSolver);
-            bindings2facts(bindings, getReqSrc(req));
+            bindings2facts(bindings);
             solved(req);
         } catch TypeUnavailable(): return false;
         return false;
@@ -622,7 +623,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     // Handle bindings resulting from unification
     
     // The binding of a type variable that occurs inside the scope of that type variable can be turned into a fact
-    void bindings2facts(map[loc, AType] bindings, loc occ){
+    void bindings2facts(map[loc, AType] bindings){
         if(!isEmpty(bindings)){
             for(loc b <- bindings){
                //if(showSolverSteps) println("bindings2facts: <b>, <facts[b]? ? facts[b] : "**undefined**">");
@@ -1158,7 +1159,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     AType _lub(AType t1, AType t2) = simplifyLub([t1, t2]);
     
-    default AType _lub(value given, value _ /*expected*/) { throw TypePalUsage("`lub` called with <given> and <expected>"); }
+    default AType _lub(value given, value expected) { throw TypePalUsage("`lub` called with <given> and <expected>"); }
     
     AType simplifyLub(list[AType] atypes) {
         //println("simplifyLub: <atypes>");
@@ -1276,7 +1277,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
      *  
      */
     TModel _run(){
-          
+    
+        int runStarted = cpuTime();
+        
         tm = tm.config.preSolver(namedTrees, tm);
         
         configTypePal(tm.config);
@@ -1312,6 +1315,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 }
             }
         }
+      
+        int initFilterDoublesTime = cpuTime() - now;
        
         // Check that all uses have a definition and that all overloading is allowed
         if(showSolverSteps) println("..... lookup <size(tm.uses)> uses");
@@ -1340,6 +1345,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 //messages += error("Undefined <roles> `<getId(u)>`", u.occ);
             }
         }
+        int initCheckUsesTime = cpuTime() - now;
         
         // Process all defines (which may create new calculators/facts)
         
@@ -1356,6 +1362,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 failMessages += fms;
             }
         }
+        int initDefTime = cpuTime() - now;
         
         // Register all dependencies
         
@@ -1369,6 +1376,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         }
         
         validateTriggers();
+        
+        int initRegisterTime = cpuTime() - now;
        
         // See what the facts derived sofar can trigger
         now = cpuTime();
@@ -1379,6 +1388,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 failMessages += fms;
             }
         }
+
+        int initFactTriggerTime = cpuTime() - now;
         
         // Try to evaluate or schedule the calculators
         now = cpuTime();
@@ -1392,6 +1403,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 failMessages += fms;
             }
         }
+        int initCalcTime = cpuTime() - now;
         
         // Try to evaluate or schedule the requirements
         now = cpuTime();
@@ -1404,9 +1416,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 failMessages += fms;
              }
         }
+        int initReqTime = cpuTime() - now;
         
         // Here we have jobs for calculators and requirements with known dependencies
       
+        int mainStarted = cpuTime();
         int mainCalcTime = 0;
         int mainReqTime = 0;
         
@@ -1510,9 +1524,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
            
         /****************** end of main solve loop *****************************/
            
+        int mainEnded = cpuTime();
+           
         if(showSolverSteps) println("..... solving complete");
            
         tm.config.postSolver(namedTrees, thisSolver);
+        
+        int postSolverTime = cpuTime() - mainEnded;
         
         // Convert all FaillMessages into Messages
         for(fm <- failMessages){

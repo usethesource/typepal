@@ -59,9 +59,9 @@ alias TypeProvider = AType(Tree); // Generic provider of types during formatting
 
 AType defaultGetType(Tree t) { throw TypePalUsage("Type of <getLoc(t)> unavailable during collect"); }
 
-str fmt1(AType t, TypeProvider getType)           = prettyAType(t);
-str fmt1(str s, TypeProvider getType)             = s;
-str fmt1(int n, TypeProvider getType)             = "<n>";
+str fmt1(AType t, TypeProvider _)                 = prettyAType(t);
+str fmt1(str s, TypeProvider _)                   = s;
+str fmt1(int n, TypeProvider _)                   = "<n>";
 str fmt1(list[value] vals, TypeProvider getType)  = isEmpty(vals) ? "nothing" : intercalateAnd([fmt1(vl, getType) | vl <- vals]);
 str fmt1(set[value] vals, TypeProvider getType)   = isEmpty(vals) ? "nothing" : intercalateAnd([fmt1(vl, getType) | vl <- vals]);  
  
@@ -72,7 +72,7 @@ str fmt1(Tree t, TypeProvider getType) {
     }
 }
      
-default str fmt1(value v, TypeProvider getType)   = "<v>";
+default str fmt1(value v, TypeProvider _)   = "<v>";
     
 str interpolate(str msg, TypeProvider getType, list[value] args){
     int i = 0;

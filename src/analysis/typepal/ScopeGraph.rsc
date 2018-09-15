@@ -17,8 +17,6 @@ module analysis::typepal::ScopeGraph
 import IO;
 import Set;
 import List;
-import Relation;
-import Message;
 import Node;
 import String;
 

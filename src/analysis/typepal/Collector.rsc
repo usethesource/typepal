@@ -30,7 +30,6 @@ import analysis::typepal::FailMessage;
 
 extend analysis::typepal::TypePalConfig;
 import analysis::typepal::Utils;
-import util::Reflective;
 
 data Collector 
     = collector(
@@ -145,41 +144,41 @@ loc getReqSrc(Requirement req){
     return req.dependsOn[0];
 }
 
-void print(req:req(str rname, loc src,  list[loc] dependsOn, void(Solver s) preds), str indent, map[loc,AType] facts, bool full=true){
+void print(req(str rname, loc src,  list[loc] dependsOn, void(Solver s) preds), str indent, map[loc,AType] facts, bool full=true){
     println("<indent>requ `<rname>` for <src>:");
     if(full) printDeps(dependsOn, indent, facts);
 }
 
-void print(req:req(str rname, loc src,  list[loc] dependsOn, void(Solver s) preds), str indent, map[loc,AType] facts, bool full=true){
+void print(req(str rname, loc src,  list[loc] dependsOn, void(Solver s) preds), str indent, map[loc,AType] facts, bool full=true){
     println("<indent>requ `<rname>` for <src>");
 }
 
-void print(req:reqEqual(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
+void print(reqEqual(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
     println("<indent>requ `<rname>` for <dependsOn[0]>");
     if(full) printDeps(dependsOn, indent, facts);
 }
-void print(req:reqComparable(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
-    println("<indent>requ `<rname>` for <dependsOn[0]>");
-    if(full) printDeps(dependsOn, indent, facts);
-}
-
-void print(req:reqSubtype(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
+void print(reqComparable(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
     println("<indent>requ `<rname>` for <dependsOn[0]>");
     if(full) printDeps(dependsOn, indent, facts);
 }
 
-void print(req:reqUnify(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
+void print(reqSubtype(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
+    println("<indent>requ `<rname>` for <dependsOn[0]>");
+    if(full) printDeps(dependsOn, indent, facts);
+}
+
+void print(reqUnify(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
     println("<indent>requ `<rname>` for <dependsOn[0]>");
     if(full) printDeps(dependsOn, indent, facts);
 }
 
 
-void print(req:reqError (loc src, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
+void print(reqError (loc src, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
     println("<indent>requ for <src>");
     if(full) printDeps(dependsOn, indent, facts);
 }
 
-void print(req:reqErrors(loc src, list[loc] dependsOn, list[FailMessage] fms), str indent, map[loc,AType] facts, bool full=true){
+void print(reqErrors(loc src, list[loc] dependsOn, list[FailMessage] fms), str indent, map[loc,AType] facts, bool full=true){
     println("<indent>requ for <src>");
    if(full) printDeps(dependsOn, indent, facts);
 }
@@ -201,20 +200,20 @@ list[loc] srcs(Calculator calc){
     return calc has src ? [calc.src] : calc.srcs;
 }
 
-void print(calc: calcType(loc src, AType atype), str indent, map[loc,AType] facts, bool full=true){
+void print(calcType(loc src, AType atype), str indent, map[loc,AType] facts, bool full=true){
     println("<indent>calc <src> as <atype>");
 }
 
-void print(calc:calcLoc(loc src, list[loc] dependsOn), str indent, map[loc,AType] facts, bool full=true){
+void print(calcLoc(loc src, list[loc] dependsOn), str indent, map[loc,AType] facts, bool full=true){
     println("<indent>calc <src> same type as <dependsOn>");
 }
 
-void print(calc:calc(str cname, loc src, list[loc] dependsOn, AType(Solver s) calculator), str indent, map[loc,AType] facts, bool full=true){
+void print(calc(str cname, loc src, list[loc] dependsOn, AType(Solver s) calculator), str indent, map[loc,AType] facts, bool full=true){
     print("<indent>calc `<cname>` for <src> using "); iprintln(calculator);
     if(full) printDeps(dependsOn, indent, facts);
 }
 
-void print(calc:calcLub(str cname, list[loc] srcs, list[loc] dependsOn, list[AType(Solver s)] getATypes), str indent, map[loc,AType] facts, bool full=true){
+void print(calcLub(str cname, list[loc] srcs, list[loc] dependsOn, list[AType(Solver s)] getATypes), str indent, map[loc,AType] facts, bool full=true){
     print("<indent>calc lub `<cname>` for <srcs> using "); iprintln(getATypes);
     if(full) printDeps(dependsOn, indent, facts);
 }
@@ -275,11 +274,11 @@ Collector defaultCollector(Tree t) = newCollector("defaultModel", t);
 alias LubDefine = tuple[loc lubScope, str id, loc scope, IdRole idRole, loc defined, DefInfo defInfo]; 
 alias LubDefine2 = tuple[str id, loc scope, IdRole idRole, loc defined, DefInfo defInfo];       
 
-Collector newCollector(str modelName, Tree pt, TypePalConfig config = tconfig(), bool debug = false, bool verbose = false){
-    return newCollector(modelName, (modelName : pt), config=config, debug=debug, verbose=verbose);
+Collector newCollector(str modelName, Tree pt, TypePalConfig config = tconfig()){
+    return newCollector(modelName, (modelName : pt), config=config);
 }
 
-Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config = tconfig(), bool debug = false, bool verbose = false){
+Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config = tconfig()){
     configScopeGraph(config);
     
     str(str) unescapeName = config.unescapeName;

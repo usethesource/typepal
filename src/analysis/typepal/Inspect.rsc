@@ -4,9 +4,7 @@ import analysis::typepal::Collector;
 import String;
 import IO;
 import ValueIO;
-import Node;
-import Map;
-
+ 
 void show(loc tmodelLoc){
 
     if(!endsWith(tmodelLoc.path, ".tpl")){

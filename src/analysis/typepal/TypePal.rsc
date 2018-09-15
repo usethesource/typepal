@@ -12,30 +12,30 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 }
 module analysis::typepal::TypePal
        
-import Set; 
-import Node;
-import Map;
-import IO;
-import List; 
+//import Set; 
+//import Node;
+//import Map;
+//import IO;
+//import List; 
 import ParseTree;
-import String;
+//import String;
 import Message;
-import Exception;
+//import Exception;
 
 extend analysis::typepal::AType;
 extend analysis::typepal::Collector;
-extend analysis::typepal::FailMessage;
-extend analysis::typepal::Messenger;
+//extend analysis::typepal::FailMessage;
+//extend analysis::typepal::Messenger;
 extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::Solver;
 extend analysis::typepal::TypePalConfig;
-extend analysis::typepal::Utils;
+//extend analysis::typepal::Utils;
 
 // collectAndSolve shorthand for a common, simple, scenario
 
-TModel collectAndSolve(Tree pt, TypePalConfig config = tconfig(), bool debug = false){
+TModel collectAndSolve(Tree pt, TypePalConfig config = tconfig()){
     if(pt has top) pt = pt.top;
-    c = newCollector("collectAndSolve", pt, config=config, debug=debug);    // TODO get more meaningfull name
+    c = newCollector("collectAndSolve", pt, config=config);    // TODO get more meaningfull name
     collect(pt, c);
     return newSolver(pt, c.run()).run();
 }
