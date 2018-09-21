@@ -55,13 +55,13 @@ bool defaultReportUnused (loc def, map[loc,Define] definitions, map[loc,loc] sco
 // Extends TypePalConfig defined in analysis::typepal::ScopeGraph
 
 data TypePalConfig(
-        bool verbose                = false,
-        bool showTimes              = false,
-        bool showSolverSteps        = false,
-        bool showSolverIterations   = false,
-        bool showAttempts           = false,
-        bool showTModel             = false,
-        bool validateConstraints    = true,
+        bool verbose               = false,
+        bool logTime               = false,
+        bool logSolverSteps        = false,
+        bool logSolverIterations   = false,
+        bool logAttempts           = false,
+        bool logTModel             = false,
+        bool validateConstraints   = true,
     
         AType() getMinAType                                         
             = AType (){  throw TypePalUsage("`getMinAType()` called but is not specified in TypePalConfig"); },
