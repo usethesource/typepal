@@ -106,7 +106,11 @@ DefInfo defType(list[Tree] dependsOn, AType(Solver s) getAType){
 
 list[loc] getDependencies(DefInfo di){
     if(defType(value contrib) := di){
-        return (loc dependsOn := di.contrib) ? [dependsOn] : [];
+        //return (loc dependsOn := di.contrib) ? [dependsOn] : [];
+        switch(di.contrib){
+            case loc dependsOn: return [dependsOn];
+            case Tree tree:     return [getLoc(tree)];
+        } 
     }
     return di.dependsOn; //di has defines ? di.dependsOn - di.defines : di.dependsOn;
 }

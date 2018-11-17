@@ -61,7 +61,8 @@ data Solver
                         bool () reportedErrors,
     /* Global Info */   TypePalConfig () getConfig,
                         map[loc, AType]() getFacts,
-                        map[str,value]() getStore,
+                        value (str key) getStore,
+                        value (str key, value val) putStore,
                         set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions    // deprecated
     );
    
@@ -146,7 +147,12 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     map[loc, AType] _getFacts() = facts;
     
-    map[str, value] _getStore() = tm.store;
+    value _getStore(str key) = tm.store[key];
+    
+    value _putStore(str key, value val) { 
+        tm.store[key] = val;  
+        return val;
+    }
     
     // State of Solver
     
@@ -1715,6 +1721,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
            /* Global Info */    _getConfig,
                                 _getFacts,
                                 _getStore,
+                                _putStore,
                                 getDefinitions
                      );
     return thisSolver;
