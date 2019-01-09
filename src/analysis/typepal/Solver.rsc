@@ -760,7 +760,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     selectorType = _getTypeInType(tp, selector, idRolesSel, scope);
                     //selectorType = getTypeInNamelessTypeFun(tp, selector, scope, thisSolver);
                     valid_overloads += <key, role, selectorType>;
-                } catch checkFailed(list[Message] _): ; // do nothing and try next overload
+                } catch checkFailed(list[FailMessage] _): ; // do nothing and try next overload
                   catch NoBinding(): ; // do nothing and try next overload
 //>>              catch e: 
             }

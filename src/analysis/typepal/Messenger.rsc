@@ -16,7 +16,7 @@ import analysis::typepal::Utils;
 
 // Is inner location textually contained in outer location?
 bool containedIn(loc inner, loc outer){
-    return inner.path == outer.path && inner.offset >= outer.offset && inner.offset + inner.length <= outer.offset + outer.length;
+    return inner.path == outer.path && (!outer.offset? || inner.offset >= outer.offset && inner.offset + inner.length <= outer.offset + outer.length);
 }
 
 list[Message] sortMostPrecise(list[Message] messages)
@@ -41,8 +41,11 @@ str intercalateAnd(list[str] strs){
     switch(size(strs)){
       case 0: return "";
       case 1: return strs[0];
-      default: 
-              return intercalate(", ", strs[0..-1]) + " and " + strs[-1];
+      default: {
+                dist = distribution(strs);
+                newstrs = [(dist[key] > 1 ? "<dist[key]> x " : "") + key | key <- dist];
+                return intercalate(", ", newstrs[0..-1]) + " and " + newstrs[-1];
+               }
       };
 }
 
@@ -50,8 +53,11 @@ str intercalateOr(list[str] strs){
     switch(size(strs)){
       case 0: return "";
       case 1: return strs[0];
-      default: 
-              return intercalate(", ", strs[0..-1]) + " or " + strs[-1];
+      default: {
+                dist = distribution(strs);
+                newstrs = [(dist[key] > 1 ? "<dist[key]> x " : "") + key | key <- dist];
+                return intercalate(", ", newstrs[0..-1]) + " or " + newstrs[-1];
+               }
       };
 }
     

@@ -342,7 +342,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 lubDefinesPerLubScope[currentLubScope] += <uid, currentScope, idRole, l, info>;
             } else {
                 //println("define: add to definesPerLubScope[<currentLubScope>]: <<currentScope, id, idRole, l, info>>");
-                definesPerLubScope[currentLubScope] += <currentScope, uid, idRole, l, info>;
+                definesPerLubScope[currentLubScope] += <currentScope, uid, idRole, l, info>; 
             }
         } else {
             throw TypePalUsage("Cannot call `define` on Collector after `run`");
