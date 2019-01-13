@@ -1,8 +1,8 @@
 module analysis::typepal::AType
 
-import String;
+//import String;
 import List;
-import Set;
+//import Set;
 import analysis::typepal::FailMessage;
 extend analysis::typepal::ScopeGraph;
 

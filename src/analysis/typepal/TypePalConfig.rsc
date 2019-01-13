@@ -48,7 +48,7 @@ AType defaultGetTypeInTypeFromDefine(Define containerDef, str selectorName, set[
   
 str defaultUnescapeName(str s) { return replaceAll(s, "\\", ""); }
 
-bool defaultReportUnused (loc def, map[loc,Define] definitions, map[loc,loc] scopes, TypePalConfig config) {
+bool defaultReportUnused (loc def, TModel tm /*map[loc,Define] definitions, map[loc,loc] scopes, TypePalConfig config*/) {
     return false;
 }
 
@@ -103,5 +103,5 @@ data TypePalConfig(
         TModel(map[str,Tree] namedTrees, TModel tm) preSolver = TModel(map[str,Tree] namedTrees, TModel tm) { return tm; },    
         void (map[str,Tree] namedTrees, Solver s) postSolver  = void(map[str,Tree] namedTrees, Solver s) { return ; },
         
-        bool(loc def, map[loc,Define] definitions, map[loc,loc] scopes, TypePalConfig config) reportUnused = defaultReportUnused
+        bool(loc def, TModel tm /*map[loc,Define] definitions, map[loc,loc] scopes, TypePalConfig config*/) reportUnused = defaultReportUnused
     );

@@ -52,6 +52,7 @@ data Collector
                          bool (list[FailMessage] msgs) reports,
      /* Define */        void (str id, IdRole idRole, value def, DefInfo info) define,
                          void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope,
+                         bool (str id, Tree useOrDef) isAlreadyDefined,
      /* Use */           void (Tree occ, set[IdRole] idRoles) use,
                          void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) useQualified,
                          void (Tree container, Tree selector, set[IdRole] idRolesSel) useViaType,
@@ -319,7 +320,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     void _define(str id, IdRole idRole, value def, DefInfo info){
         if(building){
-            loc l;
+            loc l = |undefined:///|;
             if(Tree tdef := def) l = getLoc(tdef);
             else if(loc ldef := def) l = ldef;
             else throw TypePalUsage("Argument `def` of `define` should be `Tree` or `loc`, found <typeOf(def)>");
@@ -332,7 +333,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             if(info is defTypeLub /*&& isEmpty(definesPerLubScope[currentLubScope][currentScope, id])*/){  
                 // Look for an outer variable declaration of id that overrules the defTypeLub   
                 for(Define def <- defines + definesPerLubScope[currentLubScope]){
-                    if(def.id == id && config.isInferrable(def.idRole) /* == variableId()*/){
+                    if(def.id == id && config.isInferrable(def.idRole)){
                         if(def.scope in scopeStack<0>) {
                             uses += use(uid, l, currentScope, {def.idRole});
                             return;
@@ -348,15 +349,27 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             throw TypePalUsage("Cannot call `define` on Collector after `run`");
         }
     }
+    
+    bool _isAlreadyDefined(str id,  Tree useOrDef){
+        lubdefs = lubDefinesPerLubScope[currentLubScope][id];
+        if(!isEmpty(lubdefs) && any(<scope, idRole, l, info> <- lubdefs, containedIn(getLoc(useOrDef), scope))){
+            return true;
+        }
+        for(<loc scope, str id1, IdRole idRole, loc defined, DefInfo defInfo> <- defines, 
+             id == id1, config.isInferrable(idRole), containedIn(getLoc(useOrDef), scope)){
+            return true;
+        }
+        return false;
+    }
         
     void _defineInScope(value scope, str id, IdRole idRole, value def, DefInfo info){
         if(building){
-            loc definingScope;
+            loc definingScope = |undefined:///|;
             if(Tree tscope := scope) definingScope = getLoc(tscope);
             else if(loc lscope := scope) definingScope = lscope;
             else throw TypePalUsage("Argument `scope` of `defineInScope` should be `Tree` or `loc`, found <typeOf(scope)>");
             
-            loc l;
+            loc l = |undefined:///|;
             if(Tree tdef := def) l = getLoc(tdef);
             else if(loc ldef := def) l = ldef;
             else throw TypePalUsage("Argument `def` of `defineInScope` should be `Tree` or `loc`, found <typeOf(def)>");
@@ -371,7 +384,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             throw TypePalUsage("Cannot call `defineInScope` on Collector after `run`");
         }
     }
-       
+   
     void _use(Tree occ, set[IdRole] idRoles) {
         if(building){
           //if(currentScope == globalScope) throw TypePalUsage("`use` requires a user-defined scope; missing `enterScope`");
@@ -827,8 +840,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         rel[str id, loc idScope, set[IdRole] idRoles, loc occ] uselubs_in_lubscope = lubUsesPerLubScope[lubScope];  
          
         
-        set[Define] local_fixed_defines = definesPerLubScope[lubScope];
-        extra_defines += local_fixed_defines;
+        set[Define] local_fixed_defines = definesPerLubScope[lubScope]; //{ def | def <- definesPerLubScope[lubScope], config.isInferrable(def.idRole) };
+        extra_defines += definesPerLubScope[lubScope];
+        //extra_defines += local_fixed_defines;
         
         rel[str, loc] local_fixed_defines_scope = local_fixed_defines<1,0>;
         set[str] ids_with_fixed_def = domain(local_fixed_defines_scope);
@@ -1047,6 +1061,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                             _reports,
         /* Define */        _define,
                             _defineInScope,
+                            _isAlreadyDefined,
         /* Use */           _use, 
                             _useQualified, 
                             _useViaType,

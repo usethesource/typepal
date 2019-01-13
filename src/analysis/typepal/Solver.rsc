@@ -104,7 +104,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     AType(AType containerType, Tree selector, loc scope, Solver s) getTypeInNamelessTypeFun = defaultGetTypeInNamelessType;
     
-    bool(loc def, map[loc, Define] definitions, map[loc,loc] scopes, TypePalConfig config) reportUnused = defaultReportUnused;
+    bool(loc def, TModel tm /*map[loc, Define] definitions, map[loc,loc] scopes, TypePalConfig config*/) reportUnused = defaultReportUnused;
     
     void configTypePal(TypePalConfig tc){
         configScopeGraph(tc);
@@ -1357,10 +1357,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         if(logSolverSteps) println("..... handle <size(defines)> defines");
         for(Define def <- defines){
             try {
-                // TODO: enable when there is a config function to filter this
-                if(def.defined notin def2uses && reportUnused(def.defined, tm.definitions, tm.scopes, tm.config)){ 
-                    messages += warning("Unused <prettyRole(def.idRole)> `<def.id>`", def.defined); 
-                }
+                //if(def.defined notin def2uses && reportUnused(def.defined, tm.definitions, tm.scopes, tm.facts, tm.config)){ 
+                //    messages += warning("Unused <prettyRole(def.idRole)> `<def.id>`", def.defined); 
+                //}
                 evalDef(def);
             } catch checkFailed(list[FailMessage] fms): {
                 failMessages += fms;
@@ -1674,9 +1673,32 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
           }
           
           tm.specializedFacts = specializedFacts;
-          tm.messages = sortMostPrecise(toList(toSet(messages)));
-          
           tm.useDef = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
+          
+          ldefines = for(tup: <loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo> <- tm.defines){
+                            if((defInfo has getAType || defInfo has getATypes)){
+                                       try {                   
+                                           dt = defType(tm.facts[defined]);
+                                           if(defInfo.vis?) dt.vis = defInfo.vis;
+                                           if(defInfo.canFail?) dt.canFail = defInfo.canFail;
+                                           if(defInfo.tags?) dt.tags = defInfo.tags;
+                                           tup.defInfo = dt;
+                                           
+                                       } catch NoSuchKey(k): {
+                                         continue;
+                                       }
+                                    } 
+                                    append tup;
+                          };
+          tm.defines = toSet(ldefines);
+                          
+          for(Define def <- tm.defines){
+                if(def.defined notin def2uses && reportUnused(def.defined, tm)){ 
+                    messages += warning("Unused <prettyRole(def.idRole)> `<def.id>`", def.defined); 
+                }
+           }
+          
+          tm.messages = sortMostPrecise(toList(toSet(messages)));
          
           if(logSolverSteps) println("Derived facts: <size(tm.facts)>");
           solverEnded = cpuTime();

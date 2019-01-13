@@ -6,7 +6,6 @@ import Exception;
 import String;
 import Set;
 import List;
-import IO;
 
 extend analysis::typepal::AType;
 import analysis::typepal::FailMessage;
@@ -140,8 +139,6 @@ Message fmt(str severity, value subject, str msg, TypeProvider getType, list[val
         fmsg = interpolate(msg, getType, args);
     } catch value e: {
         throw TypePalUsage("formatting the message: `<msg>` failed for `<subject>` with args: <args>");
-        //println("formatting the message: `<msg>` failed for `<subject>` with args: <args>");
-        throw e;
     }
     loc sloc = |unknown:///|;
     if(loc l := subject) sloc = l;
