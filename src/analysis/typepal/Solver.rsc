@@ -1679,10 +1679,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                             if((defInfo has getAType || defInfo has getATypes)){
                                        try {                   
                                            dt = defType(tm.facts[defined]);
-                                           if(defInfo.vis?) dt.vis = defInfo.vis;
-                                           if(defInfo.canFail?) dt.canFail = defInfo.canFail;
-                                           if(defInfo.tags?) dt.tags = defInfo.tags;
-                                           tup.defInfo = dt;
+                                           tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo));
                                            
                                        } catch NoSuchKey(k): {
                                          continue;
