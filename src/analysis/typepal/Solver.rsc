@@ -257,34 +257,34 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     // ---- validation
     
-    void validateTriggers(){
-        return;
-        int nissues = 0;
-        for(Calculator calc <- calculators){
-            deps = calcType(loc src, AType atype) := calc ? getDependencies(atype) : calc.dependsOn;
-            
-            for(loc dep <- deps){
-                if(!(facts[dep]? || calc in (triggersCalculator[dep] ? {}))){
-                    println("Not a fact or trigger for: <dep>");
-                    print(calc, "\t", facts);
-                    println("\t<calc>");
-                    nissues += 1;
-                }
-            }
-        }
-    
-        for(Requirement req <- requirements){
-            for(loc dep <- req.dependsOn){
-                if(!(facts[dep]? || req in (triggersRequirement[dep] ? {}))){
-                    println("Not a fact or trigger for: <dep>");
-                    print(req, "\t", facts);
-                    println("\t<req>");
-                    nissues += 1;
-                }
-            }
-        }
-        if(nissues > 0) throw "Found <nissues> incomplete triggers"; 
-    }
+    //void validateTriggers(){
+    //    return;
+    //    int nissues = 0;
+    //    for(Calculator calc <- calculators){
+    //        deps = calcType(loc src, AType atype) := calc ? getDependencies(atype) : calc.dependsOn;
+    //        
+    //        for(loc dep <- deps){
+    //            if(!(facts[dep]? || calc in (triggersCalculator[dep] ? {}))){
+    //                println("Not a fact or trigger for: <dep>");
+    //                print(calc, "\t", facts);
+    //                println("\t<calc>");
+    //                nissues += 1;
+    //            }
+    //        }
+    //    }
+    //
+    //    for(Requirement req <- requirements){
+    //        for(loc dep <- req.dependsOn){
+    //            if(!(facts[dep]? || req in (triggersRequirement[dep] ? {}))){
+    //                println("Not a fact or trigger for: <dep>");
+    //                print(req, "\t", facts);
+    //                println("\t<req>");
+    //                nissues += 1;
+    //            }
+    //        }
+    //    }
+    //    if(nissues > 0) throw "Found <nissues> incomplete triggers"; 
+    //}
        
     void validateDependencies(){
         availableCalcs = {};
@@ -474,8 +474,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             }
             return true;
         } catch TypeUnavailable(): return false; /* cannot yet compute type */
-        
-        return false;
     }
     
     bool evalCalc(calc: calcLoc(loc src, [loc from])){
@@ -486,8 +484,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             fireTrigger(src);
             return true;
         } catch TypeUnavailable(): return false; /* cannot yet compute type */
-
-        return false;
     }
     
     bool evalCalc(calc:calc(str cname, loc src, list[loc] dependsOn,  AType(Solver tm) getAType)){
@@ -572,7 +568,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             if(!_equal(getType(l), getType(r))) { failMessages += fm; }
             return true;
         } catch TypeUnavailable(): return false; 
-        return false;
     }
     
     bool evalReq(req:reqComparable(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)){
@@ -581,7 +576,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             if(!_comparable(getType(l), getType(r))) { failMessages += fm; }
             return true;
         } catch TypeUnavailable(): return false;
-        return false;
     }
     
     bool evalReq(req:reqSubtype(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)){
@@ -590,7 +584,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             if(!_subtype(getType(l), getType(r))) { failMessages += fm; }
             return true;
         } catch TypeUnavailable(): return false;
-        return false;
     }
     
     bool evalReq(req:reqUnify(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)){
@@ -599,7 +592,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             if(!_unify(getType(l), getType(r))) { failMessages += fm; }
             return true;
         } catch TypeUnavailable(): return false;
-        return false;
     }
     
     bool evalReq(req:reqError(loc src, list[loc] dependsOn, FailMessage fm)){
@@ -666,8 +658,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         } catch NoSuchKey(_):
             throw TypeUnavailable();
-            
-        throw "getType cannot handle <v>";
     }
     
      AType getTypeInScopeFromName0(str name, loc scope, set[IdRole] idRoles){
@@ -683,6 +673,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
              _reports([error(d, "Double declaration of %q in %v", name, foundDefs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
           }
         }
+        throw TypeUnavailable();
     }
     
     //@memo
@@ -719,6 +710,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
              _reports([error(d, "Double declaration of %q in %v", id, foundDefs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
           }
         }
+        throw TypeUnavailable();
     }
     
     //@memo
@@ -839,6 +831,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 _report(error(selector, "No definition for %q in type %t", "<selector>", containerType));
             }
          }
+        throw checkFailed([error(selector, "getTypeInTypes")]);
     }
      
     rel[str id, AType atype] _getAllDefinedInType(AType containerType, loc scope, set[IdRole] idRoles){
@@ -851,11 +844,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     results += { <id, getType(defInfo)> |  <str id, IdRole idRole, loc defined, DefInfo defInfo> <- defines[containerDef.defined] ? {}, idRole in idRoles };
                 }
                 return results;
-             } catch AmbiguousDefinition(set[loc] foundDefs): {
-                //if(!mayOverloadFun(foundDefs, definitions)){
-                    messages += [error("Double declaration", defined) | defined  <- foundDefs];
-                    return results;
-                //}
+             } catch AmbiguousDefinition(set[loc] foundDefs): {               //if(!mayOverloadFun(foundDefs, definitions)){
+                messages += [error("Double declaration", defined) | defined  <- foundDefs];
                 return results;
              }      
          } else {
@@ -1378,7 +1368,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             register(req);
         }
         
-        validateTriggers();
+        //validateTriggers();
         
         int initRegisterTime = cpuTime() - now;
        

@@ -403,6 +403,7 @@ public set[loc] lookupWide(TModel tm, Use u){
             }
         }
      }
+     throw NoBinding();
 }
 
 // Language-specific acceptance in case of multiple outcomes
