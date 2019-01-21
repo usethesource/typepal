@@ -67,7 +67,7 @@ str spinChar(int n)
     = n < 0 ? "|" : (0: "|", 1: "/", 2: "-", 3: "\\")[n%4];
 
 bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, bool verbose = false, set[str] runOnly = {}, str runName = ""){
-    TTL ttlProgram;
+    TTL ttlProgram = [TTL] "";
     
     map[tuple[str, loc], list[Message]]failedTests = ();
     ntests = 0;
@@ -176,9 +176,6 @@ loc relocate(loc osrc, loc base){
                                    : osrc.end.column;
     
     return |<base.scheme>://<base.authority>/<base.path>|(offset, length, <beginline, begincolumn>, <endline, endcolumn>);
-    
-    //println("relocate with base <base>: from <osrc> to <nsrc>");
-    return nsrc;
 }
 
 //loc relocate(loc osrc, loc base) = (base.top)[offset = base.offset + osrc.offset][length = osrc.length];

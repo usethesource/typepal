@@ -658,6 +658,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         } catch NoSuchKey(_):
             throw TypeUnavailable();
+        throw "getType cannot return type for <v>";
     }
     
      AType getTypeInScopeFromName0(str name, loc scope, set[IdRole] idRoles){
