@@ -133,6 +133,32 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
     return ok;
 }
 
+lrel[&T, set[str]] extractTests(list[loc] suites, type[&T<:Tree] begin) {
+    result = [];
+    for(suite <- suites){
+        tr = parse(#start[TTL], suite, allowAmbiguity=true);
+        TTL ttlProgram;
+        if(amb(set[Tree] alternatives) := tr){
+            ttlProgram = visit(tr){ case amb(set[Tree] alternatives1) => getOneFrom(alternatives1) }.top;
+        } else {
+            ttlProgram = visit(tr.top){ case amb(set[Tree] alternatives2) => getOneFrom(alternatives2) };
+        }
+        
+        for(TTL_TestItem ti <- ttlProgram.items){
+            t = parse(begin, "<ti.tokens>");
+            result += <relocate(t, ti.tokens@\loc), ti.expect is none ? {} : {deescape("<s>"[1..-1]) | TTL_String s <- ti.expect.messages}>;
+        }
+    }
+    return result;
+}
+
+&T<:Tree relocate(&T<:Tree t, loc base) {
+    return visit (t) {
+        case Tree tt => tt[@\loc = relocate(tt@\loc, base)]
+            when tt has \loc
+    };
+}
+
 loc relocate(loc osrc, loc base){
     //println("relocate: <osrc>, <base>");
     nsrc = base;
