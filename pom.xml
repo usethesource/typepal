@@ -69,7 +69,36 @@
 		</snapshotRepository>
 	</distributionManagement>
 
-
-
-
+	<pluginRepositories>
+		<pluginRepository>
+			<id>usethesource</id>
+			<url>http://nexus.usethesource.io/content/repositories/public/</url>
+		</pluginRepository>
+	</pluginRepositories>
+	
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.rascalmpl</groupId>
+				<artifactId>rascal-maven-plugin</artifactId>
+				<version>0.0.1-SNAPSHOT</version>
+				<configuration>
+					<bin>${project.build.outputDirectory}</bin>
+					<srcs>
+						<src>${project.basedir}/src</src>
+					</srcs>
+					<errorsAsWarnings>true</errorsAsWarnings>
+				</configuration>
+				<executions>
+					<execution>
+						<id>typepal-compile</id>
+						<phase>compile</phase>
+						<goals>
+							<goal>compile-rascal</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 </project>
