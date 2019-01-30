@@ -1288,6 +1288,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         bindings = ();
         messages = tm.messages;
         failMessages = [];
+        
+        println("checking <tm.modelName>");
            
         if(logSolverIterations) println("<tm.modelName>, initial -- calculators: <size(calculators)>; requirements: <size(requirements)>; uses: <size(tm.uses)>; facts: <size(facts)>");
              

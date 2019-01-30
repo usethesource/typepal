@@ -137,7 +137,7 @@ lrel[&T, set[str]] extractTests(list[loc] suites, type[&T<:Tree] begin) {
     result = [];
     for(suite <- suites){
         tr = parse(#start[TTL], suite, allowAmbiguity=true);
-        TTL ttlProgram;
+        TTL ttlProgram = [TTL] "";
         if(amb(set[Tree] alternatives) := tr){
             ttlProgram = visit(tr){ case amb(set[Tree] alternatives1) => getOneFrom(alternatives1) }.top;
         } else {
