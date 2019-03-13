@@ -846,7 +846,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 }
                 return results;
              } catch AmbiguousDefinition(set[loc] foundDefs): {               //if(!mayOverloadFun(foundDefs, definitions)){
-                messages += [error("Double declaration", defined) | defined  <- foundDefs];
+                messages += [error("Double declaration of `<definitions[defined].id>`", defined) | defined  <- foundDefs];
                 return results;
              }      
          } else {
@@ -1298,31 +1298,17 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         validateDependencies();
         
         resolvePaths();
-        
-        // Check for illegal overloading in the same scope
-        if(logSolverSteps) println("..... filter doubles in <size(defines)> defines");
-        int now = cpuTime();
-       
-        for(<scope, id> <- defines<0,1>){
-            foundDefines = defines[scope, id];
-            if(size(foundDefines) > 1){
-                 ds = {defined | <IdRole idRole, loc defined, DefInfo defInfo> <- foundDefines};
-                if(!mayOverloadFun(ds, definitions)){
-                    messages += [error("Double declaration of `<id>` found at <foundDefines<1>>", defined) | <IdRole idRole, loc defined, DefInfo defInfo>  <- foundDefines];
-                }
-            }
-        }
-      
-        int initFilterDoublesTime = cpuTime() - now;
        
         // Check that all uses have a definition and that all overloading is allowed
         if(logSolverSteps) println("..... lookup <size(tm.uses)> uses");
-        now = cpuTime();
+        int now = cpuTime();
          
+        actuallyUsedDefs = {};
         for(Use u <- tm.uses){
             try {
                foundDefs = lookupFun(tm, u);
                foundDefs = { fd | fd <- foundDefs, definitions[fd].idRole in u.idRoles };
+               actuallyUsedDefs += foundDefs;
                if(isEmpty(foundDefs)){
                     throw NoBinding();
                } else 
@@ -1332,7 +1318,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                   openUses += u;
                   if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
                 } else {
-                    messages += [error("Double declaration", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
+                    messages += [error("Double declaration of `<getId(u)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
                     if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }
@@ -1343,6 +1329,41 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             }
         }
         int initCheckUsesTime = cpuTime() - now;
+        
+        // Check for illegal overloading
+        if(logSolverSteps) println("..... filter doubles in <size(defines)> defines");
+        now = cpuTime();
+        
+        unusedDefs = domain(definitions) - actuallyUsedDefs;
+        for(ud <- unusedDefs){
+            udef = definitions[ud];
+            scope = udef.scope;
+            id = udef.id;
+            idRole = udef.idRole;
+            defined = udef.defined;
+        
+            u = use(id, defined, scope, {idRole}); // turn each def into a use and check for double declarations;
+            try {
+               foundDefs = lookupFun(tm, u);
+               foundDefs = { fd | fd <- foundDefs, definitions[fd].idRole in u.idRoles };
+               if(isEmpty(foundDefs)){
+                    throw TypePalInternalError("No binding found while checking for double definitions"); 
+               } else 
+               if(size(foundDefs) == 1 || mayOverloadFun(foundDefs, definitions)){
+                  definedBy[u.occ] = foundDefs;
+                  for(def <- foundDefs) def2uses[def] = (def2uses[def] ? {}) + u;
+                  if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
+                } else {
+                    messages += [error("Double declaration of `<getId(u)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
+                    if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
+                }
+            }
+            catch NoBinding(): {
+                throw TypePalInternalError("No binding found while checking for double definitions"); 
+            }  
+        }
+      
+        int initFilterDoublesTime = cpuTime() - now;
         
         // Process all defines (which may create new calculators/facts)
         
@@ -1465,7 +1486,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                             }
                           } 
                         } else {
-                            messages += [error("Double declaration", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
+                            messages += [error("Double declaration of `<getId(u)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
                             if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                         }
                     } catch NoBinding(): {
