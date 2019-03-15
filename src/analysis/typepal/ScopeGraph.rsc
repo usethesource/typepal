@@ -25,7 +25,7 @@ data Tree;      // workaround for bug in interpreter
 data Solver;
 
 data TypePalConfig(
-        set[loc] (TModel, Use) lookup       = lookupWide,
+        set[loc] (TModel, Use) lookup       = lookup,
        
         Accept (TModel tm, loc def, Use use) isAcceptableSimple     = defaultIsAcceptableSimple,
         Accept (TModel tm, loc def, Use use) isAcceptableQualified  = defaultIsAcceptableQualified,
@@ -212,7 +212,7 @@ private loc lookupNest(TModel tm, loc scope, Use u){
     try 
         return lookupQual(tm, scope, u);
     catch NoBinding(): {
-        if(tm.scopes[scope] ?){
+        if(tm.scopes[scope] ? && tm.scopes[scope] != scope){
            parent = tm.scopes[scope];
            if(luDebug)println("\tlookupNest: <scope>, <u> move up to <parent>");
            return lookupNest(tm, parent, u);
