@@ -52,6 +52,7 @@ str intercalateOr(list[str] strs){
     switch(size(strs)){
       case 0: return "";
       case 1: return strs[0];
+      case 2: return strs[0] == strs[1] ? strs[0] : "<strs[0]> or <strs[1]>";
       default: {
                 dist = distribution(strs);
                 newstrs = [(dist[key] > 1 ? "<dist[key]> x " : "") + key | key <- dist];
