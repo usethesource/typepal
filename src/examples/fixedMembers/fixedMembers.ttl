@@ -1,0 +1,14 @@
+test OkFixedMember1 [[
+    module m1{
+    	fun foo{ }
+    }
+    
+    module m2
+    
+    import m1;
+    
+    {
+   		//m1.setup;
+   		m1.foo();
+    }
+]]

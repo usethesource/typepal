@@ -1,0 +1,13 @@
+test M1 [[ class C extends Object {
+                C() { super(); }
+           } ]]
+           
+test M2 [[ class C extends Object1 {
+                C() { super(); }
+           } 
+        ]] expect{ "Reference to name `Object1` cannot be resolved" }
+
+test M3 [[ class C extends Object {
+                D() { super(); }
+           } 
+        ]] expect{ "Expected constructor name `C`, found `D`" }

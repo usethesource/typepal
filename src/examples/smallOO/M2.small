@@ -1,0 +1,11 @@
+module M2
+    
+    class A {
+        int f(int p) = p + 2;
+    }
+    
+    class B {
+        A a;
+        
+        int f(int p) = a.f(p) + p;
+    }

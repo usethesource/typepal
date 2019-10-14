@@ -1,0 +1,187 @@
+test Test0 [[
+	
+    struct s1{
+    
+    	var x: int = 0
+    
+    }
+    
+    struct s2{
+    	
+    	import s1
+    	
+    	var y: s1 = new s1
+    	
+    	var z: int = y.x
+    
+    }
+    
+]]
+
+test Test1 [[
+    // FIXED
+	// Reports double declaration of x but it should not.
+	
+    struct s1{
+    
+    	var x: int = 0
+    
+    }
+    
+    struct s2{
+    	
+    	import s1
+    	
+    	var x: s1 = new s1
+    	
+    	var y: int = x.x
+    
+    }
+    
+]]
+
+test Test2 [[
+	// DISCUSSION: there is no ambiguity here since an import is used. 
+    // It does not report double declaration but for the wrong reasons. 
+	// Apparently there is a bug, if a double declared variable is not used, the error is silent.
+	
+    struct s1{
+    
+    	var x: int = 0
+    
+    }
+    
+    struct s2{
+    	
+    	import s1
+    	
+    	var x: s1 = new s1 
+    }	
+]]
+
+test Test3 [[
+    // RESOLVED DISCUSSION: inner foo is used.
+	// Reports double declaration of foo but it should not.
+	exec m1{
+    
+    	var foo : int = 0
+    
+    }
+    exec m2{
+    
+    	extend m1
+    
+    	var foo: int = 0
+    	
+    	var bar: int = foo // which foo to call?
+    
+    
+    }
+]]
+
+
+test Test4 [[
+// DISCUSSION: in line with the previous test, no double declaration should be reported
+// It does not report double declaration but for the wrong reasons. 
+// Apparently there is a bug, if a double declared variable is not used, the error is silent.
+
+    exec m1{
+    
+    	var foo : int = 0
+    
+    }
+    exec m2{
+    
+    	extend m1
+    
+    	var foo: int = 0
+    
+    
+    }
+]]
+
+
+test Test5 [[
+// Because of multiple inheritance, we need to qualify the call to foo.
+
+    exec m1{
+    
+    	var foo: int = 0
+    
+    }
+    
+    exec m2{
+    
+    	var foo: int = 0
+    
+    }
+    
+    exec m3{
+    
+    	extend m1
+    	extend m2
+    
+    	var bar: int = m1::foo
+    
+    
+    }
+]]
+
+
+test Test6 [[
+//
+	struct s1 {
+		var x: int = 0
+	}
+	
+	struct s2 {
+		var s: s1 = new s1
+	}
+
+    exec m1{
+    
+    	import s2
+    
+    	var x: s2 = new s2
+    	var y: int = x.s.x
+    	
+    
+    }
+]]
+
+test Test7 [[
+//
+	struct s1 {
+		var x: int = 0
+	}
+	
+	struct s2 {
+		var s: s1 = new s1
+	}
+
+    exec m1{
+    
+    	import s2
+    
+    	var x: s2 = new s2
+    	var y: int = x.s.x
+    	
+    
+    }
+    
+    exec m2 {
+    
+    	import s2
+    
+    	extend m1
+    	
+    	var z: s2 = x
+    }
+]]
+
+
+
+
+
+
+

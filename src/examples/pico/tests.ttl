@@ -1,0 +1,150 @@
+test D1 [[
+    begin
+        declare n : natural;
+        n := 1
+    end
+]]
+
+test Undeclared1 [[
+    begin
+        declare n : natural;
+        m := 1
+    end
+]] expect { "Undefined variable `m`" }
+
+test Undeclared2 [[
+    begin
+        declare n : natural;
+        n := 1 + m
+    end
+]] expect { "Undefined variable `m`" }
+ 
+  
+test OkAssign1 [[
+    begin
+        declare n : natural;
+        n := 1
+    end
+]]
+
+test OkAssign2 [[
+    begin
+        declare n : natural, m : natural;
+        n := 1; m := n
+    end
+]]
+
+test WrongAssign1 [[
+    begin
+        declare n : natural;
+        n := "a"
+    end
+]] expect { "Lhs `int` should have same type as rhs" }
+
+test OkPlus1 [[
+    begin
+        declare n : natural;
+        n := 1 + 2
+    end
+]]
+
+test OkPlus2 [[
+    begin
+        declare n : string;
+        n := "a" + "b"
+    end
+]]
+
+test WrongPlus1 [[
+    begin
+        declare n : natural;
+        n := 1 + "a"
+    end
+]] expect { "Operator `+` cannot be applied to `int` and `str`" }
+
+test WrongPlus2 [[
+    begin
+        declare n : natural;
+        n := "a" + 1
+    end
+]] expect { "Operator `+` cannot be applied to `str` and `int`" }
+
+
+test OkMinus [[
+    begin
+        declare n : natural;
+        n := 1 - 2
+    end
+]]
+
+test WrongMinus [[
+    begin
+        declare n : natural;
+        n := 1 - "a"
+    end
+]] expect { "Right argument of `-` should be `int`, found `str`" }
+
+
+test OkIf1 [[
+    begin
+        declare x : natural;
+        if 1 then
+           x := 2
+        else
+            x := 3
+ 
+        fi
+     end
+]]
+
+test WrongIf1 [[
+    begin
+        declare x : natural;
+        if "a" then
+           x := 2
+        else
+            x := 3
+ 
+        fi
+     end
+]] expect { "Condition should be `int`, found `str`" }
+
+test OkWhile1 [[
+    begin
+        declare x : natural;
+        while 1 do
+           x := 2
+        od
+     end
+]]
+
+test WrongWhile1 [[
+    begin
+        declare x : natural;
+        while "a" do
+           x := 2
+        od
+     end
+]] expect { "Condition should be `int`, found `str`" }
+ 
+ test Fac
+ [[
+ begin declare input : natural,  
+              output : natural,      
+              repnr : natural,
+              rep : natural,
+              s1 : string,
+              s2 : string;
+      input := 14;
+      output := 1;
+      while input - 1 do 
+          rep := output;
+          repnr := input;
+          while repnr - 1 do
+             output := output + rep;
+             repnr := repnr - 1
+          od;
+          input := input - 1
+      od
+end
+]]

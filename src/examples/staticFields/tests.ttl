@@ -1,0 +1,35 @@
+test OkProgram1 [[
+    int n = 1;
+]]
+
+test WrongInit1 [[
+    str n = 1;
+]] expect { "Incorrect initialization, expected `str`, found `int`" }
+
+
+test OkNew1 [[
+   struct A { int n, str s };
+   A a1 = new A;
+   A a2 = a1;
+]]
+
+test OkFieldAccess1 [[
+   struct A { int n, str s };
+   A a = new A;
+   int n = a.n;
+]]
+
+test StaticStringAccess [[
+    str s = "a";
+    int n = s.length;
+]]
+
+test StaticStringAccessUnkownField [[
+    str s = "a";
+    int n = s.xyz;
+]] expect { "Undefined field `xyz` on `str`" }
+
+test StaticStringAccessWrongInit [[
+    str s = "a";
+    str n = s.length;
+]] expect { "Incorrect initialization, expected `str`, found `int`" }

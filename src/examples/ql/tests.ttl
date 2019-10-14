@@ -1,0 +1,104 @@
+test Form1 [[ form F { } ]]
+
+test Question1a [[ form F { "abc" x : boolean } ]]
+test Question1b [[ form F { "abc" x : boolean [true] } ]]
+test Question1c [[ form F { "abc" x : boolean [123] } ]] 
+expect { "Incompatible expression type `integer`, expected `boolean`" }
+
+test Question2a [[ form F { "abc" x : string } ]]
+test Question2b [[ form F { "abc" x : string ["abc"] } ]]
+test Question2c [[ form F { "abc" x : string [123] } ]]
+expect { "Incompatible expression type `integer`, expected `string`" }
+
+test Question3a [[ form F { "abc" x : integer } ]]
+test Question3b [[ form F { "abc" x : integer [123] } ]]
+test Question3c [[ form F { "abc" x : integer [true]} ]]
+expect { "Incompatible expression type `boolean`, expected `integer`" }
+
+test Question4a [[ form F { "abc" x : money } ]]
+test Question4b [[ form F { "abc" x : money [12.3] } ]]
+test Question4c [[ form F { "abc" x : money [true]} ]]
+expect { "Incompatible expression type `boolean`, expected `money`" }
+
+test Comp1a [[ form F { "abc" x : integer = 1 } ]]
+test Comp1b [[ form F { "abc" x : integer = 1 [2]} ]]
+test Comp1c [[ form F { "abc" x : integer = 1 [true]} ]]
+expect { "Incompatible expression type `boolean`, expected `integer`" }
+
+test IfThen1 [[ form F { if(true) "abc" x : integer } ]]
+test IfThen2 [[ form F { if(123) "abc" x : integer } ]]
+expect { "Condition should be boolean, found `integer`" }
+
+test IfThenElse1  [[ form F { if(true) "abc" x : integer else "def" y : string } ]]
+test IfThenElse2  [[ form F { if(123) "abc" x : integer else "def" y : string } ]]
+expect{ "Condition should be boolean, found `integer`" }
+
+test Var1 [[ form F { "abc" x : integer = 1 "def" y : integer = x } ]]
+test Var2 [[ form F { "abc" x : integer = y "def" y : integer = 1 } ]]
+test Var3 [[ form F { "abc" x : integer = 1 "def" y : integer = z } ]] expect { "Undefined variable `z`" }
+test Var4 [[ form F { "abc" x : integer = 1 "def" x : integer = x } ]] expect { "Double declaration of `x`" }
+
+test Mul1 [[ form F { "abc" x : integer = 1 * 2 } ]]
+test Mul2 [[ form F { "abc" x : integer = true * 2 } ]]
+expect { "Illegal arguments `boolean` and `integer` for `*`" }
+test Mul3 [[ form F { "abc" x : integer = 1 * true } ]]
+expect { "Illegal arguments `integer` and `boolean` for `*`" }
+
+test Div1 [[ form F { "abc" x : integer = 1 / 2 } ]]
+test Div2 [[ form F { "abc" x : integer = true / 2 } ]]
+expect { "Illegal arguments `boolean` and `integer` for `/`" }
+test Div3 [[ form F { "abc" x : integer = 1 / true } ]]
+expect { "Illegal arguments `integer` and `boolean` for `/`" }
+
+test Add1 [[ form F { "abc" x : integer = 1 + 2 } ]]
+test Add2 [[ form F { "abc" x : integer = true + 2 } ]]
+expect { "Illegal arguments `boolean` and `integer` for `+`" }
+test Add3 [[ form F { "abc" x : integer = 1 + true } ]]
+expect { "Illegal arguments `integer` and `boolean` for `+`" }
+
+test Sub1 [[ form F { "abc" x : integer = 1 - 2 } ]]
+test Sub2 [[ form F { "abc" x : integer = true - 2 } ]]
+expect { "Illegal arguments `boolean` and `integer` for `-`" }
+test Sub3 [[ form F { "abc" x : integer = 1 - true } ]]
+expect { "Illegal arguments `integer` and `boolean` for `-`" }
+
+test Less1 [[ form F { "abc" x : boolean = 1 < 2 } ]]
+test Less2 [[ form F { "abc" x : boolean = true < 2 } ]]
+expect { "Illegal arguments `boolean` and `integer` for `/\<`" }
+test Less3 [[ form F { "abc" x : boolean = 1 < true } ]]
+expect { "Illegal arguments `integer` and `boolean` for `/\<`" }
+
+test LessEq1 [[ form F { "abc" x : boolean = 1 <= 2 } ]]
+test LessEq2 [[ form F { "abc" x : boolean = true <= 2 } ]]
+expect { "Illegal arguments `boolean` and `integer` for `/\<=`" }
+test LessEq3 [[ form F { "abc" x : boolean = 1 <= true } ]]
+expect { "Illegal arguments `integer` and `boolean` for `/\<=`" }
+
+test Greater1 [[ form F { "abc" x : boolean = 1 > 2 } ]]
+test Greater2 [[ form F { "abc" x : boolean = true > 2 } ]]
+expect { "Illegal arguments `boolean` and `integer` for `/\>`" }
+test Greater3 [[ form F { "abc" x : boolean = 1 > true } ]]
+expect { "Illegal arguments `integer` and `boolean` for `/\>`" }
+
+test GreaterEq1 [[ form F { "abc" x : boolean = 1 >= 2 } ]]
+test GreaterEq2 [[ form F { "abc" x : boolean = true >= 2 } ]]
+expect { "Illegal arguments `boolean` and `integer` for `/\>=`" }
+test GreaterEq3 [[ form F { "abc" x : boolean = 1 >= true } ]]
+expect { "Illegal arguments `integer` and `boolean` for `/\>=`" }
+
+test Equal1 [[ form F { "abc" x : boolean = 1 == 2 } ]]
+test Equal2 [[ form F { "abc" x : boolean = true == 2 } ]] expect { "Illegal arguments `boolean` and `integer` for `==`" }
+test Equal3 [[ form F { "abc" x : boolean = 1 == true } ]] expect { "Illegal arguments `integer` and `boolean` for `==`" }
+
+test NotEqual1 [[ form F { "abc" x : boolean = 1 != 2 } ]]
+test NotEqual2 [[ form F { "abc" x : boolean = true != 2 } ]] expect { "Illegal arguments `boolean` and `integer` for `!=`" }
+test NotEqual3 [[ form F { "abc" x : boolean = 1 != true } ]] expect { "Illegal arguments `integer` and `boolean` for `!=`" }
+
+
+test And1 [[ form F { "abc" x : boolean = true && true } ]]
+test And2 [[ form F { "abc" x : boolean = 1 && true } ]] expect { "Illegal argument `integer` for `&&`" }
+test And3 [[ form F { "abc" x : boolean = true && 2 } ]] expect { "Illegal argument `integer` for `&&`" }
+
+test Or1 [[ form F { "abc" x : boolean = true || true } ]]
+test Or2 [[ form F { "abc" x : boolean = 1 || true } ]] expect { "Illegal argument `integer` for `||`" }
+test Or3 [[ form F { "abc" x : boolean = true || 2 } ]] expect { "Illegal argument `integer` for `||`" }

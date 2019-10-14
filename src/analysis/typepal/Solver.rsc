@@ -63,7 +63,8 @@ data Solver
                         map[loc, AType]() getFacts,
                         value (str key) getStore,
                         value (str key, value val) putStore,
-                        set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions    // deprecated
+                        set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions,    // deprecated
+                        set[Define] () getAllDefinitions
     );
    
 Solver newSolver(Tree pt, TModel tm){
@@ -104,7 +105,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     AType(AType containerType, Tree selector, loc scope, Solver s) getTypeInNamelessTypeFun = defaultGetTypeInNamelessType;
     
-    bool(loc def, TModel tm /*map[loc, Define] definitions, map[loc,loc] scopes, TypePalConfig config*/) reportUnused = defaultReportUnused;
+    bool(loc def, TModel tm) reportUnused = defaultReportUnused;
     
     void configTypePal(TypePalConfig tc){
         configScopeGraph(tc);
@@ -880,6 +881,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     set[Define] getDefinitions(loc scope, set[IdRole] idRoles)
         = {<scope, id, idRole, defined, defInfo> | <str id, IdRole idRole, loc defined, DefInfo defInfo> <- tm.defines[scope], idRole in idRoles };
+        
+    set[Define] getAllDefinitions() = tm.defines;
     
     // ---- resolvePath -------------------------------------------------------
     
@@ -1753,7 +1756,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                                 _getFacts,
                                 _getStore,
                                 _putStore,
-                                getDefinitions
+                                getDefinitions,
+                                getAllDefinitions
                      );
     return thisSolver;
 }

@@ -1,0 +1,44 @@
+test Int1 [[ 1 ]]
+
+test Bool1 [[ true ]]
+test Bool2 [[ false ]]
+
+test Var1 [[ x ]] expect {"Undefined"}
+
+test Add1 [[ 1 + 2 ]]
+test Add2 [[ 1 + false ]] expect {"No version of + is applicable for `int` and `bool`"}
+test Add3 [[ false + 1 ]] expect {"No version of + is applicable for `bool` and `int`"}
+
+test And1 [[ true && false ]]
+test And2 [[ true && 1 ]] expect {"Expected `bool`, found `int`"}
+test And3 [[ 1 && false ]] expect {"Expected `bool`, found `int`"}
+
+test Bracket1 [[ (1) ]]
+test Bracket2 [[ (true) ]]
+
+test Id1 [[ fun x { x } ]]
+test Id2 [[ fun x { x }(1) ]]
+test Id3 [[ fun x { x }(true) ]]
+
+test Inc1 [[ fun x { x + 1 } ]]
+test Inc2 [[ fun x { x + 1 }(2) ]]
+test Inc3 [[ fun x { x + 1 }(true) ]] expect {"Incorrect type of actual parameter"}
+
+test If1 [[ if true then 1 else 2 fi ]]
+test If2 [[ if true then true else false fi ]]
+test If3 [[ if 1 then 1 else 2 fi ]] expect {"Condition"}
+test If4 [[ if true then 1 else true fi ]] expect {"thenPart"}
+
+test In1 [[ let x = 1 in x end ]]
+test In2 [[ let x = 1 in x + 1 end ]]
+test In3 [[ let x = 1 in x && true end ]] expect {"Expected `bool`, found `int`"}
+test In4 [[ let x = true in x + 1 end ]] expect {"No version of + is applicable for `bool` and `int`"}
+test In5 [[ let id = fun x { x } in id(1) end ]]
+test In6 [[ let id = fun x { x } in id(true) end ]]
+
+test In7 [[ let inc = fun x { x + 1 } in inc(3) end ]]
+test In8 [[ let inc = fun x { x + 1 } in inc(true) end ]] expect { "Incorrect type of actual parameter"}
+test In9 [[ let inc1 = fun x { x + 1 } in 
+            let inc2 = fun x { inc1(x) } in inc2(3) end end ]]
+test In10 [[ let inc1 = fun x { x + 1 } in 
+             let inc2 = fun x2 { inc1(x2) } in inc2(false) end end]] expect {"actual parameter"}

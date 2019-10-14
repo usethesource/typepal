@@ -1,0 +1,39 @@
+class Zero extends Object {
+    Zero(){
+        super();
+    }
+}
+
+class Succ extends Zero {
+    Succ n;
+    Succ(Succ n){
+        super(); this.n = n;
+    }
+}
+
+class Point extends Object {
+    Succ x;
+    Succ y;
+    Point(Succ x, Succ y){
+        super(); this.x = x; this.y = y;
+    }
+    Succ getx() { return this.x; }
+    Succ gety() { return this.y; }
+}
+
+class Color extends Object {
+    Succ c;
+    Color(Succ c){
+        super(); this.c = c;
+    }
+}
+
+class ColoredPoint extends Point {
+    Color c;
+    ColoredPoint(Succ x, Succ y, Color c){
+        super(x, y);
+        this.c = c;
+    }
+    
+    Color getc() { return this.c; }
+}

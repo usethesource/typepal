@@ -1,0 +1,11 @@
+class Zero extends Object {
+    Zero(){
+        super();
+    }
+}
+
+class Zero extends Object {
+    Zero(){
+        super();
+    }
+}

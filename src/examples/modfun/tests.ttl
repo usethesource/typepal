@@ -1,0 +1,60 @@
+test Int1 [[ module A { def x : int = 1; } ]]
+
+test Str1 [[ module A { def x : str = "abc"; } ]]
+
+test Var1 [[ module A { def x : int = y; } ]] expect { "Undefined variable `y`"}
+
+test Add1 [[ module A { def x : int = 1 + 2; } ]]
+test Add2 [[ module A { def x : str = "a" + "b"; } ]]
+test Add3 [[ module A { def x : int = 1 + "a"; } ]] expect {"Arguments of type `int` and `str` not allowed for `+`"}
+test Add4 [[ module A { def x : int = "a" + 2; } ]] expect {"Arguments of type `str` and `int` not allowed for `+`"}
+
+test Bracket1 [[ module A { def x : int = (1); }  ]]
+test Bracket2 [[ module A { def x : str = ("a"); }  ]]
+
+test Id1 [[ module A { def y : int -> int = fun x : int { x }; } ]]
+test Id2 [[ module A { def y : int = fun x : int { x }(1); } ]]
+test Id3 [[ module A { def y : str = fun x : str { x }("a"); } ]]
+
+test Inc1 [[ module A { def y : int -> int = fun x : int { x + 1 }; } ]]
+test Inc2 [[ module A { def y : int = fun x : int { x + 1 }(2); } ]]
+test Inc3 [[ module A { def y : int = fun x : int { x + 1 }("a"); } ]] expect {"actual parameter"}
+
+test Imp1 [[ module A { }
+             module B { import A; } 
+          ]]
+test Imp2 [[ module A { }
+             module B { import X; } 
+          ]]  expect{"Undefined module `X`"}         
+test Imp3 [[ module A { def a : int = 1; }
+             module B { import A; def b : int = a + 2; } 
+          ]]
+test Imp4 [[ module A { def a : int = 1; }
+             module B { import A; def b : int = x + 2; } 
+          ]] expect{"Undefined variable `x`"}
+test Imp5 [[ module A { def a : int = 1; }
+             module B { import A; def b : int = a + "abc"; } 
+          ]] expect{"Arguments of type `int` and `str` not allowed for `+`"}
+          
+test Imp6 [[ module A { def inc : int -> int = fun x : int { x + 1 }; }
+             module B { import A; def b : int = inc(3); } 
+          ]]
+test Imp6 [[ module A { def inc : int -> int = fun x : int { x + 1 }; }
+             module B { import A; def b : int = inc("abc"); } 
+          ]] expect {"actual parameter"}
+          
+test L1   [[ module A {
+                 def a : int = 5;
+             }
+             module B {
+                  import A;
+                  def b : int = 6;
+                  def c : int = 3 + a;
+                  def f : int -> int = fun x : int { x + a };
+             }
+             module C {
+                  import B;
+                  def g : int = f(3);
+                  def h : int = a;
+             }
+          ]]

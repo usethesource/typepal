@@ -1,0 +1,17 @@
+  // DISCUSSION: foo is really ambiguous here!
+    // Reports double declaration of foo but it should not.
+    exec m1{
+    
+        var foo : int = 0
+    
+    }
+    exec m2{
+    
+        extend m1
+    
+        var foo: int = 0
+        
+        var bar: int = foo // which foo to call?
+    
+    
+    }

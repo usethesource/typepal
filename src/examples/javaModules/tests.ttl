@@ -1,0 +1,39 @@
+test M1 [[ 
+package java.util;
+
+public interface Integer {
+}
+
+package x;
+
+public interface X {
+	default java.lang.Integer x() {
+		return 0;
+	}
+}
+
+package a;
+
+public interface A {
+	default java.lang.Integer m() {
+		return 0;
+	}	
+}
+
+package b;
+
+public interface B
+extends a.A
+{
+	
+	default java.lang.Integer p(x.X y) {		
+		return y.x();
+	}
+	
+	default java.lang.Integer q() {		
+		//return m();
+		return 0;
+	}
+}
+]]
+           

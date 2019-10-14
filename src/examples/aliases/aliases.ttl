@@ -1,0 +1,47 @@
+test OkAlias1 [[
+    alias INT = int;
+    INT n = 0;
+]]
+
+test OkAlias2 [[
+    alias INT = int;
+    INT n = 0;
+    int m = n;
+]]
+
+test UndefinedAlias1 [[
+    INT n = 0;
+]] expect { "Undefined _ `INT`" }
+
+test IndirectAlias1 [[
+    alias INT1 = int;
+    alias INT2 = INT1;
+    INT2 n = 0;
+]]
+
+test IndirectAlias2 [[
+    alias INT1 = int;
+    alias INT2 = INT1;
+    INT1 n = 0;
+    INT2 m = n;
+]]
+
+test AliasInStruct1 [[
+    alias INT = int;
+    struct A {INT n, str s};
+    A a = new A;
+    int n = a.n;
+]]
+
+test IndirectAliasInStruct1 [[
+    alias INT1 = int;
+    alias INT2 = INT1;
+    struct A {INT2 n, str s};
+    A a = new A;
+    int n = a.n;
+]]
+
+test CircularAlias1 [[
+    alias INT1 = INT2;
+    alias INT2 = INT1;
+]] expect { "Unresolved type"}

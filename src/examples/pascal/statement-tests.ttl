@@ -1,0 +1,101 @@
+test Asg1 [[ program tst(output); var n : integer; begin n := n end. ]]
+
+test Asg2 [[ program tst(output); const k = 10; var n : integer; begin n := k end. ]]
+
+test Asg3 [[ program tst(output); const k = 10; var x : real; begin x := k end. ]]
+
+test Asg4 [[ program tst(output); const k = 10; var x : real; begin x := k + 1.5 end. ]]
+
+test Asg5 [[ program tst(output); const k = 10; var x : real; begin x := k + 1.5 * x end. ]]
+
+test Asg6 [[ program tst(output); var n : integer; begin n := m end. ]] expect { "Undefined  `m`" }
+
+test Asg7 [[ program tst(output); var n : integer; begin n := 'abc' end. ]] expect {"Incorrect assignment, expected subtype of `integer`, found `string`"}
+
+test Asg8 [[ program tst(output); var n : 0..12; begin n := 3 end. ]] 
+
+test Asg9 [[ program tst(output); var n : 0..12; begin n := 13 end. ]] 
+
+test Asg10 [[ program tst(output); var n : 0..12; m : 2..4; begin n := m end. ]] 
+
+test Asg11 [[ program tst(output); var n : 0..12; m : 'a'..'z'; begin n := m end. ]] expect { "Incorrect assignment, expected subtype of `subrange of integer`, found `subrange of char`" }
+
+test Goto1 [[ program tst(output); var n : integer; begin goto 1; 1: n := 0 end. ]]
+test Goto2 [[ program tst(output); var n : integer; begin goto 2; 1: n := 0 end. ]] expect { "Undefined label `2`" }
+
+test If1 [[ program tst(output); var n : integer; begin if true then n := 1 end. ]]
+
+test If2 [[ program tst(output); var n : integer; begin if n < 0 then n := 1 end. ]]
+
+test If3 [[ program tst(output); var n : integer; begin if 13 then n := 1 end. ]] expect {"Condition should be `boolean`, found `integer`"}
+
+test If4 [[ program tst(output); var n : integer; begin if 13 then n := 1 else n := 2 end. ]] expect {"Condition should be `boolean`, found `integer`"}
+
+test Case1 [[
+    program tst(output); var i: integer; x : real;
+     begin 
+        case i of
+        0: x := 0;
+        2: x := sin(x);
+        end
+    
+     end. 
+ ]]
+ 
+ test Case12 [[
+    program tst(output); var i: integer; x : real;
+     begin 
+        case i of
+        0: x := 0;
+        'a': x := sin(x);
+        end
+    
+     end. 
+ ]] expect { "Case label `\'a\'` should be compatible with selector type `integer`, found `char`" }
+
+test While1 [[ program tst(output); var n : integer; begin while n < 0 do n := 1 end. ]]
+
+test While1 [[ program tst(output); var n : integer; begin while 'a' do n := 1 end. ]] expect { "Condition should be `boolean`, found `char`" }
+
+test Repeat1 [[ program tst(output); var n : integer; begin repeat  n := 1 until n > 0 end. ]]
+
+test Repeat2 [[ program tst(output); var n : integer; begin repeat n := 1 until 'a' end. ]] expect { "Condition should be `boolean`, found `char`" }
+
+test For1 [[ program tst(output); var n : integer; begin for i := 1 to 10 do n := 1 end. ]]
+
+test For2 [[ program tst(output); var n : integer; begin for i := 'a' to 10 do n := 1 end. ]] expect { "Initial and final value should have the same type, found `char` and `integer`" }
+
+test For3 [[ program tst(output); var n : integer; begin for i := 1 to 'z' do n := 1 end. ]] expect { "Initial and final value should have the same type, found `integer` and `char`" }
+
+test For4 [[ program tst(output); var n : integer; begin for i := 1 downto 10 do n := 1 end. ]]
+
+test For5 [[ program tst(output); var n : integer; begin for i := 'a' downto 10 do n := 1 end. ]] expect { "Initial and final value should have the same type, found `char` and `integer`" }
+
+test For4 [[ program tst(output); var n : integer; begin for i := 1 downto 'z' do n := 1 end. ]] expect { "Initial and final value should have the same type, found `integer` and `char`" }
+
+test With1 [[
+    program tst(output);
+    type complex = record re, im : integer end;
+    var c : complex;
+    begin
+        with c do re := 10
+    end.
+]]
+test With2 [[
+    program tst(output);
+    type complex = record re, im : integer end;
+    var c : complex; n : integer;
+    begin
+        with n do re := 10
+    end.
+]] expect { "Reference to type definition cannot be resolved" }
+
+
+test With3 [[
+    program tst(output);
+    type complex = record re, im : integer end;
+    var c : complex; n : integer;
+    begin
+        with c do re1 := 10
+    end.
+]] expect { "Undefined  `re1`" }

@@ -1,0 +1,21 @@
+test Ok1 [[ var x = 1; ]]
+
+test Ok2 [[ var x = 1; var y = x + 2; ]]
+
+test Undef1 [[ var x = y; ]] 
+expect { "Undefined variable `y`" }
+
+test Add1 [[ var x = 1 + 2; ]]
+
+test Add2 [[ var x = true + false; ]]
+
+test Add3 [[ var x = 1 + true; ]] 
+expect { "`+` not defined for `int` and `bool`" }
+
+test If1 [[ var x = if true then 1 else 2; 
+            var y = x + 1;]]
+test If2 [[ var x = if true then 1 else false; ]]
+expect { "Equal types required, found `int` and `bool`" }
+
+test If3 [[ var x = if 1 then 2 else 3; ]] 
+expect { "Condition should be Boolean, found `int`" }

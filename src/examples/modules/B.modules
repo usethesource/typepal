@@ -1,0 +1,5 @@
+module B
+
+struct B1 {
+
+}

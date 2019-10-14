@@ -1,0 +1,10 @@
+  module M
+    
+    class A {
+        int f;
+    }
+    
+    class B {
+        A a;
+        int g(int p) = a.g + p;
+    }

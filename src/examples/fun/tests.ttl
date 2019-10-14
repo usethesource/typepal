@@ -1,0 +1,53 @@
+test Int1 [[ 1 ]]
+
+test Bool1 [[ true ]]
+test Bool2 [[ false ]]
+
+test Var1 [[ x ]] expect {"Undefined variable `x`"}
+
+test Add1 [[ 1 + 2 ]]
+test Add2 [[ 1 + false ]] expect {"Arguments of type `int` and `bool` not allowed for `+`"}
+test Add3 [[ false + 1 ]] expect {"Arguments of type `bool` and `int` not allowed for `+`"}
+test Add4 [[ false + true ]] expect {"Arguments of type `bool` and `bool` not allowed for `+`"}
+test Add5 [[ false + "abc" ]] expect {"Arguments of type `bool` and `str` not allowed for `+`"}
+test Add6 [[ "xyz" + "abc" ]]
+
+
+test And1 [[ true && false ]]
+test And2 [[ true && 1 ]] expect {"Right argument of `&&` should have type `bool`, found `int`"}
+test And3 [[ true && "abc" ]] expect {"Right argument of `&&` should have type `bool`, found `str`"}
+test And4 [[ 1 && false ]] expect {"Left argument of `&&` should have type `bool`, found `int`"}
+test And5 [[ "abc" && false ]] expect {"Left argument of `&&` should have type `bool`, found `str`"}
+
+
+test Bracket1 [[ (true) ]]
+test Bracket2 [[ (1) ]]
+test Bracket3 [[ ("abc") ]]
+
+test Id1 [[ fun x : int { x } ]]
+test Id2 [[ fun x : bool { x }(true) ]]
+test Id3 [[ fun x : int { x }(1) ]]
+test Id4 [[ fun x : str { x }("abc") ]]
+
+test Inc1 [[ fun x : int { x + 1 } ]]
+test Inc2 [[ fun x : int { x + 1 }(2) ]]
+test Inc3 [[ fun x : int { x + 1 }(true) ]] expect {"actual parameter"}
+
+test If1 [[ if true then 1 else 2 fi ]]
+test If2 [[ if true then true else false fi ]]
+test If3 [[ if 1 then 1 else 2 fi ]] expect {"Condition"}
+test If4 [[ if true then 1 else true fi ]] expect {"thenPart"}
+
+test In1 [[ let x : int = 1 in x end ]]
+test In2 [[ let x : int = 1 in x + 1 end ]]
+test In3 [[ let x : int = 1 in x && true end ]] expect {"Left argument of `&&` should have type `bool`, found `int`"}
+test In4 [[ let x : bool = true in x + 1 end ]] expect {"Arguments of type `bool` and `int` not allowed for `+`"}
+test In5 [[ let id : int -> int = fun x : int { x } in id(1) end ]]
+test In6 [[ let id : bool -> bool = fun x : bool { x } in id(true) end ]]
+
+test In7 [[ let inc : int -> int = fun x : int { x + 1 } in inc(3) end ]]
+test In8 [[ let inc : int -> int = fun x : int { x + 1 } in inc(true) end ]] expect {"actual parameter"}
+test In9 [[ let inc1 : int -> int = fun x : int { x + 1 } in 
+            let inc2 : int -> int = fun x : int { inc1(x) } in inc2(3) end end ]]
+test In10 [[ let inc1 : int -> int = fun x : int { x + 1 } in 
+             let inc2 : int -> int = fun x2 : int { inc1(x2) } in inc2(false) end end]] expect {"actual parameter"}

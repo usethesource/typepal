@@ -1,0 +1,64 @@
+
+test Constant1 [[  program tst(output); var x : boolean; begin x := true end. ]]
+test Constant2 [[  program tst(output); var x : integer; begin x := 42 end. ]]
+test Constant3 [[  program tst(output); var x : string; begin x := 'abc' end. ]]
+test Constant4 [[  program tst(output); var x : set of integer; begin x := [1, 2, 3] end. ]]
+test Constant5 [[  program tst(output); var x : set of integer; begin x := [1, 'a', 3] end. ]] expect { "Elements of set should have the same type, _" }
+test Constant6 [[  program tst(output); var x : set of integer; begin x := [1, 2..5, 7] end. ]]
+test Constant7 [[  program tst(output); var x : set of integer; begin x := [1, 2..true, 7] end. ]] expect { "Set element range requires lower and upper bound of equal type, found _" }
+test Constant8 [[  program tst(output); type color = (red, green, blue); var x : color; begin x := green end. ]]
+
+test Not1 [[ program tst(output); var b : boolean; begin b := not true end. ]]
+
+test Mul1 [[  program tst(output); var x : integer; begin x := 1 * 2 end. ]]
+test Mul2 [[  program tst(output); var x : integer; begin x := 1 * 2.5 end. ]] expect { "Incorrect assignment, expected subtype of `integer`, found `real`" }
+test Mul3 [[  program tst(output); var x : real; begin x := 1 * 2.5 end. ]]
+test Mul4 [[  program tst(output); var x : set of integer; begin x := [1,2,3]*[3,4] end. ]]
+test Mul5 [[  program tst(output); var x : set of integer; begin x := [1, 2..5, 7]*[3..4, 5..11] end. ]]
+test Mul6 [[  program tst(output); var x : integer; begin x := 1 * 'z' end. ]] expect { "`*` not defined on `integer` and `char`" }
+
+test Division1 [[  program tst(output); var x : real; begin x := 1 / 2 end. ]]
+test Division2 [[  program tst(output); var x : real; begin x := 1 / 2.5 end. ]]
+
+test Div1 [[  program tst(output); var x : real; begin x := 1 div 2 end. ]]
+test Div2 [[  program tst(output); var x : real; begin x := 1 div 2.5 end. ]] expect { "Right argument of `div` should be `integer`, found `real`" }
+test Div3 [[  program tst(output); var x : real; begin x := 1 div 'z' end. ]] expect { "Right argument of `div` should be `integer`, found `char`" }
+
+test Mod1 [[  program tst(output); var x : real; begin x := 1 mod 2 end. ]]
+test Mod2 [[  program tst(output); var x : real; begin x := 1 mod 2.5 end. ]] expect { "Right argument of `mod` should be `integer`, found `real`" }
+test Mod3 [[  program tst(output); var x : real; begin x := 1 mod 'z' end. ]] expect { "Right argument of `mod` should be `integer`, found `char`" }
+
+test And1 [[  program tst(output); var x : boolean; begin x := true and true end. ]]
+test And2 [[  program tst(output); var x : boolean; begin x := true and 3 end. ]] expect { "Right argument of `and` should be `boolean`, found `integer`" }
+test And1 [[  program tst(output); var x : boolean; begin x := 2 and true end. ]] expect { "Left argument of `and` should be `boolean`, found `integer`" }
+
+test Add1 [[  program tst(output); var x : integer; begin x := 1 + 2 end. ]]
+test Add2 [[  program tst(output); var x : integer; begin x := 1 + 2.5 end. ]] expect { "Incorrect assignment, expected subtype of `integer`, found `real`" }
+test Add3 [[  program tst(output); var x : real; begin x := 1 + 2 end. ]]
+test Add4 [[  program tst(output); var x : real; begin x := 1 + 2.5 end. ]]
+test Add5 [[  program tst(output); var x : set of integer; begin x := [1, 2..5, 7] + [3..4, 5..11] end. ]]
+
+test Sub1 [[  program tst(output); var x : integer; begin x := 1 - 2 end. ]]
+test Sub2 [[  program tst(output); var x : integer; begin x := 1 - 2.5 end. ]] expect { "Incorrect assignment, expected subtype of `integer`, found `real`" }
+test Sub3 [[  program tst(output); var x : real; begin x := 1 - 2 end. ]]
+test Sub4 [[  program tst(output); var x : real; begin x := 1 - 2.5 end. ]]
+test Sub5 [[  program tst(output); var x : set of integer; begin x := [1, 2..5, 7] - [3..4, 5..11] end. ]]
+
+test Or1 [[  program tst(output); var x : boolean; begin x := true or true end. ]]
+test Or2 [[  program tst(output); var x : boolean; begin x := true or 3 end. ]] expect { "`or` not defined on `boolean` and `integer`" }
+test Or1 [[  program tst(output); var x : boolean; begin x := 2 or true end. ]] expect { "`or` not defined on `integer` and `boolean`" }
+
+test Eq1 [[  program tst(output); var x : boolean; begin x := true = true end. ]]
+test Eq2 [[  program tst(output); var x : boolean; begin x := 1 = 1 end. ]]
+test Eq3 [[  program tst(output); var x : boolean; begin x := 1 = 1.5 end. ]]
+test Eq4 [[  program tst(output); var x : boolean; begin x := 'a' = 'a' end. ]]
+test Eq5 [[  program tst(output); var x : boolean; begin x := 1.5 = 1.5 end. ]]
+test Eq6 [[  program tst(output); var x : boolean; n : 5..10; m : 20..30; begin x := n = m end. ]]
+test Eq7 [[  program tst(output); var x : boolean; n : 5..10; m : 20..30; begin x := 1 = m end. ]]
+test Eq8 [[  program tst(output); var x : boolean; n : 5..10; m : 20..30; begin x := n = 2 end. ]]
+
+test Leq1 [[  program tst(output); var x : boolean; begin x := [1,2,3] <= [1,2,3,4] end. ]]
+
+
+test In1 [[  program tst(output); var x : boolean;  n : set of integer; begin x := 6 in n end. ]]
+test In1 [[  program tst(output); var x : boolean;  n : set of 0..10; begin x := 6 in n end. ]]

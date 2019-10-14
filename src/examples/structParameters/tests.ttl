@@ -1,0 +1,52 @@
+test Declare1 [[ struct L[E] { E e, int n }; ]]
+
+test UndefinedParameter [[ 
+    struct L[E] { G e, int n };
+ ]] expect { "Undefined _ `G`" }
+
+test New1 [[
+    struct L[E] { E e, int n };
+    L[int] li = new L[int];
+]]
+
+test UndefinedStruct [[
+    struct L[E] { E e, int n };
+    M[int] li = new M[int];
+]] expect { "Undefined _ `M`" }
+
+test WrongArity [[
+    struct L[E] { E e, int n };
+    L[int,str] li = new L[int,str];
+]] expect { "Expected 1 type parameters, but got 2" }
+
+test Select1 [[
+    struct L[E] { E e, int n };
+    L[int] li = new L[int];
+    int n = li.n;
+]]
+
+test Select2 [[
+    struct L[E] { E e, int n };
+    L[int] li = new L[int];
+    int n = li.n;
+    int m = li.e;
+]]
+
+test Select3 [[
+    struct L[E] { E e, int n };
+    L[str] li = new L[str];
+    int n = li.n;
+    str m = li.e;
+]]
+
+
+test WrongSelect1 [[
+    struct L[E] { E e, int n };
+    L[int] li = new L[int];
+    int n = li.mm;
+]] expect { "No definition found for field `mm` in type `L[int]`"}
+
+test WrongSelect2 [[
+    struct L[E] { E e, int n };
+    int m = 123.n;
+]] expect { "Undefined field `n` on `int`" }
