@@ -21,7 +21,7 @@ list[Message] checkSmallOO(str mname) {
     return smallOOTModelFromName(mname).messages;
 }
 
-bool smallOOTests() {
+test bool smallOOTests() {
     return runTests([|project://typepal/src/examples/smallOO/tests.ttl|], 
                     #start[Module], 
                     TModel (Tree t) { return smallOOTModelForTree(t); },

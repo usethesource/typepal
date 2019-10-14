@@ -15,28 +15,28 @@ import examples::staticFields::Test;
 import examples::struct::Test;
 import examples::structParameters::Test;
 import examples::untypedFun::Test;
-
-bool allTests(){
-    return  
-           aliasesTests()
-        && calcTests()
-        && extendingTests()
-        
-        && fixedMembersTests()
-        && funTests()
-        && fwjTests()
-        && modfunTests()
-        && pascalTests()
-        && picoTests()
-        && qlTests()
-        && smallOOTests()
-        && staticFieldsTests()
-        && structTests()
-        && structParametersTests()
-        && untypedFunTests()
-        ;
-}
-
-test bool allTests1() = allTests();
-
-bool main() = allTests();
+//
+//bool allTests(){
+//    return  
+//           aliasesTests()
+//        && calcTests()
+//        && extendingTests()
+//        
+//        && fixedMembersTests()
+//        && funTests()
+//        && fwjTests()
+//        && modfunTests()
+//        && pascalTests()
+//        && picoTests()
+//        && qlTests()
+//        && smallOOTests()
+//        && staticFieldsTests()
+//        && structTests()
+//        && structParametersTests()
+//        && untypedFunTests()
+//        ;
+//}
+//
+//test bool allTests1() = allTests();
+//
+//bool main() = allTests();

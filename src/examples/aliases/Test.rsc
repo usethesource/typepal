@@ -6,7 +6,6 @@ extend analysis::typepal::TestFramework;
 
 import ParseTree;
 
-
 // ---- Testing ---------------------------------------------------------------
 
 TModel aliasesTModelForTree(Tree pt){
@@ -18,7 +17,7 @@ TModel aliasesTModelFromName(str mname){
     return aliasesTModelForTree(pt);
 }
 
-bool aliasesTests(bool debug = false) {
+test bool aliasesTests() {
     return runTests([|project://typepal/src/examples/aliases/aliases.ttl|], 
                     #start[Program], 
                     TModel (Tree t) { return aliasesTModelForTree(t); },

@@ -17,7 +17,7 @@ TModel calcTModelFromStr(str text){
     return calcTModelForTree(pt);
 }
 
-bool calcTests() {
+test bool calcTests() {
      return runTests([|project://typepal/src/examples/calc/tests.ttl|], 
                      #Calc, 
                      calcTModelForTree, 

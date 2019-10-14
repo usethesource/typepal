@@ -19,10 +19,10 @@ TModel extendingTModelFromName(str mname, bool debug = false){
     return extendingTModelForTree(pt, debug=debug);
 }
 
-bool extendingTests(bool debug = false) {
+test bool extendingTests() {
     return runTests([|project://typepal/src/examples/extending/extending.ttl|], 
                     #start[Program], 
-                    TModel (Tree t) { return extendingTModelForTree(t, debug=debug); },
+                    TModel (Tree t) { return extendingTModelForTree(t, debug=false); },
                     runName = "extending");
 }
 

@@ -18,10 +18,10 @@ TModel fixedMembersTModelFromName(str mname, bool debug = false){
     return fixedMembersTModelForTree(pt, debug=debug);
 }
 
-bool fixedMembersTests(bool debug = false) {
+test bbool fixedMembersTests() {
     return runTests([|project://typepal/src/examples/fixedMembers/fixedMembers.ttl|], 
                     #start[Program], 
-                    TModel (Tree t) { return fixedMembersTModelForTree(t, debug=debug); },
+                    TModel (Tree t) { return fixedMembersTModelForTree(t, debug=false); },
                     runName = "fixedMembers");
 }
 

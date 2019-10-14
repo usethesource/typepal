@@ -22,7 +22,7 @@ TModel fwjTModelFromName(str mname, bool debug){
     return fwjTModelForTree(pt);
 }
 
-bool fwjTests(bool debug = false) {
+bool fwjTests() {
     return runTests([|project://typepal/src/examples/fwjava/tests.ttl|], 
                      #start[FWJProgram], 
                      TModel (Tree t) { return fwjTModelForTree(t); },

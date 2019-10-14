@@ -38,10 +38,10 @@ list[str] examples = ["beginend", "bisect", "complex", "convert", "cosine", "egf
                       "parameters", "person", "primes", 
                       "recursivegcd", "roman", "setop", "sideeffect", "summing", "traversal", "with"];
 
-bool pascalTests(bool debug = false) {
+test bool pascalTests() {
     bool ok = runTests([|project://typepal/src/examples/pascal/expression-tests.ttl|,
                         |project://typepal/src/examples/pascal/statement-tests.ttl|
-                       ], #start[Program], TModel (Tree t) { return pascalTModelForTree(t, debug); },
+                       ], #start[Program], TModel (Tree t) { return pascalTModelForTree(t, false); },
                        runName = "Pascal");
     println("Executing Pascal examples\r");
     int n = 0;

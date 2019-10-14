@@ -22,7 +22,7 @@ TModel javaModulesTModelFromName(str mname, bool debug){
     return javaModulesTModelForTree(pt);
 }
 
-bool javaModulesTests(bool debug = false) {
+test bool javaModulesTests(bool debug = false) {
     return runTests([|project://typepal/src/examples/javaModules/tests.ttl|], 
                      #start[JavaModulesProgram], 
                      TModel (Tree t) { return javaModulesTModelForTree(t); },

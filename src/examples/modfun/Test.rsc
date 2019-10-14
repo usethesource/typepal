@@ -28,7 +28,7 @@ list[Message] modfunCheck(str name) {
     return tm.messages;
 }
 
-bool modfunTests()
+test bool modfunTests()
     = runTests([|project://typepal/src/examples/modfun/tests.ttl|], 
                #ModFun,
                modfunTModelForTree,

@@ -28,7 +28,7 @@ list[Message] funCheck(str name) {
     return tm.messages;
 }
 
-bool funTests() 
+test bool funTests() 
     =  runTests([|project://typepal/src/examples/fun/tests.ttl|], #Fun, funTModelForTree, runName="Fun");
 
 value main() = funTests();

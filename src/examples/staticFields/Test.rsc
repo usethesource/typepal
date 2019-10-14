@@ -18,7 +18,7 @@ TModel staticFieldsTModelFromName(str mname){
     return staticFieldsTModelForTree(pt);
 }
 
-bool staticFieldsTests() {
+test bool staticFieldsTests() {
     return runTests([|project://typepal/src/examples/staticFields/tests.ttl|], 
                     #start[Program], 
                     TModel (Tree t) { return staticFieldsTModelForTree(t); },

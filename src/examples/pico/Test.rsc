@@ -17,7 +17,7 @@ TModel picoTModelForTree(Tree pt) {
     return collectAndSolve(pt);
 }
 
-bool picoTests() {
+test bool picoTests() {
     return runTests([|project://typepal/src/examples/pico/tests.ttl|], 
                     #start[Program], 
                     TModel (Tree t) { return picoTModelForTree(t); },
