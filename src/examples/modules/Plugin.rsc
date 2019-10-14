@@ -5,7 +5,6 @@ import util::IDE;
 import IO;
 import ValueIO;
 
-
 import analysis::typepal::TypePal;
 
 import examples::modules::Syntax;

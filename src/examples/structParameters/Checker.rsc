@@ -135,13 +135,14 @@ void collect(current:(Expression) `new <Id name><TypeActuals actuals>`, Collecto
    
 void collect(current:(Expression)`<Expression lhs> . <Id fieldName>`, Collector c) {
     c.useViaType(lhs, fieldName, {fieldId()});
-    c.calculate("FIELD SELECT", current, [lhs, fieldName],
+    c.calculate("FIELD SELECT", current, [lhs, fieldName],          // Hackish solution, error in Solver?
         AType(Solver s) { 
             tp = s.getType(fieldName); 
+            if(typeFormal(str name) := tp) throw TypeUnavailable();
             return tp;
             
             });
-    //c.fact(current, fieldName);
+    //c.fact(current, fieldName);                                   // <-- this should be enough
     collect(lhs, c);
 }
 

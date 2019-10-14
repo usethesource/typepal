@@ -2,7 +2,7 @@ module examples::modfun::Syntax
 
 // Modular Functional language with declared types (an extension of Fun)
 
-extend lang::fun::Syntax;
+extend examples::fun::Syntax;
 
 lexical ModId   = ([A-Z][a-z0-9]* !>> [a-z0-9]) \ Reserved;
 

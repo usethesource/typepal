@@ -3,7 +3,7 @@ module examples::modfun::Checker
 // Modular Functional language with declared types (an extension of Fun)
 
 import examples::modfun::Syntax;
-extend lang::fun::Checker;
+extend examples::fun::Checker;
 
 // ----  IdRoles, PathLabels and AType ---------------------------------------- 
      
