@@ -18,7 +18,7 @@ TModel fixedMembersTModelFromName(str mname, bool debug = false){
     return fixedMembersTModelForTree(pt, debug=debug);
 }
 
-test bbool fixedMembersTests() {
+test bool fixedMembersTests() {
     return runTests([|project://typepal/src/examples/fixedMembers/fixedMembers.ttl|], 
                     #start[Program], 
                     TModel (Tree t) { return fixedMembersTModelForTree(t, debug=false); },

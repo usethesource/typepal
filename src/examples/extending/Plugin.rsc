@@ -1,4 +1,4 @@
-module lang::extending::Plugin
+module examples::extending::Plugin
 
 import ParseTree;
 import util::IDE;

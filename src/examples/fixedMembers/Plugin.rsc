@@ -1,4 +1,4 @@
-module lang::mtl::ide::Plugin
+module examples::fixedMembers::Plugin
 
 import ParseTree;
 import util::IDE;

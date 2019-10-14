@@ -1,4 +1,4 @@
-module lang::javaModules::Syntax
+module examples::javaModules::Syntax
 
 extend lang::std::Whitespace;
 extend lang::std::Comment;
