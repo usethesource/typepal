@@ -61,6 +61,7 @@ TypePalConfig structParametersConfig() =
 void collect(current:(Declaration)`<Type typ> <Id id> = <Expression exp> ;`, Collector c) {
     c.define("<id>", variableId(), current, defType(typ));
     c.requireEqual(typ, exp, error(exp, "Incorrect initialization, expected %t, found %t", typ, exp));
+    
     c.enterScope(current);
         collect(typ, exp, c);
     c.leaveScope(current);
@@ -134,7 +135,13 @@ void collect(current:(Expression) `new <Id name><TypeActuals actuals>`, Collecto
    
 void collect(current:(Expression)`<Expression lhs> . <Id fieldName>`, Collector c) {
     c.useViaType(lhs, fieldName, {fieldId()});
-    c.fact(current, fieldName);
+    c.calculate("FIELD SELECT", current, [lhs, fieldName],
+        AType(Solver s) { 
+            tp = s.getType(fieldName); 
+            return tp;
+            
+            });
+    //c.fact(current, fieldName);
     collect(lhs, c);
 }
 

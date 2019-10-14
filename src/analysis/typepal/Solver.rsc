@@ -741,7 +741,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
       
     AType _getTypeInType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope){
-       // println("_getTypeInType: <containerType>, <selector>, <idRolesSel>");
+       // println("getTypeInType: <containerType>, <selector>, <idRolesSel>");
        
         selectorLoc = getLoc(selector);
         selectorName = unescapeName("<selector>");
@@ -751,7 +751,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             rel[loc, IdRole, AType]  valid_overloads = {};
             for(<key, role, tp> <- overloads){
                 try {
-                    selectorType = _getTypeInType(tp, selector, idRolesSel, scope);
+                    selectorType = getTypeInType(tp, selector, idRolesSel, scope);
                     //selectorType = getTypeInNamelessTypeFun(tp, selector, scope, thisSolver);
                     valid_overloads += <key, role, selectorType>;
                 } catch checkFailed(list[FailMessage] _): ; // do nothing and try next overload
@@ -759,7 +759,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 //>>              catch e: 
             }
             if(isEmpty(valid_overloads)){
-                _report(error(selector, "_getTypeInType: Cannot access fields on type %t", containerType));
+                _report(error(selector, "getTypeInType: Cannot access fields on type %t", containerType));
             } else if({<loc key, IdRole role, AType tp>} := valid_overloads){
                 addUse({key}, selectorUse);
                 addFact(selectorLoc, tp);
@@ -804,9 +804,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                                // _report(error(selector, "No definition for %v %q in type %t", intercalateOr([replaceAll(getName(idRole), "Id", "") | idRole <- idRolesSel]), "<selector>", containerType));
                         }
                  }
-                 //if(unavailable) throw TypeUnavailable();
+                 /*if(unavailable) throw TypeUnavailable();*/
                  if(isEmpty(valid_overloads)){
-                    //if(unavailable) throw TypeUnavailable();
+                    /*if(unavailable) throw TypeUnavailable();*/
                      if(i == ncontainerNames){
                         if(some_accessible_def)
                             _report(error(selector, "No definition found for %v %q in type %t", intercalateOr([prettyRole(idRole) | idRole <- idRolesSel]), "<selector>", containerType));
@@ -833,7 +833,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 _report(error(selector, "No definition for %q in type %t", "<selector>", containerType));
             }
          }
-        throw checkFailed([error(selector, "getTypeInTypes")]);
+        throw checkFailed([error(selector, "getTypeInType")]);
     }
      
     rel[str id, AType atype] _getAllDefinedInType(AType containerType, loc scope, set[IdRole] idRoles){

@@ -1,4 +1,4 @@
  struct L[E] { E e, int n };
     L[str] li = new L[str];
     int n = li.n;
-    str m = li.e;
+    str m = li.  e;
