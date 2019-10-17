@@ -179,7 +179,6 @@ ScopeGraph newScopeGraph(TypePalConfig tc){
     
     // Retrieve a unique binding for use in given syntactic scope
     loc bind(TModel tm, loc scope, str id, set[IdRole] idRoles){
-        //throw "Cannot be called";
         defs = tm.defines[scope, id, idRoles];
         
         if(luDebug) println("\tbind: <scope>, <id>, <idRoles>

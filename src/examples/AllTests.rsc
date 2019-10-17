@@ -2,7 +2,6 @@ module examples::AllTests
 
 import examples::aliases::Test;
 import examples::calc::Test;
-import examples::extending::Test;
 import examples::fixedMembers::Test;
 import examples::fun::Test;
 import examples::fwjava::Test;
@@ -20,8 +19,6 @@ import examples::untypedFun::Test;
 //    return  
 //           aliasesTests()
 //        && calcTests()
-//        && extendingTests()
-//        
 //        && fixedMembersTests()
 //        && funTests()
 //        && fwjTests()
