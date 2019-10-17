@@ -284,7 +284,7 @@ Collector newCollector(str modelName, Tree pt, TypePalConfig config = tconfig())
 }
 
 Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config = tconfig()){
-    configScopeGraph(config);
+    //configScopeGraph(config);
     
     str(str) unescapeName = config.unescapeName;
     loc globalScope = |global-scope:///|;

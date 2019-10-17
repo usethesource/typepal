@@ -95,8 +95,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     bool (set[loc] defs, map[loc, Define] defines) mayOverloadFun = defaultMayOverload;
     
-    set[loc] (TModel, Use) lookupFun = lookup;
-    
     AType (Tree subject, AType def, AType ins, AType act, Solver s) instantiateTypeParameters = defaultInstantiateTypeParameters;
     
     tuple[list[str] typeNames, set[IdRole] idRoles] (AType atype) getTypeNamesAndRole = defaultGetTypeNamesAndRole;
@@ -107,14 +105,14 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     bool(loc def, TModel tm) reportUnused = defaultReportUnused;
     
+    ScopeGraph scopeGraph = newScopeGraph(tm.config);
+    
     void configTypePal(TypePalConfig tc){
-        configScopeGraph(tc);
         
         unescapeName = tc.unescapeName;
         isSubTypeFun = tc.isSubType;
         getLubFun = tc.getLub;
-        mayOverloadFun = tc.mayOverload;
-        lookupFun = tc.lookup;       
+        mayOverloadFun = tc.mayOverload;     
         getLubDefined = false;
         try {
             getLubFun(atypeList([]), atypeList([]));
@@ -135,8 +133,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             if(getLubDefined) throw TypePalUsage("`getMaxAType` should be defined when `getLub` is used");
         }
         
-        //getMinATypeFun = tc.getMinAType;
-        //getMaxATypeFun = tc.getMaxAType;
         instantiateTypeParameters = tc.instantiateTypeParameters;
         getTypeNamesAndRole = tc.getTypeNamesAndRole;
         getTypeInTypeFromDefineFun = tc.getTypeInTypeFromDefine;
@@ -664,7 +660,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
      AType getTypeInScopeFromName0(str name, loc scope, set[IdRole] idRoles){
         u = use(name, anonymousOccurrence, scope, idRoles);
-        foundDefs = lookupFun(tm, u);
+        foundDefs = scopeGraph.lookup(tm, u);
         if({def} := foundDefs){
             return instantiate(facts[def]);
         } else {
@@ -693,7 +689,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         id = unescapeName("<occ>");
         u = use(unescapeName("<occ>"), getLoc(occ), scope, idRoles);
         //println("u: <u>");
-        foundDefs = lookupFun(tm, u);
+        foundDefs = scopeGraph.lookup(tm, u);
         if({loc def} := foundDefs){
             addUse({def}, u);
             try {
@@ -857,7 +853,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     set[Define] getDefinitions(str id, loc scope, set[IdRole] idRoles){
         try {
-            foundDefs = lookupFun(tm, use(id, anonymousOccurrence, scope, idRoles));
+            foundDefs = scopeGraph.lookup(tm, use(id, anonymousOccurrence, scope, idRoles));
             if({def} := foundDefs){
                return {definitions[def]};
             } else {
@@ -893,7 +889,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             try {
                 if(referToDef(Use use, PathRole pathRole) := rp){
                     u = rp.use;
-                    foundDefs = lookupFun(tm, u);
+                    foundDefs = scopeGraph.lookup(tm, u);
                     if({loc def} := foundDefs){
                        definedBy[u.occ] = foundDefs;
                        newPaths += {<u.scope, rp.pathRole, def>};  
@@ -1309,7 +1305,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         actuallyUsedDefs = {};
         for(Use u <- tm.uses){
             try {
-               foundDefs = lookupFun(tm, u);
+               foundDefs = scopeGraph.lookup(tm, u);
                foundDefs = { fd | fd <- foundDefs, definitions[fd].idRole in u.idRoles };
                actuallyUsedDefs += foundDefs;
                if(isEmpty(foundDefs)){
@@ -1345,7 +1341,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
             u = use(id, defined, scope, {idRole}); // turn each unused definition into a use and check for double declarations;
             try {
-               foundDefs = lookupFun(tm, u);
+               foundDefs = scopeGraph.lookup(tm, u);
                foundDefs = { fd | fd <- foundDefs, definitions[fd].idRole in u.idRoles };
                if(isEmpty(foundDefs)){
                     throw TypePalInternalError("No binding found while checking for double definitions"); 
@@ -1464,7 +1460,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             if(resolvePaths()){
                 for(u <- notYetDefinedUses){
                     try {
-                       foundDefs = lookupFun(tm, u);
+                       foundDefs = scopeGraph.lookup(tm, u);
                        foundDefs = { fd | fd <- foundDefs, definitions[fd].idRole in u.idRoles };
                        if(isEmpty(foundDefs)){
                             throw NoBinding();
@@ -1557,7 +1553,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         for(Use u <- openUses){
             try {
-                 foundDefs = lookupFun(tm, u);
+                 foundDefs = scopeGraph.lookup(tm, u);
              } catch NoBinding(): {
                 roles = size(u.idRoles) > 5 ? "" : intercalateOr([prettyRole(idRole) | idRole <- u.idRoles]);
                 messages += error("Undefined <roles> `<getId(u)>`", u.occ);
