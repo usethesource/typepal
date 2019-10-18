@@ -7,6 +7,14 @@ node {
         }
 
         withMaven(maven: 'M3', jdk: 'jdk-oracle-8', options: [artifactsPublisher(disabled: true)] ) {
+            stage('Typecheck') {
+                sh "mvn clean compile"
+            }
+
+            stage('Test') {
+                sh "mvn test"
+            }
+
             stage('Packaging') {
                 sh "mvn clean package"
             }
