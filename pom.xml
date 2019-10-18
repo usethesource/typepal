@@ -3,10 +3,16 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
+       <parent>
+               <groupId>io.usethesource</groupId>
+               <artifactId>pom-parent</artifactId>
+               <version>0.2.0-SNAPSHOT</version>
+       </parent>
+
 	<groupId>org.rascalmpl</groupId>
 	<artifactId>typepal</artifactId>
 	<version>0.2.0-SNAPSHOT</version>
-	<packaging>jar</packaging>
+	<packaging>eclipse-plugin</packaging>
 
 	<scm>
 		<developerConnection>scm:git:ssh://git@github.com/cwi-swat/TypePal.git</developerConnection>
@@ -27,6 +33,7 @@
 				<filtering>false</filtering>
 				<includes>
 					<include>META-INF/RASCAL.MF</include>
+                                        <include>src/**/*.rsc</include>
 				</includes>
 			</resource>
 		</resources>
