@@ -21,6 +21,7 @@ import Relation;
 import util::Benchmark;
 import IO;
 import Type;
+import Location;
 
 extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::AType;
@@ -36,9 +37,12 @@ data Collector
       /* Life cycle */   TModel () run,
      /* Configuration */ TypePalConfig () getConfig,
                          void (TypePalConfig cfg) setConfig,
-     /* Scoping */       void (Tree inner) enterScope,
-                         void (Tree inner) enterLubScope,
-                         void (Tree outer) leaveScope,
+     /* Scoping */       void (Tree tree) enterScope,
+                         void (list[Tree] trees) enterCompositeScope,
+                         void (Tree tree) enterLubScope,
+                         void (list[Tree] trees) enterCompositeLubScope,
+                         void (Tree tree) leaveScope,
+                         void (list[Tree] trees) leaveCompositeScope,
                          loc () getScope,
      /* Scope Info */    void (loc scope, ScopeRole scopeRole, value info) setScopeInfo,
                          lrel[loc scope, value scopeInfo] (ScopeRole scopeRole) getScopeInfo,
@@ -284,7 +288,6 @@ Collector newCollector(str modelName, Tree pt, TypePalConfig config = tconfig())
 }
 
 Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config = tconfig()){
-    //configScopeGraph(config);
     
     str(str) unescapeName = config.unescapeName;
     loc globalScope = |global-scope:///|;
@@ -455,16 +458,23 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     }
     
     void _enterScope(Tree inner){
-        enterScope(inner);
+        enterScope(getLoc(inner));
+    }
+    
+    void _enterCompositeScope(list[Tree] trees){
+        enterScope(cover([getLoc(t) | t <- trees]));
     }
     
     void _enterLubScope(Tree inner){
-        enterScope(inner, lubScope=true);
+        enterScope(getLoc(inner), lubScope=true);
     }
     
-    void enterScope(Tree inner, bool lubScope=false){
+    void _enterCompositeLubScope(list[Tree] trees){
+        enterScope(cover([getLoc(inner) | inner <- trees]), lubScope=true);
+    }
+    
+    void enterScope(loc innerLoc, bool lubScope=false){
         if(building){
-           innerLoc = getLoc(inner);
             if(innerLoc == rootScope){
               currentScope = innerLoc;
               scopeStack = push(<innerLoc, lubScope, ()>, scopeStack);
@@ -488,8 +498,15 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     }
     
     void _leaveScope(Tree inner){
+        leaveScope(getLoc(inner));
+    }
+    
+    void _leaveCompositeScope(list[Tree] trees){
+        leaveScope(cover([getLoc(t) | t <- trees]));
+    }
+    
+    void leaveScope(loc innerLoc){
         if(building){
-           innerLoc = getLoc(inner);
            if(innerLoc == currentScope){
               scopeStack = tail(scopeStack);
               if(isEmpty(scopeStack)){
@@ -1046,8 +1063,11 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         /* Configure */     _getConfig,
                             _setConfig,
         /* Scoping */       _enterScope, 
+                            _enterCompositeScope,
                             _enterLubScope,
+                            _enterCompositeLubScope,
                             _leaveScope,
+                            _leaveCompositeScope,
                             _getScope,
         /* Scope Info */    _setScopeInfo,
                             _getScopeInfo,
