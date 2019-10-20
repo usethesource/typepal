@@ -254,34 +254,34 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     // ---- validation
     
-    //void validateTriggers(){
-    //    return;
-    //    int nissues = 0;
-    //    for(Calculator calc <- calculators){
-    //        deps = calcType(loc src, AType atype) := calc ? getDependencies(atype) : calc.dependsOn;
-    //        
-    //        for(loc dep <- deps){
-    //            if(!(facts[dep]? || calc in (triggersCalculator[dep] ? {}))){
-    //                println("Not a fact or trigger for: <dep>");
-    //                print(calc, "\t", facts);
-    //                println("\t<calc>");
-    //                nissues += 1;
-    //            }
-    //        }
-    //    }
-    //
-    //    for(Requirement req <- requirements){
-    //        for(loc dep <- req.dependsOn){
-    //            if(!(facts[dep]? || req in (triggersRequirement[dep] ? {}))){
-    //                println("Not a fact or trigger for: <dep>");
-    //                print(req, "\t", facts);
-    //                println("\t<req>");
-    //                nissues += 1;
-    //            }
-    //        }
-    //    }
-    //    if(nissues > 0) throw "Found <nissues> incomplete triggers"; 
-    //}
+    void validateTriggers(){
+        return;
+        int nissues = 0;
+        for(Calculator calc <- calculators){
+            deps = calcType(loc src, AType atype) := calc ? getDependencies(atype) : calc.dependsOn;
+            
+            for(loc dep <- deps){
+                if(!(facts[dep]? || calc in (triggersCalculator[dep] ? {}))){
+                    println("Not a fact or trigger for: <dep>");
+                    print(calc, "\t", facts);
+                    println("\t<calc>");
+                    nissues += 1;
+                }
+            }
+        }
+    
+        for(Requirement req <- requirements){
+            for(loc dep <- req.dependsOn){
+                if(!(facts[dep]? || req in (triggersRequirement[dep] ? {}))){
+                    println("Not a fact or trigger for dependency on: <dep>");
+                    print(req, "\t", facts);
+                    println("\t<req>");
+                    nissues += 1;
+                }
+            }
+        }
+        if(nissues > 0) throw "Found <nissues> incomplete triggers"; 
+    }
        
     void validateDependencies(){
         availableCalcs = {};
@@ -306,7 +306,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         missing = dependencies - domain(calcMap) - domain(facts) - uses - defs;
         if(!isEmpty(missing)){
             printSolverState();
-            throw TypePalUsage("Missing calculators for <missing>");
+            throw TypePalUsage("Missing calculators", toList(missing));
         }
     }
     
@@ -1389,7 +1389,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             register(req);
         }
         
-        //validateTriggers();
+        validateTriggers();
         
         int initRegisterTime = cpuTime() - now;
        

@@ -531,7 +531,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 }
               }
            } else {
-              throw TypePalUsage("Cannot call `leaveScope` with scope <inner> that is not the current scope"); 
+              throw TypePalUsage("Cannot call `leaveScope` with scope that is not the current scope", [inner]); 
            }
         } else {
           throw TypePalUsage("Cannot call `leaveScope` on Collector after `run`");
@@ -1235,7 +1235,7 @@ default void collect(Tree currentTree, Collector c){
               nargs = size(args);
               if(nargs == 1) collectArgs2(args, c); 
               else if(nargs > 0) { 
-                 throw TypePalUsage("Missing `collect` for <currentTree.prod>: `<currentTree>`"); 
+                 throw TypePalUsage("Missing `collect` for <currentTree.prod>", [currentTree]); 
               }
             }
         case "parameterized-sort":
@@ -1244,7 +1244,7 @@ default void collect(Tree currentTree, Collector c){
                              // Hack to circumvent improper handling of parameterized sorts in interpreter
               if(nargs == 1 || currentTree.prod.def.name in { "Mapping", "KeywordArgument", "KeywordArguments"}) collectArgs2(args, c); 
               else if(nargs > 0) { 
-                throw TypePalUsage("Missing `collect` for <currentTree.prod>: `<currentTree>`");
+                throw TypePalUsage("Missing `collect` for <currentTree.prod>", [currentTree]);
               }
             }
        case "lex":
@@ -1266,7 +1266,7 @@ default void collect(Tree currentTree, Collector c){
                 nargs = size(args);
                 if(nargs == 1) collectArgs1(args, c); 
                 else if(nargs > 0) { 
-                    throw TypePalUsage("Missing `collect` for <currentTree.prod>: `<currentTree>`"); 
+                    throw TypePalUsage("Missing `collect` for <currentTree.prod>", [currentTree]); 
                 }
               }
             }

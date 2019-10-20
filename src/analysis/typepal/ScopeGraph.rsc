@@ -456,7 +456,7 @@ ScopeGraph newScopeGraph(TypePalConfig tc){
                         qscopes = lookupNestWide(tm, scope, use(id, u.occ, scope, u.qualifierRoles));
                         for(loc qscope <- qscopes){
                             if(qscope notin allScopes){
-                                throw TypePalUsage("Definition of qualifier `<id>` is unknown as scope (<qscope>), check its definition");
+                                throw TypePalUsage("Definition of qualifier `<id>` is unknown as scope, check its definition", [qscope]);
                             }
                         }
                      }
