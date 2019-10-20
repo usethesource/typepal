@@ -451,6 +451,15 @@ ScopeGraph newScopeGraph(TypePalConfig tc){
                      startScope = tm.scopes[startScope];
                      //if(wdebug) println("^^^^ lookup move to scope <startScope>");
                 } else {
+                     allScopes = domain(tm.scopes) + range(tm.scopes);
+                     for(str id <- u.ids[0..-1]){ 
+                        qscopes = lookupNestWide(tm, scope, use(id, u.occ, scope, u.qualifierRoles));
+                        for(loc qscope <- qscopes){
+                            if(qscope notin allScopes){
+                                throw TypePalUsage("Definition of qualifier `<id>` is unknown as scope (<qscope>), check its definition");
+                            }
+                        }
+                     }
                      throw NoBinding();
                 }
             }
