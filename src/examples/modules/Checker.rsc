@@ -2,6 +2,7 @@ module examples::modules::Checker
 
 import examples::modules::Syntax;
 import util::Math;
+import IO;
 import ListRelation;
 import Set;
 import String;
@@ -117,12 +118,11 @@ TModel modulesTModelFromTree(Tree pt, bool debug = false){
     return newSolver(pt, c.run()).run();
 }
 
-tuple[list[str] typeNames, set[IdRole] idRoles] modulesGetTypeNameAndRole(structType(str name,_)) = <[name], {structId()}>;
+tuple[list[str] typeNames, set[IdRole] idRoles] modulesGetTypeNameAndRole(structType(str name)) = <[name], {structId()}>;
 tuple[list[str] typeNames, set[IdRole] idRoles] modulesGetTypeNameAndRole(AType t) = <[], {}>;
 
 private TypePalConfig getModulesConfig(bool debug = false) = tconfig(
     getTypeNamesAndRole = modulesGetTypeNameAndRole,
-    lookup = lookup,
     verbose=debug, 
     logTModel = debug, 
     logAttempts = debug, 

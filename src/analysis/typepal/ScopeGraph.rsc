@@ -17,8 +17,11 @@ module analysis::typepal::ScopeGraph
 import IO;
 import Set;
 import List;
+import Map;
 import Node;
 import String;
+
+import analysis::typepal::Exception;
 
 data Tree;      // workaround for bug in interpreter
 data Solver;
@@ -178,148 +181,148 @@ ScopeGraph newScopeGraph(TypePalConfig tc){
     /*************************************************************************/
     
     // Retrieve a unique binding for use in given syntactic scope
-    loc bind(TModel tm, loc scope, str id, set[IdRole] idRoles){
-        defs = tm.defines[scope, id, idRoles];
-        
-        if(luDebug) println("\tbind: <scope>, <id>, <idRoles>
-                           '\tbind: <defs>");
-        
-        if({<loc res, DefInfo dinfo>} := defs){
-            if(luDebug) println("\tbind: <scope>, <id>, <idRoles> =\> <res>");
-            return res;
-        }
-        if(size(defs) > 1){
-           throw AmbiguousDefinition(defs<0>);
-        }
-        
-        if(luDebug) println("\t---- bind, NoBinding: <scope>, <id>");
-        throw NoBinding();
-    }
-    
-    // Lookup use in given syntactic scope
-    private loc lookupScope(TModel tm, loc scope, Use use){
-        if(luDebug) println("\tlookupScope: <scope>, <use>");
-        def = bind(tm, scope, use.id, use.idRoles);
-        if(isAcceptableSimpleFun(tm, def, use) == acceptBinding()){
-           if(luDebug) println("\tlookupScope, <scope>. <use> ==\> <def>");
-           return def;
-        }
-        if(luDebug) println("\tlookupScope, NoBinding: <use>");
-        throw NoBinding();
-    }
-    
-    // Find all (semantics induced) bindings for use in given syntactic scope via PathRole
-    private list[loc] lookupPaths(TModel tm, loc scope, Use use, PathRole pathRole){
-        //println("\tlookupPaths: <use.id> in scope <scope>, pathRole <pathRole>");
-        res = 
-          for(<scope, pathRole, loc parent> <- tm.paths){
-            try {
-                loc def = lookupScope(tm, parent, use);
-                switch(isAcceptablePathFun(tm, parent, def, use, pathRole)){
-                case acceptBinding():
-                   append def;
-                 case ignoreContinue():
-                      continue; 
-                 case ignoreSkipPath():
-                      break; 
-                }
-            } catch NoBinding():
-                scope = parent;
-        }
-        if(luDebug)println("\t---- lookupPaths: <scope>, <use>, <pathRole> ==\> <res>");
-        return res;
-    }
-    
-    // Lookup use in syntactic scope and via all semantic paths
-    private loc lookupQual(TModel tm, loc scope, Use u){
-         try 
-            return lookupScope(tm, scope, u);
-        catch NoBinding(): {
-            
-            if(luDebug) println("\tlookupQual: loop over <pathRoles(tm)>");
-            nextPath:
-            for(PathRole pathRole <- pathRoles(tm)){
-               candidates = lookupPaths(tm, scope, u, pathRole);
-               if(size(candidates) == 1){
-                  return candidates[0];
-               }
-               for(loc candidate <- candidates){
-                   switch(isAcceptableSimpleFun(tm, candidate, u)){
-                   case acceptBinding():
-                      return candidate;
-                   case ignoreContinue():
-                      continue;
-                   case ignoreSkipPath():
-                      continue nextPath;
-                   }
-                }
-            }
-        }
-        if(luDebug) println("\t---- lookupQual, NoBinding: <u>");
-        throw NoBinding();
-    }
-    
-    // Lookup use in syntactic scope and via all semantic paths,
-    // recur to syntactic parent until found
-    private loc lookupNest(TModel tm, loc scope, Use u){
-        if(luDebug)println("\tlookupNest: <scope>, <u>");
-        try 
-            return lookupQual(tm, scope, u);
-        catch NoBinding(): {
-            if(tm.scopes[scope] ? && tm.scopes[scope] != scope){
-               parent = tm.scopes[scope];
-               if(luDebug)println("\tlookupNest: <scope>, <u> move up to <parent>");
-               return lookupNest(tm, parent, u);
-            }
-            if(luDebug) println("\t---- lookupNest, NoBinding: <u>");
-            throw NoBinding();
-        }
-    }
-    
-    public loc lookup1(TModel tm, Use u){
-        scope = u.scope;
-        if(luDebug) println("lookup: <u>");
-        if(!(u has qualifierRoles)){
-           res = lookupNest(tm, scope, u);
-           if(isAcceptableSimpleFun(tm, res, u) == acceptBinding()){
-              if(luDebug) println("lookup: <u> ==\> <res>");
-              return res;
-           }
-        } else {
-           startScope = scope;
-           while(true){
-              scope = startScope;
-               for(id <- u.ids[0..-1]){ 
-                   if(luDebug)println("lookup, search for <id>");
-                   scope = lookupNest(tm, scope, use(id, u.occ, scope, u.qualifierRoles));
-                }
-           
-                try {
-                    res = lookupNest(tm, scope, use(u.ids[-1], u.occ, scope, u.idRoles));
-                    if(isAcceptableQualifiedFun(tm, res, u) == acceptBinding()){
-                       if(luDebug) println("lookup: <u> ==\> <res>");
-                       return res;
-                    }
-                } catch NoBinding(): {
-                      if(tm.scopes[startScope]?){
-                         startScope = tm.scopes[startScope];
-                         if(luDebug)println("^^^^ lookup move to scope <startScope>");
-                      } else {
-                         throw NoBinding();
-                      }
-                }
-            }
-         }
-         if(luDebug) println("---- lookup, NoBinding: <u>");
-         throw NoBinding();
-    }
-    
-    public set[loc] lookup(TModel tm, Use u){
-        try {
-            return {lookup1(tm, u)};
-        } catch AmbiguousDefinition(set[loc] definitions):
-            return definitions;
-    }
+    //loc bind(TModel tm, loc scope, str id, set[IdRole] idRoles){
+    //    defs = tm.defines[scope, id, idRoles];
+    //    
+    //    if(luDebug) println("\tbind: <scope>, <id>, <idRoles>
+    //                       '\tbind: <defs>");
+    //    
+    //    if({<loc res, DefInfo dinfo>} := defs){
+    //        if(luDebug) println("\tbind: <scope>, <id>, <idRoles> =\> <res>");
+    //        return res;
+    //    }
+    //    if(size(defs) > 1){
+    //       throw AmbiguousDefinition(defs<0>);
+    //    }
+    //    
+    //    if(luDebug) println("\t---- bind, NoBinding: <scope>, <id>");
+    //    throw NoBinding();
+    //}
+    //
+    //// Lookup use in given syntactic scope
+    //private loc lookupScope(TModel tm, loc scope, Use use){
+    //    if(luDebug) println("\tlookupScope: <scope>, <use>");
+    //    def = bind(tm, scope, use.id, use.idRoles);
+    //    if(isAcceptableSimpleFun(tm, def, use) == acceptBinding()){
+    //       if(luDebug) println("\tlookupScope, <scope>. <use> ==\> <def>");
+    //       return def;
+    //    }
+    //    if(luDebug) println("\tlookupScope, NoBinding: <use>");
+    //    throw NoBinding();
+    //}
+    //
+    //// Find all (semantics induced) bindings for use in given syntactic scope via PathRole
+    //private list[loc] lookupPaths(TModel tm, loc scope, Use use, PathRole pathRole){
+    //    //println("\tlookupPaths: <use.id> in scope <scope>, pathRole <pathRole>");
+    //    res = 
+    //      for(<scope, pathRole, loc parent> <- tm.paths){
+    //        try {
+    //            loc def = lookupScope(tm, parent, use);
+    //            switch(isAcceptablePathFun(tm, parent, def, use, pathRole)){
+    //            case acceptBinding():
+    //               append def;
+    //             case ignoreContinue():
+    //                  continue; 
+    //             case ignoreSkipPath():
+    //                  break; 
+    //            }
+    //        } catch NoBinding():
+    //            scope = parent;
+    //    }
+    //    if(luDebug)println("\t---- lookupPaths: <scope>, <use>, <pathRole> ==\> <res>");
+    //    return res;
+    //}
+    //
+    //// Lookup use in syntactic scope and via all semantic paths
+    //private loc lookupQual(TModel tm, loc scope, Use u){
+    //     try 
+    //        return lookupScope(tm, scope, u);
+    //    catch NoBinding(): {
+    //        
+    //        if(luDebug) println("\tlookupQual: loop over <pathRoles(tm)>");
+    //        nextPath:
+    //        for(PathRole pathRole <- pathRoles(tm)){
+    //           candidates = lookupPaths(tm, scope, u, pathRole);
+    //           if(size(candidates) == 1){
+    //              return candidates[0];
+    //           }
+    //           for(loc candidate <- candidates){
+    //               switch(isAcceptableSimpleFun(tm, candidate, u)){
+    //               case acceptBinding():
+    //                  return candidate;
+    //               case ignoreContinue():
+    //                  continue;
+    //               case ignoreSkipPath():
+    //                  continue nextPath;
+    //               }
+    //            }
+    //        }
+    //    }
+    //    if(luDebug) println("\t---- lookupQual, NoBinding: <u>");
+    //    throw NoBinding();
+    //}
+    //
+    //// Lookup use in syntactic scope and via all semantic paths,
+    //// recur to syntactic parent until found
+    //private loc lookupNest(TModel tm, loc scope, Use u){
+    //    if(luDebug)println("\tlookupNest: <scope>, <u>");
+    //    try 
+    //        return lookupQual(tm, scope, u);
+    //    catch NoBinding(): {
+    //        if(tm.scopes[scope] ? && tm.scopes[scope] != scope){
+    //           parent = tm.scopes[scope];
+    //           if(luDebug)println("\tlookupNest: <scope>, <u> move up to <parent>");
+    //           return lookupNest(tm, parent, u);
+    //        }
+    //        if(luDebug) println("\t---- lookupNest, NoBinding: <u>");
+    //        throw NoBinding();
+    //    }
+    //}
+    //
+    //public loc lookup1(TModel tm, Use u){
+    //    scope = u.scope;
+    //    if(luDebug) println("lookup: <u>");
+    //    if(!(u has qualifierRoles)){
+    //       res = lookupNest(tm, scope, u);
+    //       if(isAcceptableSimpleFun(tm, res, u) == acceptBinding()){
+    //          if(luDebug) println("lookup: <u> ==\> <res>");
+    //          return res;
+    //       }
+    //    } else {
+    //       startScope = scope;
+    //       while(true){
+    //          scope = startScope;
+    //           for(id <- u.ids[0..-1]){ 
+    //               if(luDebug)println("lookup, search for <id>");
+    //               scope = lookupNest(tm, scope, use(id, u.occ, scope, u.qualifierRoles));
+    //            }
+    //       
+    //            try {
+    //                res = lookupNest(tm, scope, use(u.ids[-1], u.occ, scope, u.idRoles));
+    //                if(isAcceptableQualifiedFun(tm, res, u) == acceptBinding()){
+    //                   if(luDebug) println("lookup: <u> ==\> <res>");
+    //                   return res;
+    //                }
+    //            } catch NoBinding(): {
+    //                  if(tm.scopes[startScope]?){
+    //                     startScope = tm.scopes[startScope];
+    //                     if(luDebug)println("^^^^ lookup move to scope <startScope>");
+    //                  } else {
+    //                     throw NoBinding();
+    //                  }
+    //            }
+    //        }
+    //     }
+    //     if(luDebug) println("---- lookup, NoBinding: <u>");
+    //     throw NoBinding();
+    //}
+    //
+    //public set[loc] lookup(TModel tm, Use u){
+    //    try {
+    //        return {lookup1(tm, u)};
+    //    } catch AmbiguousDefinition(set[loc] definitions):
+    //        return definitions;
+    //}
     
     /************************************************************************************/
     /* "wide" scopes were designed to suit Rascal's scope model where names from        */

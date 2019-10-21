@@ -133,6 +133,7 @@ AType computeCallType(Identifier functionName, AType funType, AType parTypes, So
         case functionType(AType ret, parTypes): return ret;
         default: s.report(error(functionName, "No function can be found that accepts these parameters: %t", parTypes));
     }
+    return intType();
 }
 
 void collect(current:(Expression)`<Expression lhs> + <Expression rhs>`, Collector c) {

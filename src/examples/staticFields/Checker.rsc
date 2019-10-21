@@ -31,8 +31,10 @@ default tuple[list[str] typeNames, set[IdRole] idRoles] staticFieldsGetTypeNames
 }
 
 AType staticFieldsGetTypeInNamelessType(AType containerType, Tree selector, loc scope, Solver s){
-    if(containerType == strType() && "<selector>" == "length") return intType();
-    s.report(error(selector, "Undefined field %q on %t", "<selector>", containerType));
+    if(!(containerType == strType() && "<selector>" == "length")){
+        s.report(error(selector, "Undefined field %q on %t", "<selector>", containerType));
+    }
+    return intType();
 }
 
 TypePalConfig staticFieldsConfig() =

@@ -14,12 +14,12 @@ import util::Benchmark;
 
 extend analysis::typepal::AType;
 extend analysis::typepal::Collector;
+extend analysis::typepal::Exception;
 extend analysis::typepal::FailMessage;
 extend analysis::typepal::Messenger;
 extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::TypePalConfig;
 extend analysis::typepal::Utils;
-
 
 // The Solver data type: a collection of call backs
 
@@ -255,7 +255,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     // ---- validation
     
     void validateTriggers(){
-        return;
         int nissues = 0;
         for(Calculator calc <- calculators){
             deps = calcType(loc src, AType atype) := calc ? getDependencies(atype) : calc.dependsOn;
@@ -747,7 +746,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             rel[loc, IdRole, AType]  valid_overloads = {};
             for(<key, role, tp> <- overloads){
                 try {
-                    selectorType = getTypeInType(tp, selector, idRolesSel, scope);
+                    selectorType = _getTypeInType(tp, selector, idRolesSel, scope);
                     //selectorType = getTypeInNamelessTypeFun(tp, selector, scope, thisSolver);
                     valid_overloads += <key, role, selectorType>;
                 } catch checkFailed(list[FailMessage] _): ; // do nothing and try next overload
@@ -1389,7 +1388,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             register(req);
         }
         
-        validateTriggers();
+        //validateTriggers();
         
         int initRegisterTime = cpuTime() - now;
        

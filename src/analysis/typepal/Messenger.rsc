@@ -10,6 +10,7 @@ import List;
 extend analysis::typepal::AType;
 import analysis::typepal::FailMessage;
 import analysis::typepal::Utils;
+import analysis::typepal::Exception;
 
 // ---- Message utilities -----------------------------------------------------
 

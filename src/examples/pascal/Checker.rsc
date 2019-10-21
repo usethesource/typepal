@@ -776,6 +776,7 @@ void collect(fd: (FunctionDesignator)  `<FunctionIdentifier fid> ( <{ ActualPara
                         default:
                             s.report(error(fd, "Illegal call of %q with argument %t", fid, actualList[0]));
                       }
+                      return realType();
                     };
      // int -> real; real -> real              
       ;
@@ -786,7 +787,7 @@ void collect(fd: (FunctionDesignator)  `<FunctionIdentifier fid> ( <{ ActualPara
      case "arctan": 
         c.calculate("call `arctan`", fd, actualList, iirr);
      case "cos": 
-        c.calculate("call `cos`", fd, actualList, irrr);
+        c.calculate("call `cos`", fd, actualList, iirr);
      case "exp": 
         c.calculate("call `exp`", fd, actualList, iirr);
      case "ln": 

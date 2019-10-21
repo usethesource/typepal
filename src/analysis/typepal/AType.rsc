@@ -1,7 +1,6 @@
 module analysis::typepal::AType
 
 import List;
-import analysis::typepal::FailMessage;
 extend analysis::typepal::ScopeGraph;
 
 // Extend AType for type checking purposes
@@ -47,12 +46,3 @@ default str prettyAType(overloadedAType(rel[loc, IdRole, AType] overloads))
                                               = "overloaded: {" + intercalate(", ", [prettyAType(t) | <k, r, t> <- overloads]) + "}";
 default str prettyAType(AType tp)              = "<tp>";
        
-// --- Exceptions
-
-data RuntimeException
-    = TypePalUsage(str reason)                      // TypePal used incorrectly
-    | TypePalUsage(str reason, list[loc] details)   // TypePal used incorrectly, with additional details
-    | TypePalInternalError(str reason)              // TypePal internal error
-    | TypeUnavailable()                             // Type is not available: used in control flow of solver
-    | checkFailed(list[FailMessage] msgs)           // Type check failed: used in control flow of solver
-    ;

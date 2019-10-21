@@ -49,6 +49,7 @@ default tuple[list[str] typeNames, set[IdRole] idRoles] structParametersGetTypeN
 
 AType structParametersGetTypeInNamelessType(AType containerType, Tree selector, loc scope, Solver s){
     s.report(error(selector, "Undefined field %q on %t", "<selector>", containerType));
+    return intType();
 }
 
 TypePalConfig structParametersConfig() =
