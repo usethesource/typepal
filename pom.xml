@@ -35,7 +35,7 @@
 					<include>META-INF/RASCAL.MF</include>
 					<include>src/**/*.rsc</include>
 					<include>src/**/*.ttl</include>
-                                        <include>src/examples/**/*.*</include>
+                    <include>src/examples/**/*.*</include>
 				</includes>
 			</resource>
 		</resources>
