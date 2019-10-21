@@ -107,17 +107,17 @@ str interpolate(str msg, TypeProvider getType, list[value] args){
                     throw TypePalUsage("%t format directive `<msg>` requires a Tree, AType or list/set of ATypes, found <args[a]>");
                 }
             case "q":
-                //result += "`<fmt1(args[a], getType)>`";
-                 if(Tree tree := args[a] || AType atype := args[a]){
-                    result += "`<fmt1(args[a], getType)>`";
-                } else if(list[value] vals := args[a]){
-                    result += isEmpty(vals) ? "none" : intercalateAnd(["`<fmt1(at, getType)>`" | at <- vals]);
-                } else if(set[value] vals := args[a]){
-                    result += isEmpty(vals) ? "none" : intercalateAnd(["`<fmt1(at, getType)>`" | at <- vals]);
-                } else {
-                    result += "`<fmt1(args[a], getType)>`";
-                   //throw TypePalUsage("%q format directive requires a Tree, AType or list/set of ATypes, found <args[a]>");
-                }
+                 result += "`<args[a]>`";
+                // if(Tree tree := args[a] || AType atype := args[a]){
+                //    result += "`<fmt1(args[a], getType)>`";
+                //} else if(list[value] vals := args[a]){
+                //    result += isEmpty(vals) ? "none" : intercalateAnd(["`<fmt1(at, getType)>`" | at <- vals]);
+                //} else if(set[value] vals := args[a]){
+                //    result += isEmpty(vals) ? "none" : intercalateAnd(["`<fmt1(at, getType)>`" | at <- vals]);
+                //} else {
+                //    result += "`<fmt1(args[a], getType)>`";
+                //   //throw TypePalUsage("%q format directive requires a Tree, AType or list/set of ATypes, found <args[a]>");
+                //}
             case "v":
                 result += "<fmt1(args[a], getType)>";
             case "%":
