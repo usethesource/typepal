@@ -42,7 +42,7 @@
 		<testSourceDirectory>src</testSourceDirectory>
 
 		<plugins>
-			<plugin>
+			<!-- <plugin>
 				<groupId>org.rascalmpl</groupId>
 				<artifactId>rascal-maven-plugin</artifactId>
 				<version>0.0.1-SNAPSHOT</version>
@@ -51,7 +51,7 @@
 					<srcs>
 						<src>${project.basedir}/src</src>
 					</srcs>
-					<!-- <errorsAsWarnings>true</errorsAsWarnings> -->
+					<errorsAsWarnings>true</errorsAsWarnings>
 				</configuration>
 				<executions>
 					<execution>
@@ -62,7 +62,7 @@
 						</goals>
 					</execution>
 				</executions>
-			</plugin>
+			</plugin> -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
