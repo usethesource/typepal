@@ -642,6 +642,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 case AType atype: return instantiate(atype);
                 case loc l:       return facts[l];
                 case defType(value v) : if(AType atype := v) return atype; else if(Tree tree := v) return instantiate(findType(tree@\loc));
+                case Define def:  return getType(def.defInfo);
                 //case defType(AType atype): return atype;
                 //case defType(Tree tree): instantiate(findType(tree@\loc));
                 case defTypeCall(list[loc] dependsOn, AType(Solver s) getAType):
@@ -723,7 +724,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     void addUse(set[loc] defs, Use u){
         for(loc def <- defs){
             if(definedBy[u.occ]?){
-                definedBy[u.occ]  = { containedIn(def, d) ? def : d | loc d <- definedBy[u.occ] };
+                definedBy[u.occ]  = { isContainedIn(def, d) ? def : d | loc d <- definedBy[u.occ] };
             } else {
                 definedBy[u.occ] = {def};
             }

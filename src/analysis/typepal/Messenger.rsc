@@ -6,6 +6,7 @@ import Exception;
 import String;
 import Set;
 import List;
+import Location;
 
 extend analysis::typepal::AType;
 import analysis::typepal::FailMessage;
@@ -13,11 +14,6 @@ import analysis::typepal::Utils;
 import analysis::typepal::Exception;
 
 // ---- Message utilities -----------------------------------------------------
-
-// Is inner location textually contained in outer location?
-bool containedIn(loc inner, loc outer){
-    return inner.path == outer.path && (!outer.offset? || inner.offset >= outer.offset && inner.offset + inner.length <= outer.offset + outer.length);
-}
 
 list[Message] sortMostPrecise(list[Message] messages)
     = sort(messages, bool (Message a, Message b) {
@@ -30,7 +26,7 @@ list[Message] sortMostPrecise(list[Message] messages)
  
 bool alreadyReported(list[Message] messages, loc src) {
     try 
-        return !isEmpty(messages) && any(msg <- messages, containedIn(msg.at, src));
+        return !isEmpty(messages) && any(msg <- messages, isStriclyContainedIn(msg.at, src));
     catch UnavailableInformation(_): 
         return false;
 }

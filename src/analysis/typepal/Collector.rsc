@@ -357,11 +357,11 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     bool _isAlreadyDefined(str id,  Tree useOrDef){
         lubdefs = lubDefinesPerLubScope[currentLubScope][id];
-        if(!isEmpty(lubdefs) && any(<scope, idRole, l, info> <- lubdefs, containedIn(getLoc(useOrDef), scope))){
+        if(!isEmpty(lubdefs) && any(<scope, idRole, l, info> <- lubdefs, isContainedIn(getLoc(useOrDef), scope))){
             return true;
         }
         for(<loc scope, str id1, IdRole idRole, loc defined, DefInfo defInfo> <- defines, 
-             id == id1, config.isInferrable(idRole), containedIn(getLoc(useOrDef), scope)){
+             id == id1, config.isInferrable(idRole), isContainedIn(getLoc(useOrDef), scope)){
             return true;
         }
         return false;
@@ -971,43 +971,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         facts += tm.facts;
         paths += tm.paths;
     }
-    
-    //TModel resolvePath(TModel tm){
-    //    msgs = [];
-    //    int n = 0;
-    //
-    //    referPaths = tm.referPaths;
-    //    newPaths = {};
-    //    
-    //    lookupFun = config.lookup;
-    //    
-    //    while(!isEmpty(referPaths) && n < 3){    // explain this iteration count
-    //        n += 1;
-    //        for(ReferPath rp <- referPaths){
-    //            try {
-    //                u = rp.use;
-    //                foundDefs = lookupFun(tm, u);
-    //                if({loc def} := foundDefs){
-    //                   newPaths += {<u.scope, rp.pathRole, def>};  
-    //                } else {
-    //                    msgs += error("Name `<u.id>` is ambiguous <foundDefs>", u.occ);
-    //                }
-    //                referPaths -= {rp}; 
-    //            }
-    //            catch:{
-    //                println("Lookup for <rp> fails"); 
-    //                msgs += error("Name `<rp.use.id>` not found", rp.use.occ);
-    //            }
-    //        }
-    //    }
-    //    tm.paths += newPaths;
-    //    tm.referPaths = referPaths;
-    //    for(rp <- referPaths){
-    //        msgs += error("Reference to name `<rp.use.id>` cannot be resolved", rp.use.occ);
-    //    }
-    //    tm.messages += msgs;
-    //    return tm;
-    //}
     
     TModel _run(){
         if(building){
