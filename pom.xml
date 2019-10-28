@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>io.usethesource</groupId>
 		<artifactId>pom-parent</artifactId>
-		<version>0.2.0</version>
+		<version>0.2.1-SNAPSHOT</version>
 	</parent>
 
 	<groupId>org.rascalmpl</groupId>
@@ -42,10 +42,10 @@
 		<testSourceDirectory>src</testSourceDirectory>
 
 		<plugins>
-			<!-- <plugin>
+			 <plugin>
 				<groupId>org.rascalmpl</groupId>
 				<artifactId>rascal-maven-plugin</artifactId>
-				<version>0.0.1-SNAPSHOT</version>
+				<version>0.0.1-20191016.144107-139</version>
 				<configuration>
 					<bin>${project.build.outputDirectory}</bin>
 					<srcs>
@@ -62,7 +62,7 @@
 						</goals>
 					</execution>
 				</executions>
-			</plugin> -->
+			</plugin> 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
@@ -94,33 +94,6 @@
 		</plugins>
 	</build>
 
-	<repositories>
-		<repository>
-			<id>usethesource-rascalmpl-unstable</id>
-			<layout>p2</layout>
-			<url>https://update.rascal-mpl.org/unstable/</url>
-		</repository>
-	</repositories>
-
-	<!-- deployment configuration (usethesource) -->
-	<distributionManagement>
-		<repository>
-			<id>usethesource-releases</id>
-			<url>http://nexus.usethesource.io/content/repositories/releases/</url>
-		</repository>
-		<snapshotRepository>
-			<id>usethesource-snapshots</id>
-			<url>http://nexus.usethesource.io/content/repositories/snapshots/</url>
-		</snapshotRepository>
-	</distributionManagement>
-
-	<pluginRepositories>
-		<pluginRepository>
-			<id>usethesource</id>
-			<url>http://nexus.usethesource.io/content/repositories/public/</url>
-		</pluginRepository>
-	</pluginRepositories>
-
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
@@ -130,7 +103,7 @@
 		<dependency>
 			<groupId>org.rascalmpl</groupId>
 			<artifactId>rascal</artifactId>
-			<version>0.13.0-SNAPSHOT</version>
+			<version>0.13.0</version>
 		</dependency>
 	</dependencies>
 </project>
