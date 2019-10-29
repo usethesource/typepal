@@ -9,12 +9,11 @@
 
     <groupId>org.rascalmpl</groupId>
     <artifactId>typepal</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.0-SNAPSHOT</version>
     <packaging>eclipse-plugin</packaging>
 
     <scm>
         <developerConnection>scm:git:ssh://git@github.com/cwi-swat/TypePal.git</developerConnection>
-        <tag>v0.2.0</tag>
     </scm>
 
     <build>
