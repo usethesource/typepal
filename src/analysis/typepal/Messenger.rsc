@@ -26,7 +26,7 @@ list[Message] sortMostPrecise(list[Message] messages)
  
 bool alreadyReported(list[Message] messages, loc src) {
     try 
-        return !isEmpty(messages) && any(msg <- messages, isStriclyContainedIn(msg.at, src));
+        return !isEmpty(messages) && any(msg <- messages, isStrictlyContainedIn(msg.at, src));
     catch UnavailableInformation(_): 
         return false;
 }
