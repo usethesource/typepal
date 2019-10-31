@@ -52,21 +52,20 @@
                 <artifactId>rascal-maven-plugin</artifactId>
                 <version>0.0.1-20191016.144107-139</version>
                 <configuration>
-                    <argLine>-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -Xmx2000m -Xss128m</argLine>
-                <bin>${project.build.outputDirectory}</bin>
-                <srcs>
-                <src>${project.basedir}/src</src>
-                </srcs>
-                <errorsAsWarnings>true</errorsAsWarnings>
+                    <bin>${project.build.outputDirectory}</bin>
+                    <srcs>
+                        <src>${project.basedir}/src</src>
+                    </srcs>
+                    <errorsAsWarnings>true</errorsAsWarnings>
                 </configuration>
                 <executions>
-                <execution>
-                <id>typepal-compile</id>
-                <phase>compile</phase>
-                <goals>
-                <goal>compile-rascal</goal>
-                </goals>
-                </execution>
+                    <execution>
+                        <id>typepal-compile</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>compile-rascal</goal>
+                        </goals>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
