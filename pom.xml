@@ -15,7 +15,7 @@
     <properties>
         <tycho-version>1.4.0</tycho-version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven-scm-version>1.9.5</maven-scm-version>
+        <scm-plugin-version>1.9.5</scm-plugin-version>
     </properties>
 
     <scm>
@@ -99,7 +99,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-scm-plugin</artifactId>
-                <version>${maven-scm-version}</version>
+                <version>${scm-plugin-version}</version>
                 <executions>
                     <execution>
                         <id>default-cli</id>
@@ -120,15 +120,11 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
                 <version>2.5.3</version>
-                <executions>
-                    <execution>
-                        <configuration>
-                            <tagNameFormat>v@{project.version}</tagNameFormat>
-                            <preparationGoals>org.eclipse.tycho:tycho-versions-plugin:${tycho-version}:update-eclipse-metadata org.apache.maven.plugins:maven-scm-plugin:${maven-scm-version}:add org.apache.maven.plugins:maven-scm-plugin:${maven-scm-version}:checkin</preparationGoals>
-                            <completionGoals>org.eclipse.tycho:tycho-versions-plugin:${tycho-version}:update-eclipse-metadata org.apache.maven.plugins:maven-scm-plugin:${maven-scm-version}:add org.apache.maven.plugins:maven-scm-plugin:${maven-scm-version}:checkin</completionGoals>
-                        </configuration>
-                    </execution>
-                </executions>
+                <configuration>
+                    <tagNameFormat>v@{project.version}</tagNameFormat>
+                    <preparationGoals>org.eclipse.tycho:tycho-versions-plugin:${tycho-version}:update-eclipse-metadata org.apache.maven.plugins:maven-scm-plugin:${scm-plugin-version}:add org.apache.maven.plugins:maven-scm-plugin:${scm-plugin-version}:checkin</preparationGoals>
+                    <completionGoals>org.eclipse.tycho:tycho-versions-plugin:${tycho-version}:update-eclipse-metadata org.apache.maven.plugins:maven-scm-plugin:${scm-plugin-version}:add org.apache.maven.plugins:maven-scm-plugin:${scm-plugin-version}:checkin</completionGoals>
+                </configuration>
             </plugin>
         </plugins>
     </build>
