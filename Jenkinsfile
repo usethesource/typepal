@@ -6,7 +6,12 @@ node {
             checkout scm
         }
 
-        withMaven(maven: 'M3', jdk: 'jdk-oracle-8', mavenOpts: '-Xmx3000m -Xms16m', options: [artifactsPublisher(disabled: true)] ) {
+
+        environment {
+            MAVEN_OPTS = ' -Xmx3000m -Xss16m'
+        }
+
+        withMaven(maven: 'M3', jdk: 'jdk-oracle-8', options: [artifactsPublisher(disabled: true)] ) {
             stage('Typecheck') {
                 sh "mvn clean compile"
             }
