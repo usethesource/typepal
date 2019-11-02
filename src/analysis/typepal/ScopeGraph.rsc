@@ -27,11 +27,11 @@ data Tree;      // workaround for bug in interpreter
 data Solver;
 
 data TypePalConfig(       
-        Accept (TModel tm, loc def, Use use) isAcceptableSimple     
+        Accept (loc def, Use use, Solver s) isAcceptableSimple     
             = defaultIsAcceptableSimple,
-        Accept (TModel tm, loc def, Use use) isAcceptableQualified  
+        Accept (loc def, Use use, Solver s) isAcceptableQualified  
             = defaultIsAcceptableQualified,
-        Accept (TModel tm, loc defScope, loc def, Use use, PathRole pathRole) isAcceptablePath         
+        Accept (loc defScope, loc def, Use use, PathRole pathRole, Solver s) isAcceptablePath         
             = defaultIsAcceptablePath
         ) = tconfig();
 
@@ -122,22 +122,20 @@ data Accept
 
 // isAcceptableSimple
 
-Accept defaultIsAcceptableSimple(TModel tm, loc candidate, Use use) {
+Accept defaultIsAcceptableSimple(loc candidate, Use use, Solver s) {
     if(wdebug) println("default isAcceptableSimple: <use.id> candidate: <candidate>");
     return acceptBinding();
 }
 
-//Accept (TModel tm, loc candidate, Use use) isAcceptableSimpleFun = defaultIsAcceptableSimple;
-
 // isAcceptablePath
 
-Accept defaultIsAcceptablePath(TModel tm, loc defScope, loc def, Use use, PathRole pathRole) {
+Accept defaultIsAcceptablePath(loc defScope, loc def, Use use, PathRole pathRole, Solver s) {
     if(wdebug) println("default isAcceptablePath: <use.id>, defScope: <defScope>, def <def>");
     return acceptBinding();
 }
 
 // isAcceptableQualified
-Accept defaultIsAcceptableQualified(TModel tm, loc candidate, Use use) = acceptBinding();
+Accept defaultIsAcceptableQualified(loc candidate, Use use, Solver s) = acceptBinding();
 
 default bool checkPaths(TModel tm, loc from, loc to, PathRole pathRole, bool(TModel,loc) pred) {
     current = from;
@@ -160,16 +158,16 @@ bool existsPath(TModel tm, loc from, loc to, PathRole pathRole){
 // The ScopeGraph structure that provides lookup operations n a TModel
 data ScopeGraph
     = scopegraph(
-        set[loc] (TModel tm, Use u) lookup
+        set[loc] (Use u) lookup
     );
     
 bool wdebug = false;
     
-ScopeGraph newScopeGraph(TypePalConfig tc){
+ScopeGraph newScopeGraph(TModel tm, Solver s){
 
     // Get all pathRoles and remember them
     @memo 
-    private set[PathRole] pathRoles(TModel tm){
+    private set[PathRole] pathRoles(){
         //return {pl | /PathRole pl := tm};
         return tm.paths.pathRole;
     }
@@ -333,7 +331,7 @@ ScopeGraph newScopeGraph(TypePalConfig tc){
     
     @memo
     // Retrieve all bindings for use in given syntactic scope
-    private set[loc] bindWide(TModel tm, loc scope, str id, set[IdRole] idRoles){
+    private set[loc] bindWide(loc scope, str id, set[IdRole] idRoles){
         preDefs = (tm.definesMap[scope] ? ())[id] ? {};
         
         if(isEmpty(preDefs) || isEmpty(preDefs<0> & idRoles)) return {};
@@ -341,15 +339,15 @@ ScopeGraph newScopeGraph(TypePalConfig tc){
     }
     
     // Lookup use in the given syntactic scope
-    private set[loc] lookupScopeWide(TModel tm, loc scope, Use use){
+    private set[loc] lookupScopeWide(loc scope, Use use){
         //if(wdebug) println("\tlookupScopeWide: <use.id> in scope <scope>");
     
-        return {def | def <-  bindWide(tm, scope, use.id, use.idRoles), isAcceptableSimpleFun(tm, def, use) == acceptBinding()}; 
+        return {def | def <-  bindWide(scope, use.id, use.idRoles), isAcceptableSimpleFun(def, use, the_solver) == acceptBinding()}; 
     }
     
     @memo
     // Find all (semantics induced, one-level) bindings for use in given syntactic scope via PathRole
-    private set[loc] lookupPathsWide(TModel tm, loc scope, Use use, PathRole pathRole){
+    private set[loc] lookupPathsWide(loc scope, Use use, PathRole pathRole){
         //if(wdebug) println("\tlookupPathsWide: <use.id> in scope <scope>, role <pathRole>\n<for(p <- tm.paths){>\t---- <p>\n<}>");
         res = {};
         
@@ -360,8 +358,8 @@ ScopeGraph newScopeGraph(TypePalConfig tc){
                 seenParents += parent;
                 //if(wdebug) println("\tlookupPathsWide: scope: <scope>, trying semantic path to: <parent>");
                 
-                for(loc def <- lookupScopeWide(tm, parent, use)){
-                    switch(isAcceptablePathFun(tm, parent, def, use, pathRole)){
+                for(loc def <- lookupScopeWide(parent, use)){
+                    switch(isAcceptablePathFun(parent, def, use, pathRole, the_solver)){
                     case acceptBinding():
                        res += def;
                      case ignoreContinue():
@@ -377,19 +375,19 @@ ScopeGraph newScopeGraph(TypePalConfig tc){
     }
     
     // Lookup use in given syntactic scope and via all semantic paths
-    private set[loc] lookupQualWide(TModel tm, loc scope, Use u){
+    private set[loc] lookupQualWide(loc scope, Use u){
         //if(wdebug) println("\tlookupQualWide: <u.id> in scope <scope>");
       
-        res = lookupScopeWide(tm, scope, u);
+        res = lookupScopeWide(scope, u);
         //if(wdebug) println("\tlookupQualWide: <u.id> in scope <scope>, after lookupScopeWide:\n<for(r <- res){>\t--\> <r><}>");
        
         //if(wdebug) println("\tlookupQualWide: <res>, loop over <pathRoles(tm)>");
         nextPath:
-        for(PathRole pathRole <- pathRoles(tm)){
-           candidates = lookupPathsWide(tm, scope, u, pathRole);
+        for(PathRole pathRole <- pathRoles()){
+           candidates = lookupPathsWide(scope, u, pathRole);
            //if(wdebug) println("\tlookupQualWide: candidates: <candidates>");
            for(loc candidate <- candidates){
-               switch(isAcceptableSimpleFun(tm, candidate, u)){
+               switch(isAcceptableSimpleFun(candidate, u, the_solver)){
                case acceptBinding():
                   res += candidate;
                case ignoreContinue():
@@ -405,10 +403,10 @@ ScopeGraph newScopeGraph(TypePalConfig tc){
     
     // Lookup use in syntactic scope and via all semantic paths,
     // recur to syntactic parent until found
-    private set[loc] lookupNestWide(TModel tm, loc scope, Use u){
+    private set[loc] lookupNestWide(loc scope, Use u){
         //if(wdebug) println("\tlookupNestWide: <u.id> in scope <scope>");
        
-        res = lookupQualWide(tm, scope, u);
+        res = lookupQualWide(scope, u);
         //if(wdebug) println("\tlookupNestWide: <u.id> in scope <scope> found:\n<for(r <- res){>\t==\> <r><}>");
         if(!isEmpty(res)) return res; // <<<
     
@@ -416,18 +414,18 @@ ScopeGraph newScopeGraph(TypePalConfig tc){
           if(scope == tm.scopes[scope]) { println("Identical scope in lookupNestWide: <scope>"); return res; }
            parent = tm.scopes[scope];
            //if(wdebug) println("\tlookupNestWide: <u.id> in scope <scope> move up to <parent>");
-           res += lookupNestWide(tm, parent, u);
+           res += lookupNestWide(parent, u);
         }
       
         return res;
     }
     
-    public set[loc] lookupWide(TModel tm, Use u){
+    public set[loc] lookupWide(Use u){
         scope = u.scope;
      
         //if(wdebug) println("lookupWide: <u>");
         if(!(u has qualifierRoles)){
-           defs = {def | loc def <- lookupNestWide(tm, scope, u), isAcceptableSimpleFun(tm, def, u) == acceptBinding()};
+           defs = {def | loc def <- lookupNestWide(scope, u), isAcceptableSimpleFun(def, u, the_solver) == acceptBinding()};
            //if(wdebug) println("lookupWide: <u> returns:\n<for(d <- defs){>\t==\> <d><}>");
            if(isEmpty(defs)) throw NoBinding(); else return defs;
         } else {
@@ -436,14 +434,14 @@ ScopeGraph newScopeGraph(TypePalConfig tc){
                qscopes = {};
                for(str id <- u.ids[0..-1]){ 
                    //if(wdebug) println("lookup, search for <id>"); 
-                   qscopes = lookupNestWide(tm, scope, use(id, u.occ, scope, u.qualifierRoles));
+                   qscopes = lookupNestWide(scope, use(id, u.occ, scope, u.qualifierRoles));
                    if(isEmpty(qscopes)) throw NoBinding();
                 }
     
                 defs = {};
                 for(loc qscope <- qscopes){
-                    scopeLookups = lookupNestWide(tm, qscope, use(u.ids[-1], u.occ, qscope, u.idRoles));
-                    defs += { def | def <- scopeLookups, isAcceptableQualifiedFun(tm, def, u) == acceptBinding()};            
+                    scopeLookups = lookupNestWide(qscope, use(u.ids[-1], u.occ, qscope, u.idRoles));
+                    defs += { def | def <- scopeLookups, isAcceptableQualifiedFun(def, u, the_solver) == acceptBinding()};            
                 }
                 if(!isEmpty(defs)){
                     //if(wdebug) println("lookupWide: <u> returns:\n<for(d <- defs){>\t==\> <d><}>");
@@ -456,7 +454,7 @@ ScopeGraph newScopeGraph(TypePalConfig tc){
                 } else {
                      allScopes = domain(tm.scopes) + range(tm.scopes);
                      for(str id <- u.ids[0..-1]){ 
-                        qscopes = lookupNestWide(tm, scope, use(id, u.occ, scope, u.qualifierRoles));
+                        qscopes = lookupNestWide(scope, use(id, u.occ, scope, u.qualifierRoles));
                         for(loc qscope <- qscopes){
                             if(qscope notin allScopes){
                                 throw TypePalUsage("Definition of qualifier `<id>` is unknown as scope, check its definition", [qscope]);
@@ -471,12 +469,13 @@ ScopeGraph newScopeGraph(TypePalConfig tc){
     }
     
     // Initialize the ScopeGraph context
+    Solver the_solver = s;
     
-    set[loc] (TModel, Use) lookupFun                               = lookupWide;
-    Accept (TModel tm, loc def, Use use) isAcceptableSimpleFun     = tc.isAcceptableSimple;
-    Accept (TModel tm, loc def, Use use) isAcceptableQualifiedFun  = tc.isAcceptableQualified;
-    Accept (TModel tm, loc defScope, loc def, Use use, PathRole pathRole) isAcceptablePathFun 
-                                                                   = tc.isAcceptablePath;
+    set[loc] (Use) lookupFun                                      = lookupWide;
+    Accept (loc def, Use use, Solver s) isAcceptableSimpleFun     = tm.config.isAcceptableSimple;
+    Accept (loc def, Use use, Solver s) isAcceptableQualifiedFun  = tm.config.isAcceptableQualified;
+    Accept (loc defScope, loc def, Use use, PathRole pathRole, Solver s) isAcceptablePathFun 
+                                                                  = tm.config.isAcceptablePath;
        
     return scopegraph(
             lookupFun
