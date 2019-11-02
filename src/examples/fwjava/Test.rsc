@@ -3,6 +3,7 @@ module examples::fwjava::Test
 import examples::fwjava::Syntax;
 extend examples::fwjava::Checker;
 extend analysis::typepal::TestFramework;
+import IO;
 
 import ParseTree;
 
@@ -29,4 +30,8 @@ test bool fwjTests() {
                      runName = "FwJava");
 }
 
-value main() = fwjTests();
+value main() {
+    println("**** FWJTESTS DISABLED ****");
+    //fwjTests();
+    return true;
+}
