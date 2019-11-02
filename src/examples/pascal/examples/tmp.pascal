@@ -1,5 +1,6 @@
  program tst(output);
- begin 
-   if eof then writeln
-
- end. 
+    type complex = record re, im : integer end;
+    var c : complex;
+begin
+    with c do re := 10
+end.

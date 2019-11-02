@@ -30,8 +30,4 @@ test bool fwjTests() {
                      runName = "FwJava");
 }
 
-value main() {
-    println("**** FWJTESTS DISABLED ****");
-    //fwjTests();
-    return true;
-}
+value main() = fwjTests();

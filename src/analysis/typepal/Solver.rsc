@@ -5,6 +5,7 @@ import Node;
 import Map;
 import IO;
 import List; 
+import Location;
 import ParseTree;
 import Type;
 import String;
@@ -107,8 +108,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     bool(loc def, TModel tm) reportUnused = defaultReportUnused;
     
-    //ScopeGraph scopeGraph = newScopeGraph(tm.config);
-    
     void configTypePal(TypePalConfig tc){
         
         unescapeName = tc.unescapeName;
@@ -146,7 +145,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     map[loc, AType] _getFacts() = facts;
     
-    Paths _getPaths() = tm.paths;
+    Paths _getPaths() {
+        res = tm.paths;
+        return res;
+     }
     
     value _getStore(str key) = tm.store[key];
     
@@ -637,7 +639,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     .Description
     xxx
     }    
-     //@memo
+    //@memo
     AType getType(value v){
         try {
             switch(v){
@@ -1767,6 +1769,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                                 getDefine
                      );
                      
-    ScopeGraph scopeGraph = newScopeGraph(tm, thisSolver);
+    ScopeGraph scopeGraph = newScopeGraph(tm, tm.config, thisSolver);
     return thisSolver;
 }

@@ -163,15 +163,8 @@ data ScopeGraph
     
 bool wdebug = false;
     
-ScopeGraph newScopeGraph(TModel tm, Solver s){
-
-    // Get all pathRoles and remember them
-    @memo 
-    private set[PathRole] pathRoles(){
-        //return {pl | /PathRole pl := tm};
-        return tm.paths.pathRole;
-    }
-    
+ScopeGraph newScopeGraph(TModel tm, TypePalConfig config, Solver s){
+ 
     /*************************************************************************/
     /* At the moment we support "classic" scopes from the Kastens & Waite    */
     /* article and "wide" scopes as used for Rascal. We still have to settle */
@@ -329,7 +322,7 @@ ScopeGraph newScopeGraph(TModel tm, Solver s){
     /* parents) and definitions that can be reached in a single step via semantic links */                             
     /************************************************************************************/
     
-    @memo
+    //@memo
     // Retrieve all bindings for use in given syntactic scope
     private set[loc] bindWide(loc scope, str id, set[IdRole] idRoles){
         preDefs = (tm.definesMap[scope] ? ())[id] ? {};
@@ -345,7 +338,7 @@ ScopeGraph newScopeGraph(TModel tm, Solver s){
         return {def | def <-  bindWide(scope, use.id, use.idRoles), isAcceptableSimpleFun(def, use, the_solver) == acceptBinding()}; 
     }
     
-    @memo
+    //@memo
     // Find all (semantics induced, one-level) bindings for use in given syntactic scope via PathRole
     private set[loc] lookupPathsWide(loc scope, Use use, PathRole pathRole){
         //if(wdebug) println("\tlookupPathsWide: <use.id> in scope <scope>, role <pathRole>\n<for(p <- tm.paths){>\t---- <p>\n<}>");
@@ -354,7 +347,7 @@ ScopeGraph newScopeGraph(TModel tm, Solver s){
         seenParents = {};
         solve(res, scope) {
         next_path:
-            for(<scope, pathRole, loc parent> <- tm.paths, parent notin seenParents){
+            for(<scope, pathRole, loc parent> <- paths, parent notin seenParents){
                 seenParents += parent;
                 //if(wdebug) println("\tlookupPathsWide: scope: <scope>, trying semantic path to: <parent>");
                 
@@ -383,7 +376,7 @@ ScopeGraph newScopeGraph(TModel tm, Solver s){
        
         //if(wdebug) println("\tlookupQualWide: <res>, loop over <pathRoles(tm)>");
         nextPath:
-        for(PathRole pathRole <- pathRoles()){
+        for(PathRole pathRole <- pathRoles){
            candidates = lookupPathsWide(scope, u, pathRole);
            //if(wdebug) println("\tlookupQualWide: candidates: <candidates>");
            for(loc candidate <- candidates){
@@ -420,7 +413,18 @@ ScopeGraph newScopeGraph(TModel tm, Solver s){
         return res;
     }
     
+    Paths paths = s.getPaths();
+    set[PathRole] pathRoles = paths.pathRole;
+    
     public set[loc] lookupWide(Use u){
+    
+        // Update current paths and pathRoles
+        current_paths = s.getPaths();
+        if(current_paths != paths){
+            paths = current_paths;
+            pathRoles = paths.pathRole;
+        }
+        
         scope = u.scope;
      
         //if(wdebug) println("lookupWide: <u>");
@@ -469,16 +473,16 @@ ScopeGraph newScopeGraph(TModel tm, Solver s){
     }
     
     // Initialize the ScopeGraph context
+    
     Solver the_solver = s;
     
-    set[loc] (Use) lookupFun                                      = lookupWide;
-    Accept (loc def, Use use, Solver s) isAcceptableSimpleFun     = tm.config.isAcceptableSimple;
-    Accept (loc def, Use use, Solver s) isAcceptableQualifiedFun  = tm.config.isAcceptableQualified;
+    Accept (loc def, Use use, Solver s) isAcceptableSimpleFun     = config.isAcceptableSimple;
+    Accept (loc def, Use use, Solver s) isAcceptableQualifiedFun  = config.isAcceptableQualified;
     Accept (loc defScope, loc def, Use use, PathRole pathRole, Solver s) isAcceptablePathFun 
-                                                                  = tm.config.isAcceptablePath;
+                                                                  = config.isAcceptablePath;
        
     return scopegraph(
-            lookupFun
+            lookupWide
         );
 }
  

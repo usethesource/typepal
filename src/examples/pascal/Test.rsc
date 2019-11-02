@@ -39,6 +39,9 @@ list[str] examples = ["beginend", "bisect", "complex", "convert", "cosine", "egf
                       "recursivegcd", "roman", "setop", "sideeffect", "summing", "traversal", "with"];
 
 test bool pascalTests() {
+
+    //println("**** PASCALTESTS DISABLED ****");
+    //return true;
     bool ok = runTests([|project://typepal/src/examples/pascal/expression-tests.ttl|,
                         |project://typepal/src/examples/pascal/statement-tests.ttl|
                        ], #start[Program], TModel (Tree t) { return pascalTModelForTree(t, false); },
