@@ -22,9 +22,10 @@ import Node;
 import String;
 
 import analysis::typepal::Exception;
+extend analysis::typepal::Solver;
 
 data Tree;      // workaround for bug in interpreter
-data Solver;
+//data Solver;
 
 data TypePalConfig(       
         Accept (loc def, Use use, Solver s) isAcceptableSimple     
