@@ -290,7 +290,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
        
     void validateDependencies(){
         availableCalcs = {};
-        map[loc,Calculator] calcMap = ();
+        calcMap = ();
         dependencies = {};
         for(Calculator calc <- calculators){
             csrcs = calc has src ? [calc.src] : calc.srcs;

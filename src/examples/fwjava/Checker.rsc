@@ -207,7 +207,6 @@ void collect(current: (Expression) `<Expression exp> . <Method method> <Expressi
                 return returnType;
              } else {
                 s.report(error(current, "Method type required, found %t", mtype));
-                return atypeList([]); // keep type checker happy
              }
          });
     collect(exp, exps, c);
@@ -226,7 +225,6 @@ void collect(current: (Expression) `new <Constructor cons> <Expressions exps>`, 
                 return returnType;
              } else {
                 s.report(error(current, "Constructor %q requires method type, found %t", cons, ctype));
-                return atypeList([]); // keep type checker happy
              }
             });
       collect(exps, c);

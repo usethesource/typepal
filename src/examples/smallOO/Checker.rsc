@@ -142,10 +142,8 @@ void collect(current:(Expression)`<Expression lhs> + <Expression rhs>`, Collecto
             switch([s.getType(lhs), s.getType(rhs)]){
                 case [intType(), intType()]: return intType();
                 case[strType(), strType()]: return strType();
-                default: {
+                default:
                      s.report(error(current, "+ is not defined on %t and %t", lhs, rhs));
-                     return atypeList([]); // keep type checker happy
-                }
             }
     });
     collect(lhs, rhs, c);

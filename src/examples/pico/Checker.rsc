@@ -58,16 +58,13 @@ void collect(current: (Statement) `while <Expression cond> do <{Statement ";"}* 
 
 void collect(current: (Expression) `<Expression lhs> + <Expression rhs>`, Collector c){
      c.calculate("addition", current, [lhs, rhs], 
-        AType (Solver s) { 
-            switch([s.getType(lhs), s.getType(rhs)]){
+        AType (Solver s) { switch([s.getType(lhs), s.getType(rhs)]){
                    case [intType(), intType()]: return intType();
                    case [strType(), strType()]: return strType();
-                   default: {
+                   default:
                        s.report(error(current, "Operator `+` cannot be applied to %t and %t", lhs, rhs));
-                       return atypeList([]); // keep type checker happy
                    }
-            }
-        });
+                 });
      collect(lhs, rhs, c);
 }
 

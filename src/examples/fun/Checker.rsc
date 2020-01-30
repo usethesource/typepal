@@ -89,7 +89,6 @@ void collect(current: (Expression) `<Expression exp1> (<Expression exp2>)`, Coll
                   return tau2;
                } else {
                   s.report(error(exp1, "Function type expected"));
-                  return atypeList([]); // keep type checker happy
                }
         });
      collect(exp1, exp2, c);
@@ -115,10 +114,8 @@ void collect(current: (Expression) `<Expression lhs> + <Expression rhs>`, Collec
             switch(<s.getType(lhs), s.getType(rhs)>){
                 case <intType(), intType()>: return intType();
                 case <strType(), strType()>: return strType();
-                default: {
+                default:
                     s.report(error(current, "Arguments of type %t and %t not allowed for `+`", lhs, rhs));
-                     return atypeList([]); // keep type checker happy
-                }
             }
         });
       collect(lhs, rhs, c);

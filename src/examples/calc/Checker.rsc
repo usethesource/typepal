@@ -43,10 +43,8 @@ void collect(current: (Exp) `<Exp e1> + <Exp e2>`, Collector c){
             switch(<s.getType(e1), s.getType(e2)>){
                 case <intType(), intType()>: return intType();
                 case <boolType(), boolType()>: return boolType();
-                default: {
+                default:
                     s.report(error(current, "`+` not defined for %t and %t", e1, e2));
-                    return atypeList([]); // keep type checker happy
-                }
             }
         });
       collect(e1, e2, c);
@@ -58,10 +56,8 @@ void collect(current: (Exp) `<Exp e1> * <Exp e2>`, Collector c){
             switch(<s.getType(e1), s.getType(e2)>){
                 case <intType(), intType()>: return intType();
                 case <boolType(), boolType()>: return boolType();
-                default: {
+                default:
                     s.report(error(current, "`*` not defined for %t and %t", e1, e2));
-                    return atypeList([]); // keep type checker happy
-                }
             }
         });
       collect(e1, e2, c);
