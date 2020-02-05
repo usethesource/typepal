@@ -11,74 +11,24 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 }
 module analysis::typepal::Collector
-
+ 
 import Node;
 import Map;
 import ParseTree;
-import String;
 import Set;
 import Relation;
-import util::Benchmark;
 import IO;
 import Type;
 import Location;
 
-extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::AType;
 extend analysis::typepal::Exception;
-
-
-extend analysis::typepal::Messenger;
-import analysis::typepal::FailMessage;
-
 extend analysis::typepal::TypePalConfig;
-import analysis::typepal::Utils;
+extend analysis::typepal::ICollector;
 
-data Collector 
-    = collector(
-      /* Life cycle */   TModel () run,
-     /* Configuration */ TypePalConfig () getConfig,
-                         void (TypePalConfig cfg) setConfig,
-     /* Scoping */       void (Tree tree) enterScope,
-                         void (list[Tree] trees) enterCompositeScope,
-                         void (Tree tree) enterLubScope,
-                         void (list[Tree] trees) enterCompositeLubScope,
-                         void (Tree tree) leaveScope,
-                         void (list[Tree] trees) leaveCompositeScope,
-                         loc () getScope,
-     /* Scope Info */    void (loc scope, ScopeRole scopeRole, value info) setScopeInfo,
-                         lrel[loc scope, value scopeInfo] (ScopeRole scopeRole) getScopeInfo,
-     /* Nested Info */   void(str key, value val) push,
-                         value (str key) pop,
-                         value (str key) top,
-                         list[value] (str key) getStack,
-                         void (str key) clearStack,
-     /* Composition */   void (TModel tm) addTModel,
-     /* Reporting */     bool (FailMessage ) report,
-                         bool (list[FailMessage] msgs) reports,
-     /* Define */        void (str id, IdRole idRole, value def, DefInfo info) define,
-                         void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope,
-                         bool (str id, Tree useOrDef) isAlreadyDefined,
-     /* Use */           void (Tree occ, set[IdRole] idRoles) use,
-                         void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) useQualified,
-                         void (Tree container, Tree selector, set[IdRole] idRolesSel) useViaType,
-                         void (Tree occ, set[IdRole] idRoles) useLub,
-     /* Path addition */ void (Tree occ, set[IdRole] idRoles, PathRole pathRole) addPathToDef,
-                         void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole) addPathToQualifiedDef, 
-                         void (Tree occ, PathRole pathRole) addPathToType,
-                       
-     /* Inference */     AType (value src) newTypeVar,
-     /* Fact */          void (Tree src, value atype) fact,
-     /* Calculate */     void (str name, Tree src, list[value] dependencies, AType(Solver s) getAType) calculate,
-                         void (str name, Tree src, list[value] dependencies, AType(Solver s) getAType) calculateEager,
-     /* Require */       void (str name, Tree src, list[value] dependencies, void(Solver s) preds) require,
-                         void (str name, Tree src, list[value] dependencies, void(Solver s) preds) requireEager,
-        
-                         void (value l, value r, FailMessage fm) requireEqual,
-                         void (value l, value r, FailMessage fm) requireComparable,
-                         void (value l, value r, FailMessage fm) requireSubType,
-                         void (value l, value r, FailMessage fm) requireUnify
-      ); 
+import analysis::typepal::ISolver;
+import analysis::typepal::FailMessage;
+import analysis::typepal::Utils;
 
 // Extract (nested) tree locations and type variables from a list of dependencies
 list[loc] dependenciesAslocList(list[value] dependencies){
@@ -232,52 +182,6 @@ void print(calcLub(str cname, list[loc] srcs, list[loc] dependsOn, list[AType(So
 void print(tuple[loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo] def, str indent, map[loc, AType] facts, bool full=true){
     println("<indent>def: `<def.id>` as <def.idRole> at <def.defined>");
     if(full) printDeps(getDependencies(def.defInfo), indent, facts);
-}
-   
-// The basic Fact & Requirement Model; can be extended in specific type checkers
-data TModel (
-        str modelName = "",
-        map[str,loc] moduleLocs = (),
-        set[Calculator] calculators = {},
-        map[loc,AType] facts = (), 
-        map[loc,AType] specializedFacts = (), 
-        set[Requirement] requirements = {},
-        rel[loc, loc] useDef = {},
-        list[Message] messages = [],
-        map[str,value] store = (),
-        map[loc, Define] definitions = (),
-        TypePalConfig config = tconfig()
-        );
-
-void printTModel(TModel tm){
-    println("TModel(");
-    println("  defines = {");
-    for(Define d <- tm.defines){
-        println("    \<<d.scope>, <d.id>, <d.idRole>, <d.defined>\>"); 
-    }
-    println("  },");
-    println("  scopes = (");
-    for(loc inner <- tm.scopes){
-        println("    <inner>: <tm.scopes[inner]>");
-    }
-    println("  ),");
-    println("  paths = {");
-    for(<loc from, PathRole pathRole, loc to> <- tm.paths){
-        println("    \<<from>, <pathRole>, <to>\>");
-    }
-    println("  },");
-    println("  referPath = {");
-    for(c <- tm.referPaths){
-        println("    <c>");
-    }
-    println("  },");
-
-    println("  uses = [");
-    for(Use u <- tm.uses){
-        println("    use(<u.ids? ? u.ids : u.id>, <u.occ>, <u.scope>, <u.idRoles>, <u.qualifierRoles? ? u.qualifierRoles : "">)");
-    }
-    println("  ]");
-    println(");");
 }
              
 Collector defaultCollector(Tree t) = newCollector("defaultModel", t);    
@@ -794,7 +698,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         deps = []; getATypes = [];
         defineds = [];
         loc firstDefined = |undef:///|;
-        roles = {};
+        set[IdRole] roles = {};
         for(tuple[IdRole role, loc defined, DefInfo defInfo] info <- lubDefs){
             roles += info.role;
             defineds += info.defined;

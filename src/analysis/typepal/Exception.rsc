@@ -11,3 +11,8 @@ data RuntimeException
     | TypeUnavailable()                             // Type is not available: used in control flow of solver
     | checkFailed(list[FailMessage] msgs)           // Type check failed: used in control flow of solver
     ;
+    
+data Exception
+    = NoBinding()
+    | AmbiguousDefinition(set[loc] definitions)
+    ;

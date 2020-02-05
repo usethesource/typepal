@@ -1,7 +1,9 @@
 module analysis::typepal::TypePalConfig
 
-extend analysis::typepal::Solver;
+extend analysis::typepal::TModel;
+
 extend analysis::typepal::AType;
+import analysis::typepal::Exception;
 extend analysis::typepal::ScopeGraph;
 
 import String;
@@ -53,6 +55,15 @@ bool defaultReportUnused (loc def, TModel tm /*map[loc,Define] definitions, map[
 }
 
 // Extends TypePalConfig defined in analysis::typepal::ScopeGraph
+
+data TypePalConfig(       
+        Accept (loc def, Use use, Solver s) isAcceptableSimple     
+            = defaultIsAcceptableSimple,
+        Accept (loc def, Use use, Solver s) isAcceptableQualified  
+            = defaultIsAcceptableQualified,
+        Accept (loc defScope, loc def, Use use, PathRole pathRole, Solver s) isAcceptablePath         
+            = defaultIsAcceptablePath
+        );
 
 data TypePalConfig(
         bool verbose               = false,

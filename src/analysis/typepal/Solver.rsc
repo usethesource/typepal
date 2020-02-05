@@ -22,53 +22,55 @@ extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::TypePalConfig;
 extend analysis::typepal::Utils;
 
-// The Solver data type: a collection of call backs
+extend analysis::typepal::ISolver;
 
-data Solver
-    = solver(
-    /* Lifecycle */     TModel () run,
-    /* Types */         AType(value) getType,
-                        AType (Tree occ, loc scope, set[IdRole] idRoles) getTypeInScope,
-                        AType (str name, loc scope, set[IdRole] idRoles) getTypeInScopeFromName,
-                        AType (AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope) getTypeInType,
-                        rel[str id, AType atype] (AType containerType, loc scope, set[IdRole] idRoles) getAllDefinedInType,
-    /* Fact */          void (value, AType) fact,
-                        void (value, AType) specializedFact,
-    /* Calculate & Require */    
-                        bool (value, value) equal,
-                        void (value, value, FailMessage) requireEqual,
-       
-                        bool (value, value) unify,
-                        void (value, value, FailMessage) requireUnify,
-        
-                        bool (value, value) comparable,
-                        void (value, value, FailMessage) requireComparable,
-                        
-                        bool (value, value) subtype,
-                        void (value, value, FailMessage) requireSubType,
-                        
-                        AType (value, value) lub,
-                        AType (list[AType]) lubList,
-        
-                        void (bool, FailMessage) requireTrue,
-                        void (bool, FailMessage) requireFalse,
-        
-    /* Inference */     AType (AType atype) instantiate,
-                        bool (AType atype) isFullyInstantiated,
-    
-    /* Reporting */     bool(FailMessage fm) report,
-                        bool (list[FailMessage]) reports,
-                        void (list[Message]) addMessages,
-                        bool () reportedErrors,
-    /* Global Info */   TypePalConfig () getConfig,
-                        map[loc, AType]() getFacts,
-                        Paths() getPaths,
-                        value (str key) getStore,
-                        value (str key, value val) putStore,
-                        set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions,    // deprecated
-                        set[Define] () getAllDefines,
-                        Define(loc) getDefine
-    );
+//// The Solver data type: a collection of call backs
+//
+//data Solver
+//    = solver(
+//    /* Lifecycle */     TModel () run,
+//    /* Types */         AType(value) getType,
+//                        AType (Tree occ, loc scope, set[IdRole] idRoles) getTypeInScope,
+//                        AType (str name, loc scope, set[IdRole] idRoles) getTypeInScopeFromName,
+//                        AType (AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope) getTypeInType,
+//                        rel[str id, AType atype] (AType containerType, loc scope, set[IdRole] idRoles) getAllDefinedInType,
+//    /* Fact */          void (value, AType) fact,
+//                        void (value, AType) specializedFact,
+//    /* Calculate & Require */    
+//                        bool (value, value) equal,
+//                        void (value, value, FailMessage) requireEqual,
+//       
+//                        bool (value, value) unify,
+//                        void (value, value, FailMessage) requireUnify,
+//        
+//                        bool (value, value) comparable,
+//                        void (value, value, FailMessage) requireComparable,
+//                        
+//                        bool (value, value) subtype,
+//                        void (value, value, FailMessage) requireSubType,
+//                        
+//                        AType (value, value) lub,
+//                        AType (list[AType]) lubList,
+//        
+//                        void (bool, FailMessage) requireTrue,
+//                        void (bool, FailMessage) requireFalse,
+//        
+//    /* Inference */     AType (AType atype) instantiate,
+//                        bool (AType atype) isFullyInstantiated,
+//    
+//    /* Reporting */     bool(FailMessage fm) report,
+//                        bool (list[FailMessage]) reports,
+//                        void (list[Message]) addMessages,
+//                        bool () reportedErrors,
+//    /* Global Info */   TypePalConfig () getConfig,
+//                        map[loc, AType]() getFacts,
+//                        Paths() getPaths,
+//                        value (str key) getStore,
+//                        value (str key, value val) putStore,
+//                        set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions,    // deprecated
+//                        set[Define] () getAllDefines,
+//                        Define(loc) getDefine
+//    );
    
 Solver newSolver(Tree pt, TModel tm){
     return newSolver(("newSolver": pt), tm);
@@ -290,7 +292,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
        
     void validateDependencies(){
         availableCalcs = {};
-        calcMap = ();
+        map[loc,Calculator] calcMap = ();
         dependencies = {};
         for(Calculator calc <- calculators){
             csrcs = calc has src ? [calc.src] : calc.srcs;
@@ -1308,7 +1310,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         if(logSolverSteps) println("..... lookup <size(tm.uses)> uses");
         int now = cpuTime();
          
-        actuallyUsedDefs = {};
+        set[loc] actuallyUsedDefs = {};
         for(Use u <- tm.uses){
             try {
                foundDefs = scopeGraph.lookup(u);
@@ -1337,7 +1339,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         int initCheckUsesTime = cpuTime() - now;
         
         // Check for illegal overloading of unused definitions
-        unusedDefs = domain(definitions) - actuallyUsedDefs;
+        set[loc] unusedDefs = domain(definitions) - actuallyUsedDefs;
         if(logSolverSteps) println("..... filter doubles in <size(unusedDefs)> unused defines");
         now = cpuTime();
         

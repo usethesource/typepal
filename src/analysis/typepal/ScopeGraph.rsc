@@ -16,101 +16,16 @@ module analysis::typepal::ScopeGraph
 
 import IO;
 import Set;
-import List;
 import Map;
-import Node;
-import String;
 
 import analysis::typepal::Exception;
+extend analysis::typepal::TModel;
+extend analysis::typepal::TypePalConfig;
+extend analysis::typepal::ISolver;
 
 data Tree;      // workaround for bug in interpreter
-data Solver;
-
-data TypePalConfig(       
-        Accept (loc def, Use use, Solver s) isAcceptableSimple     
-            = defaultIsAcceptableSimple,
-        Accept (loc def, Use use, Solver s) isAcceptableQualified  
-            = defaultIsAcceptableQualified,
-        Accept (loc defScope, loc def, Use use, PathRole pathRole, Solver s) isAcceptablePath         
-            = defaultIsAcceptablePath
-        ) = tconfig();
 
 private bool luDebug = false;
-
-data Exception
-    = NoBinding()
-    | AmbiguousDefinition(set[loc] definitions)
-    ;
-
-// IdRole: the various (language-specific) roles identifiers can play.
-// Initially IdRole is empty but is extended in a language-specific module
-
-data IdRole
-    = variableId()
-    ;
-
-str prettyRole(IdRole idRole){
-    stripped1 = replaceAll(getName(idRole), "Id", "");
-    return visit(stripped1) { case /<ch:[A-Z]>/ => " " + toLowerCase(ch) };
-}      
-
-// PathRole: the various (language-specific) labelled semantic paths
-// between program parts
-// Initially PathRole is empty but may be extended in a language-specific module
-
-data PathRole;
-
-// ScopeRole: the various (language-specific) roles scopes can play.
-// Initially ScopeRole only provides the rootScope but is extended in a language-specific module
-
-data ScopeRole
-    = anonymousScope()
-    ;
-    
-// Applied occurrence (use) of id for given IdRoles
-// IdRoles are used to fold multiple scopeGraphs into one 
-// (e.g., one for class and package names, one for variable names etc.)
-data Use
-    = use(str id, loc occ, loc scope, set[IdRole] idRoles)
-    | useq(list[str] ids, loc occ, loc scope, set[IdRole] idRoles, set[IdRole] qualifierRoles)
-    ;
-alias Uses = list[Use];
-
-str getId(Use u) = u has id ? u.id : intercalate(".", u.ids);
-
-data ReferPath
-    = referToDef(Use use, PathRole pathRole)
-    | referToType(loc occ, loc scope, PathRole pathRole)
-    ;
-
-alias ReferPaths = set[ReferPath];
-
-// Language-specific auxiliary associated with a name definition
-// Extended in a language-specific module
-
-data DefInfo
-    = noDefInfo()
-    ;
-
-// A single definition: in scope, id is bound in a IdRole to defined, with DefInfo attached
-alias Define  = tuple[loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo];
-alias Defines = set[Define];                                 // All defines
-alias Scopes  = map[loc inner, loc outer];                   // Syntactic containment
-alias Paths   = rel[loc from, PathRole pathRole, loc to];    // Semantic containment path
-
-// The foundation of aTModel. Its is extended in Collector and can also be extended
-// In a TypePal application
-
-data TModel (
-    Defines defines = {},
-    Scopes scopes = (),
-    Paths paths = {}, 
-    ReferPaths referPaths = {},
-    Uses uses = [],
-    map[loc, map[str, rel[IdRole idRole, loc defined]]] definesMap = ()
-)   = tmodel()
-    ;
-    
    
 // Language-specific acceptance in case of multiple outcomes of a lookup
 
@@ -485,4 +400,3 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config, Solver s){
             lookupWide
         );
 }
- 
