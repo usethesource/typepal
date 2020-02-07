@@ -61,8 +61,10 @@ void collect(current: (Expression) `<Expression lhs> + <Expression rhs>`, Collec
         AType (Solver s) { switch([s.getType(lhs), s.getType(rhs)]){
                    case [intType(), intType()]: return intType();
                    case [strType(), strType()]: return strType();
-                   default:
+                   default: {
                        s.report(error(current, "Operator `+` cannot be applied to %t and %t", lhs, rhs));
+                       return intType();
+                     }
                    }
                  });
      collect(lhs, rhs, c);

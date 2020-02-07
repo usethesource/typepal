@@ -83,6 +83,7 @@ void collect(current: (Expression) `<Expression lhs> + <Expression rhs>`, Collec
             if(s.unify(targs, atypeList([intType(), intType()]))) return intType();
             if(s.unify(targs, atypeList([strType(), strType()]))) return strType();
             s.report(error(current, "No version of + is applicable for %t and %t", lhs, rhs));
+            return intType();
         });
      collect(lhs, rhs, c); 
 }

@@ -538,6 +538,7 @@ void collect(current: (ReferencedVariable) `<Variable var>^`, Collector c){
                 return tau1;
               } else {
                 s.report(error(var, "Pointer type required, found %t", var));
+                return voidType();
               }
             });
      collect(var, c);
@@ -588,6 +589,7 @@ void overloadRelational(Expression e, str op, Expression exp1, Expression exp2, 
                     }
                  }
                  s.report(error(e, "%q not defined on %t and %t", op, exp1, exp2)); 
+                 return voidType();
                }
             }
         });
@@ -639,8 +641,10 @@ void collect(current: (Expression) `<Expression exp1> * <Expression exp2>`, Coll
               //case [subrangeType(tau1), tau1]: return tau1;
               //case [subrangeType(tau1), subrangeType(tau1)]: return tau1;
               case [setType(tau1), setType(tau1)]: return setType(tau1);
-              default:
+              default: {
                    s.report(error(current, "`*` not defined on %t and %t", exp1, exp2));
+                   return voidType();
+                 }
             }
         }); 
     collect(exp1, exp2, c);
