@@ -619,8 +619,10 @@ void collect(current: (Expression) `<Expression exp1> in <Expression exp2>`, Col
         AType(Solver s) { 
             switch([s.getType(exp1), s.getType(exp2)]){
                 case [tau1, setType(tau2)]: if(pascalIsSubType(tau1, tau2)) return booleanType(); else fail;
-                default:
+                default:{
                     s.report(error(current, "`in` not defined on %t and %t", exp1, exp2));  
+                    return voidType();
+                  }
             }
         });
      collect(exp1, exp2, c);
@@ -658,8 +660,10 @@ void collect(current: (Expression) `<Expression exp1> / <Expression exp2>`, Coll
                case [integerType(), realType()]: return realType();
                case [realType(), integerType()]: return realType();
                case [realType(), realType()]: return realType();
-               default:
+               default: {
                     s.report(error(current, "`/` not defined on %t and %t", exp1, exp2));
+                    return voidType();
+                 }
              }
          });
     collect(exp1, exp2, c);
@@ -723,8 +727,10 @@ void overloadAdding(Expression e, str op, Expression exp1, Expression exp2, Coll
            //case [subrangeType(tau1), tau1]: return tau1;
            //case [subrangeType(tau1), subrangeType(tau1)]: return tau1;
            case [setType(tau1), setType(tau1)]: return setType(tau1);
-           default:
+           default: {
                 s.report(error(e, "%q not defined on %t and %t", op, exp1, exp2));  
+                return voidType();
+             }
        }
      });
      collect(exp1, exp2, c);
@@ -740,8 +746,10 @@ void collect(e: (Expression) `<Expression exp1> or <Expression exp2>`, Collector
     c.calculate("or", e, [exp1, exp2], 
         AType(Solver s) { switch([s.getType(exp1), s.getType(exp2)]){
                       case [booleanType(), booleanType()]: return booleanType();
-                      default:      
+                      default: {   
                             s.report(error(e, "%q not defined on %t and %t", "or", exp1, exp2));
+                            return booleanType();
+                         }
                   }
                 });  
      collect(exp1, exp2, c);
@@ -764,6 +772,7 @@ void collect(current: (IndexedVariable) `<ArrayVariable var> [ <{Expression ","}
                 return tau2;
               } else {
                 s.report(error(current, "Array type required, found %t", var));
+                return voidType();
               }
            });
      collect(var, indices, c);
@@ -813,6 +822,7 @@ void collect(fd: (FunctionDesignator)  `<FunctionIdentifier fid> ( <{ ActualPara
                     return tau2;
                 } else {
                     s.report(error(fd, "Function type required, found %t", fid));
+                    return voidType();
                 }
             });
         }
