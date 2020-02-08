@@ -207,6 +207,7 @@ void collect(current: (Expression) `<Expression exp> . <Method method> <Expressi
                 return returnType;
              } else {
                 s.report(error(current, "Method type required, found %t", mtype));
+                return classType("UNKNOWN");
              }
          });
     collect(exp, exps, c);
@@ -225,6 +226,7 @@ void collect(current: (Expression) `new <Constructor cons> <Expressions exps>`, 
                 return returnType;
              } else {
                 s.report(error(current, "Constructor %q requires method type, found %t", cons, ctype));
+                return classType("UNKNOWN");
              }
             });
       collect(exps, c);
