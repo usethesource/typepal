@@ -583,8 +583,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    AType _getType(Tree src){
+    AType _getType(Tree tree){
         if(building){
+            srcLoc = getLoc(tree);
             if(facts[srcLoc]?) return facts[srcLoc];
             throw TypeUnavailable();
         } else {
