@@ -39,6 +39,7 @@ data Collector
                        
      /* Inference */     AType (value src) newTypeVar,
      /* Fact */          void (Tree src, value atype) fact,
+     /* GetType */       AType(Tree src) getType,
      /* Calculate */     void (str name, Tree src, list[value] dependencies, AType(Solver s) getAType) calculate,
                          void (str name, Tree src, list[value] dependencies, AType(Solver s) getAType) calculateEager,
      /* Require */       void (str name, Tree src, list[value] dependencies, void(Solver s) preds) require,

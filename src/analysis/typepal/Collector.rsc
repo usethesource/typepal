@@ -583,6 +583,17 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
+    AType _getType(Tree src){
+        if(building){
+            if(facts[srcLoc]?) return facts[srcLoc];
+            throw TypeUnavailable();
+        } else {
+            throw TypePalUsage("Cannot call `getType` on Collector after `run`");
+        }
+    
+    
+    }
+    
     void _calculate(str name, Tree src, list[value] dependencies, AType(Solver s) calculator){
         if(building){
            srcLoc = getLoc(src);
@@ -961,6 +972,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                            
         /* Inference */     _newTypeVar,          
         /* Fact */          _fact,
+        /* GetType */       _getType,
         /* Calculate */     _calculate, 
                             _calculateEager,
         /* Require */       _require, 
