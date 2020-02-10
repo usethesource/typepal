@@ -293,10 +293,42 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             throw TypePalUsage("Cannot call `defineInScope` on Collector after `run`");
         }
     }
+    
+    //bool findType(loc srcLoc, DefInfo info){
+    //    switch(info){
+    //        case defType(AType contrib): {
+    //                facts[srcLoc] = contrib;
+    //                return true;
+    //            }
+    //        case defType(Tree other): {
+    //                otherLoc = getLoc(other);
+    //                if(facts[otherLoc]?){
+    //                    facts[srcLoc] = facts[otherLoc];
+    //                   return true;
+    //                }
+    //            }   
+    //        }
+    //    return false;   
+    //}
    
     void _use(Tree occ, set[IdRole] idRoles) {
         if(building){
-          //if(currentScope == globalScope) throw TypePalUsage("`use` requires a user-defined scope; missing `enterScope`");
+            //id = unescapeName("<occ>");
+            //srcLoc = getLoc(occ);
+            //found = false;
+            //lubdefs = lubDefinesPerLubScope[currentLubScope][id];
+            //for(<scope, idRole, l, info> <- lubdefs, isContainedIn(srcLoc, scope), idRole in idRoles, !found){
+            //    found = findType(srcLoc, info);  
+            //}
+            //for(!found, <loc scope, str id1, IdRole idRole, loc defined, DefInfo defInfo> <- definesPerLubScope[currentLubScope],
+            //    id == id1, isContainedIn(srcLoc, scope)){
+            //    found = findType(srcLoc, defInfo); 
+            //}
+            //
+            //for(!found, <loc scope, str id1, IdRole idRole, loc defined, DefInfo defInfo> <- defines, 
+            //    id == id1, config.isInferrable(idRole), isContainedIn(srcLoc, scope)){
+            //    found = findType(srcLoc, defInfo);  
+            //}
            uses += use(unescapeName("<occ>"), getLoc(occ), currentScope, idRoles);
         } else {
             throw TypePalUsage("Cannot call `use` on Collector after `run`");
