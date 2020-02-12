@@ -52,7 +52,9 @@ list[loc] dependenciesAslocs(list[Tree] dependencies)
 
 // Definition info used during type checking
 data DefInfo
-    = defType(value contrib) 
+    = defType(loc src) 
+    | defType(Tree tree)
+    | defType(AType atype)
     | defTypeCall(list[loc] dependsOn, AType(Solver s) getAType)                           // AType given as callback.
     | defTypeLub(list[loc] dependsOn, list[loc] defines, list[AType(Solver s)] getATypes)   // redefine previous definition
     ;
@@ -61,20 +63,17 @@ DefInfo defType(list[Tree] dependsOn, AType(Solver s) getAType){
     return defTypeCall(dependenciesAslocList(dependsOn), getAType);
 }
 
-list[loc] getDependencies(DefInfo di){
-    if(defType(value contrib) := di){
-        //return (loc dependsOn := di.contrib) ? [dependsOn] : [];
-        switch(di.contrib){
-            case loc dependsOn: return [dependsOn];
-            case Tree tree:     return [getLoc(tree)];
-        } 
-    }
-    return di.dependsOn; //di has defines ? di.dependsOn - di.defines : di.dependsOn;
-}
+list[loc] getDependencies(defType(loc src)) 
+    = [src];
+list[loc] getDependencies(defType(Tree tree)) 
+    = [getLoc(tree)];
+list[loc] getDependencies(defType(AType atype))
+    = [];
+default list[loc] getDependencies(DefInfo di)
+    =  di.dependsOn; //di has defines ? di.dependsOn - di.defines : di.dependsOn;
     
 DefInfo defLub(list[Tree] dependsOn, AType(Solver s) getAType)
     = defTypeLub(dependenciesAslocs(dependsOn), [], [getAType]);
-
 
 // The basic ingredients for type checking: requirements and calculators
 
