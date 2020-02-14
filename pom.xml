@@ -66,13 +66,13 @@
                             <goal>compile</goal>
                         </goals>
                     </execution>
-                    <execution>
+                    <!--<execution>
                         <id>typepal-package</id>
                         <phase>prepare-package</phase>
                         <goals>
                             <goal>package</goal>
                         </goals>
-                    </execution>
+                    </execution> -->
                 </executions>
             </plugin>
             <plugin>
