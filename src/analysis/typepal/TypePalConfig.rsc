@@ -10,7 +10,7 @@ import String;
 extend ParseTree;
 
 syntax ANONYMOUS_OCCURRENCE = "anonymous_occurence";
-loc anonymousOccurrence = ([ANONYMOUS_OCCURRENCE] "anonymous_occurence")@\loc;
+public loc anonymousOccurrence = ([ANONYMOUS_OCCURRENCE] "anonymous_occurence")@\loc;
 
 AType defaultGetMinAType(){
     throw TypePalUsage("`getMinAType()` called but is not specified in TypePalConfig");

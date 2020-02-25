@@ -9,19 +9,19 @@ import ParseTree;
 
 // ---- Testing ---------------------------------------------------------------
 
-TModel fixedMembersTModelForTree(Tree pt, bool debug = false){
+TModel fixedMembersTModelForTree(Tree pt){
     return collectAndSolve(pt, config = fixedMembersConfig());
 }
 
-TModel fixedMembersTModelFromName(str mname, bool debug = false){
+TModel fixedMembersTModelFromName(str mname){
     pt = parse(#start[Program], |project://typepal/src/examples/fixedMembers/<mname>.alias|).top;
-    return fixedMembersTModelForTree(pt, debug=debug);
+    return fixedMembersTModelForTree(pt);
 }
 
 test bool fixedMembersTests() {
     return runTests([|project://typepal/src/examples/fixedMembers/fixedMembers.ttl|], 
                     #start[Program], 
-                    TModel (Tree t) { return fixedMembersTModelForTree(t, debug=false); },
+                    TModel (Tree t) { return fixedMembersTModelForTree(t); },
                     runName = "fixedMembers");
 }
 
