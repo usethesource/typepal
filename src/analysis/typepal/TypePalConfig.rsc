@@ -28,29 +28,29 @@ bool defaultIsSubType(AType atype1, AType atype2) {
     throw TypePalUsage("`subtype(<atype1>, <atype2>)` called but `isSubType` is not specified in TypePalConfig");
 }
 
-bool defaultMayOverload (set[loc] defs, map[loc, Define] defines) {
+bool defaultMayOverload (set[loc] _, map[loc, Define] _) {
     return false;
 }
 
- AType defaultInstantiateTypeParameters(Tree current, AType def, AType ins, AType act, Solver s){ 
+ AType defaultInstantiateTypeParameters(Tree _, AType def, AType ins, AType act, Solver _){ 
    throw TypePalUsage("`instantiateTypeParameters(<prettyAType(def)>, <prettyAType(ins)>, <prettyAType(act)>)` called but is not specified in TypePalConfig");
 }
 
-tuple[list[str] typeNames, set[IdRole] idRoles] defaultGetTypeNamesAndRole(AType atype){
+tuple[list[str] typeNames, set[IdRole] idRoles] defaultGetTypeNamesAndRole(AType _){
     throw TypePalUsage("`useViaType` used without definition of `getTypeNamesAndRole`");
 }
 
-AType defaultGetTypeInNamelessType(AType containerType, Tree selector, loc scope, Solver s){
+AType defaultGetTypeInNamelessType(AType _, Tree _, loc _, Solver _){
     throw TypePalUsage("`useViaType` used without definition of `getTypeInNamelessType`");
 }
 
-AType defaultGetTypeInTypeFromDefine(Define containerDef, str selectorName, set[IdRole] idRolesSel, Solver s) {
+AType defaultGetTypeInTypeFromDefine(Define _, str _, set[IdRole] _, Solver _) {
     throw NoBinding();
 }   
   
 str defaultUnescapeName(str s) { return replaceAll(s, "\\", ""); }
 
-bool defaultReportUnused (loc def, TModel tm /*map[loc,Define] definitions, map[loc,loc] scopes, TypePalConfig config*/) {
+bool defaultReportUnused (loc _, TModel _) {
     return false;
 }
 
@@ -87,32 +87,32 @@ data TypePalConfig(
             = AType (AType atype1, AType atype2){ throw TypePalUsage("`lub(<atype1>, <atype2>)` called but `getLub` is not specified in TypePalConfig"); },        
         
         bool (set[loc] defs, map[loc, Define] defines) mayOverload 
-            = bool (set[loc] defs, map[loc, Define] defines) { return false; },
+            = bool (set[loc] _, map[loc, Define] _) { return false; },
             
         bool (IdRole idRole) isInferrable
-            = bool(IdRole idRole) { return false; },
+            = bool(IdRole _) { return false; },
         
         str(str) unescapeName                                       
             = str (str s) { return replaceAll(s, "\\", ""); },
         
         AType (Tree selector, AType def, AType ins, AType act, Solver s) instantiateTypeParameters 
-            = AType(Tree selector, AType def, AType ins, AType act, Solver s){ return act; },
+            = AType(Tree _, AType _, AType _, AType act, Solver s){ return act; },
        
         tuple[list[str] typeNames, set[IdRole] idRoles] (AType atype) getTypeNamesAndRole
-            = tuple[list[str] typeNames, set[IdRole] idRoles](AType atype){
+            = tuple[list[str] typeNames, set[IdRole] idRoles](AType _){
                 throw TypePalUsage("`useViaType` used without definition of `getTypeNamesAndRole`");
             },
             
         AType (Define containerDef, str selectorName, set[IdRole] idRolesSel, Solver s) getTypeInTypeFromDefine
-            = AType (Define containerDef, str selectorName, set[IdRole] idRolesSel, Solver s) { throw NoBinding(); },
+            = AType (Define _, str _, set[IdRole] _, Solver s) { throw NoBinding(); },
  
         AType(AType containerType, Tree selector, loc scope, Solver s) getTypeInNamelessType
-            = AType(AType containerType, Tree selector, loc scope, Solver s){
+            = AType(AType _, Tree _, loc _, Solver _){
                 throw TypePalUsage("`useViaType` used without definition of `getTypeInNamelessType`");
             }, 
             
-        TModel(map[str,Tree] namedTrees, TModel tm) preSolver = TModel(map[str,Tree] namedTrees, TModel tm) { return tm; },    
-        void (map[str,Tree] namedTrees, Solver s) postSolver  = void(map[str,Tree] namedTrees, Solver s) { return ; },
+        TModel(map[str,Tree] namedTrees, TModel tm) preSolver = TModel(map[str,Tree] _, TModel tm) { return tm; },    
+        void (map[str,Tree] namedTrees, Solver s) postSolver  = void(map[str,Tree] _, Solver s) { return ; },
         
-        bool(loc def, TModel tm /*map[loc,Define] definitions, map[loc,loc] scopes, TypePalConfig config*/) reportUnused = defaultReportUnused
+        bool(loc def, TModel tm) reportUnused = defaultReportUnused
     );

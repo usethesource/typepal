@@ -23,7 +23,7 @@ AType lazyLub([AType atype]) = atype;
 
 rel[loc, IdRole, AType] flatten(rel[loc, IdRole, AType] overloads){
     flatOverloads = {};
-    for(ovl:<key, idr, tp> <- overloads){
+    for(ovl:<_, _, tp> <- overloads){
         if(overloadedAType(rel[loc, IdRole, AType] overloads1) := tp){
             flat = false;
             for(ovl1 <- overloads1) flatOverloads += ovl1;
@@ -35,7 +35,7 @@ rel[loc, IdRole, AType] flatten(rel[loc, IdRole, AType] overloads){
 }
 
 bool containsNestedOverloading(rel[loc, IdRole, AType] overloads)
-    = any(<key, idr, tp> <- overloads, tp is overloadedAType);
+    = any(<_, _, tp> <- overloads, tp is overloadedAType);
 
 // Flatten nested overloads
 AType overloadedAType(rel[loc, IdRole, AType] overloads) 
@@ -47,6 +47,6 @@ str prettyAType(tvar(loc tname))               = "typevar(<tname>)";
 str prettyAType(lazyLub(list[AType] atypes))   = "lub(<atypes>))";
 str prettyAType(atypeList(list[AType] atypes)) = size(atypes) == 0 ? "empty list of types" : intercalate(", ", [prettyAType(a) | a <- atypes]);
 default str prettyAType(overloadedAType(rel[loc, IdRole, AType] overloads)) 
-                                              = "overloaded: {" + intercalate(", ", [prettyAType(t) | <k, r, t> <- overloads]) + "}";
+                                              = "overloaded: {" + intercalate(", ", [prettyAType(t) | <_,_, t> <- overloads]) + "}";
 default str prettyAType(AType tp)              = "<tp>";
        

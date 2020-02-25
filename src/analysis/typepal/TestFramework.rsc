@@ -77,7 +77,7 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
     
         // TODO: layout of the subject language may interfere with layout of TTL but this is a too harsh measure!
        
-        if(amb(set[Tree] alternatives) := tr){
+        if(amb(set[Tree] _) := tr){
             ttlProgram = visit(tr){ case amb(set[Tree] alternatives1) => getOneFrom(alternatives1) }.top;
         } else {
             ttlProgram = visit(tr.top){ case amb(set[Tree] alternatives2) => getOneFrom(alternatives2) };
@@ -137,7 +137,7 @@ lrel[&T, set[str]] extractTests(list[loc] suites, type[&T<:Tree] begin) {
     for(suite <- suites){
         tr = parse(#start[TTL], suite, allowAmbiguity=true);
         TTL ttlProgram = [TTL] "";
-        if(amb(set[Tree] alternatives) := tr){
+        if(amb(set[Tree] _) := tr){
             ttlProgram = visit(tr){ case amb(set[Tree] alternatives1) => getOneFrom(alternatives1) }.top;
         } else {
             ttlProgram = visit(tr.top){ case amb(set[Tree] alternatives2) => getOneFrom(alternatives2) };

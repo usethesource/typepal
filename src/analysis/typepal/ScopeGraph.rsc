@@ -25,7 +25,6 @@ extend analysis::typepal::ISolver;
 
 data Tree;      // workaround for bug in interpreter
 
-private bool luDebug = false;
    
 // Language-specific acceptance in case of multiple outcomes of a lookup
 
@@ -37,20 +36,20 @@ data Accept
 
 // isAcceptableSimple
 
-Accept defaultIsAcceptableSimple(loc candidate, Use use, Solver s) {
+Accept defaultIsAcceptableSimple(loc candidate, Use use, Solver _) {
     if(wdebug) println("default isAcceptableSimple: <use.id> candidate: <candidate>");
     return acceptBinding();
 }
 
 // isAcceptablePath
 
-Accept defaultIsAcceptablePath(loc defScope, loc def, Use use, PathRole pathRole, Solver s) {
+Accept defaultIsAcceptablePath(loc defScope, loc def, Use use, PathRole _, Solver _) {
     if(wdebug) println("default isAcceptablePath: <use.id>, defScope: <defScope>, def <def>");
     return acceptBinding();
 }
 
 // isAcceptableQualified
-Accept defaultIsAcceptableQualified(loc candidate, Use use, Solver s) = acceptBinding();
+Accept defaultIsAcceptableQualified(loc _, Use _, Solver _) = acceptBinding();
 
 default bool checkPaths(TModel tm, loc from, loc to, PathRole pathRole, bool(TModel,loc) pred) {
     current = from;

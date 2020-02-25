@@ -45,7 +45,7 @@ list[loc] dependenciesAslocList(list[value] dependencies){
 } 
 
 bool isTypeVarFree(AType t)
-    =  !(/tvar(loc tname) := t);
+    =  !(/tvar(loc _) := t);
 
 list[loc] dependenciesAslocs(list[Tree] dependencies)
     = dependenciesAslocList(dependencies);
@@ -260,10 +260,10 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     bool _isAlreadyDefined(str id,  Tree useOrDef){
         lubdefs = lubDefinesPerLubScope[currentLubScope][id];
-        if(!isEmpty(lubdefs) && any(<scope, idRole, l, info> <- lubdefs, isContainedIn(getLoc(useOrDef), scope))){
+        if(!isEmpty(lubdefs) && any(<scope, _, _, _> <- lubdefs, isContainedIn(getLoc(useOrDef), scope))){
             return true;
         }
-        for(<loc scope, str id1, IdRole idRole, loc defined, DefInfo defInfo> <- defines, 
+        for(<loc scope, str id1, IdRole idRole, loc _, DefInfo _> <- defines, 
              id == id1, config.isInferrable(idRole), isContainedIn(getLoc(useOrDef), scope)){
             return true;
         }
@@ -496,7 +496,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     lrel[loc scope, value scopeInfo] _getScopeInfo(ScopeRole scopeRole){
         if(building){
             res =
-                for(<loc scope, lubScope, map[ScopeRole,value] scopeInfo> <- scopeStack, scopeRole in scopeInfo){
+                for(<loc scope, _, map[ScopeRole,value] scopeInfo> <- scopeStack, scopeRole in scopeInfo){
                     append <scope, scopeInfo[scopeRole]>;
                 }
             return res;
@@ -531,10 +531,10 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     } 
     
     list[loc] getDeps(value l, value r){
-        if(AType ltype := l){
+        if(AType _ := l){
            return Tree rtree := r ? [getLoc(rtree)] : []; 
         }
-        return AType rtype := r ? [getLoc(l)] : [getLoc(l), getLoc(r)];
+        return AType _ := r ? [getLoc(l)] : [getLoc(l), getLoc(r)];
     }
     
     value getLocIfTree(value v) = Tree tree := v ? getLoc(tree) : v;
@@ -575,7 +575,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         if(tvar(_) := old) return true;
         try {
             return old == new || config.isSubType(old, new) || config.isSubType(new, old);
-        } catch value e:
+        } catch value _:
             return false;
     }
     
@@ -674,7 +674,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     AType _newTypeVar(value src){
         if(building){
             tvLoc = |unknown:///|;
-            if(Tree t := src){
+            if(Tree _ := src){
                 tvLoc = getLoc(src);
             } else if(loc l := src){
                 tvLoc = l;
@@ -767,8 +767,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             outer = scopes[outer];
             //println("outer: <outer>");
             //println("definesPerLubScope[outer] ? {}: <definesPerLubScope[outer] ? {}>");
-            for(d: <loc scope, id, idRole /*variableId()*/, loc defined, DefInfo defInfo> <- definesPerLubScope[outer] ? {}, config.isInferrable(idRole)){
-                //println("d = <d>");
+            for(<loc _, id, idRole , loc _, DefInfo _> <- definesPerLubScope[outer] ? {}, config.isInferrable(idRole)){
                 return true;
             }
         }
@@ -821,16 +820,16 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             //println("local_fixed_defines: <local_fixed_defines>");
             //println("local_fixed_defines[lubScope, id]: <local_fixed_defines[lubScope, id]>");
             
-            if({fixedDef} := local_fixed_defines[lubScope, id]){   // Definition exists with fixed type in the lubScope; Use it instead of the lubDefines          
+            if({ _ } := local_fixed_defines[lubScope, id]){   // Definition exists with fixed type in the lubScope; Use it instead of the lubDefines          
                //println("---top level fixedDef: <fixedDef> in <lubScope>");
-               for(<IdRole role, loc defined, DefInfo defInfo> <- deflubs_in_lubscope[id, allScopes]){
+               for(<IdRole role, loc defined, DefInfo _> <- deflubs_in_lubscope[id, allScopes]){
                    u = use(id, defined, lubScope, {role});
                    //println("add: <u>");
                    uses += u;
                }
             } else if(fixed_define_in_outer_scope(id, lubScope)){   // Definition exists with fixed type in a surrounding scope; Use it instead of the lubDefines          
                //println("---top level fixedDef: <fixedDef> in <lubScope>");
-               for(<IdRole role, loc defined, DefInfo defInfo> <- deflubs_in_lubscope[id, allScopes]){
+               for(<IdRole role, loc defined, DefInfo _> <- deflubs_in_lubscope[id, allScopes]){
                    u = use(id, defined, lubScope, {role});
                    //println("add: <u>");
                    uses += u;
@@ -840,7 +839,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 //println("containment: <containment>");
                 for(scope <- allScopes){
                     if(scope in local_fixed_defines_scope[id]){
-                        for(<IdRole role, loc defined, DefInfo defInfo> <- deflubs_in_lubscope[id, containment[scope]]){
+                        for(<IdRole role, loc defined, DefInfo _> <- deflubs_in_lubscope[id, containment[scope]]){
                             u = use(id, defined, scope, {role});
                             //println("add: <u>");
                             uses += u;
@@ -860,10 +859,10 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                  }
            } else {                                     // Same id defined in one or more disjoint subscopes
              for(scope <- id_defined_in_scopes){
-                if({fixedDef} := local_fixed_defines[scope, id]){ // defined in outer scope with fixed type
+                if({ _ } := local_fixed_defines[scope, id]){ // defined in outer scope with fixed type
                    //println("fixedDef: <fixedDef> in inner scope <scope>");
                    // There exists a definition with fixed type in the inner scope, just use it instead of the lubDefines
-                   for(<IdRole role, loc defined, DefInfo defInfo> <- deflubs_in_lubscope[id, containment[id_defined_in_scopes]]){
+                   for(<IdRole role, loc defined, DefInfo _> <- deflubs_in_lubscope[id, containment[id_defined_in_scopes]]){
                        u = use(id, defined, scope, {role});
                       //println("add: <u>");
                        uses += u;
@@ -928,7 +927,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
            }
            
            if(size(scopeStack) > 1){
-                unclosed = [scope | <loc scope, bool lubScope, map[ScopeRole, value] scopeInfo> <- scopeStack];
+                unclosed = [scope | <loc scope, bool _, map[ScopeRole, value] _> <- scopeStack];
                 throw TypePalUsage("Missing `leaveScope`(s): unclosed scopes <unclosed>");
            }
            
@@ -951,7 +950,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
            tm.store = storeVals;        storeVals = ();
            tm.definitions = ( def.defined : def | Define def <- defines);
            map[loc, map[str, rel[IdRole idRole, loc defined]]] definesMap = ();
-           for(<loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo> <- defines){
+           for(<loc scope, str id, IdRole idRole, loc defined, DefInfo _> <- defines){
                 dm = ();
                 if(definesMap[scope]?) dm = definesMap[scope];
                 dm[id] =  (dm[id] ? {}) + {<idRole, defined>};

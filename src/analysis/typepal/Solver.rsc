@@ -262,33 +262,33 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     // ---- validation
     
-    void validateTriggers(){
-        int nissues = 0;
-        for(Calculator calc <- calculators){
-            deps = calcType(loc src, AType atype) := calc ? getDependencies(atype) : calc.dependsOn;
-            
-            for(loc dep <- deps){
-                if(!(facts[dep]? || calc in (triggersCalculator[dep] ? {}))){
-                    println("Not a fact or trigger for: <dep>");
-                    print(calc, "\t", facts);
-                    println("\t<calc>");
-                    nissues += 1;
-                }
-            }
-        }
-    
-        for(Requirement req <- requirements){
-            for(loc dep <- req.dependsOn){
-                if(!(facts[dep]? || req in (triggersRequirement[dep] ? {}))){
-                    println("Not a fact or trigger for dependency on: <dep>");
-                    print(req, "\t", facts);
-                    println("\t<req>");
-                    nissues += 1;
-                }
-            }
-        }
-        if(nissues > 0) throw "Found <nissues> incomplete triggers"; 
-    }
+    //void validateTriggers(){
+    //    int nissues = 0;
+    //    for(Calculator calc <- calculators){
+    //        deps = calcType(loc src, AType atype) := calc ? getDependencies(atype) : calc.dependsOn;
+    //        
+    //        for(loc dep <- deps){
+    //            if(!(facts[dep]? || calc in (triggersCalculator[dep] ? {}))){
+    //                println("Not a fact or trigger for: <dep>");
+    //                print(calc, "\t", facts);
+    //                println("\t<calc>");
+    //                nissues += 1;
+    //            }
+    //        }
+    //    }
+    //
+    //    for(Requirement req <- requirements){
+    //        for(loc dep <- req.dependsOn){
+    //            if(!(facts[dep]? || req in (triggersRequirement[dep] ? {}))){
+    //                println("Not a fact or trigger for dependency on: <dep>");
+    //                print(req, "\t", facts);
+    //                println("\t<req>");
+    //                nissues += 1;
+    //            }
+    //        }
+    //    }
+    //    if(nissues > 0) throw "Found <nissues> incomplete triggers"; 
+    //}
        
     void validateDependencies(){
         availableCalcs = {};
@@ -514,7 +514,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     tp = getAType(thisSolver);
                     // If the type is overloaded pick the one for a variable
                     if(overloadedAType(rel[loc, IdRole, AType] overloads) := tp){
-                        for(<loc def, IdRole idRole, AType tp1> <- overloads){
+                        for(<loc _, IdRole idRole, AType tp1> <- overloads){
                             if(idRole == variableId()){
                                 tp = tp1; break;
                             }
@@ -651,9 +651,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 case loc l:       return facts[l];
                 case defType(value v) : if(AType atype := v) return atype; else if(Tree tree := v) return instantiate(findType(tree@\loc));
                 case Define def:  return getType(def.defInfo);
-                case defTypeCall(list[loc] dependsOn, AType(Solver s) getAType):
+                case defTypeCall(list[loc] _, AType(Solver s) getAType):
                     return getAType(thisSolver);
-                case defTypeLub(list[loc] dependsOn, list[loc] defines, list[AType(Solver s)] getATypes):
+                case defTypeLub(list[loc] _, list[loc] _, list[AType(Solver s)] getATypes):
                     return _lubList([getAType(thisSolver) | AType(Solver s) getAType <- getATypes]); //throw "Cannot yet handle defTypeLub in getType";
                 default: 
                     throw "getType cannot handle <v>";
@@ -684,7 +684,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     AType _getTypeInScopeFromName(str name, loc scope, set[IdRole] idRoles){
         try {
             return getTypeInScopeFromName0(name, scope, idRoles);
-        } catch NoSuchKey(value k):
+        } catch NoSuchKey(value _):
                 throw TypeUnavailable();
         //catch NoBinding():
         //        throw TypeUnavailable();
@@ -762,7 +762,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             }
             if(isEmpty(valid_overloads)){
                 _report(error(selector, "getTypeInType: Cannot access fields on type %t", containerType));
-            } else if({<loc key, IdRole role, AType tp>} := valid_overloads){
+            } else if({<loc key, IdRole _, AType tp>} := valid_overloads){
                 addUse({key}, selectorUse);
                 addFact(selectorLoc, tp);
                 return tp;
@@ -815,7 +815,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         else
                             _report(error(selector, "No definition for type %t is available here", containerType));
                      }
-                  } else if({<loc key, IdRole role, AType tp>} := valid_overloads){
+                  } else if({<loc key, IdRole _, AType tp>} := valid_overloads){
                     addUse({key}, selectorUse);
                     addFact(selectorLoc, tp);
                     return tp;
@@ -845,7 +845,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             results = {};
             try {
                 for(containerDef <- getDefinitions(containerName, scope, containerRoles)){   
-                    results += { <id, getType(defInfo)> |  <str id, IdRole idRole, loc defined, DefInfo defInfo> <- defines[containerDef.defined] ? {}, idRole in idRoles };
+                    results += { <id, getType(defInfo)> |  <str id, IdRole idRole, loc _, DefInfo defInfo> <- defines[containerDef.defined] ? {}, idRole in idRoles };
                 }
                 return results;
              } catch AmbiguousDefinition(set[loc] foundDefs): {               //if(!mayOverloadFun(foundDefs, definitions)){
@@ -895,7 +895,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         referPaths = tm.referPaths;
         for(ReferPath rp <- referPaths){
             try {
-                if(referToDef(Use use, PathRole pathRole) := rp){
+                if(referToDef(Use _, PathRole _) := rp){
                     u = rp.use;
                     foundDefs = scopeGraph.lookup(u);
                     if({loc def} := foundDefs){
@@ -1228,10 +1228,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     bool isFullyInstantiated(AType atype){
         visit(atype){
             case tvar(loc tname): { if(!facts[tname]?) return false;
-                                    if(tvar(tname2) := facts[tname]) return false;
+                                    if(tvar(_) := facts[tname]) return false;
                                   }
             case lazyLub(list[AType] atypes): if(!(isEmpty(atypes) || all(AType tp <- atype, isFullyInstantiated(tp)))) return false;
-            case overloadedAType(rel[loc, IdRole, AType] overloads): all(<k, idr, tp> <- overloads, isFullyInstantiated(tp));
+            case overloadedAType(rel[loc, IdRole, AType] overloads): all(<_, idr, tp> <- overloads, isFullyInstantiated(tp));
         }
         return true;
     }

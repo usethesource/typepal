@@ -94,7 +94,7 @@ str interpolate(str msg, TypeProvider getType, list[value] args){
             }
             switch(c){
             case "t":
-                if(Tree tree := args[a] || AType atype := args[a]){
+                if(Tree _ := args[a] || AType _ := args[a]){
                     result += "`<fmt1(args[a], getType)>`";
                 } else if(list[AType] atypes := args[a]){
                     result += isEmpty(atypes) ? "none" : intercalateAnd(["`<fmt1(at, getType)>`" | at <- atypes]);
@@ -135,7 +135,7 @@ Message fmt(str severity, value subject, str msg, TypeProvider getType, list[val
     fmsg = "";
     try {
         fmsg = interpolate(msg, getType, args);
-    } catch value e: {
+    } catch value _: {
         throw TypePalUsage("formatting the message: `<msg>` failed for `<subject>` with args: <args>");
     }
     loc sloc = |unknown:///|;
