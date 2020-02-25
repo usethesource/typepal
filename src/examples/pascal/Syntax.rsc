@@ -12,8 +12,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 }
 module examples::pascal::Syntax
 
-import ParseTree;
-
 // Pascal (Pascal User Manual, Second Edition, 1978)
 
 layout Layout = WhitespaceAndComment* !>> [\ \t\n\r%];

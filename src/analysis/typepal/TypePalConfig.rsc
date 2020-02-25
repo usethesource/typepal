@@ -10,7 +10,7 @@ import String;
 extend ParseTree;
 
 syntax ANONYMOUS_OCCURRENCE = "anonymous_occurence";
-private loc anonymousOccurrence = ([ANONYMOUS_OCCURRENCE] "anonymous_occurence")@\loc;
+loc anonymousOccurrence = ([ANONYMOUS_OCCURRENCE] "anonymous_occurence")@\loc;
 
 AType defaultGetMinAType(){
     throw TypePalUsage("`getMinAType()` called but is not specified in TypePalConfig");
@@ -96,7 +96,7 @@ data TypePalConfig(
             = str (str s) { return replaceAll(s, "\\", ""); },
         
         AType (Tree selector, AType def, AType ins, AType act, Solver s) instantiateTypeParameters 
-            = AType(Tree _, AType _, AType _, AType act, Solver s){ return act; },
+            = AType(Tree _, AType _, AType _, AType act, Solver _){ return act; },
        
         tuple[list[str] typeNames, set[IdRole] idRoles] (AType atype) getTypeNamesAndRole
             = tuple[list[str] typeNames, set[IdRole] idRoles](AType _){
@@ -104,7 +104,7 @@ data TypePalConfig(
             },
             
         AType (Define containerDef, str selectorName, set[IdRole] idRolesSel, Solver s) getTypeInTypeFromDefine
-            = AType (Define _, str _, set[IdRole] _, Solver s) { throw NoBinding(); },
+            = AType (Define _, str _, set[IdRole] _, Solver _) { throw NoBinding(); },
  
         AType(AType containerType, Tree selector, loc scope, Solver s) getTypeInNamelessType
             = AType(AType _, Tree _, loc _, Solver _){
@@ -112,7 +112,7 @@ data TypePalConfig(
             }, 
             
         TModel(map[str,Tree] namedTrees, TModel tm) preSolver = TModel(map[str,Tree] _, TModel tm) { return tm; },    
-        void (map[str,Tree] namedTrees, Solver s) postSolver  = void(map[str,Tree] _, Solver s) { return ; },
+        void (map[str,Tree] namedTrees, Solver s) postSolver  = void(map[str,Tree] _, Solver _) { return ; },
         
         bool(loc def, TModel tm) reportUnused = defaultReportUnused
     );

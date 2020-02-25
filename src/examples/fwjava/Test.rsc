@@ -3,7 +3,6 @@ module examples::fwjava::Test
 import examples::fwjava::Syntax;
 extend examples::fwjava::Checker;
 extend analysis::typepal::TestFramework;
-import IO;
 
 import ParseTree;
 
@@ -18,7 +17,7 @@ TModel fwjTModelForTree(Tree pt){
     return newSolver(pt, c.run()).run();
 }
 
-TModel fwjTModelFromName(str mname, bool debug){
+TModel fwjTModelFromName(str mname, bool _){
     pt = parse(#start[FWJProgram], |project://typepal/src/examples/fwjava/<mname>.fwj|).top;
     return fwjTModelForTree(pt);
 }

@@ -47,7 +47,7 @@ default tuple[list[str] typeNames, set[IdRole] idRoles] structParametersGetTypeN
     return <[], {}>;
 }
 
-AType structParametersGetTypeInNamelessType(AType containerType, Tree selector, loc scope, Solver s){
+AType structParametersGetTypeInNamelessType(AType containerType, Tree selector, loc _, Solver s){
     s.report(error(selector, "Undefined field %q on %t", "<selector>", containerType));
     return intType();
 }
@@ -121,7 +121,7 @@ void collect(current:(Expression) `new <Id name><TypeActuals actuals>`, Collecto
     actual_list = actuals is noActuals ? [] : [a | a <- actuals.actuals];
     c.calculate("new `<name>`", current, name + actual_list,
         AType(Solver s){
-            if(structDef(nm, formals) := s.getType(name)){
+            if(structDef(_, formals) := s.getType(name)){
                 formal_list = [f | f <- formals];
                 if(size(actual_list) != size(formal_list)){
                     s.report(error(actuals, "Expected %v type parameters, but got %v", size(formal_list), size(actual_list)));
@@ -139,7 +139,7 @@ void collect(current:(Expression)`<Expression lhs> . <Id fieldName>`, Collector 
     c.calculate("FIELD SELECT", current, [lhs, fieldName],          // Hackish solution, error in Solver?
         AType(Solver s) { 
             tp = s.getType(fieldName); 
-            if(typeFormal(str name) := tp) throw TypeUnavailable();
+            if(typeFormal(str _) := tp) throw TypeUnavailable();
             return tp;
             
             });

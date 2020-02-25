@@ -10,7 +10,7 @@ import util::Reflective;
 // ----  Examples & Tests --------------------------------
 
 
-TModel pascalTModelForTree(Tree pt, str programName, PathConfig pcfg, bool debug){
+TModel pascalTModelForTree(Tree pt, str programName, PathConfig _, bool _){
     if(pt has top) pt = pt.top;
     
     c = newCollector(programName, pt, config=pascalConfig());
@@ -19,7 +19,7 @@ TModel pascalTModelForTree(Tree pt, str programName, PathConfig pcfg, bool debug
     return newSolver(pt, c.run()).run();
 }
 
-TModel pascalTModelForTree(Tree pt, bool debug){
+TModel pascalTModelForTree(Tree pt, bool _){
     if(pt has top) pt = pt.top;
     
     c = newCollector("Pascal checker", pt, config=pascalConfig());
