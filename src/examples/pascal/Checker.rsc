@@ -146,9 +146,9 @@ bool pascalIsSubType(AType atype, functionType(_, atype)) = true;  // for assign
 
 default bool pascalIsSubType(AType atype1, AType atype2) = false;
  
-Tree mkTree(int n) = [Identifier] "<for(int i <- [0 .. n]){>x<}>"; // A unique tree
+Tree mkTree(int n) = [Identifier] "<for(int _ <- [0 .. n]){>x<}>"; // A unique tree
 
-void pascalPreCollectInitialization(Tree tree, Collector c){
+void pascalPreCollectInitialization(Tree _, Collector c){
     c.define("true",    constantId(),   mkTree(1), defType(booleanType()));
     c.define("false",   constantId(),   mkTree(2), defType(booleanType()));
     c.define("writeln", procedureId(),  mkTree(3), defType(procedureType(atypeList([]))));
@@ -434,7 +434,7 @@ void collect(current: (FormalParameterSection) `<{Identifier ","}+ ids> : <Type 
     }
     c.calculate("parameter group", current, [rtype],
         AType(Solver s) {
-            return atypeList([ s.getType(rtype) | id <- ids ]);
+            return atypeList([ s.getType(rtype) | _ <- ids ]);
         });
     collect(rtype, c);
 }
@@ -445,7 +445,7 @@ void collect(current: (FormalParameterSection) `var <{Identifier ","}+ ids> : <T
     }
     c.calculate("var parameter group", current, [rtype],
         AType(Solver s) {
-            return atypeList([ s.getType(rtype) | id <- ids ]);
+            return atypeList([ s.getType(rtype) | _ <- ids ]);
         });
     collect(rtype, c);
 }
@@ -456,7 +456,7 @@ void collect(current: (FormalParameterSection) `function <{Identifier ","}+ ids>
     }
     c.calculate("function parameter group", current, [rtype],
         AType(Solver s) {
-            return atypeList([ anyFunctionType(s.getType(rtype)) | id <- ids ]);
+            return atypeList([ anyFunctionType(s.getType(rtype)) | _ <- ids ]);
         });
     collect(rtype, c);
 }
@@ -465,7 +465,7 @@ void collect(current: (FormalParameterSection) `procedure <{Identifier ","}+ ids
     for(id <- ids){
         c.define("<id>", procedureId(), id, defType(anyProcedureType()));
     }
-    c.fact(current, atypeList([ anyProcedureType() | id <- ids ]));
+    c.fact(current, atypeList([ anyProcedureType() | _ <- ids ]));
 }
 
 void collect({FormalParameterSection ";"}+ formals, Collector c){ 
@@ -577,15 +577,15 @@ void overloadRelational(Expression e, str op, Expression exp1, Expression exp2, 
               //case [subrangeType(tau1), subrangeType(tau1)]: return booleanType();
               case [tau1, setType(tau1)]: return booleanType();
               case [setType(tau1), setType(tau1)]: return booleanType();
-              case [setType(voidType()), setType(tau1)]: return booleanType();
-              case [setType(tau1), setType(voidType())]: return booleanType();
+              case [setType(voidType()), setType(_)]: return booleanType();
+              case [setType(_), setType(voidType())]: return booleanType();
               case [ tau1, tau1 ]: return booleanType();
               default: {
                  if(op == "\<\>"){
                     switch([t1, t2]){
                         case [pointerType(tau1), pointerType(tau1)]: return booleanType();
-                        case [pointerType(anyPointerType()), pointerType(tau1)]: return booleanType();
-                        case [pointerType(tau1), pointerType(anyPointerType())]: return booleanType();
+                        case [pointerType(anyPointerType()), pointerType(_)]: return booleanType();
+                        case [pointerType(_), pointerType(anyPointerType())]: return booleanType();
                     }
                  }
                  s.report(error(e, "%q not defined on %t and %t", op, exp1, exp2)); 
@@ -869,7 +869,7 @@ void collect(current: (ProcedureStatement) `<ProcedureIdentifier id> ( <{ActualP
             }
             c.require("new", current, actualList,
                 void(Solver s){
-                    s.requireTrue(pointerType(t) := s.getType(actuals[0]), error(current, "pointer type required, found %t", actuals[0]));
+                    s.requireTrue(pointerType(_) := s.getType(actuals[0]), error(current, "pointer type required, found %t", actuals[0]));
                 });
         }
      case "read":;
@@ -924,7 +924,7 @@ void collect(current: (IfStatement) `if <Expression condition> then <Statement t
 // Case statement
 
 void collect(current: (CaseStatement) `case <Expression exp> of <{CaseListElement ";"}+ caseElements>  end`, Collector c){
-    caseLabelList = [clab | (CaseListElement) `<{ CaseLabel ","}+ caseLabels> : <Statement caseStatement>` <- caseElements,"<caseLabels>" != "", clab <- caseLabels];
+    caseLabelList = [clab | (CaseListElement) `<{ CaseLabel ","}+ caseLabels> : <Statement _>` <- caseElements,"<caseLabels>" != "", clab <- caseLabels];
 
     c.require("case statement", current, exp + caseLabelList,
         void(Solver s){

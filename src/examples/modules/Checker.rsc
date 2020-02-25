@@ -1,10 +1,7 @@
 module examples::modules::Checker
 
 import examples::modules::Syntax;
-import util::Math;
 import IO;
-import ListRelation;
-import Set;
 import String;
 
 extend analysis::typepal::TypePal;

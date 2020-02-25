@@ -58,7 +58,7 @@ bool fwjMayOverload (set[loc] defs, map[loc, Define] defines) {
 
 // Set up the definition of the class and constructor for "Object"
 
- void fwjPreCollectInitialization(Tree pt, Collector c){
+ void fwjPreCollectInitialization(Tree _, Collector c){
     
     object_src = [ClassId] "Object";
     c.defineInScope(|global-scope:///|, "Object", classId(), object_src, defType(classType("Object")));
@@ -70,7 +70,7 @@ bool fwjMayOverload (set[loc] defs, map[loc, Define] defines) {
 
 // Once all extendd are known, we can define the subtype relation
 
-TModel fwjPreSolver(map[str,Tree] namedTrees, TModel tm) {
+TModel fwjPreSolver(map[str,Tree] _, TModel tm) {
     if(lrel[str,str] extendsRel := tm.store[key_extendsRelation]){
         extends = toSet(extendsRel)*;
     
@@ -178,7 +178,7 @@ void collect(current: (SuperCall) `super ( <{Variable ","}* vars> );`, Collector
     c.calculate("super call", current, ecid + varList,
         AType (Solver s) { 
                 stype = s.getType(ecid);
-                if(methodType(returnType, formalType) := stype){
+                if(methodType(_, formalType) := stype){
                    argType = atypeList([s.getType(exp) | exp <- varList]);
                    s.requireSubType(argType, formalType, error(current,  "Expected arguments %t, found %t", formalType, argType));
               } else {
@@ -236,7 +236,7 @@ void collect(current: (Expression) `( <ClassId cid> ) <Expression exp>`, Collect
      castType = classType("<cid>");
      c.calculate("cast `<cid>`", current, [exp],
          AType (Solver s) { 
-            c.requireSubType(exp, castType, error(current, "Incorrect cast, expected subtype of %t, found %t", castType, exp));
+            s.requireSubType(exp, castType, error(current, "Incorrect cast, expected subtype of %t, found %t", castType, exp));
             return castType;
             });
      collect(exp, c);
