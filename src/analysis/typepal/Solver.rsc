@@ -1355,7 +1355,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                foundDefs = scopeGraph.lookup(u);
                foundDefs = { fd | fd <- foundDefs, definitions[fd].idRole in u.idRoles };
                if(isEmpty(foundDefs)){
-                    throw TypePalInternalError("No binding found while checking for double definitions"); 
+                    ;//throw TypePalInternalError("No binding found while checking for double definitions"); 
                } else 
                if(size(foundDefs) == 1 || mayOverloadFun(foundDefs, definitions)){
                  ;
@@ -1365,7 +1365,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 }
             }
             catch NoBinding(): {
-                throw TypePalInternalError("No binding found while checking for double definitions"); 
+                ;//throw TypePalInternalError("No binding found while checking for double definitions"); 
             }  
         }
         
