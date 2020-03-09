@@ -136,6 +136,13 @@
         </plugins>
     </build>
 
+    <repositories>
+        <repository>
+            <id>usethesource</id>
+            <url>https://nexus.usethesource.io/content/repositories/public/</url>
+        </repository>
+    </repositories>
+
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
