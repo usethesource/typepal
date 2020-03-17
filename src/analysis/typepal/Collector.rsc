@@ -737,9 +737,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
    // Merge all lubDefs and appoint a definition to refer to
     
-    set[Define] mergeLubDefs(str id, loc scope, rel[IdRole role, loc defined, DefInfo defInfo] lubDefs){
+    set[Define] mergeLubDefs(str id, loc scope, rel[IdRole role, loc defined, DefInfo defInfo] lubDefs, set[loc] id_used){
         deps = []; getATypes = [];
-        defineds = [];
+        defineds = id_used;
         loc firstDefined = |undef:///|;
         set[IdRole] roles = {};
         for(tuple[IdRole role, loc defined, DefInfo defInfo] info <- lubDefs){
@@ -751,7 +751,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             deps += info.defInfo.dependsOn;
             getATypes += info.defInfo.getATypes;
         }
-        return {<scope, id, role, firstDefined, defTypeLub(deps - defineds, defineds, getATypes)> | role <- roles};
+        return {<scope, id, role, firstDefined, defTypeLub(deps - defineds, toList(defineds), getATypes)> | role <- roles};
         //if({role} := roles){
         //    return <scope, id, role, firstDefined, defTypeLub(deps - defineds, defineds, getATypes)>;
         //} else {
@@ -813,7 +813,11 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         set[str] ids_with_fixed_def = domain(local_fixed_defines_scope);
         
         for(str id <- deflub_names){
+            if(id == "e"){
+                println("e found");
+            }
             set[loc] id_defined_in_scopes = deflubs_in_lubscope[id]<0>;
+            set[loc] id_used_in_scopes = {tup.occ | tuple[str tid, loc idScope, set[IdRole] idRoles, loc occ] tup <- uselubs_in_lubscope, tup.tid == id};
             id_defined_in_scopes = { sc1 | loc sc1 <- id_defined_in_scopes, isEmpty(containment) || !any(loc sc2 <- id_defined_in_scopes, sc1 != sc2, <sc2, sc1> in containment)};
             
             //println("Consider <id>, defined in scopes <id_defined_in_scopes>");
@@ -847,7 +851,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                     } else {
                         id_dfs = deflubs_in_lubscope[id, scope];
                         if(!isEmpty(id_dfs)) {
-                            extra_defines += mergeLubDefs(id, scope, id_dfs);
+                            extra_defines += mergeLubDefs(id, scope, id_dfs, id_used_in_scopes);
                         }
                     }
                 }
@@ -855,7 +859,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 //println("---toplevel lubDef");
                  id_dfs = deflubs_in_lubscope[id, containment[id_defined_in_scopes]];
                  if(!isEmpty(id_dfs)){
-                    extra_defines += mergeLubDefs(id, lubScope, id_dfs);
+                    extra_defines += mergeLubDefs(id, lubScope, id_dfs, id_used_in_scopes);
                  }
            } else {                                     // Same id defined in one or more disjoint subscopes
              for(scope <- id_defined_in_scopes){
@@ -868,7 +872,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                        uses += u;
                    }
                } else {
-                 extra_defines += mergeLubDefs(id, scope, deflubs_in_lubscope[id, containment[scope]]);
+                 extra_defines += mergeLubDefs(id, scope, deflubs_in_lubscope[id, containment[scope]], id_used_in_scopes);
                }
              }
            }

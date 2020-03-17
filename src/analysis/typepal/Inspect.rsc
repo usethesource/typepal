@@ -5,16 +5,15 @@ import String;
 import IO;
 import ValueIO;
  
-void show(loc tmodelLoc){
+void show(loc tmodelLoc, str key){
 
     if(!endsWith(tmodelLoc.path, ".tpl")){
         println("Can only show files with `tpl` extension");
         return;
     }
     tm = readBinaryValueFile(#TModel, tmodelLoc);
-    //iprintln(tm.facts);
-    iprintln(tm.uses);
-    //for(d <- tm.defines, d.id == "Assignable"){
-    //    println(d, lineLimit=10000); 
+    for(/Tree t := tm) iprintln(t);
+    //for(d <- tm.defines, d.id == key){
+    //    iprintln(d, lineLimit=10000); 
     //}
 }

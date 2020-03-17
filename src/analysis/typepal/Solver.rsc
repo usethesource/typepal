@@ -338,6 +338,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     // ---- fire triggers when the type of a location comes available
     
     void fireTrigger(loc trigger){
+        //if(trigger == |project://rascal-core/src/org/rascalmpl/core/library/lang/rascalcore/compile/Examples/Tst1.rsc|(108,3,<7,11>,<7,14>)){
+        //    println(|project://rascal-core/src/org/rascalmpl/core/library/lang/rascalcore/compile/Examples/Tst1.rsc|(108,3,<7,11>,<7,14>));
+        //}
         if(trigger in activeTriggers) return;
         addActiveTrigger(trigger);
         
@@ -527,9 +530,19 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             if(size(known) >= 1){
                 tp = simplifyLub(known); 
                 for(loc def <- defines) { facts[def] = tp; }
-                for(loc def <- defines) { fireTrigger(def); }
+//                for(loc def <- defines) { fireTrigger(def); }
             }
-            if(size(known) == size(getATypes)) {/*println("calcLubsucceeds");*/ return true;}
+            
+            if(size(known) == size(getATypes)) {
+                tp = simplifyLub(known); 
+                for(loc def <- defines) { 
+                    if(facts[def] != tp){
+                         facts[def] = tp;
+                    }
+                }
+                for(loc def <- defines) { fireTrigger(def); }
+                return true;
+            }
         }
         return false;
     }
