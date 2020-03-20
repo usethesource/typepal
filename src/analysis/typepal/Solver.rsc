@@ -729,7 +729,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     void addUse(set[loc] defs, Use u){
         for(loc def <- defs){
-            if(definedBy[u.occ]?){
+            if(definedBy[u.occ]?){  // TODO is this isContainedIn safe to use?
                 definedBy[u.occ]  = { isContainedIn(def, d) ? def : d | loc d <- definedBy[u.occ] };
             } else {
                 definedBy[u.occ] = {def};

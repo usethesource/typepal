@@ -204,6 +204,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     map[loc, rel[loc,loc]]  scopesPerLubScope = (globalScope: {});
  
     Scopes scopes = ();
+    map[loc, set[loc]] scopesStar = (globalScope: {});
     
     Paths paths = {};
     set[ReferPath] referPaths = {};
@@ -258,17 +259,33 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
+    bool scopeContains(loc dscope, loc uscope){
+        return dscope in scopesStar[uscope];
+    }
+    
     bool _isAlreadyDefined(str id,  Tree useOrDef){
         lubdefs = lubDefinesPerLubScope[currentLubScope][id];
-        if(!isEmpty(lubdefs) && any(<scope, _, _, _> <- lubdefs, isContainedIn(getLoc(useOrDef), scope))){
+        if(!isEmpty(lubdefs) && any(<scope, _, _, _> <- lubdefs, scopeContains(scope, currentScope))){
             return true;
         }
         for(<loc scope, str id1, IdRole idRole, loc _, DefInfo _> <- defines, 
-             id == id1, config.isInferrable(idRole), isContainedIn(getLoc(useOrDef), scope)){
+             id == id1, config.isInferrable(idRole), scopeContains(scope, currentScope)){
             return true;
         }
         return false;
     }
+    
+    //bool _isAlreadyDefined(str id,  Tree useOrDef){
+    //    lubdefs = lubDefinesPerLubScope[currentLubScope][id];
+    //    if(!isEmpty(lubdefs) && any(<scope, _, _, _> <- lubdefs, isContainedIn(getLoc(useOrDef), scope))){
+    //        return true;
+    //    }
+    //    for(<loc scope, str id1, IdRole idRole, loc _, DefInfo _> <- defines, 
+    //         id == id1, config.isInferrable(idRole), isContainedIn(getLoc(useOrDef), scope)){
+    //        return true;
+    //    }
+    //    return false;
+    //}
         
     void _defineInScope(value scope, str id, IdRole idRole, value def, DefInfo info){
         if(building){
@@ -415,8 +432,10 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             if(innerLoc == rootScope){
               currentScope = innerLoc;
               scopeStack = push(<innerLoc, lubScope, ()>, scopeStack);
+              scopesStar[currentScope] = {currentScope};
            } else {
               scopes[innerLoc] = currentScope; 
+              scopesStar[innerLoc] = scopesStar[currentScope] + innerLoc;
               scopesPerLubScope[currentLubScope] += <currentScope, innerLoc>;
               currentScope = innerLoc;
               scopeStack = push(<innerLoc, lubScope, ()>, scopeStack);
@@ -1097,6 +1116,7 @@ void collect(list[Tree] currentTrees, Collector c){
 // ---- default collector -----------------------------------------------------
 
 void collectArgs1(list[Tree] args, Collector c){
+    //println("args1:<for(a <- args){>|<a>|<}>");
     int n = size(args);
     int i = 0;
     while(i < n){
@@ -1106,6 +1126,7 @@ void collectArgs1(list[Tree] args, Collector c){
 }
 
 void collectArgs2(list[Tree] args, Collector c){
+    //println("args2:<for(a <- args){>|<a>|<}>");
     int n = size(args);
     int i = 0;
     while(i < n){
@@ -1115,6 +1136,7 @@ void collectArgs2(list[Tree] args, Collector c){
 }
 
 void collectArgsN(list[Tree] args, int delta, Collector c){
+    //println("argsN:<for(a <- args){>|<a>|<}>");
     int n = size(args);
     int i = 0;
     while(i < n){
@@ -1134,8 +1156,14 @@ bool allSymbolsIgnored(list[Symbol] symbols){
     }
     return true;
 }
-
+str getLine(Tree t){
+    if(!t@\loc?) return "?";
+    l = t@\loc;
+    if(l.begin?) return "<l.begin.line>";
+    return "?";
+}
 default void collect(Tree currentTree, Collector c){
+    //println("<getLine(currentTree)>|<currentTree>|");
     if(currentTree has prod){
         switch(getName(currentTree.prod.def)){
         case "label":  
