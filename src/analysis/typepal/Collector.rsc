@@ -263,7 +263,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         return dscope in scopesStar[uscope];
     }
     
-    bool _isAlreadyDefined(str id,  Tree useOrDef){
+    bool _isAlreadyDefined(str id,  Tree _ /*useOrDef*/){
         lubdefs = lubDefinesPerLubScope[currentLubScope][id];
         if(!isEmpty(lubdefs) && any(<scope, _, _, _> <- lubdefs, scopeContains(scope, currentScope))){
             return true;

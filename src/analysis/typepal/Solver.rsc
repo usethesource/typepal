@@ -341,7 +341,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         if(trigger in activeTriggers) return;
         addActiveTrigger(trigger);
         
-        for(calc <- triggersCalculator[trigger] ? {} && calc in calculators){  
+        for(calc <- (triggersCalculator[trigger] ? {}) && calc in calculators){  
             evalOrScheduleCalc(calc);
         }
         
@@ -349,7 +349,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             evalOrScheduleReq(req);
         }
         
-        for(Use u <- def2uses[trigger] ? {}){
+        for(Use u <- (def2uses[trigger] ? {})){
             foundDefs = definedBy[u.occ];
             if({def} := foundDefs, facts[def]?){ 
                 openUses -= u;
@@ -1231,7 +1231,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                                     if(tvar(_) := facts[tname]) return false;
                                   }
             case lazyLub(list[AType] atypes): if(!(isEmpty(atypes) || all(AType tp <- atype, isFullyInstantiated(tp)))) return false;
-            case overloadedAType(rel[loc, IdRole, AType] overloads): all(<_, idr, tp> <- overloads, isFullyInstantiated(tp));
+            case overloadedAType(rel[loc, IdRole, AType] overloads): all(<_, _, tp> <- overloads, isFullyInstantiated(tp));
         }
         return true;
     }
@@ -1581,9 +1581,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         for(rp <- referPaths){
             switch(rp){
-            case referToDef(u, pathRole):
+            case referToDef(_, _):
                 messages += error("Reference to name `<rp.use.id>` cannot be resolved", rp.use.occ);
-            case referToType(occ, currentScope, pathRole):
+            case referToType(occ, _, _):
                 messages += error("Reference to type definition cannot be resolved", occ);
             }
         }
@@ -1603,7 +1603,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         if(!realErrorsFound){
             for (Use u <- openUses) {
                 foundDefs = definedBy[u.occ];
-                for(def <- foundDefs, !facts[u.occ]?, !alreadyReported(messages, u.occ)) {
+                for(_ <- foundDefs, !facts[u.occ]?, !alreadyReported(messages, u.occ)) {
                     messages += error("Unresolved type for `<u has id ? u.id : u.ids>`", u.occ);
                 }
             }
@@ -1688,9 +1688,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             if(definedBy[u]? && overloadedAType(org_overloads) := orgtp){
                 //println("definedBy[<u>] before: <definedBy[u]>");
                 if(overloadedAType(spec_overloads) := spectp){
-                    definedBy[u] = { def | <def, idRole, otype> <- org_overloads, otype in spec_overloads<2>};
+                    definedBy[u] = { def | <def, _, otype> <- org_overloads, otype in spec_overloads<2>};
                 } else {
-                    definedBy[u] = { def | <def, idRole, otype> <- org_overloads, otype == spectp};
+                    definedBy[u] = { def | <def, _, otype> <- org_overloads, otype == spectp};
                 }
                 //println("definedBy[<u>] after: <definedBy[u]>");
             }
@@ -1699,13 +1699,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
           tm.specializedFacts = specializedFacts;
           tm.useDef = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
           
-          ldefines = for(tup: <loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo> <- tm.defines){
+          ldefines = for(tup: <loc _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
                             if((defInfo has getAType || defInfo has getATypes)){
                                        try {                   
                                            dt = defType(tm.facts[defined]);
                                            tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo));
                                            
-                                       } catch NoSuchKey(k): {
+                                       } catch NoSuchKey(_): {
                                          continue;
                                        }
                                     } 
