@@ -184,9 +184,6 @@ void print(tuple[loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo]
 }
              
 Collector defaultCollector(Tree t) = newCollector("defaultModel", t);    
- 
-alias LubDefine = tuple[loc lubScope, str id, loc scope, IdRole idRole, loc defined, DefInfo defInfo]; 
-alias LubDefine2 = tuple[str id, loc scope, IdRole idRole, loc defined, DefInfo defInfo];       
 
 Collector newCollector(str modelName, Tree pt, TypePalConfig config = tconfig()){
     return newCollector(modelName, (modelName : pt), config=config);
@@ -199,7 +196,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     Defines defines = {};
     
     map[loc, set[Define]] definesPerLubScope = (globalScope: {});
-    map[loc, set[LubDefine2]] lubDefinesPerLubScope = (globalScope: {});
+    map[loc, set[Define]] lubDefinesPerLubScope = (globalScope: {});
     map[loc, rel[str id, loc idScope, set[IdRole] idRoles, loc occ]] lubUsesPerLubScope = (globalScope: {});
     map[loc, rel[loc,loc]]  scopesPerLubScope = (globalScope: {});
  
@@ -235,10 +232,10 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             
             uid = unescapeName(id);
            
-           // println("define: <id>, <idRole>, <def>");
+            // println("define: <id>, <idRole>, <def>");
             //println("definesPerLubScope[currentLubScope]: <definesPerLubScope[currentLubScope]>");
             
-            if(info is defTypeLub /*&& isEmpty(definesPerLubScope[currentLubScope][currentScope, id])*/){  
+            if(info is defTypeLub){  
                 // Look for an outer variable declaration of id that overrules the defTypeLub   
                 for(Define def <- defines + definesPerLubScope[currentLubScope]){
                     if(def.id == id && config.isInferrable(def.idRole)){
@@ -247,8 +244,8 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                             return;
                         }
                     }
-                }   
-                lubDefinesPerLubScope[currentLubScope] += <uid, currentScope, idRole, l, info>;
+                }
+                lubDefinesPerLubScope[currentLubScope] += <currentScope, uid, idRole, l, info>;
             } else {
                 //println("define: add to definesPerLubScope[<currentLubScope>]: <<currentScope, id, idRole, l, info>>");
                 definesPerLubScope[currentLubScope] += <currentScope, uid, idRole, l, info>; 
@@ -259,12 +256,12 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     }
     
     bool _isAlreadyDefined(str id,  Tree useOrDef){
-        lubdefs = lubDefinesPerLubScope[currentLubScope][id];
-        if(!isEmpty(lubdefs) && any(<scope, _, _, _> <- lubdefs, isContainedIn(getLoc(useOrDef), scope))){
+        lubdefs = { def | def <- lubDefinesPerLubScope[currentLubScope], def.id == id };
+        
+        if(!isEmpty(lubdefs) && any(def <- lubdefs, isContainedIn(getLoc(useOrDef), def.scope))){
             return true;
         }
-        for(<loc scope, str id1, IdRole idRole, loc _, DefInfo _> <- defines, 
-             id == id1, config.isInferrable(idRole), isContainedIn(getLoc(useOrDef), scope)){
+        for(def <- defines, def.id == id, config.isInferrable(def.idRole), isContainedIn(getLoc(useOrDef), def.scope)){
             return true;
         }
         return false;
@@ -292,42 +289,10 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             throw TypePalUsage("Cannot call `defineInScope` on Collector after `run`");
         }
     }
-    
-    //bool findType(loc srcLoc, DefInfo info){
-    //    switch(info){
-    //        case defType(AType contrib): {
-    //                facts[srcLoc] = contrib;
-    //                return true;
-    //            }
-    //        case defType(Tree other): {
-    //                otherLoc = getLoc(other);
-    //                if(facts[otherLoc]?){
-    //                    facts[srcLoc] = facts[otherLoc];
-    //                   return true;
-    //                }
-    //            }   
-    //        }
-    //    return false;   
-    //}
    
     void _use(Tree occ, set[IdRole] idRoles) {
-        if(building){
-            //id = unescapeName("<occ>");
-            //srcLoc = getLoc(occ);
-            //found = false;
-            //lubdefs = lubDefinesPerLubScope[currentLubScope][id];
-            //for(<scope, idRole, l, info> <- lubdefs, isContainedIn(srcLoc, scope), idRole in idRoles, !found){
-            //    found = findType(srcLoc, info);  
-            //}
-            //for(!found, <loc scope, str id1, IdRole idRole, loc defined, DefInfo defInfo> <- definesPerLubScope[currentLubScope],
-            //    id == id1, isContainedIn(srcLoc, scope)){
-            //    found = findType(srcLoc, defInfo); 
-            //}
-            //
-            //for(!found, <loc scope, str id1, IdRole idRole, loc defined, DefInfo defInfo> <- defines, 
-            //    id == id1, config.isInferrable(idRole), isContainedIn(srcLoc, scope)){
-            //    found = findType(srcLoc, defInfo);  
-            //}
+        if(building){            
+           //println("use <occ> at <getLoc(occ)> in scope <currentScope>");
            uses += use(unescapeName("<occ>"), getLoc(occ), currentScope, idRoles);
         } else {
             throw TypePalUsage("Cannot call `use` on Collector after `run`");
@@ -336,6 +301,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     void _useLub(Tree occ, set[IdRole] idRoles) {
         if(building){
+           //println("useLub <occ> at <getLoc(occ)> in scope <currentScope>");
            lubUsesPerLubScope[currentLubScope] += <unescapeName("<occ>"), currentScope, idRoles, getLoc(occ)>;
         } else {
             throw TypePalUsage("Cannot call `useLub` on Collector after `run`");
@@ -618,6 +584,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         if(building){
             srcLoc = getLoc(tree);
             if(facts[srcLoc]?) return facts[srcLoc];
+            //println("Collector.getType: <srcLoc>");
             throw TypeUnavailable();
         } else {
             throw TypePalUsage("Cannot call `getType` on Collector after `run`");
@@ -735,33 +702,53 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         config = cfg;
     }
     
-   // Merge all lubDefs and appoint a definition to refer to
-    
-    set[Define] mergeLubDefs(str id, loc scope, rel[IdRole role, loc defined, DefInfo defInfo] lubDefs, set[loc] id_used){
-        deps = []; getATypes = [];
-        defineds = id_used;
-        loc firstDefined = |undef:///|;
-        set[IdRole] roles = {};
-        for(tuple[IdRole role, loc defined, DefInfo defInfo] info <- lubDefs){
-            roles += info.role;
-            defineds += info.defined;
-            if(firstDefined == |undef:///| || info.defined.offset < firstDefined.offset){
-                firstDefined = info.defined;
-            }
-            deps += info.defInfo.dependsOn;
-            getATypes += info.defInfo.getATypes;
-        }
-        return {<scope, id, role, firstDefined, defTypeLub(deps - defineds, toList(defineds), getATypes)> | role <- roles};
-        //if({role} := roles){
-        //    return <scope, id, role, firstDefined, defTypeLub(deps - defineds, defineds, getATypes)>;
-        //} else {
-        //     println("mergeLubDefs <id>, <scope>, <lubDefs>");
-        //     throw TypePalUsage("LubDefs should use a single role, found <roles>");
-        //}
+    // Compute dependencies and defs for one LubDef:
+    // - Remove dependencies with a nested use in order to break cycles (but add them as defs)
+    // - Add all uses that are in scope as defs
+        
+    tuple[list[loc] deps, list[loc] defs] computeDepsAndDefs(set[loc] deps, set[loc] defs, set[Use] uses, loc lubDefScope, rel[loc,loc] enclosedScopes){
+        if(isEmpty(uses)) return <toList(deps - defs), toList(defs)>;
+        depsWithNestedUse = { d | d <- deps, u <- uses, isContainedIn(u.occ, d) };
+        scopesEnclosedByLubDef = enclosedScopes[lubDefScope];
+        return <toList(deps - defs - depsWithNestedUse), toList(defs + depsWithNestedUse + { u.occ | u <- uses, u.scope in scopesEnclosedByLubDef })>;
     }
     
-    bool fixed_define_in_outer_scope(str id, loc lubScope){
-        //println("fixed_define_in_outer_scope: <id>, <lubScope>");
+    bool isDefinedBefore(Define a, Define b)
+        = isBefore(a.defined, b.defined);
+        
+    // Merge all LubDefs and appoint a definition to refer to
+    // When LubDefs in disjoint scopes are encountered they will be merged into separate defines
+        
+    set[Define] mergeLubDefs(str id, loc scope, set[Define] lubDefs,  set[Use] uses, rel[loc,loc] enclosedScopes){
+        mergedDefs = {};
+        sortedLubDefs = sort(lubDefs, isDefinedBefore);
+        Define firstDefine = sortedLubDefs[0];
+        
+        deps = {}; getATypes = [];
+        defineds = {};
+        set[IdRole] roles = {};
+  
+        for(def <- sortedLubDefs){
+            if(def != firstDefine && def.scope notin enclosedScopes[firstDefine.scope]){
+                mergedDefs += {<firstDefine.scope, id, role, firstDefine.defined, defTypeLub(ldeps, ldefs, getATypes)> | role <- roles, <ldeps, ldefs> := computeDepsAndDefs(deps, defineds, uses, firstDefine.scope, enclosedScopes)};
+                deps = {}; getATypes = [];
+                defineds = {};
+                set[IdRole] roles = {};
+                firstDefine = def;
+            }
+            roles += def.idRole;
+            defineds += def.defined;
+            deps += toSet(def.defInfo.dependsOn);
+            getATypes += def.defInfo.getATypes;
+        }
+        mergedDefs += {<scope, id, role, firstDefine.defined, defTypeLub(ldeps, ldefs, getATypes)> | role <- roles, <ldeps, ldefs> := computeDepsAndDefs(deps, defineds, uses, firstDefine.scope, enclosedScopes)};
+        return mergedDefs;
+    }
+    
+    // Is there a fixed (i.e. non-LubDef) define in an outer scope?
+    
+    bool existsFixedDefineInOuterScope(str id, loc lubScope){
+        //println("existsFixedDefineInOuterScope: <id>, <lubScope>");
         outer = lubScope;
         while(scopes[outer]? && scopes[outer] != |global-scope:///|){
             outer = scopes[outer];
@@ -791,17 +778,16 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     //     - merge all defLubs per subscope (and its subscopes)
     // Recall:
     // alias Define - tuple[loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo];
-    // alias LubDefine2 = tuple[str id, loc scope, IdRole idRole, loc defined, DefInfo defInfo]; 
                 
      set[Define] finalizeDefines(loc lubScope){
-        //println("finalizeDefines: <lubScope>, <definesPerLubScope[lubScope]>");
+       // println("finalizeDefines: <lubScope>, <definesPerLubScope[lubScope]>");
         set[Define] extra_defines = {};
        
-        rel[loc,loc] containment = scopesPerLubScope[lubScope]* + <lubScope,lubScope>;
-        set[loc] allScopes = carrier(containment);
+        rel[loc,loc] enclosedScopes = scopesPerLubScope[lubScope]* + <lubScope,lubScope>;
+        set[loc] allScopes = carrier(enclosedScopes);
         
-        set[LubDefine2] deflubs_in_lubscope = lubDefinesPerLubScope[lubScope];
-        set[str] deflub_names = deflubs_in_lubscope<0>;
+        set[Define] deflubs_in_lubscope = lubDefinesPerLubScope[lubScope];
+        set[str] deflub_names = deflubs_in_lubscope<1>;
         rel[str id, loc idScope, set[IdRole] idRoles, loc occ] uselubs_in_lubscope = lubUsesPerLubScope[lubScope];  
          
         
@@ -813,12 +799,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         set[str] ids_with_fixed_def = domain(local_fixed_defines_scope);
         
         for(str id <- deflub_names){
-            if(id == "e"){
-                println("e found");
-            }
-            set[loc] id_defined_in_scopes = deflubs_in_lubscope[id]<0>;
-            set[loc] id_used_in_scopes = {tup.occ | tuple[str tid, loc idScope, set[IdRole] idRoles, loc occ] tup <- uselubs_in_lubscope, tup.tid == id};
-            id_defined_in_scopes = { sc1 | loc sc1 <- id_defined_in_scopes, isEmpty(containment) || !any(loc sc2 <- id_defined_in_scopes, sc1 != sc2, <sc2, sc1> in containment)};
+            set[loc] id_defined_in_scopes = { def.scope | def <- deflubs_in_lubscope, def.id == id };
+            set[Use] id_used_in_scopes = {use(tup.tid, tup.occ, tup.idScope, tup.idRoles) | tuple[str tid, loc idScope, set[IdRole] idRoles, loc occ] tup <- uselubs_in_lubscope, tup.tid == id};
+            id_defined_in_scopes = { sc1 | loc sc1 <- id_defined_in_scopes, isEmpty(enclosedScopes) || !any(loc sc2 <- id_defined_in_scopes, sc1 != sc2, <sc2, sc1> in enclosedScopes)};
             
             //println("Consider <id>, defined in scopes <id_defined_in_scopes>");
             //println("local_fixed_defines: <local_fixed_defines>");
@@ -826,53 +809,53 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             
             if({ _ } := local_fixed_defines[lubScope, id]){   // Definition exists with fixed type in the lubScope; Use it instead of the lubDefines          
                //println("---top level fixedDef: <fixedDef> in <lubScope>");
-               for(<IdRole role, loc defined, DefInfo _> <- deflubs_in_lubscope[id, allScopes]){
-                   u = use(id, defined, lubScope, {role});
+               for(def <- deflubs_in_lubscope, def.id == id){
+                   u = use(id, def.defined, lubScope, {def.idRole});
                    //println("add: <u>");
                    uses += u;
                }
-            } else if(fixed_define_in_outer_scope(id, lubScope)){   // Definition exists with fixed type in a surrounding scope; Use it instead of the lubDefines          
+            } else if(existsFixedDefineInOuterScope(id, lubScope)){   // Definition exists with fixed type in a surrounding scope; Use it instead of the lubDefines          
                //println("---top level fixedDef: <fixedDef> in <lubScope>");
-               for(<IdRole role, loc defined, DefInfo _> <- deflubs_in_lubscope[id, allScopes]){
-                   u = use(id, defined, lubScope, {role});
+               for(def <- deflubs_in_lubscope, def.id == id){
+                   u = use(id, def.defined, lubScope, {def.idRole});
                    //println("add: <u>");
                    uses += u;
                }
             } else if(id in ids_with_fixed_def){ // Definition(s) with fixed type exist in one or more subscopes, use them instead of the lubDefines 
                 //println("---fixed def(s) in subscopes: <local_fixed_defines_scope[id]>");
-                //println("containment: <containment>");
+                //println("enclosedScopes: <enclosedScopes>");
                 for(scope <- allScopes){
                     if(scope in local_fixed_defines_scope[id]){
-                        for(<IdRole role, loc defined, DefInfo _> <- deflubs_in_lubscope[id, containment[scope]]){
-                            u = use(id, defined, scope, {role});
+                        for(def <- deflubs_in_lubscope, def.id == id, def.scope in enclosedScopes[scope]){
+                            u = use(id, def.defined, scope, {def.idRole});
                             //println("add: <u>");
                             uses += u;
                         }
                     } else {
-                        id_dfs = deflubs_in_lubscope[id, scope];
+                        id_dfs = {def | def <- deflubs_in_lubscope, def.id == id, def.scope == scope };
                         if(!isEmpty(id_dfs)) {
-                            extra_defines += mergeLubDefs(id, scope, id_dfs, id_used_in_scopes);
+                            extra_defines += mergeLubDefs(id, scope, id_dfs, id_used_in_scopes, enclosedScopes);
                         }
                     }
                 }
             } else if(lubScope in id_defined_in_scopes){   // Definition exists in the lubScope without fixed type, merge all lubDefs
                 //println("---toplevel lubDef");
-                 id_dfs = deflubs_in_lubscope[id, containment[id_defined_in_scopes]];
+                 id_dfs = { def | def <- deflubs_in_lubscope, def.id == id, def.scope in enclosedScopes[id_defined_in_scopes] };
                  if(!isEmpty(id_dfs)){
-                    extra_defines += mergeLubDefs(id, lubScope, id_dfs, id_used_in_scopes);
+                    extra_defines += mergeLubDefs(id, lubScope, id_dfs, id_used_in_scopes, enclosedScopes);
                  }
            } else {                                     // Same id defined in one or more disjoint subscopes
              for(scope <- id_defined_in_scopes){
                 if({ _ } := local_fixed_defines[scope, id]){ // defined in outer scope with fixed type
                    //println("fixedDef: <fixedDef> in inner scope <scope>");
                    // There exists a definition with fixed type in the inner scope, just use it instead of the lubDefines
-                   for(<IdRole role, loc defined, DefInfo _> <- deflubs_in_lubscope[id, containment[id_defined_in_scopes]]){
-                       u = use(id, defined, scope, {role});
+                   for(def <- deflubs_in_lubscope, def.id == id, def.scope in enclosedScopes[id_defined_in_scopes]){
+                       u = use(id, def.defined, scope, {def.idRole});
                       //println("add: <u>");
                        uses += u;
                    }
                } else {
-                 extra_defines += mergeLubDefs(id, scope, deflubs_in_lubscope[id, containment[scope]], id_used_in_scopes);
+                 extra_defines += mergeLubDefs(id, scope, {def | def <- deflubs_in_lubscope, def.id == id, def.scope in enclosedScopes[scope]}, id_used_in_scopes, enclosedScopes);
                }
              }
            }
