@@ -9,7 +9,7 @@
 
     <groupId>org.rascalmpl</groupId>
     <artifactId>typepal</artifactId>
-    <version>0.4.4-SNAPSHOT</version>
+    <version>0.4.5-SNAPSHOT</version>
     <packaging>eclipse-plugin</packaging>
 
     <properties>
@@ -50,7 +50,7 @@
             <plugin>
                 <groupId>org.rascalmpl</groupId>
                 <artifactId>rascal-maven-plugin</artifactId>
-                <version>0.2.8</version>
+                <version>0.2.11</version>
                 <configuration>
                     <bin>${project.build.outputDirectory}</bin>
                     <srcs>
@@ -136,6 +136,13 @@
         </plugins>
     </build>
 
+    <repositories>
+        <repository>
+            <id>usethesource</id>
+            <url>https://nexus.usethesource.io/content/repositories/public/</url>
+        </repository>
+    </repositories>
+
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
@@ -145,7 +152,7 @@
         <dependency>
             <groupId>org.rascalmpl</groupId>
             <artifactId>rascal</artifactId>
-            <version>0.15.3</version>
+            <version>0.17.0</version>
         </dependency>
     </dependencies>
 </project>

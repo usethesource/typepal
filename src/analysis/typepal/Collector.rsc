@@ -201,6 +201,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     map[loc, rel[loc,loc]]  scopesPerLubScope = (globalScope: {});
  
     Scopes scopes = ();
+    map[loc, set[loc]] scopesStar = (globalScope: {});
     
     Paths paths = {};
     set[ReferPath] referPaths = {};
@@ -261,6 +262,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         if(!isEmpty(lubdefs) && any(def <- lubdefs, isContainedIn(getLoc(useOrDef), def.scope))){
             return true;
         }
+        
         for(def <- defines, def.id == id, config.isInferrable(def.idRole), isContainedIn(getLoc(useOrDef), def.scope)){
             return true;
         }
@@ -381,8 +383,10 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             if(innerLoc == rootScope){
               currentScope = innerLoc;
               scopeStack = push(<innerLoc, lubScope, ()>, scopeStack);
+              scopesStar[currentScope] = {currentScope};
            } else {
               scopes[innerLoc] = currentScope; 
+              scopesStar[innerLoc] = scopesStar[currentScope] + innerLoc;
               scopesPerLubScope[currentLubScope] += <currentScope, innerLoc>;
               currentScope = innerLoc;
               scopeStack = push(<innerLoc, lubScope, ()>, scopeStack);
@@ -1084,6 +1088,7 @@ void collect(list[Tree] currentTrees, Collector c){
 // ---- default collector -----------------------------------------------------
 
 void collectArgs1(list[Tree] args, Collector c){
+    //println("args1:<for(a <- args){>|<a>|<}>");
     int n = size(args);
     int i = 0;
     while(i < n){
@@ -1093,6 +1098,7 @@ void collectArgs1(list[Tree] args, Collector c){
 }
 
 void collectArgs2(list[Tree] args, Collector c){
+    //println("args2:<for(a <- args){>|<a>|<}>");
     int n = size(args);
     int i = 0;
     while(i < n){
@@ -1102,6 +1108,7 @@ void collectArgs2(list[Tree] args, Collector c){
 }
 
 void collectArgsN(list[Tree] args, int delta, Collector c){
+    //println("argsN:<for(a <- args){>|<a>|<}>");
     int n = size(args);
     int i = 0;
     while(i < n){
@@ -1121,8 +1128,14 @@ bool allSymbolsIgnored(list[Symbol] symbols){
     }
     return true;
 }
-
+str getLine(Tree t){
+    if(!t@\loc?) return "?";
+    l = t@\loc;
+    if(l.begin?) return "<l.begin.line>";
+    return "?";
+}
 default void collect(Tree currentTree, Collector c){
+    //println("<getLine(currentTree)>|<currentTree>|");
     if(currentTree has prod){
         switch(getName(currentTree.prod.def)){
         case "label":  

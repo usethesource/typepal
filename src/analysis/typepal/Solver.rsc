@@ -341,7 +341,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         if(trigger in activeTriggers) return;
         addActiveTrigger(trigger);
         
-        for(calc <- triggersCalculator[trigger] ? {} && calc in calculators){  
+        for(calc <- (triggersCalculator[trigger] ? {}) && calc in calculators){  
             evalOrScheduleCalc(calc);
         }
         
@@ -349,7 +349,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             evalOrScheduleReq(req);
         }
         
-        for(Use u <- def2uses[trigger] ? {}){
+        for(Use u <- (def2uses[trigger] ? {})){
             foundDefs = definedBy[u.occ];
             if({def} := foundDefs, facts[def]?){ 
                 openUses -= u;
@@ -732,7 +732,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     void addUse(set[loc] defs, Use u){
         for(loc def <- defs){
-            if(definedBy[u.occ]?){
+            if(definedBy[u.occ]?){  // TODO is this isContainedIn safe to use?
                 definedBy[u.occ]  = { isContainedIn(def, d) ? def : d | loc d <- definedBy[u.occ] };
             } else {
                 definedBy[u.occ] = {def};
@@ -1606,7 +1606,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         if(!realErrorsFound){
             for (Use u <- openUses) {
                 foundDefs = definedBy[u.occ];
-                for(def <- foundDefs, !facts[u.occ]?, !alreadyReported(messages, u.occ)) {
+                for(_ <- foundDefs, !facts[u.occ]?, !alreadyReported(messages, u.occ)) {
                     messages += error("Unresolved type for `<u has id ? u.id : u.ids>`", u.occ);
                 }
             }
