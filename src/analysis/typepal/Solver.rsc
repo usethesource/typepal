@@ -1296,7 +1296,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         messages = tm.messages;
         failMessages = [];
         
-        println("checking <tm.modelName>");
+        if (logSolverSteps) println("checking <tm.modelName>");
            
         if(logSolverIterations) println("<tm.modelName>, initial -- calculators: <size(calculators)>; requirements: <size(requirements)>; uses: <size(tm.uses)>; facts: <size(facts)>");
              
