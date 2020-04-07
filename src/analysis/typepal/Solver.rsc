@@ -677,7 +677,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             overloads = {<d, idRole, instantiate(facts[d])> | loc d <- foundDefs, IdRole idRole := definitions[d].idRole, idRole in idRoles};
             return overloadedAType(overloads);
           } else {
-             _reports([error(d, "Double declaration of %q in %v", name, foundDefs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
+              defs = "\n<for(d <- foundDefs){>- <d>
+                     '<}>
+                     ";
+              _reports([error(d, "Double declaration of %q in %s", name, defs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
+             //_reports([error(d, "Double declaration of %q in %v", name, foundDefs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
           }
         }
         throw TypeUnavailable();
@@ -714,7 +718,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             } catch NoSuchKey(_):
                  throw TypeUnavailable();
           } else {
-             _reports([error(d, "Double declaration of %q in %v", id, foundDefs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
+             defs = "\n<for(d <- foundDefs){>- <d>
+                    '<}>
+                    ";
+             _reports([error(d, "Double declaration of %q in %s", id, defs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
+             //_reports([error(d, "Double declaration of %q in %v", id, foundDefs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
           }
         }
         throw TypeUnavailable();
@@ -1328,7 +1336,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                   openUses += u;
                   if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
                 } else {
-                    messages += [error("Double declaration of `<getId(u)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
+                      defs = "\n<for(d <- foundDefs){>- <d>
+                             '<}>
+                             ";
+                     messages += [error("Double declaration of `<getId(u)>` at <defs>", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declarations at <defs>", u.occ);
+                    //messages += [error("Double declaration of `<getId(u)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
                     if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }
@@ -1363,7 +1375,12 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                if(size(foundDefs) == 1 || mayOverloadFun(foundDefs, definitions)){
                  ;
                 } else {
-                    messages += [error("Double declaration of `<getId(u)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
+                    defs = "\n<for(d <- foundDefs){>- <d>
+                             '<}>
+                             ";
+                    messages += [error("Double declaration of `<getId(u)>` at <defs>", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declarations at <defs>", u.occ);
+                
+                    //messages += [error("Double declaration of `<getId(u)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
                     if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }
@@ -1498,7 +1515,12 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         }
                       } 
                     } else {
-                        messages += [error("Double declaration of `<getId(u)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
+                        defs = "\n<for(d <- foundDefs){>- <d>
+                             '<}>
+                             ";
+                        messages += [error("Double declaration of `<getId(u)>` at <defs>", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declarations at <defs>", u.occ);
+                    
+                        //messages += [error("Double declaration of `<getId(u)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
                         if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                     }
                 } catch NoBinding(): {
