@@ -182,6 +182,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     map[loc, set[loc]] definedBy = ();
     set[Use] openUses = {};
     set[Use] notYetDefinedUses = {};
+    set[loc] doubleDefs = {};
     
     map[loc, AType] bindings = ();
     list[Message] messages = [];
@@ -667,6 +668,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         throw "getType cannot return type for <v>";
     }
     
+    str formatDefs(set[loc] foundDefs)
+            = "<for(d <- foundDefs){>
+              '- <d><}>";
+    
      AType getTypeInScopeFromName0(str name, loc scope, set[IdRole] idRoles){
         u = use(name, anonymousOccurrence, scope, idRoles);
         foundDefs = scopeGraph.lookup(u);
@@ -677,11 +682,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             overloads = {<d, idRole, instantiate(facts[d])> | loc d <- foundDefs, IdRole idRole := definitions[d].idRole, idRole in idRoles};
             return overloadedAType(overloads);
           } else {
-              defs = "\n<for(d <- foundDefs){>- <d>
-                     '<}>
-                     ";
-              _reports([error(d, "Double declaration of %q in %s", name, defs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
-             //_reports([error(d, "Double declaration of %q in %v", name, foundDefs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
+              doubleDefs += foundDefs;
+              _reports([error(d, "Double declaration of %q in %s", name, formatDefs(foundDefs - d)) | d <- foundDefs]);
           }
         }
         throw TypeUnavailable();
@@ -718,11 +720,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             } catch NoSuchKey(_):
                  throw TypeUnavailable();
           } else {
-             defs = "\n<for(d <- foundDefs){>- <d>
-                    '<}>
-                    ";
-             _reports([error(d, "Double declaration of %q in %s", id, defs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
-             //_reports([error(d, "Double declaration of %q in %v", id, foundDefs) | d <- foundDefs] /*+ error("Undefined `<id>` due to double declaration", u.occ) */);
+             doubleDefs += foundDefs;
+             _reports([error(d, "Double declaration of %q in %s", id, formatDefs(foundDefs - d)) | d <- foundDefs]);
           }
         }
         throw TypeUnavailable();
@@ -859,8 +858,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     results += { <id, getType(defInfo)> |  <str id, IdRole idRole, loc _, DefInfo defInfo> <- defines[containerDef.defined] ? {}, idRole in idRoles };
                 }
                 return results;
-             } catch AmbiguousDefinition(set[loc] foundDefs): {               //if(!mayOverloadFun(foundDefs, definitions)){
-                messages += [error("Double declaration of `<definitions[defined].id>`", defined) | defined  <- foundDefs];
+             } catch AmbiguousDefinition(set[loc] foundDefs): {               //if(!mayOverloadFun(foundDefs, definitions)){             
+                doubleDefs += foundDefs;
+                messages += [error("Double declaration of `<definitions[defined].id> at <formatDefs(foundDefs - d)>", defined) | defined  <- foundDefs];
                 return results;
              }      
          } else {
@@ -1336,12 +1336,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                   openUses += u;
                   if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
                 } else {
-                      defs = "\n<for(d <- foundDefs){>- <d>
-                             '<}>
-                             ";
-                     messages += [error("Double declaration of `<getId(u)>` at <defs>", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declarations at <defs>", u.occ);
-                    //messages += [error("Double declaration of `<getId(u)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
-                    if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
+                      doubleDefs += foundDefs;
+                      messages += [error("Double declaration of `<getId(u)>` at <formatDefs(foundDefs - d)>", d) | d <- foundDefs];
+                      if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }
             catch NoBinding(): {
@@ -1375,12 +1372,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                if(size(foundDefs) == 1 || mayOverloadFun(foundDefs, definitions)){
                  ;
                 } else {
-                    defs = "\n<for(d <- foundDefs){>- <d>
-                             '<}>
-                             ";
-                    messages += [error("Double declaration of `<getId(u)>` at <defs>", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declarations at <defs>", u.occ);
-                
-                    //messages += [error("Double declaration of `<getId(u)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
+                    doubleDefs += foundDefs;
+                    messages += [error("Double declaration of `<getId(u)>` at <formatDefs(foundDefs - d)>", d) | d <- foundDefs];
                     if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }
@@ -1399,9 +1392,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         if(logSolverSteps) println("..... handle <size(defines)> defines");
         for(Define def <- defines){
             try {
-                //if(def.defined notin def2uses && reportUnused(def.defined, tm.definitions, tm.scopes, tm.facts, tm.config)){ 
-                //    messages += warning("Unused <prettyRole(def.idRole)> `<def.id>`", def.defined); 
-                //}
                 evalDef(def);
             } catch checkFailed(list[FailMessage] fms): {
                 failMessages += fms;
@@ -1518,7 +1508,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         defs = "\n<for(d <- foundDefs){>- <d>
                              '<}>
                              ";
-                        messages += [error("Double declaration of `<getId(u)>` at <defs>", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declarations at <defs>", u.occ);
+                        messages += [error("Double declaration of `<getId(u)>` at <defs>", d) | d <- foundDefs] /*+ error("Undefined `<getId(u)>` due to double declarations at <defs>", u.occ)*/;
                     
                         //messages += [error("Double declaration of `<getId(u)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
                         if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
@@ -1739,7 +1729,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
           tm.defines = toSet(ldefines);
                           
           for(Define def <- tm.defines){
-                if(def.defined notin def2uses && reportUnused(def.defined, tm)){ 
+                if(def.defined notin def2uses && def.defined notin doubleDefs && reportUnused(def.defined, tm)){ 
                     messages += warning("Unused <prettyRole(def.idRole)> `<def.id>`", def.defined); 
                 }
            }
