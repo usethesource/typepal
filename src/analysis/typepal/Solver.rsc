@@ -860,7 +860,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 return results;
              } catch AmbiguousDefinition(set[loc] foundDefs): {               //if(!mayOverloadFun(foundDefs, definitions)){             
                 doubleDefs += foundDefs;
-                messages += [error("Double declaration of `<definitions[defined].id> at <formatDefs(foundDefs - d)>", defined) | defined  <- foundDefs];
+                messages += [error("Double declaration of `<definitions[d].id> at <formatDefs(foundDefs - d)>", d) | d  <- foundDefs];
                 return results;
              }      
          } else {
