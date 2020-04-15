@@ -24,53 +24,7 @@ extend analysis::typepal::Utils;
 
 extend analysis::typepal::ISolver;
 
-//// The Solver data type: a collection of call backs
-//
-//data Solver
-//    = solver(
-//    /* Lifecycle */     TModel () run,
-//    /* Types */         AType(value) getType,
-//                        AType (Tree occ, loc scope, set[IdRole] idRoles) getTypeInScope,
-//                        AType (str name, loc scope, set[IdRole] idRoles) getTypeInScopeFromName,
-//                        AType (AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope) getTypeInType,
-//                        rel[str id, AType atype] (AType containerType, loc scope, set[IdRole] idRoles) getAllDefinedInType,
-//    /* Fact */          void (value, AType) fact,
-//                        void (value, AType) specializedFact,
-//    /* Calculate & Require */    
-//                        bool (value, value) equal,
-//                        void (value, value, FailMessage) requireEqual,
-//       
-//                        bool (value, value) unify,
-//                        void (value, value, FailMessage) requireUnify,
-//        
-//                        bool (value, value) comparable,
-//                        void (value, value, FailMessage) requireComparable,
-//                        
-//                        bool (value, value) subtype,
-//                        void (value, value, FailMessage) requireSubType,
-//                        
-//                        AType (value, value) lub,
-//                        AType (list[AType]) lubList,
-//        
-//                        void (bool, FailMessage) requireTrue,
-//                        void (bool, FailMessage) requireFalse,
-//        
-//    /* Inference */     AType (AType atype) instantiate,
-//                        bool (AType atype) isFullyInstantiated,
-//    
-//    /* Reporting */     bool(FailMessage fm) report,
-//                        bool (list[FailMessage]) reports,
-//                        void (list[Message]) addMessages,
-//                        bool () reportedErrors,
-//    /* Global Info */   TypePalConfig () getConfig,
-//                        map[loc, AType]() getFacts,
-//                        Paths() getPaths,
-//                        value (str key) getStore,
-//                        value (str key, value val) putStore,
-//                        set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions,    // deprecated
-//                        set[Define] () getAllDefines,
-//                        Define(loc) getDefine
-//    );
+// Implementation of the Solver data type: a collection of call backs
    
 Solver newSolver(Tree pt, TModel tm){
     return newSolver(("newSolver": pt), tm);
@@ -152,11 +106,48 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         return res;
      }
     
-    value _getStore(str key) = tm.store[key];
+    //value _getStore(str key) = tm.store[key];
+    //
+    //value _putStore(str key, value val) { 
+    //    tm.store[key] = val;  
+    //    return val;
+    //}
     
-    value _putStore(str key, value val) { 
-        tm.store[key] = val;  
-        return val;
+    void _push(str key, value val){
+        if(tm.store[key]? && list[value] old := tm.store[key]){
+           tm.store[key] = val + old;
+        } else {
+           tm.store[key] = [val];
+        }
+    }
+    
+    value _pop(str key){
+        if(tm.store[key]? && list[value] old := tm.store[key], size(old) > 0){
+           pval = old[0];
+           tm.store[key] = tail(old);
+           return pval;
+        } else {
+           throw TypePalUsage("Cannot pop from empty stack for key `<key>`");
+        }
+    }
+    
+    value _top(str key){
+        if(tm.store[key]? && list[value] old := tm.store[key], size(old) > 0){
+           return old[0];
+        } else {
+           throw TypePalUsage("Cannot get top from empty stack for key `<key>`");
+        }
+    }
+    
+    list[value] _getStack(str key){
+        if(tm.store[key]? && list[value] old := tm.store[key]){
+            return old;
+        }
+        return [];
+    }
+    
+    void _clearStack(str key){
+        tm.store[key] = [];
     }
     
     // State of Solver
@@ -668,10 +659,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         throw "getType cannot return type for <v>";
     }
     
-    str formatDefs(set[loc] foundDefs)
-            = "<for(d <- foundDefs){>
-              '- <d><}>";
-    
      AType getTypeInScopeFromName0(str name, loc scope, set[IdRole] idRoles){
         u = use(name, anonymousOccurrence, scope, idRoles);
         foundDefs = scopeGraph.lookup(u);
@@ -683,7 +670,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             return overloadedAType(overloads);
           } else {
               doubleDefs += foundDefs;
-              _reports([error(d, "Double declaration of %q in %s", name, formatDefs(foundDefs - d)) | d <- foundDefs]);
+              _reports([error(d, "Double declaration of %q in %s", name, itemizeLocs(foundDefs - d)) | d <- foundDefs]);
           }
         }
         throw TypeUnavailable();
@@ -721,7 +708,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                  throw TypeUnavailable();
           } else {
              doubleDefs += foundDefs;
-             _reports([error(d, "Double declaration of %q in %s", id, formatDefs(foundDefs - d)) | d <- foundDefs]);
+             _reports([error(d, "Double declaration of %q in %s", id, itemizeLocs(foundDefs - d)) | d <- foundDefs]);
           }
         }
         throw TypeUnavailable();
@@ -860,7 +847,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 return results;
              } catch AmbiguousDefinition(set[loc] foundDefs): {               //if(!mayOverloadFun(foundDefs, definitions)){             
                 doubleDefs += foundDefs;
-                messages += [error("Double declaration of `<definitions[d].id> at <formatDefs(foundDefs - d)>", d) | d  <- foundDefs];
+                messages += [error("Double declaration of `<definitions[d].id> at <itemizeLocs(foundDefs - d)>", d) | d  <- foundDefs];
                 return results;
              }      
          } else {
@@ -1337,7 +1324,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                   if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
                 } else {
                       doubleDefs += foundDefs;
-                      messages += [error("Double declaration of `<getId(u)>` at <formatDefs(foundDefs - d)>", d) | d <- foundDefs];
+                      messages += [error("Double declaration of `<getId(u)>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs];
                       if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }
@@ -1373,7 +1360,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                  ;
                 } else {
                     doubleDefs += foundDefs;
-                    messages += [error("Double declaration of `<getId(u)>` at <formatDefs(foundDefs - d)>", d) | d <- foundDefs];
+                    messages += [error("Double declaration of `<getId(u)>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs];
                     if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }
@@ -1779,11 +1766,16 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
            /* Global Info */    _getConfig,
                                 _getFacts,
                                 _getPaths,
-                                _getStore,
-                                _putStore,
+                               
                                 getDefinitions,
                                 getAllDefines,
-                                getDefine
+                                getDefine,
+                                
+          /* Nested Info */     _push,
+                                _pop,
+                                _top,
+                                _getStack,
+                                _clearStack
                      );
                      
     ScopeGraph scopeGraph = newScopeGraph(tm, tm.config, thisSolver);

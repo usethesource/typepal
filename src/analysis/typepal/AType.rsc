@@ -50,3 +50,6 @@ default str prettyAType(overloadedAType(rel[loc, IdRole, AType] overloads))
                                               = "overloaded: {" + intercalate(", ", [prettyAType(t) | <_,_, t> <- overloads]) + "}";
 default str prettyAType(AType tp)              = "<tp>";
        
+str itemizeLocs(set[loc] locs)
+            = "<for(d <- locs){>
+              '- <d><}>";

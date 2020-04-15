@@ -44,9 +44,13 @@ data Solver
     /* Global Info */   TypePalConfig () getConfig,
                         map[loc, AType]() getFacts,
                         Paths() getPaths,
-                        value (str key) getStore,
-                        value (str key, value val) putStore,
                         set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions,    // deprecated
                         set[Define] () getAllDefines,
-                        Define(loc) getDefine
+                        Define(loc) getDefine,
+                        
+    /* Nested Info */   void(str key, value val) push,
+                        value (str key) pop,
+                        value (str key) top,
+                        list[value] (str key) getStack,
+                        void (str key) clearStack
     );
