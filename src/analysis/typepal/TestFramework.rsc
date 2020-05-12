@@ -132,7 +132,7 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
     return ok;
 }
 
-lrel[&T, set[str]] extractTests(list[loc] suites, type[&T<:Tree] begin) {
+lrel[&T<:Tree, set[str]] extractTests(list[loc] suites, type[&T<:Tree] begin) {
     result = [];
     for(suite <- suites){
         tr = parse(#start[TTL], suite, allowAmbiguity=true);
