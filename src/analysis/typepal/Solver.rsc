@@ -977,9 +977,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     default bool _unify(value given, value expected) { throw TypePalUsage("`_unify` called with <given> and <expected>"); }
     
-    bool _unify(value given, value expected, FailMessage fm) {
-        return unify(given, expected) || _report(fm);
-    }
+    //bool _unify(value given, value expected, FailMessage fm) {
+    //    return unify(given, expected) || _report(fm);
+    //}
     
     void _requireUnify(value given, value expected, FailMessage fm){
         if(!_unify(given, expected)) _report(fm);
