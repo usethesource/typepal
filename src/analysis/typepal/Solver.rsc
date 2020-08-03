@@ -782,7 +782,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             while(i < ncontainerNames){
                 containerName = containerNames[i];
                 i += 1;
-                all_definitions = getDefinitions(containerName, scope, containerRoles);
+                all_definitions = _getDefinitions(containerName, scope, containerRoles);
                 some_accessible_def = some_accessible_def || !isEmpty(all_definitions);
                 for(containerDef <- all_definitions){    
                     try {
@@ -841,7 +841,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             containerName = containerNames[0];
             results = {};
             try {
-                for(containerDef <- getDefinitions(containerName, scope, containerRoles)){   
+                for(containerDef <- _getDefinitions(containerName, scope, containerRoles)){   
                     results += { <id, getType(defInfo)> |  <str id, IdRole idRole, loc _, DefInfo defInfo> <- defines[containerDef.defined] ? {}, idRole in idRoles };
                 }
                 return results;
@@ -855,7 +855,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
          }
     }
     
-    set[Define] getDefinitions(str id, loc scope, set[IdRole] idRoles){
+    set[Define] _getDefinitions(str id, loc scope, set[IdRole] idRoles){
         try {
             foundDefs = scopeGraph.lookup(use(id, anonymousOccurrence, scope, idRoles));
             if({def} := foundDefs){
@@ -876,11 +876,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
            }
     }
     
-    set[Define] getDefinitions(Tree tree, set[IdRole] idRoles)
-        = getDefinitions(getLoc(tree), idRoles);
-    
-    set[Define] getDefinitions(loc scope, set[IdRole] idRoles)
-        = {<scope, id, idRole, defined, defInfo> | <str id, IdRole idRole, loc defined, DefInfo defInfo> <- tm.defines[scope], idRole in idRoles };
+    //set[Define] getDefinitions(Tree tree, set[IdRole] idRoles)
+    //    = getDefinitions(getLoc(tree), idRoles);
+    //
+    //set[Define] getDefinitions(loc scope, set[IdRole] idRoles)
+    //    = {<scope, id, idRole, defined, defInfo> | <str id, IdRole idRole, loc defined, DefInfo defInfo> <- tm.defines[scope], idRole in idRoles };
         
     set[Define] getAllDefines() = tm.defines;
     
@@ -915,7 +915,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         while(i < ncontainerNames){
                             containerName = containerNames[i];
                             i += 1;
-                            all_definitions = getDefinitions(containerName, rp.scope, containerRoles);
+                            all_definitions = _getDefinitions(containerName, rp.scope, containerRoles);
                             found_scopes = {containerDef.defined | containerDef <- all_definitions};
                             
                              if(isEmpty(found_scopes)){
@@ -1767,7 +1767,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                                 _getFacts,
                                 _getPaths,
                                
-                                getDefinitions,
+                                _getDefinitions,
                                 getAllDefines,
                                 getDefine,
                                 
