@@ -17,7 +17,7 @@ node {
             }
 
             stage('Test') {
-                sh "mvn test"
+                sh "mvn -X -X -X test"
             }
 
             stage('Packaging') {
