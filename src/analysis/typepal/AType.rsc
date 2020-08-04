@@ -22,7 +22,7 @@ AType lazyLub([*AType atypes1, AType atypea, *AType atypes2, AType atypeb, *ATyp
 AType lazyLub([AType atype]) = atype;
 
 rel[loc, IdRole, AType] flatten(rel[loc, IdRole, AType] overloads){
-    flatOverloads = {};
+    rel[loc, IdRole, AType] flatOverloads = {};
     for(ovl:<_, _, tp> <- overloads){
         if(overloadedAType(rel[loc, IdRole, AType] overloads1) := tp){
             flat = false;
