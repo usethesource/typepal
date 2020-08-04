@@ -593,8 +593,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         } else {
             throw TypePalUsage("Cannot call `getType` on Collector after `run`");
         }
-    
-    
     }
     
     void _calculate(str name, Tree src, list[value] dependencies, AType(Solver s) calculator){
@@ -962,8 +960,10 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     return collector(
         /* Life cycle */    _run,
+        
         /* Configure */     _getConfig,
                             _setConfig,
+                            
         /* Scoping */       _enterScope, 
                             _enterCompositeScope,
                             _enterLubScope,
@@ -971,32 +971,43 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                             _leaveScope,
                             _leaveCompositeScope,
                             _getScope,
+                            
         /* Scope Info */    _setScopeInfo,
                             _getScopeInfo,
+                            
         /* Nested Info */   _push,
                             _pop,
                             _top,
                             _getStack,
                             _clearStack,
+                            
         /* Compose */       _addTModel,
+        
         /* Reporting */     _report, 
                             _reports,
+                            
         /* Define */        _define,
                             _defineInScope,
                             _isAlreadyDefined,
+                            
         /* Use */           _use, 
                             _useQualified, 
                             _useViaType,
                             _useLub,
-        /* Add Path */      _addPathToDef,
+                            
+        /* Path */          _addPathToDef,
                             _addPathToQualifiedDef,
                             _addPathToType,
                            
-        /* Inference */     _newTypeVar,          
+        /* Inference */     _newTypeVar,  
+                
         /* Fact */          _fact,
+        
         /* GetType */       _getType,
+        
         /* Calculate */     _calculate, 
                             _calculateEager,
+                            
         /* Require */       _require, 
                             _requireEager,
                             _requireEqual,
