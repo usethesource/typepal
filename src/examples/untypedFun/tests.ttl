@@ -22,7 +22,7 @@ test Id3 [[ fun x { x }(true) ]]
 
 test Inc1 [[ fun x { x + 1 } ]]
 test Inc2 [[ fun x { x + 1 }(2) ]]
-test Inc3 [[ fun x { x + 1 }(true) ]] expect {"Incorrect type of actual parameter"}
+test Inc3 [[ fun x { x + 1 }(true) ]] expect {"No version of + is applicable for `bool` and `int`"}
 
 test If1 [[ if true then 1 else 2 fi ]]
 test If2 [[ if true then true else false fi ]]
@@ -37,7 +37,7 @@ test In5 [[ let id = fun x { x } in id(1) end ]]
 test In6 [[ let id = fun x { x } in id(true) end ]]
 
 test In7 [[ let inc = fun x { x + 1 } in inc(3) end ]]
-test In8 [[ let inc = fun x { x + 1 } in inc(true) end ]] expect { "No version of + is applicable for `bool` and `int`" }
+test In8 [[ let inc = fun x { x + 1 } in inc(true) end ]] expect { "Incorrect type of actual parameter" }
 test In9 [[ let inc1 = fun x { x + 1 } in 
             let inc2 = fun x { inc1(x) } in inc2(3) end end ]]
 test In10 [[ let inc1 = fun x { x + 1 } in 

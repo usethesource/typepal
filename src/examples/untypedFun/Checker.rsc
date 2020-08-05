@@ -115,6 +115,3 @@ void collect(current: (Expression) `<Integer intcon>`, Collector c){
      c.fact(current, intType());
 }
 
-void collect(current: (Expression) `<String strcon>`, Collector c){
-     c.fact(current, strType());
-}
