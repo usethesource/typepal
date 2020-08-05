@@ -957,63 +957,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
            throw TypePalUsage("Cannot call `run` on Collector after `run`");
         }
     }
-    
-        /* Life cycle */     println(" 0: _run: <typeOf(_run)>");
         
-        /* Configure */      println(" 1: _getConfig: <typeOf(_getConfig)>");
-                             println(" 2: _setConfig: <typeOf(_setConfig)>");
-                           
-        /* Scoping */        println(" 3: _enterScope: <typeOf(_enterScope)>");
-                             println(" 4: _enterCompositeScope: <typeOf(_enterCompositeScope)>");
-                             println(" 5: _enterLubScope: <typeOf(_enterLubScope)>");
-                             println(" 6: _enterCompositeLubScope: <typeOf(_enterCompositeLubScope)>");
-                             println(" 7: _leaveScope: <typeOf(_leaveScope)>");
-                             println(" 8: _leaveCompositeScope: <typeOf(_leaveCompositeScope)>");
-                             println(" 9: _getScope: <typeOf(_getScope)>");
-                            
-        /* Scope Info */     println("10: _setScopeInfo: <typeOf(_setScopeInfo)>");
-                             println("11: _getScopeInfo: <typeOf(_getScopeInfo)>");
-                            
-        /* Nested Info */    println("12: _push: <typeOf(_push)>");
-                             println("13: _pop: <typeOf(_pop)>");
-                             println("14: _top: <typeOf(_top)>");
-                             println("15: _getStack: <typeOf(_getStack)>");
-                             println("16: _clearStack: <typeOf(_clearStack)>");
-                            
-        /* Compose */        println("17: _addTModel: <typeOf(_addTModel)>");
-        
-        /* Reporting */      println("18: _report: <typeOf(_report)>");
-                             println("19: _reports: <typeOf(_reports)>");
-                            
-        /* Define */         println("20: _define: <typeOf(_define)>");
-                             println("21: _defineInScope: <typeOf(_defineInScope)>");
-                             println("22: _isAlreadyDefined: <typeOf(_isAlreadyDefined)>");
-                           
-        /* Use */            println("23: _use: <typeOf(_use)>");
-                             println("24: _useQualified: <typeOf(_useQualified)>");
-                             println("25: _useViaType: <typeOf(_useViaType)>");
-                             println("26: _useLub: <typeOf(_useLub)>");
-                            
-        /* Path */           println("27: _addPathToDef: <typeOf(_addPathToDef)>");
-                             println("28: _addPathToQualifiedDef: <typeOf(_addPathToQualifiedDef)>");
-                             println("29: _addPathToType: <typeOf(_addPathToType)>");
-                           
-        /* Inference */      println("30: _newTypeVar: <typeOf(_newTypeVar)>"); 
-                
-        /* Fact */           println("31: _fact: <typeOf(_fact)>");
-        
-        /* GetType */        println("32: _getType: <typeOf(_getType)>");
-        
-        /* Calculate */      println("33: _calculate: <typeOf(_calculate)>");
-                             println("34: _calculateEager: <typeOf(_calculateEager)>");
-                            
-        /* Require */        println("35: _require: <typeOf(_require)>");
-                             println("36: _requireEager: <typeOf(_requireEager)>");
-                             println("37: _requireEqual: <typeOf(_requireEqual)>");
-                             println("38: _requireComparable: <typeOf(_requireComparable)>");
-                             println("39: _requireSubType: <typeOf(_requireSubType)>");
-                             println("40: _requireUnify: <typeOf(_requireUnify)>");
-    
     return collector(
         /* Life cycle */    _run,
         
