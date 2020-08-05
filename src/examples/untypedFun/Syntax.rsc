@@ -21,6 +21,7 @@ start syntax Expression
      Id name
    | Integer intcon 
    | Boolean boolcon
+   | String strcon
    | bracket "(" Expression e ")"                   
    > left ( Expression lhs "+" Expression rhs                                          
           | Expression lhs "&&" Expression rhs  
