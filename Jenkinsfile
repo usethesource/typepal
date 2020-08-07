@@ -20,10 +20,6 @@ node {
                 sh "mvn test"
             }
 
-            stage('Packaging') {
-                sh "mvn -DskipTests package"
-            }
-
             stage('Deploy') {
                 if (env.BRANCH_NAME == "master") {
                     sh "mvn -DskipTests deploy " 
