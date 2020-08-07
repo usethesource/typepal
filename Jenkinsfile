@@ -21,7 +21,7 @@ node {
             }
 
             stage('Packaging') {
-                sh "mvn package"
+                sh "mvn -DskipTests package"
             }
 
             stage('Deploy') {
