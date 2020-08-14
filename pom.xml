@@ -19,7 +19,7 @@
     </properties>
 
     <scm>
-        <developerConnection>scm:git:ssh://git@github.com/cwi-swat/TypePal.git</developerConnection>
+        <developerConnection>scm:git:ssh://git@github.com/usethesource/typepal.git</developerConnection>
       <tag>HEAD</tag>
   </scm>
 
