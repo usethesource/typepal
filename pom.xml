@@ -106,8 +106,6 @@
                 <version>2.5.3</version>
                 <configuration>
                     <tagNameFormat>v@{project.version}</tagNameFormat>
-                    <preparationGoals>org.eclipse.tycho:tycho-versions-plugin:${tycho-version}:update-eclipse-metadata org.apache.maven.plugins:maven-scm-plugin:${scm-plugin-version}:add org.apache.maven.plugins:maven-scm-plugin:${scm-plugin-version}:checkin</preparationGoals>
-                    <completionGoals>org.eclipse.tycho:tycho-versions-plugin:${tycho-version}:update-eclipse-metadata org.apache.maven.plugins:maven-scm-plugin:${scm-plugin-version}:add org.apache.maven.plugins:maven-scm-plugin:${scm-plugin-version}:checkin</completionGoals>
                 </configuration>
             </plugin>
         </plugins>
