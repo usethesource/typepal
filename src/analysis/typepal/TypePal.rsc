@@ -15,11 +15,7 @@ module analysis::typepal::TypePal
 import ParseTree;
 import Message;
 
-//extend analysis::typepal::AType;
-//extend analysis::typepal::Collector;
-//extend analysis::typepal::ScopeGraph;
 extend analysis::typepal::Solver;
-//extend analysis::typepal::TypePalConfig;
 
 // collectAndSolve shorthand for a common, simple, scenario
 

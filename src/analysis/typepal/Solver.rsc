@@ -13,16 +13,11 @@ import Message;
 import Exception;
 import util::Benchmark;
 
-//extend analysis::typepal::AType;
 extend analysis::typepal::Collector;
-//extend analysis::typepal::Exception;
 import analysis::typepal::FailMessage;
 extend analysis::typepal::Messenger;
-//extend analysis::typepal::ScopeGraph;
-//extend analysis::typepal::ConfigurableScopeGraph;
-import analysis::typepal::Utils;
 
-//extend analysis::typepal::ISolver;
+import analysis::typepal::Utils;
 
 // Implementation of the Solver data type: a collection of call backs
    

@@ -1,24 +1,14 @@
 module analysis::typepal::ConfigurableScopeGraph
 
-//extend analysis::typepal::TModel;
-
 extend analysis::typepal::AType;
 import analysis::typepal::Exception;
-//extend analysis::typepal::ScopeGraph;
 
 import IO;
 import Set;
 import Map;
 import String;
 extend ParseTree;
-
-//import analysis::typepal::Exception;
-//extend analysis::typepal::TModel;
-//extend analysis::typepal::TypePalConfig;
 extend analysis::typepal::ISolver;
-
-
-
 
 syntax ANONYMOUS_OCCURRENCE = "anonymous_occurence";
 public loc anonymousOccurrence = ([ANONYMOUS_OCCURRENCE] "anonymous_occurence")@\loc;

@@ -1,4 +1,5 @@
 module analysis::typepal::ICollector
+
 extend analysis::typepal::ConfigurableScopeGraph;
 import analysis::typepal::FailMessage;
 
