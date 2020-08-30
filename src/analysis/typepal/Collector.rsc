@@ -21,13 +21,14 @@ import IO;
 import Type;
 import Location;
 
-extend analysis::typepal::AType;
+//extend analysis::typepal::AType;
 extend analysis::typepal::Exception;
-extend analysis::typepal::TypePalConfig;
+extend analysis::typepal::ConfigurableScopeGraph;
 extend analysis::typepal::ICollector;
 
-import analysis::typepal::ISolver;
-import analysis::typepal::FailMessage;
+extend analysis::typepal::ISolver;
+
+//import analysis::typepal::FailMessage;
 import analysis::typepal::Utils;
 
 // Extract (nested) tree locations and type variables from a list of dependencies

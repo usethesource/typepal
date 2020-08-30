@@ -1,6 +1,6 @@
 module analysis::typepal::ISolver
 
-extend analysis::typepal::TypePalConfig;
+extend analysis::typepal::ConfigurableScopeGraph;
 import analysis::typepal::FailMessage;
 
 // The API of TypePal's constraint solver
