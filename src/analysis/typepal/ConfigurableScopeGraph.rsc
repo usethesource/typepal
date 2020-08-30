@@ -1,29 +1,138 @@
-@license{
-Copyright (c) 2017, Paul Klint
-All rights reserved.
+module analysis::typepal::ConfigurableScopeGraph
 
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+//extend analysis::typepal::TModel;
 
-1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIWideT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-}
-module analysis::typepal::ScopeGraph
-
-// ScopeGraphs inspired by Kastens & Waite, Name analysis for modern languages: a general solution, SP&E, 2017
+extend analysis::typepal::AType;
+import analysis::typepal::Exception;
+//extend analysis::typepal::ScopeGraph;
 
 import IO;
 import Set;
 import Map;
+import String;
+extend ParseTree;
 
-import analysis::typepal::Exception;
-extend analysis::typepal::TModel;
-extend analysis::typepal::TypePalConfig;
+//import analysis::typepal::Exception;
+//extend analysis::typepal::TModel;
+//extend analysis::typepal::TypePalConfig;
 extend analysis::typepal::ISolver;
 
-data Tree;      // workaround for bug in interpreter
+
+
+
+syntax ANONYMOUS_OCCURRENCE = "anonymous_occurence";
+public loc anonymousOccurrence = ([ANONYMOUS_OCCURRENCE] "anonymous_occurence")@\loc;
+
+AType defaultGetMinAType(){
+    throw TypePalUsage("`getMinAType()` called but is not specified in TypePalConfig");
+}
+
+AType defaultGetMaxAType(){
+    throw TypePalUsage("`getMaxAType()` called but is not specified in TypePalConfig");
+}
+
+AType defaultGetLub(AType atype1, AType atype2){
+    throw TypePalUsage("`lub(<atype1>, <atype2>)` called but `getLub` is not specified in TypePalConfig");
+}
+
+bool defaultIsSubType(AType atype1, AType atype2) {
+    throw TypePalUsage("`subtype(<atype1>, <atype2>)` called but `isSubType` is not specified in TypePalConfig");
+}
+
+bool defaultMayOverload (set[loc] _, map[loc, Define] _) {
+    return false;
+}
+
+ AType defaultInstantiateTypeParameters(Tree _, AType def, AType ins, AType act, Solver _){ 
+   throw TypePalUsage("`instantiateTypeParameters(<prettyAType(def)>, <prettyAType(ins)>, <prettyAType(act)>)` called but is not specified in TypePalConfig");
+}
+
+tuple[list[str] typeNames, set[IdRole] idRoles] defaultGetTypeNamesAndRole(AType _){
+    throw TypePalUsage("`useViaType` used without definition of `getTypeNamesAndRole`");
+}
+
+AType defaultGetTypeInNamelessType(AType _, Tree _, loc _, Solver _){
+    throw TypePalUsage("`useViaType` used without definition of `getTypeInNamelessType`");
+}
+
+AType defaultGetTypeInTypeFromDefine(Define _, str _, set[IdRole] _, Solver _) {
+    throw NoBinding();
+}   
+  
+str defaultUnescapeName(str s) { return replaceAll(s, "\\", ""); }
+
+bool defaultReportUnused (loc _, TModel _) {
+    return false;
+}
+
+// Extends TypePalConfig defined in analysis::typepal::ScopeGraph
+
+data TypePalConfig(       
+        Accept (loc def, Use use, Solver s) isAcceptableSimple     
+            = defaultIsAcceptableSimple,
+        Accept (loc def, Use use, Solver s) isAcceptableQualified  
+            = defaultIsAcceptableQualified,
+        Accept (loc defScope, loc def, Use use, PathRole pathRole, Solver s) isAcceptablePath         
+            = defaultIsAcceptablePath
+        );
+
+data TypePalConfig(
+        bool verbose               = false,
+        bool logTime               = false,
+        bool logSolverSteps        = false,
+        bool logSolverIterations   = false,
+        bool logAttempts           = false,
+        bool logTModel             = false,
+        bool validateConstraints   = true,
+    
+        AType() getMinAType                                         
+            = AType (){  throw TypePalUsage("`getMinAType()` called but is not specified in TypePalConfig"); },
+            
+        AType() getMaxAType
+            = AType (){ throw TypePalUsage("`getMaxAType()` called but is not specified in TypePalConfig"); },
+            
+        bool (AType t1, AType t2) isSubType                         
+            = bool (AType atype1, AType atype2) { throw TypePalUsage("`subtype(<atype1>, <atype2>)` called but `isSubType` is not specified in TypePalConfig"); },
+        
+        AType (AType t1, AType t2) getLub                           
+            = AType (AType atype1, AType atype2){ throw TypePalUsage("`lub(<atype1>, <atype2>)` called but `getLub` is not specified in TypePalConfig"); },        
+        
+        bool (set[loc] defs, map[loc, Define] defines) mayOverload 
+            = bool (set[loc] _, map[loc, Define] _) { return false; },
+            
+        bool (IdRole idRole) isInferrable
+            = bool(IdRole _) { return false; },
+        
+        str(str) unescapeName                                       
+            = str (str s) { return replaceAll(s, "\\", ""); },
+        
+        AType (Tree selector, AType def, AType ins, AType act, Solver s) instantiateTypeParameters 
+            = AType(Tree _, AType _, AType _, AType act, Solver _){ return act; },
+       
+        tuple[list[str] typeNames, set[IdRole] idRoles] (AType atype) getTypeNamesAndRole
+            = tuple[list[str] typeNames, set[IdRole] idRoles](AType _){
+                throw TypePalUsage("`useViaType` used without definition of `getTypeNamesAndRole`");
+            },
+            
+        AType (Define containerDef, str selectorName, set[IdRole] idRolesSel, Solver s) getTypeInTypeFromDefine
+            = AType (Define _, str _, set[IdRole] _, Solver _) { throw NoBinding(); },
+ 
+        AType(AType containerType, Tree selector, loc scope, Solver s) getTypeInNamelessType
+            = AType(AType _, Tree _, loc _, Solver _){
+                throw TypePalUsage("`useViaType` used without definition of `getTypeInNamelessType`");
+            }, 
+            
+        TModel(map[str,Tree] namedTrees, TModel tm) preSolver = TModel(map[str,Tree] _, TModel tm) { return tm; },    
+        void (map[str,Tree] namedTrees, Solver s) postSolver  = void(map[str,Tree] _, Solver _) { return ; },
+        
+        bool(loc def, TModel tm) reportUnused = defaultReportUnused
+    );
+    
+
+// ScopeGraphs inspired by Kastens & Waite, Name analysis for modern languages: a general solution, SP&E, 2017
+
+
+//data Tree;      // workaround for bug in interpreter
 
    
 // Language-specific acceptance in case of multiple outcomes of a lookup
