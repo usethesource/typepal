@@ -27,7 +27,6 @@ extend analysis::typepal::ICollector;
 extend analysis::typepal::ISolver;
 
 import analysis::typepal::FailMessage;
-import analysis::typepal::Utils;
 
 // Extract (nested) tree locations and type variables from a list of dependencies
 list[loc] dependenciesAslocList(list[value] dependencies){

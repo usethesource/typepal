@@ -1,4 +1,4 @@
-module analysis::typepal::Utils
+module analysis::typepal::GetLoc
 
 import List;
 import ParseTree;

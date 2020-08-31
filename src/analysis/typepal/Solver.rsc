@@ -17,8 +17,6 @@ extend analysis::typepal::Collector;
 import analysis::typepal::FailMessage;
 extend analysis::typepal::Messenger;
 
-import analysis::typepal::Utils;
-
 // Implementation of the Solver data type: a collection of call backs
    
 Solver newSolver(Tree pt, TModel tm){
