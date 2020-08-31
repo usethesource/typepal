@@ -7,8 +7,6 @@ import ParseTree;
 import IO;
 import util::Reflective;
 
-extend analysis::typepal::Collector; // <<<
-
 // ----  Examples & Tests --------------------------------
 
 

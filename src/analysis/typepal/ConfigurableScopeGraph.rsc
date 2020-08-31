@@ -8,7 +8,7 @@ import Set;
 import Map;
 import String;
 extend ParseTree;
-extend analysis::typepal::ISolver;
+//extend analysis::typepal::ISolver;
 
 syntax ANONYMOUS_OCCURRENCE = "anonymous_occurence";
 public loc anonymousOccurrence = ([ANONYMOUS_OCCURRENCE] "anonymous_occurence")@\loc;
