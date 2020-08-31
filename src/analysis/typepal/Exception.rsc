@@ -1,6 +1,6 @@
 module analysis::typepal::Exception
 
-import analysis::typepal::FailMessage;
+extend analysis::typepal::FailMessage;
 
 // --- Exceptions
 

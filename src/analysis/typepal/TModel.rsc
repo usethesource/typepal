@@ -6,8 +6,6 @@ import List;
 import Node;
 import IO;
 
-extend analysis::typepal::GetLoc;
-
 data AType;
 
 // IdRole: the various (language-specific) roles identifiers can play.

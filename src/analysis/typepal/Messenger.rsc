@@ -9,8 +9,7 @@ import List;
 import Location;
 
 extend analysis::typepal::AType;
-import analysis::typepal::FailMessage;
-import analysis::typepal::Exception;
+extend analysis::typepal::Exception;
 
 // ---- Message utilities -----------------------------------------------------
 

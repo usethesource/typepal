@@ -14,7 +14,6 @@ import Exception;
 import util::Benchmark;
 
 extend analysis::typepal::Collector;
-import analysis::typepal::FailMessage;
 extend analysis::typepal::Messenger;
 
 // Implementation of the Solver data type: a collection of call backs

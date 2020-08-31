@@ -1,7 +1,9 @@
 module analysis::typepal::AType
   
 import List;
+
 extend analysis::typepal::TModel;
+extend analysis::typepal::GetLoc;
 
 // Foundation of ATypes, will be extended for different type systems
 

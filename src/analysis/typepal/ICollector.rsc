@@ -1,7 +1,6 @@
 module analysis::typepal::ICollector
 
 extend analysis::typepal::ConfigurableScopeGraph;
-import analysis::typepal::FailMessage;
 
 // The API of TypePal's fact and constraint collector
 
