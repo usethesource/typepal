@@ -9,6 +9,9 @@ loc getFirstLoc(Tree t) {
             return a@\loc;
         }
     }
+    println("PANIC: getFirstLoc");
+    println("Source text: <t>");
+    println("ParseTree: "); iprintln(t);
     throw "Cannot find loc on tree";
 }
 
