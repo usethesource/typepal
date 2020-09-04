@@ -1694,16 +1694,22 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
           tm.useDef = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
           
           ldefines = for(tup: <loc _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
-                            if((defInfo has getAType || defInfo has getATypes)){
-                                       try {                   
-                                           dt = defType(tm.facts[defined]);
-                                           tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo));
-                                           
-                                       } catch NoSuchKey(_): {
+                            if(defInfo has tree){
+                               try {                   
+                                       dt = defType(tm.facts[getLoc(defInfo.tree)]);
+                                       tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo)); 
+                                   } catch NoSuchKey(_): {
                                          continue;
-                                       }
-                                    } 
-                                    append tup;
+                                   }
+                            } else {
+                                   try {                   
+                                       dt = defType(tm.facts[defined]);
+                                       tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo)); 
+                                   } catch NoSuchKey(_): {
+                                     continue;
+                                   }
+                             } 
+                             append tup;
                           };
           tm.defines = toSet(ldefines);
                           

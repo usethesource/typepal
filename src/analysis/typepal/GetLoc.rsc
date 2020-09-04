@@ -11,7 +11,7 @@ loc getFirstLoc(Tree t) {
     }
     println("PANIC: getFirstLoc");
     println("Source text: <t>");
-    println("ParseTree: "); iprintln(t);
+    println("ParseTree: "); iprintln(t, lineLimit=10000);
     throw "Cannot find loc on tree";
 }
 

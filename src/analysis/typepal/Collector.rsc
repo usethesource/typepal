@@ -1146,9 +1146,9 @@ default void collect(Tree currentTree, Collector c){
     if(currentTree has prod){
         switch(getName(currentTree.prod.def)){
         case "label":  
-            { p = currentTree.prod; collect(appl(prod(p.def.symbol, p.symbols, p.attributes), currentTree.args), c); }
+            { p = currentTree.prod; collect(appl(prod(p.def.symbol, p.symbols, p.attributes/*, src=getLoc(currentTree)*/), currentTree.args), c); }
         case "start":  
-            { p = currentTree.prod; collect(appl(prod(p.def.symbol, p.symbols, p.attributes), currentTree.args), c); }
+            { p = currentTree.prod; collect(appl(prod(p.def.symbol, p.symbols, p.attributes/*, src=getLoc(currentTree)*/), currentTree.args), c); }
         case "sort": 
             { args = currentTree.args;
               nargs = size(args);
