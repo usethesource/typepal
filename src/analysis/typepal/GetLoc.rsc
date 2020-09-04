@@ -2,6 +2,7 @@ module analysis::typepal::GetLoc
 
 import List;
 import ParseTree;
+import IO;
 
 loc getFirstLoc(Tree t) {
     for (a <- t.args) {
