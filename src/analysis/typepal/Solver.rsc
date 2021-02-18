@@ -1254,7 +1254,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     // Recursively instantiate all type variables and lazyLubs in a type
     AType instantiate(AType atype){
-      return
+      xx =
           visit(atype){
             case tv: tvar(_) => substitute(tv)
             case lazyLub(list[AType] atypes) : {
@@ -1262,6 +1262,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 insert simplifyLub(sbs);
                 }
           };
+      return xx;
     }
         
     /*
