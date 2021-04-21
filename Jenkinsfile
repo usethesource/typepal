@@ -17,7 +17,7 @@ node {
             }
 
             stage('Test') {
-                sh "mvn -e test"
+                sh "mvn -e -X test"
             }
 
             stage('Deploy') {
