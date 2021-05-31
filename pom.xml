@@ -53,13 +53,19 @@
             <plugin>
                 <groupId>org.rascalmpl</groupId>
                 <artifactId>rascal-maven-plugin</artifactId>
-                <version>0.3.4</version>
+                <version>0.4.1</version>
                 <configuration>
                     <bin>${project.build.outputDirectory}</bin>
                     <srcs>
                         <src>${project.basedir}/src</src>
                     </srcs>
                     <errorsAsWarnings>true</errorsAsWarnings>
+                    <parallel>true</parallel>
+                    <parallelPreChecks>
+                        <parallelPreCheck>${project.basedir}/src/analysis/typepal/AType.rsc</parallelPreCheck>
+                        <parallelPreCheck>${project.basedir}/src/analysis/typepal/ISolver.rsc</parallelPreCheck>
+                        <parallelPreCheck>${project.basedir}/src/analysis/typepal/ICollector.rsc</parallelPreCheck>
+                    </parallelPreChecks>
                 </configuration>
                 <executions>
                     <execution>
