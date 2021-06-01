@@ -59,13 +59,10 @@
                     <srcs>
                         <src>${project.basedir}/src</src>
                     </srcs>
+                    <srcIgnores>
+                        <srcIgnore>${project.basedir}/src/examples</srcIgnore>
+                    </srcIgnores>
                     <errorsAsWarnings>true</errorsAsWarnings>
-                    <parallel>true</parallel>
-                    <parallelPreChecks>
-                        <parallelPreCheck>${project.basedir}/src/analysis/typepal/AType.rsc</parallelPreCheck>
-                        <parallelPreCheck>${project.basedir}/src/analysis/typepal/ISolver.rsc</parallelPreCheck>
-                        <parallelPreCheck>${project.basedir}/src/analysis/typepal/ICollector.rsc</parallelPreCheck>
-                    </parallelPreChecks>
                 </configuration>
                 <executions>
                     <execution>

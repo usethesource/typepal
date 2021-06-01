@@ -42,6 +42,11 @@ jobs:
         with:
           check_name: "Test Report"
 
+      - name: cleanup tests to reduce jar size
+        run: |
+          rm -r src/examples
+          rm -r target/classes/examples
+
       - name: Attach artifact
         id: build-artifact
         uses: SWAT-engineering/maven-full-artifacts-action@v1
