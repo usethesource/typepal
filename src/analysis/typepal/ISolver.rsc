@@ -1,6 +1,7 @@
 module analysis::typepal::ISolver
 
 extend analysis::typepal::ConfigurableScopeGraph;
+import analysis::typepal::TModel;
 
 // The API of TypePal's constraint solver
 
