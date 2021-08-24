@@ -1549,7 +1549,26 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         int mainEnded = cpuTime();
            
         if(logSolverSteps) println("..... solving complete");
-           
+        
+        // Eliminate all defTypeCalls before handing control to the postSolver
+        for(loc l <- definitions){
+            Define def = definitions[l];
+            if(defTypeCall(_, AType(Solver s) getAType) := def.defInfo){
+                def.defInfo = defType(getAType(thisSolver));
+                definitions[l] = def;
+            }
+         }
+        tm.definitions = definitions;
+        
+        newDefines = 
+            for(def <- defines){
+                if(defTypeCall(_, AType(Solver s) getAType) := def.defInfo){
+                    def.defInfo = defType(getAType(thisSolver));
+                }
+                append def;
+            }
+        tm.defines = toSet(newDefines);
+        
         tm.config.postSolver(namedTrees, thisSolver);
         
         int postSolverTime = cpuTime() - mainEnded;
