@@ -21,10 +21,8 @@ import IO;
 import Type;
 import Location;
 
-extend analysis::typepal::Exception;
 extend analysis::typepal::ConfigurableScopeGraph;
 extend analysis::typepal::ICollector;
-extend analysis::typepal::ISolver;
 
 // Extract (nested) tree locations and type variables from a list of dependencies
 list[loc] dependenciesAslocList(list[value] dependencies){

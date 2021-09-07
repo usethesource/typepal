@@ -1,7 +1,7 @@
 module analysis::typepal::ConfigurableScopeGraph
 
-extend analysis::typepal::AType;
 extend analysis::typepal::Exception;
+extend analysis::typepal::ISolver;
 
 import IO;
 import Set;

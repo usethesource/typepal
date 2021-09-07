@@ -1,7 +1,8 @@
 module analysis::typepal::ISolver
 
-extend analysis::typepal::ConfigurableScopeGraph;
-import analysis::typepal::TModel;
+extend analysis::typepal::AType;
+extend analysis::typepal::FailMessage;
+import ParseTree;
 
 // The API of TypePal's constraint solver
 
