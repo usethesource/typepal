@@ -16,8 +16,6 @@
         <tycho-version>1.4.0</tycho-version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <scm-plugin-version>1.9.5</scm-plugin-version>
-        <maven.compiler.target>1.8</maven.compiler.target>
-        <maven.compiler.source>1.8</maven.compiler.source>
     </properties>
 
     <scm>
@@ -50,6 +48,14 @@
         <testSourceDirectory>src</testSourceDirectory>
 
         <plugins>
+
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.7.0</version>
+                <configuration>
+                    <release>11</release>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.rascalmpl</groupId>
                 <artifactId>rascal-maven-plugin</artifactId>
@@ -139,7 +145,7 @@
         <dependency>
         	<groupId>org.rascalmpl</groupId>
         	<artifactId>rascal</artifactId>
-        	<version>0.19.3</version>
+        	<version>0.20.0-RC1</version>
         </dependency>
     </dependencies>
 </project>
