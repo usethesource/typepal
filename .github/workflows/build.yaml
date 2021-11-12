@@ -47,9 +47,10 @@ jobs:
           rm -r src/examples
           rm -r target/classes/examples
 
-      - name: Attach artifact
-        id: build-artifact
-        uses: SWAT-engineering/maven-full-artifacts-action@v1.4-rc1
+# Commented out while we search for a cause of failure
+#      - name: Attach artifact
+#        id: build-artifact
+#        uses: SWAT-engineering/maven-full-artifacts-action@v1.4-rc1
 
       - name: Prepare Draft Release
         uses: softprops/action-gh-release@v1
