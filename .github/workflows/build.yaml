@@ -57,7 +57,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           draft: true
-          files: ${{ steps.build-artifact.outputs.artifact-root-dir}}/**/*
+          files: /${{ steps.build-artifact.outputs.artifact-root-dir}}/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
