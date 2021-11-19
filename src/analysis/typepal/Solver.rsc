@@ -1559,7 +1559,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     di = defType(getAType(thisSolver));
                     def.defInfo = setKeywordParameters(di, kwparams);
                     definitions[l] = def;
-                } catch e: { // Guard against type incorrect defines, but record for now
+                } catch _: { // Guard against type incorrect defines, but record for now
                     println("Skipping (type-incorrect) def: <def>\n");
                 }
             }
@@ -1571,7 +1571,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 if(defTypeCall(_, AType(Solver s) getAType) := def.defInfo){
                     try {
                         def.defInfo = defType(getAType(thisSolver));
-                    } catch e: { // Guard against type incorrect defines, but record for now
+                    } catch _: { // Guard against type incorrect defines, but record for now
                         println("Skipping (type-incorrect) def: <def>\n");
                     }
                 }
