@@ -1555,22 +1555,25 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             Define def = definitions[l];
             if(defTypeCall(_, AType(Solver s) getAType) := def.defInfo){
                 kwparams = getKeywordParameters(def.defInfo);
-                di = defType(getAType(thisSolver));
-                def.defInfo = setKeywordParameters(di, kwparams);
-                //di = defType(getAType(thisSolver));
-                //if(def.defInfo.vis?) di = di[vis=def.defInfo.vis];
-                //if(def.defInfo.modifiers?) di = di[modifiers=def.defInfo.modifiers];
-                //if(def.defInfo.tags?)di = di[tags=def.defInfo.tags];
-                //def.defInfo = di;
-                definitions[l] = def;
+                try {
+                    di = defType(getAType(thisSolver));
+                    def.defInfo = setKeywordParameters(di, kwparams);
+                    definitions[l] = def;
+                } catch e: { // Guard against type incorrect defines, but record for now
+                    println("Skipping (type-incorrect) def: <def>\n");
+                }
             }
-         }
+        }
         tm.definitions = definitions;
         
         newDefines = 
             for(def <- defines){
                 if(defTypeCall(_, AType(Solver s) getAType) := def.defInfo){
-                    def.defInfo = defType(getAType(thisSolver));
+                    try {
+                        def.defInfo = defType(getAType(thisSolver));
+                    } catch e: { // Guard against type incorrect defines, but record for now
+                        println("Skipping (type-incorrect) def: <def>\n");
+                    }
                 }
                 append def;
             }
