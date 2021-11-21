@@ -632,11 +632,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     AType getType(value v){
         try {
             switch(v){
-                case Tree tree:   return instantiate(findType(tree@\loc));
+                case Tree tree:   return instantiate(findType(tree.src));
                 case tvar(loc l): return facts[l];
                 case AType atype: return instantiate(atype);
                 case loc l:       return facts[l];
-                case defType(value v) : if(AType atype := v) return atype; else if(Tree tree := v) return instantiate(findType(tree@\loc));
+                case defType(value v) : if(AType atype := v) return atype; else if(Tree tree := v) return instantiate(findType(tree.src));
                 case Define def:  return getType(def.defInfo);
                 case defTypeCall(list[loc] _, AType(Solver s) getAType):
                     return getAType(thisSolver);
