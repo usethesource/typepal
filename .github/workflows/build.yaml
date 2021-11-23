@@ -42,24 +42,18 @@ jobs:
         with:
           check_name: "Test Report"
 
-      - name: cleanup tests to reduce jar size
-        run: |
-          rm -r src/examples
-          rm -r target/classes/examples
+      - name: Attach artifact
+        id: build-artifact
+        uses: SWAT-engineering/maven-full-artifacts-action@v1
 
-# Commented out while we search for a cause of failure
-#      - name: Attach artifact
-#        id: build-artifact
-#        uses: SWAT-engineering/maven-full-artifacts-action@v1.4-rc1
-
-          #      - name: Prepare Draft Release
-          #        uses: softprops/action-gh-release@v1
-          #      if: startsWith(github.ref, 'refs/tags/')
-          #  with:
-          #     draft: true
-          #     files: ${{ steps.build-artifact.outputs.artifact-root-dir}}/**/*
-          #    env:
-          #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prepare Draft Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+            draft: true
+            files: ${{ steps.build-artifact.outputs.artifact-root-dir}}/**/*
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy
         if: startsWith(github.ref, 'refs/tags/v')
