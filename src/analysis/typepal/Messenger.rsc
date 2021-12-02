@@ -37,7 +37,7 @@ str intercalateAnd(list[str] strs){
       case 1: return strs[0];
       default: {
                 dist = distribution(strs);
-                newstrs = [(dist[key] > 1 ? "<dist[key]> x " : "") + key | key <- dist];
+                newstrs = [(dist[key] > 1 ? "<dist[key]> x " : "") + "`<key>`" | key <- strs];
                 return intercalate(", ", newstrs[0..-1]) + " and " + newstrs[-1];
                }
       };
@@ -50,7 +50,7 @@ str intercalateOr(list[str] strs){
       case 2: return strs[0] == strs[1] ? strs[0] : "<strs[0]> or <strs[1]>";
       default: {
                 dist = distribution(strs);
-                newstrs = [(dist[key] > 1 ? "<dist[key]> x " : "") + key | key <- dist];
+                newstrs = [(dist[key] > 1 ? "<dist[key]> x " : "") + key | key <- strs];
                 return intercalate(", ", newstrs[0..-1]) + " or " + newstrs[-1];
                }
       };
@@ -95,9 +95,9 @@ str interpolate(str msg, TypeProvider getType, list[value] args){
                 if(Tree _ := args[a] || AType _ := args[a]){
                     result += "`<fmt1(args[a], getType)>`";
                 } else if(list[AType] atypes := args[a]){
-                    result += isEmpty(atypes) ? "none" : intercalateAnd(["`<fmt1(at, getType)>`" | at <- atypes]);
+                    result += isEmpty(atypes) ? "none" : intercalateAnd(["<fmt1(at, getType)>" | at <- atypes]);
                 } else if(set[AType] atypes := args[a]){
-                    result += isEmpty(atypes) ? "none" : intercalateAnd(["`<fmt1(at, getType)>`" | at <- atypes]);
+                    result += isEmpty(atypes) ? "none" : intercalateAnd(["<fmt1(at, getType)>" | at <- atypes]);
                 } else {
                     throw TypePalUsage("%t format directive `<msg>` requires a Tree, AType or list/set of ATypes, found <args[a]>");
                 }
