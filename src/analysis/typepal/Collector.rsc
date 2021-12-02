@@ -1134,8 +1134,8 @@ bool allSymbolsIgnored(list[Symbol] symbols){
     return true;
 }
 str getLine(Tree t){
-    if(!t.src?) return "?";
-    l = t.src;
+    if(!t@\loc?) return "?";
+    l = t@\loc;
     if(l.begin?) return "<l.begin.line>";
     return "?";
 }
