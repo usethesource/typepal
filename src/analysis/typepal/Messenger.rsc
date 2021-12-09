@@ -34,7 +34,7 @@ bool alreadyReported(list[Message] messages, loc src) {
 str intercalateAnd(list[str] strs){
     switch(size(strs)){
       case 0: return "";
-      case 1: return "`<strs[0]>`";
+      case 1: return strs[0];
       default: {
                 dist = distribution(strs);
                 newstrs = [(dist[key] > 1 ? "<dist[key]> x " : "") + "`<key>`" | key <- strs];
@@ -46,11 +46,11 @@ str intercalateAnd(list[str] strs){
 str intercalateOr(list[str] strs){
     switch(size(strs)){
       case 0: return "";
-      case 1: return "`<strs[0]>`";
-      case 2: return strs[0] == strs[1] ? "`strs[0]`" : "`<strs[0]>` or `<strs[1]>`";
+      case 1: return strs[0];
+      case 2: return strs[0] == strs[1] ? strs[0] : "<strs[0]> or <strs[1]>";
       default: {
                 dist = distribution(strs);
-                newstrs = [(dist[key] > 1 ? "<dist[key]> x " : "") + "`<key>`" | key <- strs];
+                newstrs = [(dist[key] > 1 ? "<dist[key]> x " : "") + key | key <- strs];
                 return intercalate(", ", newstrs[0..-1]) + " or " + newstrs[-1];
                }
       };
@@ -93,11 +93,11 @@ str interpolate(str msg, TypeProvider getType, list[value] args){
             switch(c){
             case "t":
                 if(Tree _ := args[a] || AType _ := args[a]){
-                    result += "<fmt1(args[a], getType)>";
+                    result += "`<fmt1(args[a], getType)>`";
                 } else if(list[AType] atypes := args[a]){
-                    result += isEmpty(atypes) ? "none" : intercalateAnd(["<fmt1(at, getType)>" | at <- atypes]);
+                    result += isEmpty(atypes) ? "none" : intercalateAnd(["`<fmt1(at, getType)>`" | at <- atypes]);
                 } else if(set[AType] atypes := args[a]){
-                    result += isEmpty(atypes) ? "none" : intercalateAnd(["<fmt1(at, getType)>" | at <- atypes]);
+                    result += isEmpty(atypes) ? "none" : intercalateAnd(["`<fmt1(at, getType)>`" | at <- atypes]);
                 } else {
                     throw TypePalUsage("%t format directive `<msg>` requires a Tree, AType or list/set of ATypes, found <args[a]>");
                 }
