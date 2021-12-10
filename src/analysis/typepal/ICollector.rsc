@@ -30,7 +30,7 @@ data Collector
 
      /* Composition */   void (TModel tm) addTModel,
 
-     /* Reporting */     bool (FailMessage ) report,
+     /* Reporting */     bool (FailMessage msg) report,
                          bool (list[FailMessage] msgs) reports,
 
      /* Define */        void (str id, IdRole idRole, value def, DefInfo info) define,

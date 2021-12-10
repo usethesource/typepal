@@ -167,7 +167,7 @@ bool existsPath(TModel tm, loc from, loc to, PathRole pathRole){
     return <from, to> in tm.paths<1,0,2>[pathRole]*;
 }
 
-// The ScopeGraph structure that provides lookup operations n a TModel
+// The ScopeGraph structure that provides lookup operations in a TModel
 data ScopeGraph
     = scopegraph(
         set[loc] (Use u) lookup

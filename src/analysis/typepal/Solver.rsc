@@ -1569,8 +1569,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         newDefines = 
             for(def <- defines){
                 if(defTypeCall(_, AType(Solver s) getAType) := def.defInfo){
+                    kwparams = getKeywordParameters(def.defInfo);
                     try {
-                        def.defInfo = defType(getAType(thisSolver));
+                        di = defType(getAType(thisSolver));
+                        def.defInfo = setKeywordParameters(di, kwparams);
                     } catch _: { // Guard against type incorrect defines, but record for now
                         println("Skipping (type-incorrect) def: <def>\n");
                     }
