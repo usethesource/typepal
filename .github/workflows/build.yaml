@@ -31,7 +31,7 @@ jobs:
           key: m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: m2
 
-      - name: Compile and Typechek 
+      - name: Compile and typecheck 
         run: mvn -B compile
 
       - name: Test
@@ -47,7 +47,7 @@ jobs:
         id: build-artifact
         uses: SWAT-engineering/maven-full-artifacts-action@v1
 
-      - name: Prepare Draft Release
+      - name: Prepare draft release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
