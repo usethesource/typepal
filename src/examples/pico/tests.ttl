@@ -85,6 +85,13 @@ test WrongMinus [[
 ]] expect { "Right argument of `-` should be `int`, found `str`" }
 
 
+test OkParens [[
+    begin
+        declare n : natural;
+        n := (1 - 2)
+    end
+]]
+
 test OkIf1 [[
     begin
         declare x : natural;

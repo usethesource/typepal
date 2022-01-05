@@ -76,6 +76,11 @@ void collect(current: (Expression) `<Expression lhs> - <Expression rhs>`, Collec
     c.fact(current, intType());
     collect(lhs, rhs, c);
 }
+
+void collect(current: (Expression) `(<Expression exp>)`, Collector c){
+    c.fact(current, exp);
+    collect(exp, c);
+}
  
 void collect(current: (Expression) `<String string>`, Collector c){
     c.fact(current, strType());
