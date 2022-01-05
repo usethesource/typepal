@@ -33,6 +33,8 @@ test Inc1 [[ fun x : int { x + 1 } ]]
 test Inc2 [[ fun x : int { x + 1 }(2) ]]
 test Inc3 [[ fun x : int { x + 1 }(true) ]] expect {"actual parameter"}
 
+test WrongInc [[  fun x : str { true } ]] expect {"Declared type `str` should be equal to type of body `bool`"}
+
 test If1 [[ if true then 1 else 2 fi ]]
 test If2 [[ if true then true else false fi ]]
 test If3 [[ if 1 then 1 else 2 fi ]] expect {"Condition"}

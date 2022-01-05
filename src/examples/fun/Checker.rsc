@@ -58,7 +58,11 @@ void collect(current: (Type) `<Type from> -\> <Type to>`, Collector c){
 void collect(current: (Expression) `fun <Id name> : <Type tp> { <Expression body> }`, Collector c) {   
      c.enterScope(current);
         c.define("<name>", variableId(), name, defType(tp));
-        c.calculate("function declaration", current, [body], AType(Solver s){ return functionType(s.getType(tp), s.getType(body)); });
+        c.calculate("function declaration", current, [body], 
+            AType(Solver s){ 
+                s.requireEqual(tp, body, error(tp, "Declared type %t should be equal to type of body %t", tp, body));
+                return functionType(s.getType(tp), s.getType(body)); 
+            });
         collect(tp, body, c);
      c.leaveScope(current);
 }
@@ -100,7 +104,7 @@ void collect(current: (Expression) `<Expression exp1> (<Expression exp2>)`, Coll
 void collect(current: (Expression) `if <Expression cond> then <Expression thenPart> else <Expression elsePart> fi`, Collector c){
      c.calculate("if", current, [cond, thenPart, elsePart],
         AType (Solver s) { 
-            s.requireEqual(cond, boolType(), error(cond, "Condition should havwe type `bool`, found %t", cond));
+            s.requireEqual(cond, boolType(), error(cond, "Condition should have type `bool`, found %t", cond));
             s.requireEqual(thenPart, elsePart, error(current, "thenPart and elsePart should have same type"));
             return s.getType(thenPart);
         }); 
@@ -139,7 +143,7 @@ void collect(current: (Expression) `<Expression lhs> && <Expression rhs>`, Colle
 // ---- brackets
 
 void collect(current: (Expression) `( <Expression exp> )`, Collector c){
-     c.calculate("bracket", current, [exp], AType(Solver s){ return s.getType(exp); });
+     c.fact(current, exp);
      collect(exp, c);
 }
 
