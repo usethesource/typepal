@@ -55,10 +55,7 @@ void collect(current:(Declaration)`<Type returnType> <Identifier functionName> (
         c.defineInScope(classScope, "<functionName>", methodId(), functionName, 
             defType(returnType + [p.name | p <- params], AType(Solver s) { return functionType(s.getType(returnType), atypeList([s.getType(p.name) | p <- params])); }));
      
-        c.require("return expression", returnExpression, [returnType, returnExpression],
-            void (Solver s) {
-                s.requireEqual(returnType, returnExpression, error(returnExpression, "Return expression is not the same type as the return type (%t) instead of (%t)", returnExpression, returnType));
-        });
+        c.requireEqual(returnType, returnExpression, error(returnExpression, "Return expression is not the same type as the return type (%t) instead of (%t)", returnExpression, returnType));
         collect(returnType, params, returnExpression, c);
     }
     c.leaveScope(current);
