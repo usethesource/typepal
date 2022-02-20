@@ -145,45 +145,47 @@ bool pascalIsSubType(functionType(args, AType resultType1), anyFunctionType(ATyp
 bool pascalIsSubType(AType atype, functionType(_, atype)) = true;  // for assignment to function id
 
 default bool pascalIsSubType(AType atype1, AType atype2) = false;
- 
-Tree mkTree(int n) = [Identifier] "<for(int _ <- [0 .. n]){>x<}>"; // A unique tree
 
-void pascalPreCollectInitialization(Tree _, Collector c){
-    c.define("true",    constantId(),   mkTree(1), defType(booleanType()));
-    c.define("false",   constantId(),   mkTree(2), defType(booleanType()));
-    c.define("writeln", procedureId(),  mkTree(3), defType(procedureType(atypeList([]))));
-    c.define("write",   procedureId(),  mkTree(4), defType(procedureType(atypeList([]))));
-    c.define("odd",     functionId(),   mkTree(5), defType(functionType(atypeList([integerType()]), booleanType())));
-    c.define("abs",     functionId(),   mkTree(6), defType(functionType(atypeList([integerType()]), integerType())));
-    c.define("sqr",     functionId(),   mkTree(7), defType(functionType(atypeList([integerType()]), integerType())));
-    c.define("sin",     functionId(),   mkTree(8), defType(functionType(atypeList([realType()]), realType())));
-    c.define("cos",     functionId(),   mkTree(9), defType(functionType(atypeList([realType()]), realType())));
-    c.define("arctan",  functionId(),   mkTree(10), defType(functionType(atypeList([realType()]), realType())));
-    c.define("exp",     functionId(),   mkTree(11), defType(functionType(atypeList([realType()]), realType())));
-    c.define("ln",      functionId(),   mkTree(12), defType(functionType(atypeList([realType()]), realType())));
-    c.define("sqrt",    functionId(),   mkTree(13), defType(functionType(atypeList([realType()]), realType())));
-    c.define("round",   functionId(),   mkTree(14), defType(functionType(atypeList([realType()]), integerType())));
-    c.define("readln",  procedureId(),  mkTree(15), defType(procedureType(atypeList([]))));
-    c.define("read",    procedureId(),  mkTree(16), defType(procedureType(atypeList([]))));
-    c.define("new",     procedureId(),  mkTree(17), defType(procedureType(atypeList([]))));
+anno loc Tree@src;
+
+void pascalPreCollectInitialization(Tree t, Collector c){
+    container = t@src;
     
-    c.define("boolean", typeId(),       mkTree(18), defType(booleanType()));
-    c.define("integer", typeId(),       mkTree(19), defType(integerType()));
-    c.define("real",    typeId(),       mkTree(20), defType(realType()));
-    c.define("string",  typeId(),       mkTree(21), defType(stringType()));
-    c.define("text",    typeId(),       mkTree(22), defType(textType()));
-    c.define("any",     typeId(),       mkTree(23), defType(anyPointerType()));
-    c.define("char",    typeId(),       mkTree(24), defType(charType()));
+    c.predefine("true",    constantId(),   container, defType(booleanType()));
+    c.predefine("false",   constantId(),   container, defType(booleanType()));
+    c.predefine("writeln", procedureId(),  container, defType(procedureType(atypeList([]))));
+    c.predefine("write",   procedureId(),  container, defType(procedureType(atypeList([]))));
+    c.predefine("odd",     functionId(),   container, defType(functionType(atypeList([integerType()]), booleanType())));
+    c.predefine("abs",     functionId(),   container, defType(functionType(atypeList([integerType()]), integerType())));
+    c.predefine("sqr",     functionId(),   container, defType(functionType(atypeList([integerType()]), integerType())));
+    c.predefine("sin",     functionId(),   container, defType(functionType(atypeList([realType()]), realType())));
+    c.predefine("cos",     functionId(),   container, defType(functionType(atypeList([realType()]), realType())));
+    c.predefine("arctan",  functionId(),   container, defType(functionType(atypeList([realType()]), realType())));
+    c.predefine("exp",     functionId(),   container, defType(functionType(atypeList([realType()]), realType())));
+    c.predefine("ln",      functionId(),   container, defType(functionType(atypeList([realType()]), realType())));
+    c.predefine("sqrt",    functionId(),   container, defType(functionType(atypeList([realType()]), realType())));
+    c.predefine("round",   functionId(),   container, defType(functionType(atypeList([realType()]), integerType())));
+    c.predefine("readln",  procedureId(),  container, defType(procedureType(atypeList([]))));
+    c.predefine("read",    procedureId(),  container, defType(procedureType(atypeList([]))));
+    c.predefine("new",     procedureId(),  container, defType(procedureType(atypeList([]))));
     
-    c.define("eof",    nullaryFunctionId(),   
-                                        mkTree(25), defType(booleanType()));
-    c.define("eoln",   nullaryFunctionId(),   
-                                        mkTree(26), defType(booleanType()));
-    c.define("trunc",  functionId(),    mkTree(27), defType(functionType(atypeList([realType()]), integerType())));
-    c.define("ord",    functionId(),    mkTree(29), defType(functionType(atypeList([integerType()]), charType())));
-    c.define("chr",    functionId(),    mkTree(30), defType(functionType(atypeList([charType()]), integerType())));
-    c.define("succ",   functionId(),    mkTree(31), defType(functionType(atypeList([integerType()]), integerType())));
-    c.define("pred",   functionId(),    mkTree(32), defType(functionType(atypeList([integerType()]), integerType())));
+    c.predefine("boolean", typeId(),       container, defType(booleanType()));
+    c.predefine("integer", typeId(),       container, defType(integerType()));
+    c.predefine("real",    typeId(),       container, defType(realType()));
+    c.predefine("string",  typeId(),       container, defType(stringType()));
+    c.predefine("text",    typeId(),       container, defType(textType()));
+    c.predefine("any",     typeId(),       container, defType(anyPointerType()));
+    c.predefine("char",    typeId(),       container, defType(charType()));
+    
+    c.predefine("eof",    nullaryFunctionId(),   
+                                           container, defType(booleanType()));
+    c.predefine("eoln",   nullaryFunctionId(),   
+                                           container, defType(booleanType()));
+    c.predefine("trunc",  functionId(),    container, defType(functionType(atypeList([realType()]), integerType())));
+    c.predefine("ord",    functionId(),    container, defType(functionType(atypeList([integerType()]), charType())));
+    c.predefine("chr",    functionId(),    container, defType(functionType(atypeList([charType()]), integerType())));
+    c.predefine("succ",   functionId(),    container, defType(functionType(atypeList([integerType()]), integerType())));
+    c.predefine("pred",   functionId(),    container, defType(functionType(atypeList([integerType()]), integerType())));
 }
 
 tuple[list[str] typeNames, set[IdRole] idRoles] pascalGetTypeNamesAndRole(recordType(str name)){

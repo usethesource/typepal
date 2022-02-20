@@ -183,6 +183,8 @@ Collector newCollector(str modelName, Tree pt, TypePalConfig config = tconfig())
     return newCollector(modelName, (modelName : pt), config=config);
 }
 
+anno loc Tree@src;
+
 Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config = tconfig()){
     
     str(str) unescapeName = config.unescapeName;
@@ -215,6 +217,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     lrel[loc scope, bool lubScope, map[ScopeRole, value] scopeInfo] scopeStack = [<globalScope, false, (anonymousScope(): false)>];
     list[loc] lubScopeStack = [];
     loc currentLubScope = globalScope;
+    int nPredefinedTree = 0;
     
     bool building = true;
     
@@ -248,6 +251,18 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         } else {
             throw TypePalUsage("Cannot call `define` on Collector after `run`");
         }
+    }
+    
+    void _predefine(str id, IdRole idRole, value container, DefInfo info){
+        _define(id, idRole,  _getPredefinedTree(container, id), info);
+    }
+
+    Tree _getPredefinedTree(loc container, str id){
+        nPredefinedTree+= 1;
+        return appl(prod(sort("$PREDEFINED-<id>"), [], {}),
+                    [],
+                    src=container[query="predefined=<id>"][fragment="<nPredefinedTree>"]
+                   );
     }
     
     bool _isAlreadyDefined(str id,  Tree useOrDef){
@@ -982,6 +997,8 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                             
         /* Define */        _define,
                             _defineInScope,
+                            _predefine,
+                            _getPredefinedTree,
                             _isAlreadyDefined,
                             
         /* Use */           _use, 
