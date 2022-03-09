@@ -187,13 +187,13 @@ anno loc Tree@src;
 
 Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config = tconfig()){
     
-    str(str) unescapeName = config.unescapeName;
+    str(str) normalizeName = config.normalizeName;
     loc globalScope = |global-scope:///|;
     Defines defines = {};
     
     map[loc, set[Define]] definesPerLubScope = (globalScope: {});
     map[loc, set[Define]] lubDefinesPerLubScope = (globalScope: {});
-    map[loc, rel[str id, loc idScope, set[IdRole] idRoles, loc occ]] lubUsesPerLubScope = (globalScope: {});
+    map[loc, rel[str id, str orgId, loc idScope, set[IdRole] idRoles, loc occ]] lubUsesPerLubScope = (globalScope: {});
     map[loc, rel[loc,loc]]  scopesPerLubScope = (globalScope: {});
  
     Scopes scopes = ();
@@ -221,14 +221,14 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     bool building = true;
     
-    void _define(str id, IdRole idRole, value def, DefInfo info){
+    void _define(str orgId, IdRole idRole, value def, DefInfo info){
         if(building){
             loc l = |undefined:///|;
             if(Tree tdef := def) l = getLoc(tdef);
             else if(loc ldef := def) l = ldef;
             else throw TypePalUsage("Argument `def` of `define` should be `Tree` or `loc`, found <typeOf(def)>");
             
-            uid = unescapeName(id);
+            uid = normalizeName(orgId);
            
             // println("define: <id>, <idRole>, <def>");
             //println("definesPerLubScope[currentLubScope]: <definesPerLubScope[currentLubScope]>");
@@ -236,7 +236,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             if(info is defTypeLub){  
                 // Look for an outer variable declaration of id that overrules the defTypeLub   
                 for(Define def <- defines + definesPerLubScope[currentLubScope]){
-                    if(def.id == id && config.isInferrable(def.idRole)){
+                    if(def.id == uid && config.isInferrable(def.idRole)){
                         if(def.scope in scopeStack<0>) {
                             uses += use(uid, l, currentScope, {def.idRole});
                             return;
@@ -246,7 +246,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 lubDefinesPerLubScope[currentLubScope] += <currentScope, uid, idRole, l, info>;
             } else {
                 //println("define: add to definesPerLubScope[<currentLubScope>]: <<currentScope, id, idRole, l, info>>");
-                definesPerLubScope[currentLubScope] += <currentScope, uid, idRole, l, info>; 
+                definesPerLubScope[currentLubScope] += <currentScope, uid, orgId, idRole, l, info>; 
             }
         } else {
             throw TypePalUsage("Cannot call `define` on Collector after `run`");
@@ -278,7 +278,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         return false;
     }
         
-    void _defineInScope(value scope, str id, IdRole idRole, value def, DefInfo info){
+    void _defineInScope(value scope, str orgId, IdRole idRole, value def, DefInfo info){
         if(building){
             loc definingScope = |undefined:///|;
             if(Tree tscope := scope) definingScope = getLoc(tscope);
@@ -290,11 +290,11 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             else if(loc ldef := def) l = ldef;
             else throw TypePalUsage("Argument `def` of `defineInScope` should be `Tree` or `loc`, found <typeOf(def)>");
             
-            uid = unescapeName(id);
+            uid = normalizeName(orgId);
             if(info is defTypeLub){
                 throw TypePalUsage("`defLub` cannot be used in combination with `defineInScope`");
             } else {
-                defines += <definingScope, uid, idRole, l, info>;
+                defines += <definingScope, uid, orgId, idRole, l, info>;
             }
         } else {
             throw TypePalUsage("Cannot call `defineInScope` on Collector after `run`");
@@ -304,7 +304,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     void _use(Tree occ, set[IdRole] idRoles) {
         if(building){            
            //println("use <occ> at <getLoc(occ)> in scope <currentScope>");
-           uses += use(unescapeName("<occ>"), getLoc(occ), currentScope, idRoles);
+           uses += use(normalizeName("<occ>"), getLoc(occ), currentScope, idRoles);
         } else {
             throw TypePalUsage("Cannot call `use` on Collector after `run`");
         }
@@ -313,7 +313,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     void _useLub(Tree occ, set[IdRole] idRoles) {
         if(building){
            //println("useLub <occ> at <getLoc(occ)> in scope <currentScope>");
-           lubUsesPerLubScope[currentLubScope] += <unescapeName("<occ>"), currentScope, idRoles, getLoc(occ)>;
+           lubUsesPerLubScope[currentLubScope] += <normalizeName("<occ>"), currentScope, idRoles, getLoc(occ)>;
         } else {
             throw TypePalUsage("Cannot call `useLub` on Collector after `run`");
         }
@@ -321,7 +321,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     void _addPathToDef(Tree occ, set[IdRole] idRoles, PathRole pathRole) {
         if(building){
-            u = use(unescapeName("<occ>"), getLoc(occ), currentScope, idRoles);
+            u = use(normalizeName("<occ>"), getLoc(occ), currentScope, idRoles);
             uses += u;
             referPaths += referToDef(u, pathRole);
         } else {
@@ -337,7 +337,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     void _useViaType(Tree container, Tree selector, set[IdRole] idRolesSel){
         if(building){
-            name = unescapeName("<selector>");
+            name = normalizeName("<selector>");
             sloc = getLoc(selector);
             calculators += calc("useViaType `<name>` in <getLoc(container)>", sloc,  [getLoc(container)],  makeGetTypeInType(container, selector, idRolesSel, currentScope));
         } else {
@@ -347,7 +347,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
    
     void _useQualified(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles){
         if(building){
-           uses += useq([unescapeName(id) | id <- ids], getLoc(occ), currentScope, idRoles, qualifierRoles);
+           uses += useq([normalizeName(id) | id <- ids], getLoc(occ), currentScope, idRoles, qualifierRoles);
         } else {
             throw TypePalUsage("Cannot call `useQualified` on Collector after `run`");
         }  
@@ -355,7 +355,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
      
      void _addPathToQualifiedDef(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole){
         if(building){
-            u = useq([unescapeName(id) | id <- ids], getLoc(occ), currentScope, idRoles, qualifierRoles);
+            u = useq([normalizeName(id) | id <- ids], getLoc(occ), currentScope, idRoles, qualifierRoles);
             uses += u;
             referPaths += referToDef(u, pathRole);
         } else {
@@ -765,7 +765,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             outer = scopes[outer];
             //println("outer: <outer>");
             //println("definesPerLubScope[outer] ? {}: <definesPerLubScope[outer] ? {}>");
-            for(<loc _, id, idRole , loc _, DefInfo _> <- definesPerLubScope[outer] ? {}, config.isInferrable(idRole)){
+            for(<loc _, id, _, idRole , loc _, DefInfo _> <- definesPerLubScope[outer] ? {}, config.isInferrable(idRole)){
                 return true;
             }
         }
@@ -948,7 +948,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
            tm.store = storeVals;        storeVals = ();
            tm.definitions = ( def.defined : def | Define def <- defines);
            map[loc, map[str, rel[IdRole idRole, loc defined]]] definesMap = ();
-           for(<loc scope, str id, IdRole idRole, loc defined, DefInfo _> <- defines){
+           for(<loc scope, str id, str orgId, IdRole idRole, loc defined, DefInfo _> <- defines){
                 dm = ();
                 if(definesMap[scope]?) dm = definesMap[scope];
                 dm[id] =  (dm[id] ? {}) + {<idRole, defined>};

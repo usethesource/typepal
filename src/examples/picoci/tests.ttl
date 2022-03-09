@@ -5,12 +5,12 @@ test D1 [[
     end
 ]]
 
-@@test D1CI [[
-@@    BEGIN
-@@        DECLARE n : NATURAL;
-@@        n := 1
-@@    END
-@@]]
+test D1CI [[
+    BEGIN
+        DECLARE n : NATURAL;
+        n := 1
+    END
+]]
 
 test Undeclared1 [[
     begin
@@ -19,14 +19,36 @@ test Undeclared1 [[
     end
 ]] expect { "Undefined variable `m`" }
 
+test UndeclaredCI1 [[
+    begin
+        declare n : natural;
+        M := 1
+    end
+]] expect { "Undefined variable `M`" }
+
 test Undeclared2 [[
     begin
         declare n : natural;
         n := 1 + m
     end
 ]] expect { "Undefined variable `m`" }
+
+test DoubleDeclared [[
+    begin
+        declare n : natural,
+                n : string;
+        n := 1
+    end
+]] expect { "Double declaration of `n`" }
  
-  
+ test DoubleDeclaredCI [[
+    begin
+        declare n : natural,
+                N : string;
+        n := 1
+    end
+]] expect { "Double declaration of `N`", "Double declaration of `n`" }
+ 
 test OkAssign1 [[
     begin
         declare n : natural;

@@ -34,7 +34,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     int solverStarted = cpuTime();
     
-    str(str) unescapeName  = defaultUnescapeName;
+    str(str) normalizeName  = defaultNormalizeName;
     bool(AType,AType) isSubTypeFun = defaultIsSubType;
     
     AType(AType,AType) getLubFun = defaultGetLub;
@@ -58,7 +58,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     void configTypePal(TypePalConfig tc){
         
-        unescapeName = tc.unescapeName;
+        normalizeName = tc.normalizeName;
         isSubTypeFun = tc.isSubType;
         getLubFun = tc.getLub;
         mayOverloadFun = tc.mayOverload;     
@@ -371,9 +371,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     // ---- evaluating a Define -----------------------------------------------
     // - amounts to creating a new calculator to compute the defined type
     
-    void evalDef(<loc scope, str id, IdRole idRole, loc defined, noDefInfo()>) { }
+    void evalDef(<loc scope, str id, str orgId, IdRole idRole, loc defined, noDefInfo()>) { }
      
-    void evalDef(<loc scope, str id, IdRole idRole, loc defined, defType(value tp)>) {
+    void evalDef(<loc scope, str id, str orgId, IdRole idRole, loc defined, defType(value tp)>) {
         if(AType atype := tp){
             if(isFullyInstantiated(atype)){
                 facts[defined] = atype;
@@ -390,11 +390,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         }
     }
         
-    void evalDef(<loc scope, str id, IdRole idRole, loc defined, defTypeCall(list[loc] dependsOn, AType(Solver tm) getAType)>){
+    void evalDef(<loc scope, str id, str orgId, IdRole idRole, loc defined, defTypeCall(list[loc] dependsOn, AType(Solver tm) getAType)>){
         calculators += calc(id, defined, dependsOn, getAType);
     }
     
-    void evalDef(<loc scope, str id, IdRole idRole, loc defined, defTypeLub(list[loc] dependsOn, list[loc] defines, list[AType(Solver tm)] getATypes)>){
+    void evalDef(<loc scope, str id, str orgId, IdRole idRole, loc defined, defTypeLub(list[loc] dependsOn, list[loc] defines, list[AType(Solver tm)] getATypes)>){
         calculators += calcLub(id, defines, dependsOn, getATypes);
     }
     
@@ -680,8 +680,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     AType getTypeInScope0(Tree occ, loc scope, set[IdRole] idRoles){
         //println("getTypeInScope0: <occ>, <scope>, <idRoles>");
-        id = unescapeName("<occ>");
-        u = use(unescapeName("<occ>"), getLoc(occ), scope, idRoles);
+        id = normalizeName("<occ>");
+        u = use(normalizeName("<occ>"), getLoc(occ), scope, idRoles);
         //println("u: <u>");
         foundDefs = scopeGraph.lookup(u);
         if({loc def} := foundDefs){
@@ -735,7 +735,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
        // println("getTypeInType: <containerType>, <selector>, <idRolesSel>");
        
         selectorLoc = getLoc(selector);
-        selectorName = unescapeName("<selector>");
+        selectorName = normalizeName("<selector>");
        
         selectorUse = use(selectorName, selectorLoc, scope, idRolesSel);
         if(overloadedAType(rel[loc, IdRole, AType] overloads) := containerType){
@@ -839,7 +839,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 return results;
              } catch AmbiguousDefinition(set[loc] foundDefs): {               //if(!mayOverloadFun(foundDefs, definitions)){             
                 doubleDefs += foundDefs;
-                messages += [error("Double declaration of `<definitions[d].id> at <itemizeLocs(foundDefs - d)>", d) | d  <- foundDefs];
+                messages += [error("Double declaration of `<definitions[d].orgId> at <itemizeLocs(foundDefs - d)>", d) | d  <- foundDefs];
                 return results;
              }      
          } else {
@@ -1317,7 +1317,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                   if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
                 } else {
                       doubleDefs += foundDefs;
-                      messages += [error("Double declaration of `<getId(u)>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs];
+                      messages += [error("Double declaration of `<getId(definitions[d])>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs, bprintln(d)];
                       if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }
@@ -1353,7 +1353,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                  ;
                 } else {
                     doubleDefs += foundDefs;
-                    messages += [error("Double declaration of `<getId(u)>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs];
+                    messages += [error("Double declaration of `<getId(definitions[d])>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs];
                     if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }
@@ -1488,9 +1488,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         defs = "\n<for(d <- foundDefs){>- <d>
                              '<}>
                              ";
-                        messages += [error("Double declaration of `<getId(u)>` at <defs>", d) | d <- foundDefs] /*+ error("Undefined `<getId(u)>` due to double declarations at <defs>", u.occ)*/;
+                        messages += [error("Double declaration of `<getId(definitions[d])>` at <defs>", d) | d <- foundDefs] /*+ error("Undefined `<getId(u)>` due to double declarations at <defs>", u.occ)*/;
                     
-                        //messages += [error("Double declaration of `<getId(u)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
+                        //messages += [error("Double declaration of `<getId(d)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
                         if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                     }
                 } catch NoBinding(): {

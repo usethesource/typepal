@@ -57,6 +57,8 @@ syntax TTL_Expect
     | "expect" "{" {TTL_String ","}* messages "}"
     ;
 
+data Tree(loc src = |uknown:///|);
+
 bool matches(str subject, str pat){
     pat = uncapitalize(pat);
     subject = uncapitalize(subject);
@@ -91,8 +93,8 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
             ntests += 1;
             try {
               newTree = visit(parse(begin, "<ti.tokens>")) {
-                case Tree t => t[@\loc = relocate(t@\loc, ti.tokens@\loc)]
-                    when t has \loc
+                case Tree t => t[src = relocate(t.src, ti.tokens.src)]
+                    when t has src
               };
               model = getModel(newTree);
               list[Message] messages = model.messages;
@@ -152,33 +154,36 @@ lrel[&T<:Tree, set[str]] extractTests(list[loc] suites, type[&T<:Tree] begin) {
     return result;
 }
 
-&T<:Tree relocate(&T<:Tree t, loc base) {
+&T<:Tree relocate(&T<:Tree t, loc container) {
     return visit (t) {
-        case Tree tt => tt[@\loc = relocate(tt@\loc, base)]
+        case Tree tt => tt[@\loc = relocate(tt@\loc, container)]
             when tt has \loc
     };
 }
 
-loc relocate(loc osrc, loc base){
-    //println("relocate: <osrc>, <base>");
-    nsrc = base;
-    
-    offset = base.offset + osrc.offset;
-    length = osrc.length;
-    
-    endline = base.begin.line + osrc.end.line - 1;
-    beginline = base.begin.line + osrc.begin.line - 1;
-    
-    begincolumn = osrc.begin.line == 1 ? base.begin.column + osrc.begin.column
-                                       : osrc.begin.column;
-   
-    endcolumn = osrc.end.line == 1 ? base.begin.column + osrc.end.column
-                                   : osrc.end.column;
-    
-    return |<base.scheme>://<base.authority>/<base.path>|(offset, length, <beginline, begincolumn>, <endline, endcolumn>);
+loc relocate(loc parsed_in_container, loc container){
+    res = parsed_in_container;
+    if(parsed_in_container.offset?){
+        offset = container.offset + parsed_in_container.offset;
+        length = parsed_in_container.length;
+        
+        endline = container.begin.line + parsed_in_container.end.line - 1;
+        beginline = container.begin.line + parsed_in_container.begin.line - 1;
+        
+        begincolumn = parsed_in_container.begin.line == 1 
+                      ? container.begin.column + parsed_in_container.begin.column
+                      : parsed_in_container.begin.column;
+       
+        endcolumn = parsed_in_container.end.line == 1 
+                    ? container.begin.column + parsed_in_container.end.column
+                    : parsed_in_container.end.column;
+        
+        res = |<container.scheme>://<container.authority>/<container.path>|(offset, length, <beginline, begincolumn>, <endline, endcolumn>);
+    }
+    return res;
 }
 
-//loc relocate(loc osrc, loc base) = (base.top)[offset = base.offset + osrc.offset][length = osrc.length];
+//loc relocate(loc parsed_in_container, loc container) = (container.top)[offset = container.offset + parsed_in_container.offset][length = parsed_in_container.length];
 
 //void register() {
 //    registerLanguage("TTL", "ttl", Tree (str x, loc l) { return parse(#start[TTL], x, l, allowAmbiguity=true); });

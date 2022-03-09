@@ -9,7 +9,7 @@ import ParseTree;
 
 // ----  Examples & Tests --------------------------------
 
-TypePalConfig configci = tconfig(unescapeName  = toLowerCase);
+TypePalConfig configci = tconfig(normalizeName  = toLowerCase);
 
 TModel picociTModelFromName(str name) {
     Tree pt = parse(#start[Program], |project://typepal/src/examples/picoci/<name>.pico|);

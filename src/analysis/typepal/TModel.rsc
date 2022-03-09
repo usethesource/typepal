@@ -44,7 +44,16 @@ data Use
     ;
 alias Uses = list[Use];
 
-str getId(Use u) = u has id ? u.id : intercalate(".", u.ids);
+str getId(Use u) {
+    try {
+        return readFile(u.occ);
+    } catch _:
+        return u has id ? u.id : intercalate(".", u.ids);
+}
+
+str getId(Define d) {
+    return d.orgId;
+}
 
 data ReferPath
     = referToDef(Use use, PathRole pathRole)
@@ -61,7 +70,7 @@ data DefInfo
     ;
 
 // A single definition: in scope, id is bound in a IdRole to defined, with DefInfo attached
-alias Define  = tuple[loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo];
+alias Define  = tuple[loc scope, str id, str orgId, IdRole idRole, loc defined, DefInfo defInfo];
 alias Defines = set[Define];                                 // All defines
 alias Scopes  = map[loc inner, loc outer];                   // Syntactic containment
 alias Paths   = rel[loc from, PathRole pathRole, loc to];    // Semantic containment path

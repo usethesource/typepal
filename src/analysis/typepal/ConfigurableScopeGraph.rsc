@@ -48,7 +48,7 @@ AType defaultGetTypeInTypeFromDefine(Define _, str _, set[IdRole] _, Solver _) {
     throw NoBinding();
 }   
   
-str defaultUnescapeName(str s) { return replaceAll(s, "\\", ""); }
+str defaultNormalizeName(str s) { return replaceAll(s, "\\", ""); }
 
 bool defaultReportUnused (loc _, TModel _) {
     return false;
@@ -92,7 +92,7 @@ data TypePalConfig(
         bool (IdRole idRole) isInferrable
             = bool(IdRole _) { return false; },
         
-        str(str) unescapeName                                       
+        str(str) normalizeName                                       
             = str (str s) { return replaceAll(s, "\\", ""); },
         
         AType (Tree selector, AType def, AType ins, AType act, Solver s) instantiateTypeParameters 
