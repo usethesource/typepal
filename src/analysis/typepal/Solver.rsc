@@ -834,7 +834,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             results = {};
             try {
                 for(containerDef <- _getDefinitions(containerName, scope, containerRoles)){   
-                    results += { <id, getType(defInfo)> |  <str id, IdRole idRole, loc _, DefInfo defInfo> <- defines[containerDef.defined] ? {}, idRole in idRoles };
+                    results += { <id, getType(defInfo)> |  <str id, str orgId, IdRole idRole, loc _, DefInfo defInfo> <- defines[containerDef.defined] ? {}, idRole in idRoles };
                 }
                 return results;
              } catch AmbiguousDefinition(set[loc] foundDefs): {               //if(!mayOverloadFun(foundDefs, definitions)){             
@@ -1725,7 +1725,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
           tm.specializedFacts = specializedFacts;
           tm.useDef = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
           
-          ldefines = for(tup: <loc _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
+          ldefines = for(tup: <loc _, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
                             if(defInfo has tree){
                                try {                   
                                        dt = defType(tm.facts[getLoc(defInfo.tree)]);

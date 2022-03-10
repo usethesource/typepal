@@ -243,7 +243,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                         }
                     }
                 }
-                lubDefinesPerLubScope[currentLubScope] += <currentScope, uid, idRole, l, info>;
+                lubDefinesPerLubScope[currentLubScope] += <currentScope, uid, orgId, idRole, l, info>;
             } else {
                 //println("define: add to definesPerLubScope[<currentLubScope>]: <<currentScope, id, idRole, l, info>>");
                 definesPerLubScope[currentLubScope] += <currentScope, uid, orgId, idRole, l, info>; 
@@ -313,7 +313,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     void _useLub(Tree occ, set[IdRole] idRoles) {
         if(building){
            //println("useLub <occ> at <getLoc(occ)> in scope <currentScope>");
-           lubUsesPerLubScope[currentLubScope] += <normalizeName("<occ>"), currentScope, idRoles, getLoc(occ)>;
+           lubUsesPerLubScope[currentLubScope] += <normalizeName("<occ>"), "<occ>", currentScope, idRoles, getLoc(occ)>;
         } else {
             throw TypePalUsage("Cannot call `useLub` on Collector after `run`");
         }
@@ -752,7 +752,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             deps += toSet(def.defInfo.dependsOn);
             getATypes += def.defInfo.getATypes;
         }
-        mergedDefs += {<scope, id, role, firstDefine.defined, defTypeLub(ldeps, ldefs, getATypes)> | role <- roles, <ldeps, ldefs> := computeDepsAndDefs(deps, defineds, uses, firstDefine.scope, enclosedScopes)};
+        mergedDefs += {<scope, id, id, role, firstDefine.defined, defTypeLub(ldeps, ldefs, getATypes)> | role <- roles, <ldeps, ldefs> := computeDepsAndDefs(deps, defineds, uses, firstDefine.scope, enclosedScopes)};
         return mergedDefs;
     }
     
@@ -799,7 +799,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         
         set[Define] deflubs_in_lubscope = lubDefinesPerLubScope[lubScope];
         set[str] deflub_names = deflubs_in_lubscope<1>;
-        rel[str id, loc idScope, set[IdRole] idRoles, loc occ] uselubs_in_lubscope = lubUsesPerLubScope[lubScope];  
+        rel[str id, str orgId, loc idScope, set[IdRole] idRoles, loc occ] uselubs_in_lubscope = lubUsesPerLubScope[lubScope];  
          
         
         set[Define] local_fixed_defines = definesPerLubScope[lubScope]; //{ def | def <- definesPerLubScope[lubScope], config.isInferrable(def.idRole) };
@@ -811,7 +811,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         
         for(str id <- deflub_names){
             set[loc] id_defined_in_scopes = { def.scope | def <- deflubs_in_lubscope, def.id == id };
-            set[Use] id_used_in_scopes = {use(tup.tid, tup.occ, tup.idScope, tup.idRoles) | tuple[str tid, loc idScope, set[IdRole] idRoles, loc occ] tup <- uselubs_in_lubscope, tup.tid == id};
+            set[Use] id_used_in_scopes = {use(tup.tid, tup.occ, tup.idScope, tup.idRoles) | tuple[str tid, str orgId, loc idScope, set[IdRole] idRoles, loc occ] tup <- uselubs_in_lubscope, tup.tid == id};
             id_defined_in_scopes = { sc1 | loc sc1 <- id_defined_in_scopes, isEmpty(enclosedScopes) || !any(loc sc2 <- id_defined_in_scopes, sc1 != sc2, <sc2, sc1> in enclosedScopes)};
             
             //println("Consider <id>, defined in scopes <id_defined_in_scopes>");
@@ -874,7 +874,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         
         // Transform uncovered lubUses into ordinary uses
     
-        for(u: <str id, loc idScope, set[IdRole] idRoles, loc occ> <- uselubs_in_lubscope){
+        for(u: <str id, str orgId, loc idScope, set[IdRole] idRoles, loc occ> <- uselubs_in_lubscope){
             //println("replace lubUse by <use(id, occ, idScope, idRoles)>");
             uses += use(id, occ, idScope, idRoles);
             uselubs_in_lubscope -= u;
@@ -901,7 +901,13 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         //     }
         //}
         scopes += tm.scopes;
+        
+        // Temporary conversion step needed for bootstrap (new tuple element orgId has been added)
+        
+        tm = visit(tm){ case [value]<loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo> => <scope, id, id, idRole, defined, defInfo> };
+  
         defines += tm.defines;
+        
         //overlapping_facts = domain(facts) & domain(tm.facts);
         //if(!isEmpty(overlapping_facts)) {
         //     for(s <- overlapping_facts){
