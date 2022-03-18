@@ -187,7 +187,9 @@ anno loc Tree@src;
 
 Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config = tconfig()){
     
-    str(str) normalizeName = config.normalizeName;
+    str normalizeName(str input) {  
+            return config.normalizeName(input); 
+         }
     loc globalScope = |global-scope:///|;
     Defines defines = {};
     
