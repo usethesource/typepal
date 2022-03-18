@@ -21,6 +21,8 @@ import IO;
 import Type;
 import Location;
 
+import analysis::typepal::Version;
+
 extend analysis::typepal::ConfigurableScopeGraph;
 extend analysis::typepal::ICollector;
 
@@ -891,6 +893,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     }
     
     void _addTModel(TModel tm){
+        if(!isValidVersion(tm.version)){
+            throw TypePalUsage("TModel for <tm.modelName> uses TPL version <tm.version>, but <getCurrentTplVersion()> is required");
+        }
         messages += tm.messages;
         //overlapping_scopes = domain(scopes) & domain(tm.scopes);
         //if(!isEmpty(overlapping_scopes)) {
