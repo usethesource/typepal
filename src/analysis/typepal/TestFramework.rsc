@@ -57,7 +57,7 @@ syntax TTL_Expect
     | "expect" "{" {TTL_String ","}* messages "}"
     ;
 
-data Tree(loc src = |uknown:///|);
+data Tree(loc src = |unknown:///|);
 
 bool matches(str subject, str pat){
     pat = uncapitalize(pat);

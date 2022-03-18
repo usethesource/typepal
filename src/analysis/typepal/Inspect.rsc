@@ -5,7 +5,7 @@ import String;
 import IO;
 import ValueIO;
  
-void show(loc tmodelLoc, str key){
+void show(loc tmodelLoc, str _key){
 
     if(!endsWith(tmodelLoc.path, ".tpl")){
         println("Can only show files with `tpl` extension");

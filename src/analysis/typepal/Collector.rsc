@@ -876,7 +876,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         
         // Transform uncovered lubUses into ordinary uses
     
-        for(u: <str id, str orgId, loc idScope, set[IdRole] idRoles, loc occ> <- uselubs_in_lubscope){
+        for(u: <str id, str _orgId, loc idScope, set[IdRole] idRoles, loc occ> <- uselubs_in_lubscope){
             //println("replace lubUse by <use(id, occ, idScope, idRoles)>");
             uses += use(id, occ, idScope, idRoles);
             uselubs_in_lubscope -= u;
@@ -956,7 +956,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
            tm.store = storeVals;        storeVals = ();
            tm.definitions = ( def.defined : def | Define def <- defines);
            map[loc, map[str, rel[IdRole idRole, loc defined]]] definesMap = ();
-           for(<loc scope, str id, str orgId, IdRole idRole, loc defined, DefInfo _> <- defines){
+           for(<loc scope, str id, str _orgId, IdRole idRole, loc defined, DefInfo _> <- defines){
                 dm = ();
                 if(definesMap[scope]?) dm = definesMap[scope];
                 dm[id] =  (dm[id] ? {}) + {<idRole, defined>};
