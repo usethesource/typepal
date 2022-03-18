@@ -6,6 +6,7 @@ import List;
 import Node;
 import IO;
 
+import analysis::typepal::Version;
 extend analysis::typepal::GetLoc;
 
 data AType;
@@ -83,7 +84,7 @@ data TypePalConfig = tconfig();
 // The foundation of a TModel. It can be extended in a TypePal application
 
 data TModel (
-    str version = "1.0.0",
+    str version = getCurrentTplVersion(),
     Defines defines = {},
     Scopes scopes = (),
     Paths paths = {}, 
