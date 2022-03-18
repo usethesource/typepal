@@ -83,6 +83,7 @@ data TypePalConfig = tconfig();
 // The foundation of a TModel. It can be extended in a TypePal application
 
 data TModel (
+    str version = "1.0.0",
     Defines defines = {},
     Scopes scopes = (),
     Paths paths = {}, 

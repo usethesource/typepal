@@ -16,6 +16,7 @@ import ParseTree;
 import Message;
 
 extend analysis::typepal::Solver;
+extend analysis::typepal::Version;
 
 // collectAndSolve shorthand for a common, simple, scenario
 
