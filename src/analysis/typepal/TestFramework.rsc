@@ -100,7 +100,7 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
               list[Message] messages = model.messages;
               if(verbose) println("runTests: <messages>");
               expected = ti.expect is none ? {} : {deescape("<s>"[1..-1]) | TTL_String s <- ti.expect.messages};
-              result = (isEmpty(messages) && isEmpty(expected)) || all(emsg <- expected, any(eitem <- messages, matches(eitem.msg, emsg)));
+              result = (isEmpty(messages) && isEmpty(expected)) || any(emsg <- expected, any(eitem <- messages, matches(eitem.msg, emsg)));
               ok = ok && result;
               print("<spinChar(ntests)> Test <ti.name>: <result>          \r");
               if(!result) failedTests[<"<ti.name>", suite>] = messages; 
