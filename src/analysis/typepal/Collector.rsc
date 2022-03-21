@@ -745,7 +745,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
   
         for(def <- sortedLubDefs){
             if(def != firstDefine && def.scope notin enclosedScopes[firstDefine.scope]){
-                mergedDefs += {<firstDefine.scope, id, role, firstDefine.defined, defTypeLub(ldeps, ldefs, getATypes)> | role <- roles, <ldeps, ldefs> := computeDepsAndDefs(deps, defineds, uses, firstDefine.scope, enclosedScopes)};
+                mergedDefs += {<firstDefine.scope, id, id, role, firstDefine.defined, defTypeLub(ldeps, ldefs, getATypes)> | role <- roles, <ldeps, ldefs> := computeDepsAndDefs(deps, defineds, uses, firstDefine.scope, enclosedScopes)};
                 deps = {}; getATypes = [];
                 defineds = {};
                 set[IdRole] roles = {};
@@ -910,6 +910,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         scopes += tm.scopes;
         
         // Temporary conversion step needed for bootstrap (new tuple element orgId has been added)
+        // TODO: remove after next iteration
         
         tm = visit(tm){ case [value]<loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo> => <scope, id, id, idRole, defined, defInfo> };
   
