@@ -912,7 +912,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         // Temporary conversion step needed for bootstrap (new tuple element orgId has been added)
         // TODO: remove after next iteration
         
-        tm = visit(tm){ case [value]<loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo> => <scope, id, id, idRole, defined, defInfo> };
+        //tm = visit(tm){ case [value]<loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo> => <scope, id, id, idRole, defined, defInfo> };
   
         defines += tm.defines;
         
@@ -963,7 +963,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
            tm.definitions = ( def.defined : def | Define def <- defines);
            map[loc, map[str, rel[IdRole idRole, loc defined]]] definesMap = ();
            for(<loc scope, str id, str _orgId, IdRole idRole, loc defined, DefInfo _> <- defines){
-                dm = ();
+                map[str, rel[IdRole idRole, loc defined]] dm = ();
                 if(definesMap[scope]?) dm = definesMap[scope];
                 dm[id] =  (dm[id] ? {}) + {<idRole, defined>};
                 definesMap[scope] = dm;
