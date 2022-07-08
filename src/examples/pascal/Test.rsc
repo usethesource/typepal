@@ -13,7 +13,7 @@ import util::Reflective;
 TModel pascalTModelForTree(Tree pt, str programName, PathConfig _, bool _){
     if(pt has top) pt = pt.top;
     
-    c = newCollector(programName, pt, config=pascalConfig());
+    c = newCollector(programName, pt, pascalConfig());
     pascalPreCollectInitialization(pt, c);
     collect(pt, c);
     return newSolver(pt, c.run()).run();
@@ -22,7 +22,7 @@ TModel pascalTModelForTree(Tree pt, str programName, PathConfig _, bool _){
 TModel pascalTModelForTree(Tree pt, bool _){
     if(pt has top) pt = pt.top;
     
-    c = newCollector("Pascal checker", pt, config=pascalConfig());
+    c = newCollector("Pascal checker", pt, pascalConfig());
     pascalPreCollectInitialization(pt, c);
     collect(pt, c);
     return newSolver(pt, c.run()).run();
