@@ -153,7 +153,9 @@ default bool checkPaths(TModel tm, loc from, loc to, PathRole pathRole, bool(TMo
     current = from;
     path = [from];
     do {
-        if({def} := tm.paths[current, pathRole]){
+        defs = tm.paths[current, pathRole]; // TODO: avoided set matching in test due to compiler issue
+        if(size(defs) == 1){
+           def = getFirstFrom(defs);
            path += [def];
            current = def; 
         } else {
@@ -170,12 +172,13 @@ bool existsPath(TModel tm, loc from, loc to, PathRole pathRole){
 // The ScopeGraph structure that provides lookup operations in a TModel
 data ScopeGraph
     = scopegraph(
-        set[loc] (Use u) lookup
+        set[loc] (Use u) lookup,
+        void (Solver s) setSolver
     );
     
 bool wdebug = false;
     
-ScopeGraph newScopeGraph(TModel tm, TypePalConfig config, Solver s){
+ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
  
     /*************************************************************************/
     /* At the moment we support "classic" scopes from the Kastens & Waite    */
@@ -425,13 +428,13 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config, Solver s){
         return res;
     }
     
-    Paths paths = s.getPaths();
+    Paths paths = tm.paths;
     set[PathRole] pathRoles = paths.pathRole;
     
     public set[loc] lookupWide(Use u){
     
         // Update current paths and pathRoles
-        current_paths = s.getPaths();
+        current_paths = tm.paths;
         if(current_paths != paths){
             paths = current_paths;
             pathRoles = paths.pathRole;
@@ -446,7 +449,8 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config, Solver s){
            if(isEmpty(defs)) throw NoBinding(); else return defs;
         } else {
            startScope = scope;
-           while(true){
+           btrue = true;    // TODO: hack to keep Java compiler happy
+           while(btrue){
                qscopes = {};
                for(str id <- u.ids[0..-1]){ 
                    //if(wdebug) println("lookup, search for <id>"); 
@@ -484,9 +488,13 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config, Solver s){
          throw NoBinding();
     }
     
-    // Initialize the ScopeGraph context
+    Solver the_solver = dummySolver();
     
-    Solver the_solver = s;
+    void _setSolver(Solver s){
+        the_solver = s;
+    }
+    
+    // Initialize the ScopeGraph context
     
     Accept (loc def, Use use, Solver s) isAcceptableSimpleFun     = config.isAcceptableSimple;
     Accept (loc def, Use use, Solver s) isAcceptableQualifiedFun  = config.isAcceptableQualified;
@@ -494,6 +502,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config, Solver s){
                                                                   = config.isAcceptablePath;
        
     return scopegraph(
-            lookupWide
+            lookupWide,
+            _setSolver
         );
 }

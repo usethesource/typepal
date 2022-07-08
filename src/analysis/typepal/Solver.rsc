@@ -303,11 +303,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     // ---- Register triggers
      
-    void register(Calculator calc){
+    void registerCalc(Calculator calc){
         for(dep <- dependsOn(calc)) triggersCalculator[dep] = (triggersCalculator[dep] ? {}) + {calc}; 
     }
     
-    void register(Requirement req){
+    void registerReq(Requirement req){
         for(dep <- req.dependsOn) triggersRequirement[dep] = (triggersRequirement[dep] ? {}) + {req}; 
     }
     
@@ -348,12 +348,12 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
     
     // ---- Job management ----------------------------------------------------
-    void solved(Calculator calc){
+    void solvedCalc(Calculator calc){
         calculators -= calc;
         calculatorJobs -= calc;
     }
     
-    void solved(Requirement req){
+    void solvedReq(Requirement req){
         requirements -= req;
         requirementJobs -= req;
     }    
@@ -363,7 +363,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     bool addFact(loc l, AType atype){
         iatype = instantiate(atype);
         facts[l] = iatype;
-        if(logSolverSteps)println("!fact <l> ==\> <iatype>");
+        //if(logSolverSteps)println("!fact <l> ==\> <iatype>");
         fireTrigger(l);
         return true;
     }
@@ -371,9 +371,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     // ---- evaluating a Define -----------------------------------------------
     // - amounts to creating a new calculator to compute the defined type
     
-    void evalDef(<loc scope, str id, str orgId, IdRole idRole, loc defined, noDefInfo()>) { }
+    void evalDef(<loc scope, str id, str orgId, IdRole idRole, loc defined, DefInfo defInfo: noDefInfo()>) { }
      
-    void evalDef(<loc scope, str id, str orgId, IdRole idRole, loc defined, defType(value tp)>) {
+    void evalDef(<loc scope, str id, str orgId, IdRole idRole, loc defined, DefInfo defInfo: defType(value tp)>) {
         if(AType atype := tp){
             if(isFullyInstantiated(atype)){
                 facts[defined] = atype;
@@ -390,16 +390,16 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         }
     }
         
-    void evalDef(<loc scope, str id, str orgId, IdRole idRole, loc defined, defTypeCall(list[loc] dependsOn, AType(Solver tm) getAType)>){
+    void evalDef(<loc scope, str id, str orgId, IdRole idRole, loc defined, DefInfo defInfo: defTypeCall(list[loc] dependsOn, AType(Solver tm) getAType)>){
         calculators += calc(id, defined, dependsOn, getAType);
     }
     
-    void evalDef(<loc scope, str id, str orgId, IdRole idRole, loc defined, defTypeLub(list[loc] dependsOn, list[loc] defines, list[AType(Solver tm)] getATypes)>){
+    void evalDef(<loc scope, str id, str orgId, IdRole idRole, loc defined, DefInfo defInfo: defTypeLub(list[loc] dependsOn, list[loc] defines, list[AType(Solver tm)] getATypes)>){
         calculators += calcLub(id, defines, dependsOn, getATypes);
     }
     
     list[loc] getDependencies(AType atype){
-        deps = [];
+        list[loc] deps = [];
         visit(atype){
             case tvar(loc src) : deps += src;
         };
@@ -411,13 +411,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     void evalOrScheduleCalc(Calculator calc){
         try {
             if(evalCalc(calc)){
-                solved(calc);
+                solvedCalc(calc);
             } else {
                 scheduleCalc(calc);
             }
          } catch checkFailed(list[FailMessage] fmsgs): {
             failMessages += fmsgs;
-            solved(calc);
+            solvedCalc(calc);
          }
     }
     
@@ -427,7 +427,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             for(dep <- dependsOn) { if(facts[dep]?) nAvailable += 1; }
             enabled = nAvailable == size(dependsOn);
             if(enabled) calculatorJobs += calc;
-            if(logSolverSteps){ print(enabled ? "*" : "+"); print(calc, "", facts, full=false); }
+            //if(logSolverSteps){ print(enabled ? "*" : "+"); print(calc, "", facts, full=false); }
         }
     }
     
@@ -451,7 +451,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     map[Calculator, int] calculatorAttempts = ();
    
     bool evalCalc(calc: calcType(loc src, AType atype)){
-        if(logAttempts) calculatorAttempts[calc] = (calculatorAttempts[calc] ? 0) + 1;
+        //if(logAttempts) calculatorAttempts[calc] = (calculatorAttempts[calc] ? 0) + 1;
         try {
             iatype = instantiate(atype);
             facts[src] = iatype;
@@ -465,22 +465,23 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
     
     bool evalCalc(calc: calcLoc(loc src, [loc from])){
-        if(logAttempts) calculatorAttempts[calc] = (calculatorAttempts[calc] ? 0) + 1;
+        //if(logAttempts) calculatorAttempts[calc] = (calculatorAttempts[calc] ? 0) + 1;
         try {
             facts[src] = getType(from);
-            if(logSolverSteps)println("!fact <src> ==\> <facts[src]>");
+            //if(logSolverSteps)println("!fact <src> ==\> <facts[src]>");
             fireTrigger(src);
             return true;
-        } catch TypeUnavailable(): return false; /* cannot yet compute type */
+        } catch TypeUnavailable(): /*return false*/; /* cannot yet compute type */
+        return false; // TODO placed return here due to bug in compiler
     }
     
     bool evalCalc(calc:calc(str cname, loc src, list[loc] dependsOn,  AType(Solver tm) getAType)){
-        if(logAttempts) calculatorAttempts[calc] = (calculatorAttempts[calc] ? 0) + 1;
+        //if(logAttempts) calculatorAttempts[calc] = (calculatorAttempts[calc] ? 0) + 1;
         if(allDependenciesKnown(dependsOn, calc.eager)){
             try {
                 facts[src] = instantiate(getAType(thisSolver));
                 bindings2facts(bindings);
-                if(logSolverSteps)println("!fact <src> ==\> <facts[src]>");
+                //if(logSolverSteps)println("!fact <src> ==\> <facts[src]>");
                 fireTrigger(src);
                 return true;
             } catch TypeUnavailable(): return false; /* cannot yet compute type */
@@ -489,7 +490,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
     
     bool evalCalc(calc: calcLub(str cname, list[loc] defines, list[loc] dependsOn, list[AType(Solver tm)] getATypes)){
-        if(logAttempts) calculatorAttempts[calc] = (calculatorAttempts[calc] ? 0) + 1;
+        //if(logAttempts) calculatorAttempts[calc] = (calculatorAttempts[calc] ? 0) + 1;
         try {
             known = for(getAType <- getATypes){
                         try {
@@ -530,13 +531,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
      void evalOrScheduleReq(Requirement req){
         try {
             if(allDependenciesKnown(req.dependsOn, req.eager) && evalReq(req)){
-                solved(req);  
+                solvedReq(req);  
             } else {
                 scheduleReq(req);
             }
         } catch checkFailed(list[FailMessage] fmsgs): {
             failMessages += fmsgs;
-            solved(req);
+            solvedReq(req);
         }
      }
     
@@ -547,14 +548,14 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
            
            enabled = nAvailable == size(req.dependsOn);
            if(enabled) requirementJobs += req;
-           if(logSolverSteps){ print(enabled ? "*" : "+"); print(req, "", facts, full=false); }
+           //if(logSolverSteps){ print(enabled ? "*" : "+"); print(req, "", facts, full=false); }
        }
     } 
     
     map[Requirement, int] requirementAttempts = ();
     
     bool evalReq(req:reqEqual(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)){
-        if(logAttempts) requirementAttempts[req] = (requirementAttempts[req] ? 0) + 1; 
+        //if(logAttempts) requirementAttempts[req] = (requirementAttempts[req] ? 0) + 1; 
         try {
             if(!_equal(getType(l), getType(r))) { failMessages += fm; }
             return true;
@@ -562,7 +563,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
     
     bool evalReq(req:reqComparable(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)){
-        if(logAttempts) requirementAttempts[req] = (requirementAttempts[req] ? 0) + 1; 
+        //if(logAttempts) requirementAttempts[req] = (requirementAttempts[req] ? 0) + 1; 
         try {
             if(!_comparable(getType(l), getType(r))) { failMessages += fm; }
             return true;
@@ -570,7 +571,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
     
     bool evalReq(req:reqSubtype(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)){
-        if(logAttempts) requirementAttempts[req] = (requirementAttempts[req] ? 0) + 1; 
+        //if(logAttempts) requirementAttempts[req] = (requirementAttempts[req] ? 0) + 1; 
         try {
             if(!_subtype(getType(l), getType(r))) { failMessages += fm; }
             return true;
@@ -578,7 +579,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
     
     bool evalReq(req:reqUnify(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)){
-        if(logAttempts) requirementAttempts[req] = (requirementAttempts[req] ? 0) + 1; 
+        //if(logAttempts) requirementAttempts[req] = (requirementAttempts[req] ? 0) + 1; 
         try {
             if(!_unify(getType(l), getType(r))) { failMessages += fm; }
             return true;
@@ -586,23 +587,23 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
     
     bool evalReq(req:reqError(loc src, list[loc] dependsOn, FailMessage fm)){
-        if(logAttempts) requirementAttempts[req] = (requirementAttempts[req] ? 0) + 1; 
+        //if(logAttempts) requirementAttempts[req] = (requirementAttempts[req] ? 0) + 1; 
         failMessages += fm;
         return true;
     }
     
     bool evalReq(req:reqErrors(loc src, list[loc] dependsOn, list[FailMessage] fms)){
-        if(logAttempts) requirementAttempts[req] = (requirementAttempts[req] ? 0) + 1; 
+        //if(logAttempts) requirementAttempts[req] = (requirementAttempts[req] ? 0) + 1; 
         failMessages += fms;
         return true;
     }
     
     bool evalReq(req:req(str rname, loc src,  list[loc] dependsOn, void(Solver s) preds)){
-        if(logAttempts) requirementAttempts[req] = (requirementAttempts[req] ? 0) + 1; 
+        //if(logAttempts) requirementAttempts[req] = (requirementAttempts[req] ? 0) + 1; 
         try {
             preds(thisSolver);
             bindings2facts(bindings);
-            solved(req);
+            solvedReq(req);
             return true;
         } catch TypeUnavailable(): return false;
     }
@@ -934,24 +935,49 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     // ---- "equal" and "requireEqual" ----------------------------------------
        
-    bool _equal(AType given, AType expected){
-        if(given == expected) return true;
-        if(isFullyInstantiated(given)){
-             if(isFullyInstantiated(expected)){
-                return instantiate(unsetRec(given)) == instantiate(unsetRec(expected));
-             } else
-                throw TypeUnavailable();
+    //bool _equal(AType given, AType expected){
+    //    if(given == expected) return true;
+    //    if(isFullyInstantiated(given)){
+    //         if(isFullyInstantiated(expected)){
+    //            return instantiate(unsetRec(given)) == instantiate(unsetRec(expected));
+    //         } else
+    //            throw TypeUnavailable();
+    //    } else
+    //        throw TypeUnavailable();
+    //}
+    //
+    //bool _equal(Tree given, AType expected) = _equal(getType(given), expected);
+    //
+    //bool _equal(AType given, Tree expected) = _equal(given, getType(expected));
+    //
+    //bool _equal(Tree given, Tree expected) = _equal(getType(given), getType(expected));
+    //
+    //default bool _equal(value given, value expected) { throw TypePalUsage("`equal` called with <given> and <expected>"); }
+    
+    bool _equal(value given, value expected){
+        givenType = theMinAType;
+        expectedType = theMinAType;
+        if(Tree tree := given){
+            givenType = getType(tree);
+        } else if (AType tp := given){
+            givenType = tp;
+        } else {
+            throw TypePalUsage("`equal` called with <given> and <expected>");
+        }
+        if(Tree tree := expected){
+            expectedType = getType(tree);
+        } else if (AType tp := expected){
+            expectedType = tp;
+        } else {
+            throw TypePalUsage("`equal` called with <given> and <expected>");
+        }
+        
+        if(givenType == expectedType) return true;
+        if(isFullyInstantiated(givenType) && isFullyInstantiated(expectedType)){
+            return instantiate(unsetRec(givenType)) == instantiate(unsetRec(expectedType));
         } else
             throw TypeUnavailable();
     }
-    
-    bool _equal(Tree given, AType expected) = _equal(getType(given), expected);
-    
-    bool _equal(AType given, Tree expected) = _equal(given, getType(expected));
-    
-    bool _equal(Tree given, Tree expected) = _equal(getType(given), getType(expected));
-    
-    default bool _equal(value given, value expected) { throw TypePalUsage("`equal` called with <given> and <expected>"); }
     
     void _requireEqual(value given, value expected, FailMessage fm) {
         if(!_equal(given, expected)) _report(fm);
@@ -959,15 +985,36 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
    
     // ---- "unify" and "requireUnify" ----------------------------------------
     
-    bool _unify(AType given, AType expected) = unify(given, expected);
+    //bool _unify(AType given, AType expected) = unify(given, expected);
+    //
+    //bool _unify(Tree given, AType expected) = unify(getType(given), expected);
+    //
+    //bool _unify(AType given, Tree expected) = unify(given, getType(expected));
+    //
+    //bool _unify(Tree given, Tree expected) = unify(getType(given), getType(expected));
+    //
+    //default bool _unify(value given, value expected) { throw TypePalUsage("`_unify` called with <given> and <expected>"); }
     
-    bool _unify(Tree given, AType expected) = unify(getType(given), expected);
-    
-    bool _unify(AType given, Tree expected) = unify(given, getType(expected));
-    
-    bool _unify(Tree given, Tree expected) = unify(getType(given), getType(expected));
-    
-    default bool _unify(value given, value expected) { throw TypePalUsage("`_unify` called with <given> and <expected>"); }
+    bool _unify(value given, value expected){
+        givenType = theMinAType;
+        expectedType = theMinAType;
+        if(Tree tree := given){
+            givenType = getType(tree);
+        } else if (AType tp := given){
+            givenType = tp;
+        } else {
+            throw TypePalUsage("`unify` called with <given> and <expected>");
+        }
+        if(Tree tree := expected){
+            expectedType = getType(tree);
+        } else if (AType tp := expected){
+            expectedType = tp;
+        } else {
+            throw TypePalUsage("`unify` called with <given> and <expected>");
+        }
+        
+        return unify(givenType, expectedType);
+    }
     
     //bool _unify(value given, value expected, FailMessage fm) {
     //    return unify(given, expected) || _report(fm);
@@ -979,7 +1026,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     bool unify(AType given, AType expected){
         <ok, bindings1> = unify(given, expected, bindings);
-        if(logSolverSteps)println("unify(<given>, <expected>) ==\> <ok>, <bindings1>");
+        //if(logSolverSteps)println("unify(<given>, <expected>) ==\> <ok>, <bindings1>");
         if(ok){
             bindings += bindings1;
             return true;
@@ -1081,22 +1128,47 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     // ---- "subtype" and "requireSubType" ------------------------------------
      
-    bool _subtype(Tree given, AType expected) = _subtype(getType(given), expected);
+    //bool _subtype(Tree given, AType expected) = _subtype(getType(given), expected);
+    //
+    //bool _subtype(AType given, Tree expected) = _subtype(given, getType(expected));
+    //
+    //bool _subtype(Tree given, Tree expected) = _subtype(getType(given), getType(expected));
+    //
+    //default bool _subtype(value given, value expected) { throw TypePalUsage("`subtype` called with <given> and <expected>"); }
+    //
+    //bool _subtype(AType small, AType large){
+    //    if(isFullyInstantiated(small)){
+    //        if(isFullyInstantiated(large)){
+    //            return isSubTypeFun(small, large);
+    //        } else  
+    //            throw TypeUnavailable();
+    //    } else {
+    //      throw TypeUnavailable();
+    //    }
+    //}
     
-    bool _subtype(AType given, Tree expected) = _subtype(given, getType(expected));
-    
-    bool _subtype(Tree given, Tree expected) = _subtype(getType(given), getType(expected));
-    
-    default bool _subtype(value given, value expected) { throw TypePalUsage("`subtype` called with <given> and <expected>"); }
-    
-    bool _subtype(AType small, AType large){
-        if(isFullyInstantiated(small)){
-            if(isFullyInstantiated(large)){
-                return isSubTypeFun(small, large);
-            } else  
-                throw TypeUnavailable();
+    bool _subtype(value small, value large){
+        smallType = theMinAType;
+        largeType = theMinAType;
+        if(Tree tree := small){
+            smallType = getType(tree);
+        } else if (AType tp := small){
+            smallType = tp;
         } else {
-          throw TypeUnavailable();
+            throw TypePalUsage("`subtype` called with <small> and <large>");
+        }
+        if(Tree tree := large){
+            largeType = getType(tree);
+        } else if (AType tp := large){
+            largeType = tp;
+        } else {
+            throw TypePalUsage("`subtype` called with <small> and <large>");
+        }
+        
+        if(isFullyInstantiated(smallType) && isFullyInstantiated(largeType)){
+            return isSubTypeFun(smallType, largeType);
+        } else {
+            throw TypeUnavailable();
         }
     }
     
@@ -1106,18 +1178,43 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     // ---- "comparable" and "requireComparable" ------------------------------
     
-    bool _comparable(Tree given, AType expected) = _comparable(getType(given), expected);
+    //bool _comparable(Tree given, AType expected) = _comparable(getType(given), expected);
+    //
+    //bool _comparable(AType given, Tree expected) = _comparable(given, getType(expected));
+    //
+    //bool _comparable(Tree given, Tree expected) = _comparable(getType(given), getType(expected));
+    //
+    //default bool _comparable(value given, value expected) { throw TypePalUsage("`comparable` called with <given> and <expected>"); }
+    //
+    //bool _comparable(AType atype1, AType atype2){
+    //    if(atype1 == atype2) return true;
+    //    if(isFullyInstantiated(atype1) && isFullyInstantiated(atype2)){
+    //        return isSubTypeFun(atype1, atype2) || isSubTypeFun(atype2, atype1);
+    //    } else {
+    //        throw TypeUnavailable();
+    //    }
+    //}
     
-    bool _comparable(AType given, Tree expected) = _comparable(given, getType(expected));
-    
-    bool _comparable(Tree given, Tree expected) = _comparable(getType(given), getType(expected));
-    
-    default bool _comparable(value given, value expected) { throw TypePalUsage("`comparable` called with <given> and <expected>"); }
-    
-    bool _comparable(AType atype1, AType atype2){
-        if(atype1 == atype2) return true;
-        if(isFullyInstantiated(atype1) && isFullyInstantiated(atype2)){
-            return isSubTypeFun(atype1, atype2) || isSubTypeFun(atype2, atype1);
+    bool _comparable(value given, value expected){
+        givenType = theMinAType;
+        expectedType = theMinAType;
+        if(Tree tree := given){
+            givenType = getType(tree);
+        } else if (AType tp := given){
+            givenType = tp;
+        } else {
+            throw TypePalUsage("`comparable` called with <given> and <expected>");
+        }
+        if(Tree tree := expected){
+            expectedType = getType(tree);
+        } else if (AType tp := expected){
+            expectedType = tp;
+        } else {
+            throw TypePalUsage("`comparable` called with <given> and <expected>");
+        }
+        if(givenType == expectedType) return true;
+        if(isFullyInstantiated(givenType) && isFullyInstantiated(expectedType)){
+            return isSubTypeFun(givenType, expectedType) || isSubTypeFun(expectedType, givenType);
         } else {
             throw TypeUnavailable();
         }
@@ -1143,16 +1240,39 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
      
     // ---- lub ---------------------------------------------------------------
     
-    AType _lub(Tree given, AType expected) = _lub(getType(given), expected);
+ //   AType _lub(Tree given, AType expected) = _lub(getType(given), expected);
+ //   
+ //   AType _lub(AType given, Tree expected) = _lub(given, getType(expected));
+ //   
+ //   AType _lub(Tree given, Tree expected) = _lub(getType(given), getType(expected));
+ //   
+ //   default AType _lub(value given, value expected) { throw TypePalUsage("`lub` called with <given> and <expected>"); }
+ //
+ //   
+ //   AType _lub(AType t1, AType t2) = simplifyLub([t1, t2]);
     
-    AType _lub(AType given, Tree expected) = _lub(given, getType(expected));
+    AType _lub(value given, value expected){
+        givenType = theMinAType;
+        expectedType = theMinAType;
+        if(Tree tree := given){
+            givenType = getType(tree);
+        } else if (AType tp := given){
+            givenType = tp;
+        } else {
+            throw TypePalUsage("`lub` called with <given> and <expected>");
+        }
+        if(Tree tree := expected){
+            expectedType = getType(tree);
+        } else if (AType tp := expected){
+            expectedType = tp;
+        } else {
+            throw TypePalUsage("`lub` called with <given> and <expected>");
+        }
+        return simplifyLub([givenType, expectedType]);
+    }
     
-    AType _lub(Tree given, Tree expected) = _lub(getType(given), getType(expected));
     
-    AType _lub(AType t1, AType t2) = simplifyLub([t1, t2]);
-    
-    default AType _lub(value given, value expected) { throw TypePalUsage("`lub` called with <given> and <expected>"); }
-    
+     
     AType simplifyLub(list[AType] atypes) {
         //println("simplifyLub: <atypes>");
         lubbedType = theMinAType;
@@ -1220,8 +1340,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             case tvar(loc tname): { if(!facts[tname]?) return false;
                                     if(tvar(_) := facts[tname]) return false;
                                   }
-            case lazyLub(list[AType] atypes): if(!(isEmpty(atypes) || all(AType tp <- atype, isFullyInstantiated(tp)))) return false;
-            case overloadedAType(rel[loc, IdRole, AType] overloads): all(<_, _, tp> <- overloads, isFullyInstantiated(tp));
+            case lazyLub(list[AType] atypes):
+                    if(!(isEmpty(atypes) || all(AType tp <- atype, isFullyInstantiated(tp)))) return false;
+            case overloadedAType(rel[loc, IdRole, AType] overloads):
+                    if(!all(<_, _, tp> <- overloads, isFullyInstantiated(tp))) return false;
         }
         return true;
     }
@@ -1287,18 +1409,18 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         messages = tm.messages;
         failMessages = [];
         
-        if (logSolverSteps) println("checking <tm.modelName>");
+        //if (logSolverSteps) println("checking <tm.modelName>");
            
-        if(logSolverIterations) println("<tm.modelName>, initial -- calculators: <size(calculators)>; requirements: <size(requirements)>; uses: <size(tm.uses)>; facts: <size(facts)>");
+        //if(logSolverIterations) println("<tm.modelName>, initial -- calculators: <size(calculators)>; requirements: <size(requirements)>; uses: <size(tm.uses)>; facts: <size(facts)>");
              
-        if(logSolverSteps) printTModel(tm);
+        //if(logSolverSteps) printTModel(tm);
         
         validateDependencies();
         
         resolvePaths();
        
         // Check that all uses have a definition and that all overloading is allowed
-        if(logSolverSteps) println("..... lookup <size(tm.uses)> uses");
+        //if(logSolverSteps) println("..... lookup <size(tm.uses)> uses");
         int now = cpuTime();
          
         set[loc] actuallyUsedDefs = {};
@@ -1314,11 +1436,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                   definedBy[u.occ] = foundDefs;
                   for(def <- foundDefs) def2uses[def] = (def2uses[def] ? {}) + u;
                   openUses += u;
-                  if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
+                  //if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
                 } else {
                       doubleDefs += foundDefs;
                       messages += [error("Double declaration of `<getId(definitions[d])>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs, bprintln(d)];
-                      if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
+                      //if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }
             catch NoBinding(): {
@@ -1332,7 +1454,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         // Check for illegal overloading of unused definitions
         set[loc] unusedDefs = domain(definitions) - actuallyUsedDefs;
-        if(logSolverSteps) println("..... filter doubles in <size(unusedDefs)> unused defines");
+        //if(logSolverSteps) println("..... filter doubles in <size(unusedDefs)> unused defines");
         now = cpuTime();
         
         for(ud <- unusedDefs){
@@ -1354,7 +1476,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 } else {
                     doubleDefs += foundDefs;
                     messages += [error("Double declaration of `<getId(definitions[d])>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs];
-                    if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
+                    //if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }
             catch NoBinding(): {
@@ -1369,7 +1491,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         // Process all defines (which may create new calculators/facts)
         
         now = cpuTime();
-        if(logSolverSteps) println("..... handle <size(defines)> defines");
+        //if(logSolverSteps) println("..... handle <size(defines)> defines");
         for(Define def <- defines){
             try {
                 evalDef(def);
@@ -1383,11 +1505,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         now = cpuTime();
         for(Calculator calc <- calculators){
-            register(calc);
+            registerCalc(calc);
         }
         
         for(Requirement req <- requirements){
-            register(req);
+            registerReq(req);
         }
         
         //validateTriggers();
@@ -1408,7 +1530,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         // Try to evaluate or schedule the calculators
         now = cpuTime();
-        if(logSolverSteps) println("..... handle <size(calculators)> calculators");
+        //if(logSolverSteps) println("..... handle <size(calculators)> calculators");
  
         for(Calculator calc <- calculators){
             try {
@@ -1422,7 +1544,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         // Try to evaluate or schedule the requirements
         now = cpuTime();
-        if(logSolverSteps) println("..... handle <size(requirements)> requirement");
+        //if(logSolverSteps) println("..... handle <size(requirements)> requirement");
         for(Requirement req <- requirements){
             try {
                 clearActiveTriggers(); // ? needed
@@ -1441,7 +1563,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         /****************** main solve loop *********************************/
         
-        if(logSolverSteps) println("..... start solving");
+        //if(logSolverSteps) println("..... start solving");
         
         int iterations = 0;
         int ncalculators = size(calculators);
@@ -1473,7 +1595,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                       openUses += u;
                       notYetDefinedUses -= u;
                      
-                      if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
+                      //if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
                       
                       if({def} := foundDefs, facts[def]?){ 
                         openUses -= u;
@@ -1491,7 +1613,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         messages += [error("Double declaration of `<getId(definitions[d])>` at <defs>", d) | d <- foundDefs] /*+ error("Undefined `<getId(u)>` due to double declarations at <defs>", u.occ)*/;
                     
                         //messages += [error("Double declaration of `<getId(d)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
-                        if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
+                        //if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                     }
                 } catch NoBinding(): {
                     ; //ignore until end
@@ -1508,13 +1630,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                  try {
                  	clearActiveTriggers();
                     if(evalCalc(calc)){
-                       solved(calc);
+                       solvedCalc(calc);
                     } else {
-                        if(logSolverSteps){ print("?"); print(calc, "", facts, full=false); }
+                        ;//if(logSolverSteps){ print("?"); print(calc, "", facts, full=false); }
                     }
                  } catch checkFailed(list[FailMessage] fms): {
                         failMessages += fms;
-                        solved(calc);
+                        solvedCalc(calc);
                  }
             } 
             mainCalcTime += cpuTime() - now;
@@ -1526,13 +1648,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 try {
                     clearActiveTriggers(); // ? needed
                     if(evalReq(req)){
-                        solved(req);
+                        solvedReq(req);
                     } else {
-                        if(logSolverSteps){ print("?"); print(req, "", facts, full=false); }
+                        ;//if(logSolverSteps){ print("?"); print(req, "", facts, full=false); }
                     }
                 } catch checkFailed(list[FailMessage] fms): {
                     failMessages += fms;
-                    solved(req);
+                    solvedReq(req);
                 }
             }
             mainReqTime += cpuTime() - now;
@@ -1548,7 +1670,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
            
         int mainEnded = cpuTime();
            
-        if(logSolverSteps) println("..... solving complete");
+        //if(logSolverSteps) println("..... solving complete");
         
         // Eliminate all defTypeCalls before handing control to the postSolver
         for(loc l <- definitions){
@@ -1669,20 +1791,20 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         }
         
-        if(logAttempts){
-            lrel[Calculator, int] sortedCalcFreqs = sort(toList(calculatorAttempts), bool(tuple[Calculator calc, int freq] a, tuple[Calculator calc, int freq] b) { return a.freq > b.freq; });
-            int ncalc = 0;
-            for(<clc, freq> <- sortedCalcFreqs, ncalc < 10){
-               print("<freq>:"); print(clc, "\t", facts);
-               ncalc += 1;
-            }
-            sortedReqFreqs = sort(toList(requirementAttempts), bool(tuple[Requirement req, int freq] a, tuple[Requirement req, int freq] b) { return a.freq > b.freq; });
-            int nreq = 0;
-            for(<rq, freq> <- sortedReqFreqs, nreq < 10){
-               print("<freq>:"); print(rq, "\t", facts);
-               nreq += 1;
-            }
-        }
+        //if(logAttempts){
+        //    lrel[Calculator, int] sortedCalcFreqs = sort(toList(calculatorAttempts), bool(tuple[Calculator calc, int freq] a, tuple[Calculator calc, int freq] b) { return a.freq > b.freq; });
+        //    int ncalc = 0;
+        //    for(<clc, freq> <- sortedCalcFreqs, ncalc < 10){
+        //       print("<freq>:"); print(clc, "\t", facts);
+        //       ncalc += 1;
+        //    }
+        //    sortedReqFreqs = sort(toList(requirementAttempts), bool(tuple[Requirement req, int freq] a, tuple[Requirement req, int freq] b) { return a.freq > b.freq; });
+        //    int nreq = 0;
+        //    for(<rq, freq> <- sortedReqFreqs, nreq < 10){
+        //       print("<freq>:"); print(rq, "\t", facts);
+        //       nreq += 1;
+        //    }
+        //}
        
         if(logSolverIterations){
             println("iterations: <iterations>; calculators: <ncalculators>; calculatorJobs: <size(calculatorJobs)>; requirements: <nrequirements>; requirementJobs: <size(requirementJobs)>; uses: <size(openUses)>; referPaths: <nreferPaths>; facts: <size(facts)>; ");
@@ -1753,7 +1875,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
           
           tm.messages = sortMostPrecise(toList(toSet(messages)));
          
-          if(logSolverSteps) println("Derived facts: <size(tm.facts)>");
+          //if(logSolverSteps) println("Derived facts: <size(tm.facts)>");
           solverEnded = cpuTime();
           M = 1000000;
           if(logTime){
@@ -1763,8 +1885,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
     
     // The actual code of newSolver
+
+    ScopeGraph scopeGraph = newScopeGraph(tm, tm.config);
+    Solver thisSolver = dummySolver();
     
-    Solver thisSolver = 
+    thisSolver =
             solver(
             /* Lifecycle */     _run,
             /* Types */         getType, 
@@ -1808,6 +1933,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                                 _clearStack
                      );
                      
-    ScopeGraph scopeGraph = newScopeGraph(tm, tm.config, thisSolver);
+    scopeGraph.setSolver(thisSolver); // This breaks the circular dependency between ScopeGraph and Solver
+   
     return thisSolver;
 }

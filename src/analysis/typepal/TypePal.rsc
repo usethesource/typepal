@@ -22,7 +22,7 @@ extend analysis::typepal::Version;
 
 TModel collectAndSolve(Tree pt, TypePalConfig config = tconfig()){
     if(pt has top) pt = pt.top;
-    c = newCollector("collectAndSolve", pt, config=config);    // TODO get more meaningfull name
+    c = newCollector("collectAndSolve", pt, config);    // TODO get more meaningfull name
     collect(pt, c);
     return newSolver(pt, c.run()).run();
 }

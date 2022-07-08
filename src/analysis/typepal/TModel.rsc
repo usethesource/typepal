@@ -7,7 +7,6 @@ import Node;
 import IO;
 
 import analysis::typepal::Version;
-extend analysis::typepal::GetLoc;
 
 data AType;
 

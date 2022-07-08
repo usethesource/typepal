@@ -54,4 +54,6 @@ data Solver
                         value (str key) top,
                         list[value] (str key) getStack,
                         void (str key) clearStack
-    );
+    )
+    | dummySolver()
+    ;

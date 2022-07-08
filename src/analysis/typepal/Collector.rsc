@@ -179,15 +179,15 @@ void print(tuple[loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo]
     if(full) printDeps(getDependencies(def.defInfo), indent, facts);
 }
              
-Collector defaultCollector(Tree t) = newCollector("defaultModel", t);    
+Collector defaultCollector(Tree t) = newCollector("defaultModel", t, tconfig());    
 
-Collector newCollector(str modelName, Tree pt, TypePalConfig config = tconfig()){
-    return newCollector(modelName, (modelName : pt), config=config);
+Collector newCollector(str modelName, Tree pt, TypePalConfig config){
+    return newCollector(modelName, (modelName : pt), config);
 }
 
 anno loc Tree@src;
 
-Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config = tconfig()){
+Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config){
     
     str normalizeName(str input) {  
             return config.normalizeName(input); 
@@ -733,11 +733,11 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     // When LubDefs in disjoint scopes are encountered they will be merged into separate defines
         
     set[Define] mergeLubDefs(str id, loc scope, set[Define] lubDefs,  set[Use] uses, rel[loc,loc] enclosedScopes){
-        mergedDefs = {};
+        set[Define] mergedDefs = {};
         sortedLubDefs = sort(lubDefs, isDefinedBefore);
         Define firstDefine = sortedLubDefs[0];
         
-        deps = {}; getATypes = [];
+        set[loc] deps = {}; getATypes = [];
         defineds = {};
         set[IdRole] roles = {};
   
@@ -746,7 +746,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 mergedDefs += {<firstDefine.scope, id, id, role, firstDefine.defined, defTypeLub(ldeps, ldefs, getATypes)> | role <- roles, <ldeps, ldefs> := computeDepsAndDefs(deps, defineds, uses, firstDefine.scope, enclosedScopes)};
                 deps = {}; getATypes = [];
                 defineds = {};
-                set[IdRole] roles = {};
+                roles = {};
                 firstDefine = def;
             }
             roles += def.idRole;
@@ -1179,7 +1179,7 @@ default void collect(Tree currentTree, Collector c){
         case "sort": 
             { args = currentTree.args;
               nargs = size(args);
-              if(nargs == 1) collectArgs2(args, c); 
+              if(nargs == 1) collectArgs2(args, c); // automatic treatment of chain rules
               else if(nargs > 0) { 
                  throw TypePalUsage("Missing `collect` for <currentTree.prod>", [getLoc(currentTree)]); 
               }

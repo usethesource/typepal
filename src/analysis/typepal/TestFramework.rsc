@@ -18,6 +18,7 @@ import String;
 import Set;
 import Map;
 import List;
+import util::Benchmark;
 
 extend analysis::typepal::Messenger;
 extend analysis::typepal::TypePal;
@@ -74,9 +75,13 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
     map[tuple[str, loc], list[Message]]failedTests = ();
     ntests = 0;
     ok = true;
+    parseTime = 0;
+    testTime = 0;
     if(runName?) print("Running <runName> Tests\r");
     for(suite <- suites){
+        startParse = cpuTime(); 
         tr = parse(#start[TTL], suite, allowAmbiguity=true);
+        parseTime += (cpuTime() - startParse);
     
         // TODO: layout of the subject language may interfere with layout of TTL but this is a too harsh measure!
        
@@ -85,7 +90,7 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
         } else {
             ttlProgram = visit(tr.top){ case amb(set[Tree] alternatives2) => getOneFrom(alternatives2) };
         }
-        
+        startTests = cpuTime(); 
         for(TTL_TestItem ti <- ttlProgram.items){
             if (runOnly != {} && "<ti.name>" notin runOnly) {
                 continue;
@@ -112,6 +117,7 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
            } 
 
         }
+        testTime += (cpuTime() - startTests);
     }
     nfailed = size(failedTests);
     heading = (runName? ? (runName + " ") : "") + "Test Summary";
@@ -132,6 +138,7 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
             }
         }
     }
+    println("Parse time: <parseTime/1000000> msec; Test time: <testTime/1000000> msec");
     return ok;
 }
 
