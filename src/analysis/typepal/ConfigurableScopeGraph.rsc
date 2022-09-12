@@ -9,8 +9,7 @@ import Map;
 import String;
 extend ParseTree;
 
-syntax ANONYMOUS_OCCURRENCE = "anonymous_occurence";
-public loc anonymousOccurrence = ([ANONYMOUS_OCCURRENCE] "anonymous_occurence")@\loc;
+public loc anonymousOccurrence = |rascal-typepal:///anonymous_occurrence|(0,1,<2,3>,<2,4>);
 
 AType defaultGetMinAType(){
     throw TypePalUsage("`getMinAType()` called but is not specified in TypePalConfig");
