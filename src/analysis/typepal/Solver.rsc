@@ -1439,7 +1439,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                   //if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
                 } else {
                       doubleDefs += foundDefs;
-                      messages += [error("Double declaration of `<getId(definitions[d])>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs, bprintln(d)];
+                      messages += [error("Double declaration of `<getId(definitions[d])>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs];
                       //if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }

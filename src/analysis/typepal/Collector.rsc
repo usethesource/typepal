@@ -264,7 +264,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     Tree _getPredefinedTree(loc container, str id){
         nPredefinedTree+= 1;
         return appl(prod(sort("$PREDEFINED-<id>"), [], {}),
-                    [])[@\loc=container[query="predefined=<id>"][fragment="<nPredefinedTree>"]];
+                    [])[src=container[query="predefined=<id>"][fragment="<nPredefinedTree>"]];
     }
     
     bool _isAlreadyDefined(str id,  Tree useOrDef){
