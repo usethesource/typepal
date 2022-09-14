@@ -1,0 +1,11 @@
+
+test EvenOk [[ even 2; ]]
+
+test EvenWrong [[even 1;]] 
+expect { "Even statement should contain an even number" }
+
+
+test OddOK [[ odd 3; ]]
+
+test OddWrong [[odd 2;]] 
+expect { "Odd statement should contain an odd number" }
