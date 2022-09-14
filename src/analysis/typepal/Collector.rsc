@@ -257,14 +257,29 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    void _predefine(str id, IdRole idRole, value container, DefInfo info){
-        _define(id, idRole,  _getPredefinedTree(container, id), info);
+    Tree _predefine(str id, IdRole idRole, value def, DefInfo info){
+        l = _getPredefinedTree(def, id);
+        _define(id, idRole, l, info);
+        return l;
+    }
+    
+    Tree _predefineInScope(value scope, str id, IdRole idRole, DefInfo info){
+        l = _getPredefinedTree(scope, id);
+        
+        _defineInScope(scope, id, idRole, l, info);
+        return l;
     }
 
-    Tree _getPredefinedTree(loc container, str id){
-        nPredefinedTree+= 1;
+    Tree _getPredefinedTree(value scope, str id){
+    
+        loc defining = |undefined:///|;
+        if(Tree tdef := scope) defining = getLoc(tdef);
+        else if(loc ldef := scope) defining = ldef;
+        else throw TypePalUsage("Argument `scope` should be `Tree` or `loc`, found <typeOf(def)>");
+    
+        nPredefinedTree += 1;
         return appl(prod(sort("$PREDEFINED-<id>"), [], {}),
-                    [])[src=container[query="predefined=<id>"][fragment="<nPredefinedTree>"]];
+                    [])[@\loc=defining[query="predefined=<id>"][fragment="<nPredefinedTree>"]];
     }
     
     bool _isAlreadyDefined(str id,  Tree useOrDef){
@@ -1010,7 +1025,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         /* Define */        _define,
                             _defineInScope,
                             _predefine,
-                            _getPredefinedTree,
+                            _predefineInScope,
                             _isAlreadyDefined,
                             
         /* Use */           _use, 
