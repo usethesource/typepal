@@ -16,7 +16,7 @@ module examples::fwjava::Syntax
 
 // ----  syntax ---------------------------------------------------------------
 
-lexical ClassId  = ([A-Z][A-Zåa-z0-9]* !>> [a-z0-9]) \ Reserved;
+lexical ClassId  = ([A-Z][A-Za-z0-9]* !>> [a-z0-9]) \ Reserved;
 lexical Id       = ([a-z][a-z0-9]* !>> [a-z0-9]) \ Reserved;
 
 keyword Reserved = "class" | "extends" | "this" | "return";

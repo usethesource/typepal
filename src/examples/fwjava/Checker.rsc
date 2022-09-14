@@ -59,16 +59,11 @@ bool fwjMayOverload (set[loc] defs, map[loc, Define] defines) {
 // Set up the definition of the class and constructor for "Object"
 
  void fwjPreCollectInitialization(Tree _, Collector c){
-    
-    object_src = [ClassId] "Object";
-    c.defineInScope(|global-scope:///|, "Object", classId(), object_src, defType(classType("Object")));
-    c.enterScope(object_src);
-        object_cons_src = [ClassId] "Object1";
-        c.define("Object", constructorId(), object_cons_src, defType(methodType(classType("Object"), atypeList([]))));
-    c.leaveScope(object_src);
+    class_def = c.predefine("Object",  classId(), |global-scope:///|, defType(classType("Object")));
+    c.predefineInScope(class_def, "Object", constructorId(), defType(methodType(classType("Object"), atypeList([]))));
 }
 
-// Once all extendd are known, we can define the subtype relation
+// Once all extends are known, we can define the subtype relation
 
 TModel fwjPreSolver(map[str,Tree] _, TModel tm) {
     if(lrel[str,str] extendsRel := tm.store[key_extendsRelation]){
