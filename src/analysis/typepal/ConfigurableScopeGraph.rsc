@@ -427,13 +427,12 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         return res;
     }
     
-    Paths paths = tm.paths;
-    set[PathRole] pathRoles = paths.pathRole;
+   
     
     public set[loc] lookupWide(Use u){
     
         // Update current paths and pathRoles
-        current_paths = tm.paths;
+        current_paths =  the_solver.getPaths(); //tm.paths;
         if(current_paths != paths){
             paths = current_paths;
             pathRoles = paths.pathRole;
@@ -487,10 +486,15 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
          throw NoBinding();
     }
     
+    Paths paths = {}; 
+    set[PathRole] pathRoles = {};
+    
     Solver the_solver = dummySolver();
     
     void _setSolver(Solver s){
         the_solver = s;
+        paths = the_solver.getPaths();
+        pathRoles = paths.pathRole;
     }
     
     // Initialize the ScopeGraph context
