@@ -22,7 +22,7 @@ TModel evenOddTModelFromStr(str text){
 }
 
 test bool evenOddTests() {
-     return runTests([|home:///git/typepal/src/examples/evenOdd/tests.ttl|], 
+     return runTests([|project://typepal/src/examples/evenOdd/tests.ttl|], 
                      #EvenOdd, 
                      evenOddTModelForTree, 
                      runName="EvenOdd");
