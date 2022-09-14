@@ -35,8 +35,8 @@ data Collector
 
      /* Define */        void (str id, IdRole idRole, value def, DefInfo info) define,
                          void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope,
-                         void (str id, IdRole idRole, value container, DefInfo info) predefine,
-                         Tree (loc container, str id) getPredefinedTree,
+                         Tree (str id, IdRole idRole, value def, DefInfo info) predefine,
+                         Tree (value scope, str id, IdRole idRole, DefInfo info) predefineInScope,
                          bool (str id, Tree useOrDef) isAlreadyDefined,
 
      /* Use */           void (Tree occ, set[IdRole] idRoles) use,
