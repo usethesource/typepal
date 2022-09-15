@@ -1,6 +1,17 @@
 ---
 title: TypePal: Name and Type Analysis Made Easy 
-details: Overview,PocketCalculator,ConceptsAndDefinitions,Architecture,Reporting,Collector,Solver,Configuration,Utilities,Examples
+details:
+  - Overview
+  - PocketCalculator
+  - ConceptsAndDefinitions
+  - Architecture
+  - Reporting
+  - Collector
+  - Solver
+  - Configuration
+  - Utilities
+  - Examples
+
 ---
       
 #### Synopsis
