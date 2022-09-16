@@ -653,7 +653,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
     
      AType getTypeInScopeFromName0(str name, loc scope, set[IdRole] idRoles){
-        u = use(name, anonymousOccurrence, scope, idRoles);
+        u = use(name, name, anonymousOccurrence, scope, idRoles);
         foundDefs = scopeGraph.lookup(u);
         if({def} := foundDefs){
             return instantiate(facts[def]);
@@ -681,8 +681,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     AType getTypeInScope0(Tree occ, loc scope, set[IdRole] idRoles){
         //println("getTypeInScope0: <occ>, <scope>, <idRoles>");
-        id = normalizeName("<occ>");
-        u = use(normalizeName("<occ>"), getLoc(occ), scope, idRoles);
+        orgId = "<occ>";
+        id = normalizeName(orgId);
+        u = use(id, orgId, getLoc(occ), scope, idRoles);
         //println("u: <u>");
         foundDefs = scopeGraph.lookup(u);
         if({loc def} := foundDefs){
@@ -736,9 +737,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
        // println("getTypeInType: <containerType>, <selector>, <idRolesSel>");
        
         selectorLoc = getLoc(selector);
-        selectorName = normalizeName("<selector>");
+        selectorOrgName = "<selector>";
+        selectorName = normalizeName(selectorOrgName);
        
-        selectorUse = use(selectorName, selectorLoc, scope, idRolesSel);
+        selectorUse = use(selectorName, selectorOrgName, selectorLoc, scope, idRolesSel);
         if(overloadedAType(rel[loc, IdRole, AType] overloads) := containerType){
             rel[loc, IdRole, AType]  valid_overloads = {};
             for(<key, role, tp> <- overloads){
@@ -850,7 +852,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     set[Define] _getDefinitions(str id, loc scope, set[IdRole] idRoles){
         try {
-            foundDefs = scopeGraph.lookup(use(id, anonymousOccurrence, scope, idRoles));
+            foundDefs = scopeGraph.lookup(use(id, id, anonymousOccurrence, scope, idRoles));
             if({def} := foundDefs){
                return {definitions[def]};
             } else {
@@ -1275,8 +1277,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
      
     AType simplifyLub(list[AType] atypes) {
         //println("simplifyLub: <atypes>");
-        lubbedType = theMinAType;
-        other = [];
+        AType lubbedType = theMinAType;
+        list[AType]other = [];
         for(AType t <- atypes){
             if(isFullyInstantiated(t)){
                 lubbedType = getLubFun(lubbedType, t);
@@ -1439,7 +1441,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                   //if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> <foundDefs>");
                 } else {
                       doubleDefs += foundDefs;
-                      messages += [error("Double declaration of `<getId(definitions[d])>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs];
+                      messages += [error("Double declaration of `<getOrgId(definitions[d])>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs];
                       //if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }
@@ -1461,10 +1463,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             udef = definitions[ud];
             scope = udef.scope;
             id = udef.id;
+            orgId = udef.orgId;
             idRole = udef.idRole;
             defined = udef.defined;
         
-            u = use(id, defined, scope, {idRole}); // turn each unused definition into a use and check for double declarations;
+            u = use(id, orgId, defined, scope, {idRole}); // turn each unused definition into a use and check for double declarations;
             try {
                foundDefs = scopeGraph.lookup(u);
                foundDefs = { fd | fd <- foundDefs, definitions[fd].idRole in u.idRoles };
@@ -1475,7 +1478,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                  ;
                 } else {
                     doubleDefs += foundDefs;
-                    messages += [error("Double declaration of `<getId(definitions[d])>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs];
+                    messages += [error("Double declaration of `<getOrgId(definitions[d])>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs];
                     //if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                 }
             }
@@ -1610,9 +1613,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         defs = "\n<for(d <- foundDefs){>- <d>
                              '<}>
                              ";
-                        messages += [error("Double declaration of `<getId(definitions[d])>` at <defs>", d) | d <- foundDefs] /*+ error("Undefined `<getId(u)>` due to double declarations at <defs>", u.occ)*/;
+                        messages += [error("Double declaration of `<getOrgId(definitions[d])>` at <defs>", d) | d <- foundDefs] /*+ error("Undefined `<getOrgId(u)>` due to double declarations at <defs>", u.occ)*/;
                     
-                        //messages += [error("Double declaration of `<getId(d)>`", d) | d <- foundDefs] + error("Undefined `<getId(u)>` due to double declaration", u.occ);
+                        //messages += [error("Double declaration of `<getOrgId(d)>`", d) | d <- foundDefs] + error("Undefined `<getOrgId(u)>` due to double declaration", u.occ);
                         //if(logSolverSteps) println("!use  \"<u has id ? u.id : u.ids>\" at <u.occ> ==\> ** double declaration **");
                     }
                 } catch NoBinding(): {
@@ -1717,13 +1720,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                  foundDefs = scopeGraph.lookup(u);
              } catch NoBinding(): {
                 roles = size(u.idRoles) > 5 ? "" : intercalateOr([prettyRole(idRole) | idRole <- u.idRoles]);
-                messages += error("Undefined <roles> `<getId(u)>`", u.occ);
+                messages += error("Undefined <roles> `<getOrgId(u)>`", u.occ);
              }
         }
         
         for(u <- notYetDefinedUses){
             roles = size(u.idRoles) > 5 ? "" : intercalateOr([prettyRole(idRole) | idRole <- u.idRoles]);
-            messages += error("Undefined <roles> `<getId(u)>`", u.occ);
+            messages += error("Undefined <roles> `<getOrgId(u)>`", u.occ);
         }
          
         

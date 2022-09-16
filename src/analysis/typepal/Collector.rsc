@@ -242,7 +242,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 for(Define def <- defines + definesPerLubScope[currentLubScope]){
                     if(def.id == uid && config.isInferrable(def.idRole)){
                         if(def.scope in scopeStack<0>) {
-                            uses += use(uid, l, currentScope, {def.idRole});
+                            uses += use(uid, orgId, l, currentScope, {def.idRole});
                             return;
                         }
                     }
@@ -275,7 +275,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         loc defining = |undefined:///|;
         if(Tree tdef := scope) defining = getLoc(tdef);
         else if(loc ldef := scope) defining = ldef;
-        else throw TypePalUsage("Argument `scope` should be `Tree` or `loc`, found <typeOf(def)>");
+        else throw TypePalUsage("Argument `scope` should be `Tree` or `loc`, found <typeOf(scope)>");
     
         nPredefinedTree += 1;
         return appl(prod(sort("$PREDEFINED-<id>"), [], {}),
@@ -321,7 +321,8 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     void _use(Tree occ, set[IdRole] idRoles) {
         if(building){            
            //println("use <occ> at <getLoc(occ)> in scope <currentScope>");
-           uses += use(normalizeName("<occ>"), getLoc(occ), currentScope, idRoles);
+           orgId = "<occ>";
+           uses += use(normalizeName(orgId), orgId, getLoc(occ), currentScope, idRoles);
         } else {
             throw TypePalUsage("Cannot call `use` on Collector after `run`");
         }
@@ -338,7 +339,8 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     void _addPathToDef(Tree occ, set[IdRole] idRoles, PathRole pathRole) {
         if(building){
-            u = use(normalizeName("<occ>"), getLoc(occ), currentScope, idRoles);
+            orgId = "<occ>";
+            u = use(normalizeName(orgId), orgId, getLoc(occ), currentScope, idRoles);
             uses += u;
             referPaths += referToDef(u, pathRole);
         } else {
@@ -364,7 +366,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
    
     void _useQualified(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles){
         if(building){
-           uses += useq([normalizeName(id) | id <- ids], getLoc(occ), currentScope, idRoles, qualifierRoles);
+           uses += useq([normalizeName(id) | id <- ids], "<occ>", getLoc(occ), currentScope, idRoles, qualifierRoles);
         } else {
             throw TypePalUsage("Cannot call `useQualified` on Collector after `run`");
         }  
@@ -372,7 +374,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
      
      void _addPathToQualifiedDef(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole){
         if(building){
-            u = useq([normalizeName(id) | id <- ids], getLoc(occ), currentScope, idRoles, qualifierRoles);
+            u = useq([normalizeName(id) | id <- ids], "<occ>", getLoc(occ), currentScope, idRoles, qualifierRoles);
             uses += u;
             referPaths += referToDef(u, pathRole);
         } else {
@@ -828,7 +830,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         
         for(str id <- deflub_names){
             set[loc] id_defined_in_scopes = { def.scope | def <- deflubs_in_lubscope, def.id == id };
-            set[Use] id_used_in_scopes = {use(tup.tid, tup.occ, tup.idScope, tup.idRoles) | tuple[str tid, str orgId, loc idScope, set[IdRole] idRoles, loc occ] tup <- uselubs_in_lubscope, tup.tid == id};
+            set[Use] id_used_in_scopes = {use(tup.tid, tup.orgId, tup.occ, tup.idScope, tup.idRoles) | tuple[str tid, str orgId, loc idScope, set[IdRole] idRoles, loc occ] tup <- uselubs_in_lubscope, tup.tid == id};
             id_defined_in_scopes = { sc1 | loc sc1 <- id_defined_in_scopes, isEmpty(enclosedScopes) || !any(loc sc2 <- id_defined_in_scopes, sc1 != sc2, <sc2, sc1> in enclosedScopes)};
             
             //println("Consider <id>, defined in scopes <id_defined_in_scopes>");
@@ -838,14 +840,14 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             if({ _ } := local_fixed_defines[lubScope, id]){   // Definition exists with fixed type in the lubScope; Use it instead of the lubDefines          
                //println("---top level fixedDef: <fixedDef> in <lubScope>");
                for(def <- deflubs_in_lubscope, def.id == id){
-                   u = use(id, def.defined, lubScope, {def.idRole});
+                   u = use(id, id, def.defined, lubScope, {def.idRole});
                    //println("add: <u>");
                    uses += u;
                }
             } else if(existsFixedDefineInOuterScope(id, lubScope)){   // Definition exists with fixed type in a surrounding scope; Use it instead of the lubDefines          
                //println("---top level fixedDef: <fixedDef> in <lubScope>");
                for(def <- deflubs_in_lubscope, def.id == id){
-                   u = use(id, def.defined, lubScope, {def.idRole});
+                   u = use(id, id, def.defined, lubScope, {def.idRole});
                    //println("add: <u>");
                    uses += u;
                }
@@ -855,7 +857,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 for(scope <- allScopes){
                     if(scope in local_fixed_defines_scope[id]){
                         for(def <- deflubs_in_lubscope, def.id == id, def.scope in enclosedScopes[scope]){
-                            u = use(id, def.defined, scope, {def.idRole});
+                            u = use(id, id, def.defined, scope, {def.idRole});
                             //println("add: <u>");
                             uses += u;
                         }
@@ -878,7 +880,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                    //println("fixedDef: <fixedDef> in inner scope <scope>");
                    // There exists a definition with fixed type in the inner scope, just use it instead of the lubDefines
                    for(def <- deflubs_in_lubscope, def.id == id, def.scope in enclosedScopes[id_defined_in_scopes]){
-                       u = use(id, def.defined, scope, {def.idRole});
+                       u = use(id, id, def.defined, scope, {def.idRole});
                       //println("add: <u>");
                        uses += u;
                    }
@@ -891,9 +893,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         
         // Transform uncovered lubUses into ordinary uses
     
-        for(u: <str id, str _orgId, loc idScope, set[IdRole] idRoles, loc occ> <- uselubs_in_lubscope){
+        for(u: <str id, str orgId, loc idScope, set[IdRole] idRoles, loc occ> <- uselubs_in_lubscope){
             //println("replace lubUse by <use(id, occ, idScope, idRoles)>");
-            uses += use(id, occ, idScope, idRoles);
+            uses += use(id, orgId, occ, idScope, idRoles);
             uselubs_in_lubscope -= u;
         }
         

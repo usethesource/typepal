@@ -452,13 +452,13 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
                qscopes = {};
                for(str id <- u.ids[0..-1]){ 
                    //if(wdebug) println("lookup, search for <id>"); 
-                   qscopes = lookupNestWide(scope, use(id, u.occ, scope, u.qualifierRoles));
+                   qscopes = lookupNestWide(scope, use(id, "<u.occ>", u.occ, scope, u.qualifierRoles));
                    if(isEmpty(qscopes)) throw NoBinding();
                 }
     
                 defs = {};
                 for(loc qscope <- qscopes){
-                    scopeLookups = lookupNestWide(qscope, use(u.ids[-1], u.occ, qscope, u.idRoles));
+                    scopeLookups = lookupNestWide(qscope, use(u.ids[-1], "<u.occ>", u.occ, qscope, u.idRoles));
                     defs += { def | def <- scopeLookups, isAcceptableQualifiedFun(def, u, the_solver) == acceptBinding()};            
                 }
                 if(!isEmpty(defs)){
@@ -472,7 +472,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
                 } else {
                      allScopes = domain(tm.scopes) + range(tm.scopes);
                      for(str id <- u.ids[0..-1]){ 
-                        qscopes = lookupNestWide(scope, use(id, u.occ, scope, u.qualifierRoles));
+                        qscopes = lookupNestWide(scope, use(id, "<u.occ>", u.occ, scope, u.qualifierRoles));
                         for(loc qscope <- qscopes){
                             if(qscope notin allScopes){
                                 throw TypePalUsage("Definition of qualifier `<id>` is unknown as scope, check its definition", [qscope]);
