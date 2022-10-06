@@ -59,7 +59,7 @@
             <plugin>
                 <groupId>org.rascalmpl</groupId>
                 <artifactId>rascal-maven-plugin</artifactId>
-                <version>0.9.0</version>
+                <version>0.9.2</version>
                 <configuration>
                     <bin>${project.build.outputDirectory}</bin>
                     <srcs>
@@ -96,6 +96,7 @@
                             <bin>${project.build.outputDirectory}</bin>
                             <srcs>
                                 <src>${project.basedir}/doc/TypePal/</src>
+                                <src>${project.basedir}/src</src>
                             </srcs>
                         </configuration>
                     </execution> 
