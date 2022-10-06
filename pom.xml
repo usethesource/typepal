@@ -59,7 +59,7 @@
             <plugin>
                 <groupId>org.rascalmpl</groupId>
                 <artifactId>rascal-maven-plugin</artifactId>
-                <version>0.8.1</version>
+                <version>0.9.0</version>
                 <configuration>
                     <bin>${project.build.outputDirectory}</bin>
                     <srcs>
@@ -84,6 +84,20 @@
                         <goals>
                             <goal>package</goal>
                         </goals>
+                    </execution> 
+                    <execution>
+                        <id>default-cli</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>tutor</goal>
+                        </goals>
+                        <configuration>
+                            <errorsAsWarnings>false</errorsAsWarnings>
+                            <bin>${project.build.outputDirectory}</bin>
+                            <srcs>
+                                <src>${project.basedir}/doc/TypePal/</src>
+                            </srcs>
+                        </configuration>
                     </execution> 
                 </executions>
             </plugin>
