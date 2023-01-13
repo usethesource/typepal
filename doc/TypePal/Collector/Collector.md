@@ -64,7 +64,7 @@ where
 
 * `modelName` is the name of the TModel to be created (used for logging);
 * `pt` is the parse tree of the source program to be type checked;
-* `config` is a ((TypePal Configuration)).
+* `config` is a ((TypePal:Configuration)).
 
 Once a Collector has been created, the user-defined `collect` function is invoked
 with the current parse tree of a source program and the Collector as arguments.
@@ -96,7 +96,7 @@ IMPORTANT: Each `collect` function is responsible for collecting constraints fro
 
 ##### Configuration
 
-The ((TypePal Configuration)) can be retrieved or adjusted by the following two functions:
+The ((TypePal:Configuration)) can be retrieved or adjusted by the following two functions:
 ```rascal
 /* Collector field */ TypePalConfig () getConfig;
 /* Collector field */ void (TypePalConfig cfg) setConfig;
@@ -114,7 +114,7 @@ Scope management amounts to entering a new scope, leave the current scope and re
 ```
 In order to check consistency, `leaveScope` has the inner scope that it is supposed to be leaving as argument.
 
-Here is an example how the `let` expression in ((Fun)) handles subscopes:
+Here is an example how the `let` expression in ((examples::fun)) handles subscopes:
 
 ```rascal
 void collect(current: (Expression) `let <Id name> : <Type tp> = <Expression exp1> in <Expression exp2> end`, Collector c) {  
@@ -245,7 +245,7 @@ The following functions add to the scope graph a path from the current scope to 
 `occ` is an occurence of a name that should be defined elsewhere in one of the given roles.
 The effect is to add a `pathRole` path between the current scope and the definition.
 
-Here is an example taken from ((ModFun)):
+Here is an example taken from ((examples::modfun)):
 ```rascal
 void collect(current: (ImportDecl) `import <ModId mid> ;`, Collector c){
      c.addPathToDef(mid, {moduleId()}, importPath());
@@ -264,7 +264,7 @@ Similar to `addPathToDef` for the occurrence of a qualified names rather than a 
 `occ` is a parse tree with has a certain type.
 The effect is to add a `pathRole` path between the current scope and the definition of that type.
 
-A prime example is type checking of ((Pascal))'s `with` statement which _opens_ the definition
+A prime example is type checking of ((examples::pascal))'s `with` statement which _opens_ the definition
 of a record type and makes all defined fields available in the body of the `with` statement.
 Here we create a `withPath` between the scope of the with statement and all definitions
 of the record types of the given record variables:
@@ -309,7 +309,7 @@ The most elementary use of a name is described by:
 The parse tree `occ` is a use to be resolved in the current scope in one of the given roles `idRoles`.
 The use of a variable in an expression is typically modelled with this use function.
 
-Here is an example from ((Calc)):
+Here is an example from ((examples::calc)):
 ```rascal
 void collect(current: (Exp) `<Id name>`, Collector c){
     c.use(name, {variableId()});
@@ -340,7 +340,7 @@ where
 * `selector`: is the name to be selected from that named type.
 * `idRolesSel`:  are the IdRoles allowed for the selector.
 
-Here is an example of field selection from a record in ((Struct)):
+Here is an example of field selection from a record in ((examples::struct)):
 
 ```rascal
 void collect(current:(Expression)`<Expression lhs> . <Id fieldName>`, Collector c) {
@@ -352,7 +352,7 @@ void collect(current:(Expression)`<Expression lhs> . <Id fieldName>`, Collector 
 <1> Determine the type of `lhs`, say T. Now look for a definition of `fieldName` (as `fieldId`) in the definition of _T_.
 <2> The type of the whole expressions becomes the type of `fieldId`.
 
-`useViaType` can be configured with ((getTypeNamesAndRole)) and ((getTypeInNamelessType)) that
+`useViaType` can be configured with ((TypePalConfig))'s `getTypeNamesAndRole` and `getTypeInNamelessType` that
 determine the precise mapping between a named or unnamed type and its fields.
 
 ###### UseLub
@@ -374,7 +374,7 @@ ATypes may contain type variables and new type variables can be created using `n
 
 Type variables can be bound via unification.
 
-Here is an example of a call expression taken from ((UntypedFun)):
+Here is an example of a call expression taken from ((examples::untypedFun)):
 
 ```rascal
 void collect(current: (Expression) `<Expression exp1>(<Expression exp2>)`, Collector c) { 
@@ -407,7 +407,7 @@ The function `fact` registers known type information for a program fragment `src
 ```
 where `atype` can be either an `AType` or a `Tree`. In the latter case the type of that Tree is used when available.
 
-Here are two examples from ((Calc)):
+Here are two examples from ((examples::calc)):
 ```rascal
 void collect(current: (Exp) `<Integer integer>`, Collector c){
     c.fact(current, intType()); //<1>
