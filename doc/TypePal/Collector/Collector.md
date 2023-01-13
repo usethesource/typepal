@@ -384,7 +384,7 @@ void collect(current: (Expression) `<Expression exp1>(<Expression exp2>)`, Colle
      c.calculateEager("application", current, [exp1, exp2],
         AType (Solver s) { 
               s.requireUnify(functionType(tau1, tau2), exp1, error(exp1, "Function type expected, found %t", exp1));
-              s.requireUnify(tau1, exp2, error(exp2, "Incorrect type of actual parameter"));             
+              s.requireUnify(tau1, exp2, error(exp2, "Incorrect type actual parameter"));             
               return tau2;
             });
       collect(exp1, exp2, c);
@@ -431,7 +431,7 @@ while `calculateEager` can also handle dependencies that still contain type vari
 /* Collector field */ void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculate;
 /* Collector field */ void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculateEager;
 ```
-See ((A Calculator Language)) and ((Examples of Typecheckers)) for examples of calculator definitions.
+See ((A Calculator Language)) and [Examples of Typecheckers]((Examples)) for examples of calculator definitions.
 
 See ((Inference)) for details about type variables.
 
