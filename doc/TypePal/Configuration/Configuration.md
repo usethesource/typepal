@@ -6,7 +6,7 @@ title: TypePal Configuration
 
 Configuration options for TypePal
 
-#### Description
+## Description
 
 TypePal provides configuration options for
 
@@ -21,9 +21,9 @@ Here is an overview:
 
 ![]((TypePalConfig.png))
 
-== Name Resolution & Overloading
+### Name Resolution & Overloading
 
-=== isAcceptableSimple
+####  isAcceptableSimple
 ```rascal
 /* Configuration field */ Accept (TModel tm, loc def, Use use) isAcceptableSimple
 ```
@@ -61,7 +61,7 @@ Accept myIsAcceptableSimple(TModel tm, loc def, Use use)
     = use.occ.offset > def.offset ? acceptBinding() : ignoreContinue();
 ```
 
-=== isAcceptableQualified
+#### isAcceptableQualified
 ```rascal
 /* Configuration field */ Accept (TModel tm, loc def, Use use) isAcceptableQualified
 ```
@@ -73,7 +73,7 @@ Here
 
 `isAcceptableQualified` accepts or rejects a proposed definition for the use of a qualified name in a particular role.
   
-=== isAcceptablePath
+#### isAcceptablePath
 ```rascal
 /* Configuration field */ 
 Accept (TModel tm, loc defScope, loc def, Use use, PathRole pathRole) isAcceptablePath
@@ -97,7 +97,7 @@ Accept myIsAcceptablePath(TModel tm, loc def, Use use, PathRole pathRole) {
 }
 ```
 
-=== mayOverload
+#### mayOverload
 ```rascal
 /* Configuration field */ bool (set[loc] defs, map[loc, Define] defines) mayOverload 
 ```
@@ -105,45 +105,45 @@ Accept myIsAcceptablePath(TModel tm, loc def, Use use, PathRole pathRole) {
 `mayOverload` determines whether a set of definitions (`defs`) are allowed to be overloaded,
 given their definitions (`defines`).
 
-In ((FWJava)) the only allowed overloading is between class names and constructor names.
+For example, [Featherweight Java]((examples::fwjava::Checker)) the only allowed overloading is between class names and constructor names.
 ```rascal
 bool fwjMayOverload (set[loc] defs, map[loc, Define] defines) {
     roles = {defines[def].idRole | def <- defs};  //<1>
-    return roles == {classId(), constructorId()}; //<2>
+    return roles ### {classId(), constructorId()}; //<2>
 }
 ```
 <1> First collect all the roles in which the overloaded names have been defined.
 <2> Only allow the combination of class name and constructor name.
 
 
-== Operations on Types
+### Operations on Types
 Various operations on types can be configured by way of user-defined functions.
 
-=== isSubType
+#### isSubType
 ```rascal
 /* Configuration field */ bool (AType l, AType r) isSubType 
 ```
 Function that checks whether `l` is a subtype of `r`.
 
-=== getLub
+#### getLub
 ```rascal
 /* Configuration field */ AType (AType l, AType r) getLub
 ```
 Function that computes the least upperbound of two types and `l` and `r`.
 
-=== getMinAType
+#### getMinAType
 ```rascal
 /* Configuration field */ AType() getMinAType 
 ```
 Function that returns the _smallest_ type of the type lattice.
 
-=== getMaxAType
+#### getMaxAType
 ```rascal
 /* Configuration field */ AType() getMaxAType
 ```
 Function that returns the _largest_ type of the type lattice.
 
-=== instantiateTypeParameters
+#### instantiateTypeParameters
 ```rascal
 /* Configuration field */ AType (Tree current, AType def, AType ins, AType act, Solver s) instantiateTypeParameters
 ```
@@ -159,7 +159,7 @@ The function `instantiateTypeParameters` defines instantiation of *language-spec
 `instantiateTypeParameters` will match `def` with `ins` and the resulting bindings will be used to instantiate `act`.
 The instantiated version of `act` is returned.
 
-In ((StructParameters)) parameterized structs (records) are defined. 
+In the [StructParameters demo]((examples::structParameters::Checker)) parameterized structs (records) are defined. 
 The formal type of such a struct is ``structDef(str name, list[str] formals)``, 
 i.e., a struct has a name and a list of named formal type parameters.
 The actual type of a struct is ``structType(str name, list[AType] actuals)``, 
@@ -178,21 +178,21 @@ AType structParametersInstantiateTypeParameters(Tree current, structDef(str name
 default AType structParametersInstantiateTypeParameters(Tree current, AType def, AType ins, AType act, Solver s) = act;
 ```
 
-== Retrieval of Types
+### Retrieval of Types
 
-=== getTypeNamesAndRole
+#### getTypeNamesAndRole
 ```rascal
 /* Configuration field */  tuple[list[str] typeNames, set[IdRole] idRoles] (AType atype) getTypeNamesAndRole
 ```
 This function determines whether a given `atype` is a named type or not. This is needed for the customization
-of indirect type computations such as ((useViaType)) and ((getTypeInType)). When `atype` is a named type
+of indirect type computations such as `useViaType` and `getTypeInType`. When `atype` is a named type
 `getTypeNamesAndRole` returns:
 
 * A list of names that may be associated with it. In most languages this will contain just a single element, the name of the type.
   In more sophisticated cases the list may contain a list of named types to be considered.
 * A list of roles in which the type name can be bound.
 
-Here are the definitions for ((Struct)):
+Here are the definitions for the [Struct demo]((examples::struct::Checker)):
 ```rascal
 tuple[list[str] typeNames, set[IdRole] idRoles] structGetTypeNamesAndRole(structType(str name)){
     return <[name], {structId()}>; //<1>
@@ -209,7 +209,7 @@ Another example is the Rascal type checker, where we need to model the case that
 In that case `getTypeNamesAndRole` will return `<["A", "Tree"], roles>` for an abstract data type `A`. The net effect
 is that when the search for a name in `A` fails, the search is continued in `Tree`.
 
-=== getTypeInTypeFromDefine
+#### getTypeInTypeFromDefine
 ```rascal
 /* Configuration field */  AType (Define containerDef, str selectorName, set[IdRole] idRolesSel, Solver s) getTypeInTypeFromDefine
 ```
@@ -220,81 +220,81 @@ of the container type. `getTypeInTypeFromDefine` is called as a last resort from
 In the Rascal type checker common keyword parameters of data declarations are handled using `getTypeInTypeFromDefine`.
 
 
-=== getTypeInNamelessType
+#### getTypeInNamelessType
 ```rascal
 /* Configuration field */ AType(AType containerType, Tree selector, loc scope, Solver s) getTypeInNamelessType
 ```
 `getTypeInNamelessType` describes field selection on built-types that have not been explicitly declared with a name.
 A case in point is a `length` field on a built-in string type.
 
-In ((StaticFields)) this is done as follows:
+In [the StaticFields demo]((examples::staticFields::Checker)))) this is done as follows:
 ```rascal
 AType staticFieldsGetTypeInNamelessType(AType containerType, Tree selector, loc scope, Solver s){
-    if(containerType == strType() && "<selector>" == "length") return intType();
+    if(containerType ### strType() && "<selector>" ### "length") return intType();
     s.report(error(selector, "Undefined field %q on %t", selector, containerType));
 }
 ```
 
-== Extension Points
+### Extension Points
     
-=== preSolver
+#### preSolver
 ```rascal
 /* Configuration field */ TModel(map[str,Tree] namedTrees, TModel tm) preSolver
 ```
 A function `preSolver` that can enrich or transform the TModel before the Solver is applied to it.
 
-=== postSolver
+#### postSolver
 ```rascal
 /* Configuration field */ void (map[str,Tree] namedTrees, Solver s) postSolver
 ```
 A function `postSolver` that can enrich or transform the TModel after constraint solving is complete.
 
 
-== Miscellaneous
+### Miscellaneous
 
-=== unescapeName
+#### unescapeName
 ```rascal
 /* Configuration field */  str(str) unescapeName  
 ```
 A function _unescapeName_ to define language-specific escape rules for names.
 By default, all backslashes are removed from names.
 
-=== validateConstraints
+#### validateConstraints
 ```rascal
 /* Configuration field */ bool validateConstraints = true
 ```
 When `validateConstraints` is true, the validity of all constraints is checked before solving starts.
 For all dependencies (in facts, calculators and requirements) a calculator needs to be present to solve that dependency.
 
-== Verbosity
+### Verbosity
 
 The verbosity of TypePal can be controlled with several configurations settings.
 
-=== showTimes
+#### showTimes
 ```rascal
 /* Configuration field */ bool showTimes = false
 ```
 When `showTimes` is true, the time of the Collector and Solver phases is printed.
 
-=== showSolverSteps
+#### showSolverSteps
 ```rascal
 /* Configuration field */ bool showSolverSteps = false
 ```
 When `showSolverSteps` is true, each step of the Solver is printed.
 
-=== showSolverIterations
+#### showSolverIterations
 ```rascal
 /* Configuration field */ bool showSolverIterations = false
 ```
 When `showSolverIterations` is true, information is printed about each iteration of the Solver.
 
-=== showAttempts
+#### showAttempts
 ```rascal
 /* Configuration field */ bool showAttempts = false
 ```
 When `showAttempts` is true, the number of evaluation attempts per calculator or requirement is printed when solving is complete.
 
-=== showTModel
+#### showTModel
 ```rascal
 /* Configuration field */ bool showTModel = false
 ```
