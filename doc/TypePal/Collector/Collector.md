@@ -291,7 +291,7 @@ where:
 * `id` is the textual appearance of the name.
 * `idRole` is the role played by the name.
 * `def` is the part of the parse tree that corresponds to the definition of the name.
-* `info` is the definition information ((DefInfo)) to be associated with this definition.
+* `info` is the definition information ((analysis::typepal::Collector::DefInfo)) to be associated with this definition.
 
 The function `defineInScope` adds the definition of a name in a _given_ scope:
 ```rascal
@@ -352,7 +352,7 @@ void collect(current:(Expression)`<Expression lhs> . <Id fieldName>`, Collector 
 <1> Determine the type of `lhs`, say T. Now look for a definition of `fieldName` (as `fieldId`) in the definition of _T_.
 <2> The type of the whole expressions becomes the type of `fieldId`.
 
-`useViaType` can be configured with ((TypePalConfig))'s `getTypeNamesAndRole` and `getTypeInNamelessType` that
+`useViaType` can be configured with ((analysis::typepal::TModel::TypePalConfig))'s `getTypeNamesAndRole` and `getTypeInNamelessType` that
 determine the precise mapping between a named or unnamed type and its fields.
 
 ###### UseLub
@@ -431,9 +431,9 @@ while `calculateEager` can also handle dependencies that still contain type vari
 /* Collector field */ void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculate;
 /* Collector field */ void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculateEager;
 ```
-See ((A Calculator Language)) and [Examples of Typecheckers]((Examples)) for examples of calculator definitions.
+See [A Calculator Language]((PocketCalculator)) and [Examples of Typecheckers]((Examples)) for examples of calculator definitions.
 
-See ((Inference)) for details about type variables.
+See [Inference](#inference) for details about type variables.
 
 ##### Require
 
@@ -461,5 +461,5 @@ that the one is a subtype of the other, or that they can be unified:
 ```
 The arguments `l` and `r` should either be an AType or a subtree whose type is known.
 
-See ((A Calculator Language)) and ((Examples of Typecheckers)) for examples of requirement definitions.
-See ((Inference)) for details about type variables.
+See [A Calculator Language]((PocketCalculator)) and [Examples of Typecheckers]((Examples)) for examples of requirement definitions.
+See [Inference](#inference) for details about type variables.

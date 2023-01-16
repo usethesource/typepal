@@ -10,7 +10,7 @@ Calc illustraties the basic facilities of TypePal
 
 By developing a type checker for *_Calc_*, a tiny pocket calculator language, we illustrate elementary usage of TypePal.
 The full source code of Calc can be found at https://github.com/cwi-swat/typepal/tree/master/src/examples/calc.
-See ((Examples of Typecheckers)) for a list of all available type checker examples.
+See [Examples of Typecheckers]((Examples)) for a list of all available type checker examples.
 
 == Syntax of Calc
 
@@ -159,7 +159,9 @@ An expression consisting of a single identifier represents a _use_ of that ident
 
 NOTE: In larger languages names may be defined in different scopes. Scopes do not play a role in Cal.
 
-NOTE: We do not enforce _define-before-use_ in this example, but see ((XXX)) how to achieve this.
+NOTE: We do not enforce _define-before-use_ in this example, but see XXX how to achieve this.
+
+(((TODO:add reference for XXX)))
 
 ==== Check Exp: Boolean and Integer constants
 

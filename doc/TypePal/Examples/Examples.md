@@ -25,7 +25,7 @@ Each example has the same structure:
 == Calc
 
 
-| *What*        | The pocket calculator language Calc; we already covered it ((A simple pocket calculator language)) |
+| *What*        | The pocket calculator language Calc; we already covered it [A simple pocket calculator language]((PocketCalculator)) |
 | --- | --- |
 | *Illustrates* | fact, define, use, requireEqual, calculate, getType, report |
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/calc |
@@ -58,7 +58,7 @@ Each example has the same structure:
 == ModFun
 
 
-| *What*        | Extension of ((Fun)) with modules |
+| *What*        | Extension of ((examples::fun)) with modules |
 | --- | --- |
 | *Illustrates* | PathRole, addPathToDef |
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/modfun |
@@ -75,7 +75,7 @@ Each example has the same structure:
 
 == Aliases
 
-| *What*        |  ((Struct)) extended with type aliases |
+| *What*        |  ((examples::struct)) extended with type aliases |
 | --- | --- |
 | *Illustrates* | useViaType, TypePalConfig, getTypeNamesAndRole |
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/aliases |
@@ -85,7 +85,7 @@ Each example has the same structure:
 == StaticFields
 
 
-| *What*        | ((Struct)) extended with fields on non-record type |
+| *What*        | ((examples::struct)) extended with fields on non-record type |
 | --- | --- |
 | *Illustrates* | useViaType, TypePalConfig, getTypeNamesAndRole, getTypeInNamelessType  |
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/staticFields |
@@ -93,7 +93,7 @@ Each example has the same structure:
 
 == StructParameters
 
-| *What*        | ((Struct)) with parameterized records |
+| *What*        | ((examples::struct)) with parameterized records |
 | --- | --- |
 | *Illustrates* | useViaType, TypePalConfig, getTypeNamesAndRole, getTypeInNamelessType, instantiateTypeParameters |
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/structParameters |
