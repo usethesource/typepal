@@ -55,7 +55,7 @@ For instance, given a  `Collector` named `c`, calling the `define` function amou
 All Collector functions are prefixed with `/* Collector field */` to emphasize that they
 are a field of the Collector datatype.
 
-== LifeCycle of Collector
+##### LifeCycle of Collector
 A new `Collector` is created using the function `newCollector`.
 ```rascal
 Collector newCollector(str modelName, Tree pt, TypePalConfig config = tconfig());   
@@ -64,7 +64,7 @@ where
 
 * `modelName` is the name of the TModel to be created (used for logging);
 * `pt` is the parse tree of the source program to be type checked;
-* `config` is a ((TypePal Configuration)).
+* `config` is a ((TypePal:Configuration)).
 
 Once a Collector has been created, the user-defined `collect` function is invoked
 with the current parse tree of a source program and the Collector as arguments.
@@ -94,16 +94,16 @@ where:
 
 IMPORTANT: Each `collect` function is responsible for collecting constraints from its subtrees. 
 
-== Configuration
+##### Configuration
 
-The ((TypePal Configuration)) can be retrieved or adjusted by the following two functions:
+The ((TypePal:Configuration)) can be retrieved or adjusted by the following two functions:
 ```rascal
 /* Collector field */ TypePalConfig () getConfig;
 /* Collector field */ void (TypePalConfig cfg) setConfig;
 ```
 The former returns the current TypePal configuration, the latter sets the current configuration to a new configuration.
 
-== Scoping
+##### Scoping
 
 Scope management amounts to entering a new scope, leave the current scope and retrieving the current scope:
 
@@ -114,7 +114,7 @@ Scope management amounts to entering a new scope, leave the current scope and re
 ```
 In order to check consistency, `leaveScope` has the inner scope that it is supposed to be leaving as argument.
 
-Here is an example how the `let` expression in ((Fun)) handles subscopes:
+Here is an example how the `let` expression in ((examples::fun)) handles subscopes:
 
 ```rascal
 void collect(current: (Expression) `let <Id name> : <Type tp> = <Expression exp1> in <Expression exp2> end`, Collector c) {  
@@ -127,7 +127,7 @@ void collect(current: (Expression) `let <Id name> : <Type tp> = <Expression exp1
 ```
 
 
-== Scope Info
+##### Scope Info
 It is possible to associate auxiliary information with each scope.
 This enables the downward propagation of information during the topdown traversal of the source program by `collect`.
 Typical use cases are:
@@ -193,7 +193,7 @@ void collect(current:(Statement) `break <Target target>;`, Collector c){
 <3> When handling a `break` statement, we get all available ScopeInfo for loopScopes (innermost first) and check the associated loopInfo.
     
 
-== Nested Info
+##### Nested Info
 An arbitrary number of push down stacks can be maintained during the topdown traversal of the source code that is being type checked.
 A use case is recording that a certain syntax type is encountered and make children aware of this, e.g. "we are inside a parameter list".
 
@@ -209,7 +209,7 @@ Each stack has a string name (`key`) and is created on demand.
 `push`, `pop`, and `top` perform standard stack operations. `push` creates a stack when needed, while `top` and `pop` require
 the existence of the named stack. `getStack` returns all values in the named stack, while `clearStack` resets it to empty.
 
-== Composition
+##### Composition
 
 TModels can be composed by adding the information from one TModel to the other. A use case is module compoisition.
 
@@ -219,7 +219,7 @@ TModels can be composed by adding the information from one TModel to the other. 
 
 `addTModel` adds the information in `tm` to the current Collector.
 
-== Reporting
+##### Reporting
 One or more reports can be added by `report` and `reports`:
 ```rascal
 /* Collector field */ void (FailMessage fmsg) report;
@@ -230,13 +230,13 @@ See ((Reporting)) for a description of `FailMessage`.
 
 IMPORTANT: If one of the messages is `error` the execution of the current calculator or requirement is immediately terminated.
      
-== Add Path
+##### Add Path
 
 TypePal is based on nested scopes and path between scopes. The former represent textual nesting as present in block structure and function scopes.
 The latter represent non-local semantic links between program parts as present in import statements between modules or Pascal's with statement.
 The following functions add to the scope graph a path from the current scope to another scope.
 
-=== Add a path to a definition
+###### Add a path to a definition
 ```rascal
 /* Collector field */ void (Tree occ, set[IdRole] idRoles, PathRole pathRole) addPathToDef;
 ```
@@ -245,26 +245,26 @@ The following functions add to the scope graph a path from the current scope to 
 `occ` is an occurence of a name that should be defined elsewhere in one of the given roles.
 The effect is to add a `pathRole` path between the current scope and the definition.
 
-Here is an example taken from ((ModFun)):
+Here is an example taken from ((examples::modfun)):
 ```rascal
 void collect(current: (ImportDecl) `import <ModId mid> ;`, Collector c){
      c.addPathToDef(mid, {moduleId()}, importPath());
 }
 ```
-=== Add a path to a qualified definition
+###### Add a path to a qualified definition
 ```rascal
 /* Collector field */ void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole) addPathToQualifiedDef;   
 ```
 Similar to `addPathToDef` for the occurrence of a qualified names rather than a simple name.
 
-=== Add a path to a type
+###### Add a path to a type
 ```rascal
 /* Collector field */ void (Tree occ, PathRole pathRole) addPathToType
 ```
 `occ` is a parse tree with has a certain type.
 The effect is to add a `pathRole` path between the current scope and the definition of that type.
 
-A prime example is type checking of ((Pascal))'s `with` statement which _opens_ the definition
+A prime example is type checking of ((examples::pascal))'s `with` statement which _opens_ the definition
 of a record type and makes all defined fields available in the body of the `with` statement.
 Here we create a `withPath` between the scope of the with statement and all definitions
 of the record types of the given record variables:
@@ -280,7 +280,7 @@ void collect(current: (WithStatement) `with <{RecordVariable ","}+ recordVars> d
 }
 ```
                        
-== Define
+##### Define
 
 The function `define` adds the definition of a name in the _current_ scope:
 ```rascal
@@ -291,16 +291,16 @@ where:
 * `id` is the textual appearance of the name.
 * `idRole` is the role played by the name.
 * `def` is the part of the parse tree that corresponds to the definition of the name.
-* `info` is the definition information ((DefInfo)) to be associated with this definition.
+* `info` is the definition information ((analysis::typepal::Collector::DefInfo)) to be associated with this definition.
 
 The function `defineInScope` adds the definition of a name in a _given_ scope:
 ```rascal
 /* Collector field */  void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope
 ```
 
-== Use
+##### Use
 
-=== Use an unqualified name
+###### Use an unqualified name
 There are three functions to describe the occurrence of a name in a parse tree as a use.
 The most elementary use of a name is described by:
 ```rascal
@@ -309,14 +309,14 @@ The most elementary use of a name is described by:
 The parse tree `occ` is a use to be resolved in the current scope in one of the given roles `idRoles`.
 The use of a variable in an expression is typically modelled with this use function.
 
-Here is an example from ((Calc)):
+Here is an example from ((examples::calc)):
 ```rascal
 void collect(current: (Exp) `<Id name>`, Collector c){
     c.use(name, {variableId()});
 }
 ```
 
-=== Use a qualified name
+###### Use a qualified name
 
 Next we consider the use of qualified names, i.e., a list of identifiers that will be resolved from left to right.
 We will call these identifiers (except the last one) _qualifiers_ and the last one the _qualified identifier_.
@@ -325,9 +325,9 @@ We will call these identifiers (except the last one) _qualifiers_ and the last o
 ```
 
 Here `ids` is the list of strings that form the qualified name, `occ` is the actual occurrence, and there are two sets of roles:
-`idRoles` are the possible roles for the qualified identifier itself and `qualifierRoles are the possible roles for the qualifiers.
+`idRoles` are the possible roles for the qualified identifier itself and `qualifierRoles` are the possible roles for the qualifiers.
 
-=== Use a name via another type
+###### Use a name via another type
 Many languages support _named types_ and names that can be defined inside such a named type.
 Examples are field names in records or method names in classes. `useViaType` handles the use of names defined in a named type:
 ```rascal
@@ -340,7 +340,7 @@ where
 * `selector`: is the name to be selected from that named type.
 * `idRolesSel`:  are the IdRoles allowed for the selector.
 
-Here is an example of field selection from a record in ((Struct)):
+Here is an example of field selection from a record in ((examples::struct)):
 
 ```rascal
 void collect(current:(Expression)`<Expression lhs> . <Id fieldName>`, Collector c) {
@@ -352,10 +352,10 @@ void collect(current:(Expression)`<Expression lhs> . <Id fieldName>`, Collector 
 <1> Determine the type of `lhs`, say T. Now look for a definition of `fieldName` (as `fieldId`) in the definition of _T_.
 <2> The type of the whole expressions becomes the type of `fieldId`.
 
-`useViaType` can be configured with ((getTypeNamesAndRole)) and ((getTypeInNamelessType)) that
+`useViaType` can be configured with ((analysis::typepal::TModel::TypePalConfig))'s `getTypeNamesAndRole` and `getTypeInNamelessType` that
 determine the precise mapping between a named or unnamed type and its fields.
 
-=== UseLub
+###### UseLub
 In some languages (think Rascal) local type inference and subtyping are needed to determine the type
 of variables: when no explicit definition is present, the type of these variables is inferred from their use and
 the least-upper-bound (LUB) of all the uses of a variable is taken as its type. 
@@ -365,7 +365,7 @@ the least-upper-bound (LUB) of all the uses of a variable is taken as its type.
 ```
 See the Rascal type checker for examples.
 
-== Inference
+##### Inference
 ATypes may contain type variables and new type variables can be created using `newTypeVar`:
 
 ```rascal
@@ -374,7 +374,7 @@ ATypes may contain type variables and new type variables can be created using `n
 
 Type variables can be bound via unification.
 
-Here is an example of a call expression taken from ((UntypedFun)):
+Here is an example of a call expression taken from ((examples::untypedFun)):
 
 ```rascal
 void collect(current: (Expression) `<Expression exp1>(<Expression exp2>)`, Collector c) { 
@@ -384,7 +384,7 @@ void collect(current: (Expression) `<Expression exp1>(<Expression exp2>)`, Colle
      c.calculateEager("application", current, [exp1, exp2],
         AType (Solver s) { 
               s.requireUnify(functionType(tau1, tau2), exp1, error(exp1, "Function type expected, found %t", exp1));
-              s.requireUnify(tau1, exp2, error(exp2, "Incorrect type of actual parameter"));             
+              s.requireUnify(tau1, exp2, error(exp2, "Incorrect type actual parameter"));             
               return tau2;
             });
       collect(exp1, exp2, c);
@@ -399,7 +399,7 @@ are available *but those may contain type variables*.
 The bindings that are accumulated during `calculateEager` or `requireEager` 
 are effectuated upon successfull completion of that `calculateEager` or `requireEager`. 
 
-== Fact
+##### Fact
 
 The function `fact` registers known type information for a program fragment `src`:
 ```rascal
@@ -407,7 +407,7 @@ The function `fact` registers known type information for a program fragment `src
 ```
 where `atype` can be either an `AType` or a `Tree`. In the latter case the type of that Tree is used when available.
 
-Here are two examples from ((Calc)):
+Here are two examples from ((examples::calc)):
 ```rascal
 void collect(current: (Exp) `<Integer integer>`, Collector c){
     c.fact(current, intType()); //<1>
@@ -422,7 +422,7 @@ void collect(current: (Exp) `( <Exp e> )`, Collector c){
 <2> Registers the fact that the current expression has the same type as the embedded expression `e`.
 
 
-== Calculate
+##### Calculate
 A calculator computes the type of a subtree `src` by way of an AType-returning function `calculator`.
 A list of dependencies is given whose types have to be known before this calculator can be computed.
 There are two versions: for `calculate` all dependencies should be fully resolved and instantiated,
@@ -431,11 +431,11 @@ while `calculateEager` can also handle dependencies that still contain type vari
 /* Collector field */ void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculate;
 /* Collector field */ void (str name, Tree src, list[value] dependencies, AType(Solver s) calculator) calculateEager;
 ```
-See ((A Calculator Language)) and ((Examples of Typecheckers)) for examples of calculator definitions.
+See [A Calculator Language]((PocketCalculator)) and [Examples of Typecheckers]((Examples)) for examples of calculator definitions.
 
-See ((Inference)) for details about type variables.
+See [Inference](#inference) for details about type variables.
 
-== Require
+##### Require
 
 A requirement is a predicate regarding the type or properties of a source tree fragment `src`.
 There are two versions: for `require` all dependencies should be fully resolved and instantiated,
@@ -461,5 +461,5 @@ that the one is a subtype of the other, or that they can be unified:
 ```
 The arguments `l` and `r` should either be an AType or a subtree whose type is known.
 
-See ((A Calculator Language)) and ((Examples of Typecheckers)) for examples of requirement definitions.
-See ((Inference)) for details about type variables.
+See [A Calculator Language]((PocketCalculator)) and [Examples of Typecheckers]((Examples)) for examples of requirement definitions.
+See [Inference](#inference) for details about type variables.

@@ -1,5 +1,5 @@
 ---
-title: TypePal: Name and Type Analysis Made Easy 
+title: "TypePal: Name and Type Analysis Made Easy"
 details:
   - Overview
   - PocketCalculator
@@ -11,7 +11,6 @@ details:
   - Configuration
   - Utilities
   - Examples
-
 ---
       
 #### Synopsis
@@ -47,3 +46,4 @@ and also show some examples:
 #### Benefits
 
 #### Pitfalls
+
