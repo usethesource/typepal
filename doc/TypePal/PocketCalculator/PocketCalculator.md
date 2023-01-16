@@ -12,7 +12,7 @@ By developing a type checker for *_Calc_*, a tiny pocket calculator language, we
 The full source code of Calc can be found at https://github.com/cwi-swat/typepal/tree/master/src/examples/calc.
 See [Examples of Typecheckers]((Examples)) for a list of all available type checker examples.
 
-== Syntax of Calc
+## Syntax of Calc
 
 ```rascal
 module lang::calc::Syntax
@@ -54,7 +54,7 @@ keyword Reserved
 <9> an addition (arguments should have the same type), or
 <10> a conditional expression (the first expression should have type Boolean, the other two should have the same type).
 
-== Typechecking Calc
+## Typechecking Calc
 
 Type checking Calc amounts to checking the following:
 
@@ -72,7 +72,7 @@ and describe the parts as we go. You should be explicitly aware of the fact that
   All computations on types have therefore to be postponed until the solving phase. We will see how in a minute.
 - _Solving constraints_: constraints are solved (if possible) and types are assigned to parts of the source program.
 
-=== Begin of type checker module for Calc
+### Begin of type checker module for Calc
 
 ```rascal
 module lang::calc::Checker
@@ -86,7 +86,7 @@ We import the Calc syntax `lang::calc::Syntax` and then we extend the TypePal `a
 NOTE: There is a technical reason why we have to extend TypePal rather than import it. Some data types (e.g., `AType`)
 and functions (e.g., `collect`) are already defined in TypePal itself and they are being extended in each type checker.
 
-=== Extend AType
+### Extend AType
 
 TypePal has a built-in data type to represent types: `AType`. This data type can be extended to represent language-specific types.
 
@@ -103,7 +103,7 @@ str prettyAType(intType()) = "int";
 The values in Calc are Booleans and integers and we create two `AType` constants `boolType()` and `intType()` to represent these types.
 `prettyAType` converts them back to a string representation; this is used in error reporting.
 
-=== Collecting facts and constraints
+### Collecting facts and constraints
 
 Writing a type checker in TypePal amounts to collecting facts and constaints from a source program to be checked.
 This is achieved by the `collect` function that has the form
@@ -120,7 +120,7 @@ NOTE: By convention the syntactic pattern is named `current` and the Collector i
 
 WARNING: Each `collect` declaration is responsible for calling `collect` on relevant subparts (a run-time error is given for a missing `collect`).
 
-==== Check Declaration
+#### Check Declaration
 
 A declaration introduces a new name and associates the type of the righthand side expression with it.
 ```rascal
@@ -140,7 +140,7 @@ Here we define `name` as a variable and define its type as the same type as `exp
   `defType(exp)` should be read as _the same type as_ `exp` and the effect is that `name` is defined having the same type as `exp`.
   This implies that the type of `name` can only be known when the type of `exp` is known.
 
-==== Check Exp: Id
+#### Check Exp: Id
 
 An expression consisting of a single identifier, refers to a name introduced in another declaration
 and gets the type introduced in that declaration.
@@ -163,7 +163,7 @@ NOTE: We do not enforce _define-before-use_ in this example, but see XXX how to 
 
 (((TODO:add reference for XXX)))
 
-==== Check Exp: Boolean and Integer constants
+#### Check Exp: Boolean and Integer constants
 
 ```rascal
 void collect(current: (Exp) `<Boolean boolean>`, Collector c){
@@ -180,7 +180,7 @@ When encountering a Boolean or integer constant we record their type using `c.fa
 NOTE: The second argument of `fact` maybe an `AType`, an arbitrary parse tree (in which case the type of that tree will be used),
       or a function that returns a type.
 
-==== Check Exp: parentheses
+#### Check Exp: parentheses
 ```rascal
 void collect(current: (Exp) `( <Exp e> )`, Collector c){
     c.fact(current, e);
@@ -191,7 +191,7 @@ The type of an expression enclosed by parentheses is the same as the same of the
 
 A final, essential, step is to collect constraints from the subpart `e`.
 
-==== Check Exp: addition
+#### Check Exp: addition
 
 Addition of integers given an integer result and addition of Booleans gives a Boolean result.
 ```rascal
@@ -232,7 +232,7 @@ otherwise report an error._
 
 A final, essential, step is to collect constraints from the subparts `e1` and `e2`.
 
-==== Check Exp: multiplication
+#### Check Exp: multiplication
 ```rascal
 void collect(current: (Exp) `<Exp e1> * <Exp e2>`, Collector c){
      c.calculate("multiplication", current, [e1, e2],
@@ -249,7 +249,7 @@ void collect(current: (Exp) `<Exp e1> * <Exp e2>`, Collector c){
 ```
 Checking multiplication follows exactly the same pattern as checking addition. Even in this simple example we see repetition of code that could be factored out.
 
-==== Check Exp: conditional expression
+#### Check Exp: conditional expression
 ```rascal
 void collect(current: (Exp) `if <Exp cond> then <Exp e1> else <Exp e2>`, Collector c){
     c.calculate("if Exp", current, [cond, e1, e2],
@@ -271,10 +271,10 @@ Here _arg1_ and _arg2_ may either be a subtree (in which case its type is used) 
 
 A final, essential, step is to collect constraints from the subparts `cond`, `e1` and `e2`.
 
-== Testing the Calc typechecker
+## Testing the Calc typechecker
 
 
-=== Getting started
+### Getting started
 
 ```rascal
 module lang::calc::Test
@@ -290,7 +290,7 @@ We need three ingredients for testing:
 - `analysis::typepal::TestFramework`, the TypePal test framework which enables test automation.
 - `ParseTree` that provides parsing functionality that is needed to parse Calc source text.
 
-=== Manual testing
+### Manual testing
 
 ```rascal
 TModel calcTModelFromTree(Tree pt){
@@ -316,7 +316,7 @@ With the above machinery in place we can perform some experiments:
 - `calcTModelFromStr("var x = 3;"),messages` gives no messages.
 - `calcTModelFromStr("var x = 3+true;").messsages` reports that addition of integer and Boolean is illegal.
 
-=== Automated testing
+### Automated testing
 ```rascal
 bool calcTests() {
      return runTests([|project://typepal-examples/src/lang/calc/tests.ttl|], 

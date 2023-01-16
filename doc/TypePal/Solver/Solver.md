@@ -40,7 +40,7 @@ or types that could not be computed.
 It can also be used to generate other usefull information about the program such as a use-def relation and
 the used vocabulary (used for name completion).
 
-== Lifecycle of Solver
+## Lifecycle of Solver
 
 Once, an initial TModel has been created by a ((Collector)), a Solver takes over to solve constraints
 and produce a final TModel. A new Solver can be created by `newSolver` that comes in two flavours:
@@ -75,7 +75,7 @@ The final TModel contains valuable information such as
 * type facts for subtrees of the given parse tree;
 * use/def relations.
 
-== Fact
+## Fact
 The function `fact` registers known type information for a program fragment `src`:
 ```rascal
 /* Solver field */ void (value src, AType atype) fact
@@ -85,7 +85,7 @@ Here
 * `src` may either be a `Tree` (i.e., a parse tree fragment) or a `loc` (the source location of a parse tree fragment).
 * `atype` is the AType to be associated with `src`.
 
-== Calculate
+## Calculate
 All calculate (and require) functions use the following typing convention: an argument of type `value` can either be:
 
 * an `AType`, or
@@ -96,14 +96,14 @@ In the latter case, the type of the tree is used provided that it exists.
 Otherwise a `TypeUnavailable()` exception is generated and the calculator or requirement 
 in which the predicate occurs is re-evaluated at a later time.
 
-=== equal
+### equal
 
 ```rascal
 /* Solver field */ bool (value l, value r) equal
 ```
 The function `equal` determines whether the types of `l` and `r` are equal, the result is a Boolean value.
 
-=== subtype
+### subtype
 ```rascal
 /* Solver field */ bool (value l, value r) subtype
 ```
@@ -111,14 +111,14 @@ The function `subtype` determines whether the type of `l` is a subtype of the ty
 it calls the user-provided function `getSubType`, see ((TypePal:Configuration)).
 
 
-=== comparable
+### comparable
 ```rascal
 /* Solver field */ bool (value l, value r) comparable
 ```
 The function `comparable` determines whether the type of `l` is comparable with the type of `r`;
 it calls the user-provided function `getSubType` twice, see ((TypePal:Configuration)).
 
-=== unify
+### unify
 ```rascal
 /* Solver field */ bool (value l, value r) unify
 ```
@@ -126,7 +126,7 @@ The function `unify` determines whether the type of `l` can be unified with the 
 it calls the user-provided functions `getSubType` and `getLub`, see ((TypePal:Configuration)).
 The bindings that may result from unification are effectuated when the enclosing calculate succeeds.
 
-=== lub
+### lub
 ```rascal
 /* Solver field */ AType (value l, value r) lub
 ```
@@ -134,28 +134,28 @@ The function `lub` return the least upper bound of the types of `l` and `r`;
 it calls the user-provided function `getLub`, see ((TypePal:Configuration)).
 
 
-== Require
-=== requireEqual
+## Require
+### requireEqual
 ```rascal
 /* Solver field */ void (value l, value r, FailMessage fmsg) requireEqual
 ```
 The function `requireEqual` returns when the types of `l` and `r` are equal, otherwise a FailMessage is reported.
 
-=== requireSubType
+### requireSubType
 ```rascal
 /* Solver field */ void (value l, value r, FailMessage fmsg) requireSubType
 ```
 The function `requireSubtype` returns when the type of `l` is a subtype of `r`, otherwise the FailMessage is reported;
 it calls the user-provided function `getSubType`, see ((TypePal:Configuration)).
 
-=== requireCompare
+### requireCompare
 ```rascal
 /* Solver field */ void (value l, value r, FailMessage fmsg) requireComparable
 ```
 The function `requireComparable` returns when the type of `l` is comparable with the type of `r`, otherwise the FailMessage is generated;
 it calls the user-provided function `getSubType`twice, see ((TypePal:Configuration)).
 
-=== requireUnify
+### requireUnify
 ```rascal
 /* Solver field */ void (value l, value r, FailMessage fmsg) requireUnify
 ```
@@ -163,7 +163,7 @@ The function `requireUnify just returns when the type of `l` can be unified with
 it calls the user-provided functions `getSubType` and `getLub`, see ((TypePal:Configuration)).
 The bindings that may result from unification are effectuated when the enclosing require succeeds.
 
-=== requireTrue and requireFalse
+### requireTrue and requireFalse
 
 ```rascal
 /* Solver field */ void (bool b, FailMessage fmsg) requireTrue
@@ -172,14 +172,14 @@ The bindings that may result from unification are effectuated when the enclosing
 The function `requireTrue` returns when its condition is true, otherwise the FailMessage is reported.
 The function `requireFalse` returns when its condition is false, otherwise the FailMessage is reported.
 
-== Types
+## Types
 
 Type-related functions try to retrieve various forms of type information from parts of the source program.
 When that information is available, it is returned as result.
 When it is not available, the internal exception `TypeUnavailable()` is thrown.
 This will abort the execution of the current requirement or calculator which will then be tried later again.
 
-=== getType
+### getType
 The workhorse of TypePal is the function `getType` that determines 
 the type of a given source code fragment in the current scope:
 
@@ -208,7 +208,7 @@ void collect(current: (Expression) `<Expression lhs> + <Expression rhs>`, Collec
 }
 ```
 
-=== getTypeInScope
+### getTypeInScope
 The function `getTypeInScope` determines 
 the type of a given source code fragment in a given scope  and given roles:
 ```rascal
@@ -221,7 +221,7 @@ Here
 * `scope` is the desired scope;
 * `idRoles` is a set of allowed identifier roles.
 
-=== getTypeInScopeFromName
+### getTypeInScopeFromName
 The function `getTypeInScopeFromName` determines the type of a given name that has been bound via given identifier roles
 in a given scope. 
 It is typically used to map a name of a type to its actual type, e.g., 
@@ -236,7 +236,7 @@ Here:
 * `scope` is the desired scope;
 * `idRoles` is a set of allowed identifier roles.
 
-=== getTypeInType
+### getTypeInType
 
 The function `getTypeInType` is typically used to determine parts of a container type such as, e.g., 
 the fields in a named record type or the methods in a named class type.
@@ -251,7 +251,7 @@ Here:
 * `idRolesSel` is a set of allowed identifier roles for the selector (e.g., `fieldId()` or `methodId()`);
 * `scope` is the desired scope.
 
-=== getAllDefinedInType
+### getAllDefinedInType
 The function `getAllDefinedInType` is typically used to determine *all* named types that are defined in a container type,
 e.g., all fields in a record type or all methods in a class type.
 
@@ -266,52 +266,52 @@ Here:
 * `idRoles` is a set of allowed identifier roles for the selectoed types.
 
 
-== Inference
+## Inference
 Type inference is supported by the introduction of type variables
 using `newTypeVar` in combination with unification primitives
 inside `calculateEager` [Calculate](#calculate) and `requireEager` [Require](#require)
 such as `requireUnify` and `unify`. The following functions support the computation
 with types possibly containing type variables.
 
-=== instantiate
+### instantiate
 ```rascal
 /* Solver field */ AType (AType atype) instantiate
 ```
 replaces all type variables occurring in `atype` by their binding (when present).
 
-=== isFullyInstantiated
+### isFullyInstantiated
 ```rascal
 /* Solver field */ bool (AType atype) isFullyInstantiated
 ```
 checks whether `atype` contains any occurrences of type variables.
 
-== Reporting
+## Reporting
 ```rascal
 /* Solver field */ bool(FailMessage fmsg) report
 /* Solver field */ bool (list[FailMessage] fmsgs) reports
 ```
 
-== Global Info
+## Global Info
 
-=== getConfig
+### getConfig
 ```rascal
 /* Solver field */ TypePalConfig () getConfig
 ```
 Returns the current ((TypePal:Configuration)).
 
-=== getFacts
+### getFacts
 ```rascal
 /* Solver field */ map[loc, AType]() getFacts
 ```
 
 Returns the type facts known to the Solver as mapping from source location to AType.
 
-=== getStore
+### getStore
 ```rascal
 /* Solver field */ map[str,value]() getStore
 ```
 
 Returns the global store of the Solver. The following elements may occur in the store:
 
-* Remaining [Nested Info](/Packages/typepal/TypePal/Collector.md#nested-info) from the collect phase. For instance, a single `push` to a stack during the collect phase will be visible during the solve phase and
+* Remaining [Nested Info](/docs/Packages/typepal/TypePal/Collector#nested-info) from the collect phase. For instance, a single `push` to a stack during the collect phase will be visible during the solve phase and
 can me (mis)used to communicate information between the two phases.
