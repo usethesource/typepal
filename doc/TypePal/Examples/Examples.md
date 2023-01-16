@@ -22,7 +22,7 @@ Each example has the same structure:
 * `tests.ttl` test cases for the type checker.
 * `examples` (optionally) a directory with example.
 
-== Calc
+##### Calc
 
 
 | *What*        | The pocket calculator language Calc; we already covered it [A simple pocket calculator language]((PocketCalculator)) |
@@ -31,7 +31,7 @@ Each example has the same structure:
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/calc |
 
 
-== Pico
+##### Pico
 
 | *What*        | Toy language with declared variables in single scope, assignment, if and while statement |
 | --- | --- |
@@ -39,7 +39,7 @@ Each example has the same structure:
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/pico |
 
 
-== QL
+##### QL
 
 | *What*        | A questionnaire language, for describing forms with text entry fields and computed values |
 | --- | --- |
@@ -47,7 +47,7 @@ Each example has the same structure:
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/ql |
 
 
-== Fun
+##### Fun
 
 | *What*        | Functional language with explicit types, function declarations and calls, let and if expressions |
 | --- | --- |
@@ -55,7 +55,7 @@ Each example has the same structure:
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/fun |
 
 
-== ModFun
+##### ModFun
 
 
 | *What*        | Extension of ((examples::fun)) with modules |
@@ -64,7 +64,7 @@ Each example has the same structure:
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/modfun |
 
 
-== Struct
+##### Struct
 
 
 | *What*        | Simple named records |
@@ -73,7 +73,7 @@ Each example has the same structure:
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/struct |
 
 
-== Aliases
+##### Aliases
 
 | *What*        |  ((examples::struct)) extended with type aliases |
 | --- | --- |
@@ -82,7 +82,7 @@ Each example has the same structure:
 
 
 
-== StaticFields
+##### StaticFields
 
 
 | *What*        | ((examples::struct)) extended with fields on non-record type |
@@ -91,7 +91,7 @@ Each example has the same structure:
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/staticFields |
 
 
-== StructParameters
+##### StructParameters
 
 | *What*        | ((examples::struct)) with parameterized records |
 | --- | --- |
@@ -99,7 +99,7 @@ Each example has the same structure:
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/structParameters |
 
 
-== SmallOO
+##### SmallOO
 
 | *What*        | Small OO language without inheritance |
 | --- | --- |
@@ -107,7 +107,7 @@ Each example has the same structure:
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/smallOO |
 
 
-== FWJava
+##### FWJava
 
 | *What*        | FeatherWeight Java, a minimal, Java-like, language with inheritance and constructors |
 | --- | --- |
@@ -115,7 +115,7 @@ Each example has the same structure:
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/fwjava |
 
 
-== Pascal
+##### Pascal
 
 | *What*        | The Pascal language (Second Edition, 1978) |
 | --- | --- |
@@ -123,7 +123,7 @@ Each example has the same structure:
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/pascal |
 
 
-== UntypedFun
+##### UntypedFun
 
 | *What*        | Functional language with implicit (inferred) types, function declarations and calls, let and if expressions |
 | --- | --- |
