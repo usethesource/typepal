@@ -10,6 +10,9 @@ loc getFirstLoc(Tree t) {
             return a@\loc;
         }
     }
+    if(t@\loc?){
+        return t@\loc;
+    }
     println("PANIC: getFirstLoc");
     println("Source text: <t>");
     println("ParseTree: "); iprintln(t, lineLimit=10000);
@@ -21,6 +24,9 @@ loc getLastLoc(Tree t) {
         if (t.args[i]@\loc?) {
             return  t.args[i]@\loc;
         }
+    }
+    if(t@\loc?){
+        return t@\loc;
     }
     throw "Cannot find loc on tree";
 }
