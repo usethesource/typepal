@@ -73,10 +73,10 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
     TTL ttlProgram = [TTL] "";
     
     map[tuple[str, loc], list[Message]]failedTests = ();
-    ntests = 0;
-    ok = true;
-    parseTime = 0;
-    testTime = 0;
+    int ntests = 0;
+    bool ok = true;
+    int parseTime = 0;
+    int testTime = 0;
     if(runName?) print("Running <runName> Tests\r");
     for(suite <- suites){
         startParse = cpuTime(); 
