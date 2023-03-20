@@ -296,8 +296,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         dependencies += {*req.dependsOn | req <- requirements};
         missing = dependencies - domain(calcMap) - domain(facts) - uses - defs;
         if(!isEmpty(missing)){
-            printSolverState();
-            throw TypePalUsage("Missing calculators", toList(missing));
+            //printSolverState();
+            for(m <- missing) messages += warning("Missing calculator", m);
+            //was: throw TypePalUsage("Missing calculators", toList(missing));
         }
     }
     

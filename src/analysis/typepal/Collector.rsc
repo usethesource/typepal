@@ -1198,7 +1198,9 @@ default void collect(Tree currentTree, Collector c){
               nargs = size(args);
               if(nargs == 1) collectArgs2(args, c); // automatic treatment of chain rules
               else if(nargs > 0) { 
-                 throw TypePalUsage("Missing `collect` for <currentTree.prod>", [getLoc(currentTree)]); 
+                  c.report(warning(currentTree, "Missing `collect` for %q", currentTree));
+                  collectArgs2(args, c);
+                 //was: throw TypePalUsage("Missing `collect` for <currentTree.prod>", [getLoc(currentTree)]); 
               }
             }
         case "parameterized-sort":
@@ -1207,7 +1209,9 @@ default void collect(Tree currentTree, Collector c){
                              // Hack to circumvent improper handling of parameterized sorts in interpreter
               if(nargs == 1 || currentTree.prod.def.name in { "Mapping", "KeywordArgument", "KeywordArguments"}) collectArgs2(args, c); 
               else if(nargs > 0) { 
-                throw TypePalUsage("Missing `collect` for <currentTree.prod>", [getLoc(currentTree)]);
+                c.report(warning(currentTree, "Missing `collect` for %q", currentTree));
+                collectArgs2(args, c);
+                //was: throw TypePalUsage("Missing `collect` for <currentTree.prod>", [getLoc(currentTree)]);
               }
             }
        case "lex":
