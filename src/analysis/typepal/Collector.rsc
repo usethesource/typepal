@@ -20,6 +20,7 @@ import Relation;
 import IO;
 import Type;
 import Location;
+import String;
 
 import analysis::typepal::Version;
 
@@ -1185,6 +1186,24 @@ str getLine(Tree t){
     if(l.begin?) return "<l.begin.line>";
     return "?";
 }
+
+str treeAsMessage(Tree t, int charLimit=120) {
+    str msg = "" + "<t>"; // workaround funny ambiguity
+    
+    // limit the string length and show visually with ...
+    if (size(msg) > charLimit) {
+        msg = "<msg[0..charLimit]>...";
+    }
+
+    // replace newlines by spaces
+    msg = visit (msg) {
+        case /\r\n/ => " "
+        case /\n/ => " "
+    };
+
+    return msg;
+}
+
 default void collect(Tree currentTree, Collector c){
     //println("<getLine(currentTree)>|<currentTree>|");
     if(currentTree has prod){
@@ -1198,7 +1217,7 @@ default void collect(Tree currentTree, Collector c){
               nargs = size(args);
               if(nargs == 1) collectArgs2(args, c); // automatic treatment of chain rules
               else if(nargs > 0) { 
-                  c.report(info(currentTree, "Missing `collect` for %q", currentTree));
+                  c.report(info(currentTree, "Missing `collect` for %q", treeAsMessage(currentTree)));
                   collectArgs2(args, c);
                  //was: throw TypePalUsage("Missing `collect` for <currentTree.prod>", [getLoc(currentTree)]); 
               }
@@ -1209,7 +1228,7 @@ default void collect(Tree currentTree, Collector c){
                              // Hack to circumvent improper handling of parameterized sorts in interpreter
               if(nargs == 1 || currentTree.prod.def.name in { "Mapping", "KeywordArgument", "KeywordArguments"}) collectArgs2(args, c); 
               else if(nargs > 0) { 
-                c.report(info(currentTree, "Missing `collect` for %q", currentTree));
+                c.report(info(currentTree, "Missing `collect` for %q", treeAsMessage(currentTree)));
                 collectArgs2(args, c);
                 //was: throw TypePalUsage("Missing `collect` for <currentTree.prod>", [getLoc(currentTree)]);
               }
@@ -1233,7 +1252,7 @@ default void collect(Tree currentTree, Collector c){
                 nargs = size(args);
                 if(nargs == 1) collectArgs1(args, c); 
                 else if(nargs > 0) { 
-                     c.report(info(currentTree, "Missing `collect` for %q", currentTree));
+                     c.report(info(currentTree, "Missing `collect` for %q", treeAsMessage(currentTree)));
                     collectArgs2(args, c);
                     // was throw TypePalUsage("Missing `collect` for <currentTree.prod>", [getLoc(currentTree)]); 
                 }
