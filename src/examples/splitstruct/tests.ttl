@@ -1,0 +1,65 @@
+test OkProgram1 [[
+    int n = 1;
+]]
+
+test WrongInit1 [[
+    str n = 1;
+]] expect { "Incorrect initialization, expected `str`, found `int`" }
+
+
+test OkNew1 [[
+   struct A { int n, str s };
+   A a1 = new A;
+   A a2 = a1;
+]]
+
+test OkFieldAccess1 [[
+   struct A { int n, str s };
+   A a = new A;
+   int n = a.n;
+]]
+
+test UndeclaredStruct [[
+    A a = new A;
+]] expect { "Undefined _ `A`" }
+
+test UndeclaredField1 [[
+   struct A { int n, str s };
+   A a = new A;
+   int n = a.x;
+]] expect { "No definition found for field `x` in type `struct A`" }
+
+test DuplicateField1 [[
+   struct A { int n, str n };
+]] expect { "Double declaration of `n`" }
+
+test MultipleStructs [[
+    struct A {int n, str s};
+    struct B {A a, str t};
+    B b = new B;
+    int x = b.a.n;
+]]
+
+test SplitStructs1 [[
+    struct A {int n};
+    struct A {str s};
+    A a = new A;
+    int n = a.n;
+    str s = a.s;
+]]
+
+test SplitStructs2 [[
+    struct A {int n};
+    struct A {int n, str s};
+    A a = new A;
+    int n = a.n;
+    str s = a.s;
+]]
+
+test MultipleAndSplitStructs [[
+    struct A {int n};
+    struct A {str s};
+    struct B {A a, str t};
+    B b = new B;
+    int x = b.a.n;
+]]
