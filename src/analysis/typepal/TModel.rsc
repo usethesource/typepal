@@ -107,6 +107,11 @@ void printTModel(TModel tm){
         println("    \<<d.scope>, <d.id>, <d.idRole>, <d.defined>\>"); 
     }
     println("  },");
+    println("  facts = (");
+    for(loc key <- tm.facts){
+        println("    <key>: <tm.facts[key]>");
+    }
+    println("  ),");
     println("  scopes = (");
     for(loc inner <- tm.scopes){
         println("    <inner>: <tm.scopes[inner]>");

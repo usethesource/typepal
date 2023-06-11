@@ -41,8 +41,12 @@ list[loc] dependenciesAslocList(list[value] dependencies){
         };
 } 
 
-bool isTypeVarFree(AType t)
-    =  !(/tvar(loc _) := t);
+bool isTypeVarFree(AType t){
+    if(/tvar(loc _) := t)
+        return false;
+    else
+        return true;
+}
 
 list[loc] dependenciesAslocs(list[Tree] dependencies)
     = dependenciesAslocList(dependencies);
@@ -111,21 +115,21 @@ void print(req(str rname, loc src,  list[loc] dependsOn, void(Solver s) preds), 
 }
 
 void print(reqEqual(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
-    println("<indent>requ `<rname>` for <dependsOn[0]>");
+    println("<indent>requ `<rname>` for <dependsOn[0] ? "no dependencies">");
     if(full) printDeps(dependsOn, indent, facts);
 }
 void print(reqComparable(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
-    println("<indent>requ `<rname>` for <dependsOn[0]>");
+    println("<indent>requ `<rname>` for <dependsOn[0] ? "no dependencies">");
     if(full) printDeps(dependsOn, indent, facts);
 }
 
 void print(reqSubtype(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
-    println("<indent>requ `<rname>` for <dependsOn[0]>");
+    println("<indent>requ `<rname>` for <dependsOn[0] ? "no dependencies">");
     if(full) printDeps(dependsOn, indent, facts);
 }
 
 void print(reqUnify(str rname, value l, value r, list[loc] dependsOn, FailMessage fm), str indent, map[loc,AType] facts, bool full=true){
-    println("<indent>requ `<rname>` for <dependsOn[0]>");
+    println("<indent>requ `<rname>` for <dependsOn[0] ? "no dependencies">");
     if(full) printDeps(dependsOn, indent, facts);
 }
 
@@ -146,7 +150,7 @@ data Calculator
     = calcType(loc src, AType atype)
     | calcLoc(loc src, list[loc] dependsOn)
     | calc(str cname, loc src, list[loc] dependsOn, AType(Solver s) getAType, bool eager=false)
-    | calcLub(str cnname, list[loc] srcs, list[loc] dependsOn, list[AType(Solver s)] getATypes, bool eager=false)
+    | calcLub(str cname, list[loc] srcs, list[loc] dependsOn, list[AType(Solver s)] getATypes, bool eager=false)
     ;
 
 list[loc] dependsOn(Calculator calc){
@@ -235,7 +239,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             
             uid = normalizeName(orgId);
            
-            // println("define: <id>, <idRole>, <def>");
+            //println("define: <orgId>, <idRole>, <def>");
             //println("definesPerLubScope[currentLubScope]: <definesPerLubScope[currentLubScope]>");
             
             if(info is defTypeLub){  
@@ -617,7 +621,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         if(building){
             srcLoc = getLoc(tree);
             if(facts[srcLoc]?) return facts[srcLoc];
-            //println("Collector.getType: <srcLoc>");
+            //println("Collector.getType: unavailable: <srcLoc>");
             throw TypeUnavailable();
         } else {
             throw TypePalUsage("Cannot call `getType` on Collector after `run`");
@@ -627,6 +631,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     void _calculate(str name, Tree src, list[value] dependencies, AType(Solver s) calculator){
         if(building){
            srcLoc = getLoc(src);
+           //println("calculate: <name>, <srcLoc>");
            calculators += calc(name, srcLoc, dependenciesAslocList(dependencies) - srcLoc, calculator);
         } else {
             throw TypePalUsage("Cannot call `calculate` on Collector after `run`");

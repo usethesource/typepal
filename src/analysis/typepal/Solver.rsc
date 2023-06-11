@@ -378,6 +378,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         if(AType atype := tp){
             if(isFullyInstantiated(atype)){
                 facts[defined] = atype;
+                //if(logSolverSteps)println("!fact <defined> ==\> <atype>");
             } else {
                 calculators += calcType(defined, atype);
             }
@@ -385,6 +386,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             fromLoc = getLoc(from);
             if(facts[fromLoc]?){
                 facts[defined] = facts[fromLoc];
+                //if(logSolverSteps)println("!fact <defined> ==\> <facts[fromLoc]>");
             } else {
                 calculators += calcLoc(defined, [fromLoc]);
             }
@@ -445,7 +447,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         scheduleCalc(calc, dependsOn);
     }
     
-    void scheduleCalc(calc: calcLub(str cnname, list[loc] srcs, list[loc] dependsOn, list[AType(Solver s)] getATypes)){
+    void scheduleCalc(calc: calcLub(str cname, list[loc] srcs, list[loc] dependsOn, list[AType(Solver s)] getATypes)){
         scheduleCalc(calc, []);
     }
     
@@ -456,6 +458,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         try {
             iatype = instantiate(atype);
             facts[src] = iatype;
+            //if(logSolverSteps)println("!fact <src> ==\> <iatype>");
             fireTrigger(src);
             if(tvar(l) := iatype){
                 facts[l] = facts[src];
@@ -477,12 +480,12 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
     
     bool evalCalc(calc:calc(str cname, loc src, list[loc] dependsOn,  AType(Solver tm) getAType)){
-        //if(logAttempts) calculatorAttempts[calc] = (calculatorAttempts[calc] ? 0) + 1;
+        if(logAttempts) calculatorAttempts[calc] = (calculatorAttempts[calc] ? 0) + 1;
         if(allDependenciesKnown(dependsOn, calc.eager)){
             try {
                 facts[src] = instantiate(getAType(thisSolver));
-                bindings2facts(bindings);
                 //if(logSolverSteps)println("!fact <src> ==\> <facts[src]>");
+                bindings2facts(bindings);
                 fireTrigger(src);
                 return true;
             } catch TypeUnavailable(): return false; /* cannot yet compute type */
@@ -511,7 +514,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             nknown = size(known);
             if(nknown >= 1){
                 tp = simplifyLub(known); 
-                for(loc def <- defines) { facts[def] = tp; }
+                for(loc def <- defines) {
+                    facts[def] = tp;    
+                    //if(logSolverSteps)println("!fact <def> ==\> <tp>");
+                }
             
                 if(nknown == size(getATypes)) {
                     for(loc def <- defines) { fireTrigger(def); }
@@ -1329,15 +1335,28 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             throw TypePalUsage("First argument of `specializedFact` should be `Tree` or `loc`, found `<typeOf(v)>`");
          }
     }
-
-    bool allDependenciesKnown(set[loc] deps, bool eager)
-        = isEmpty(deps) || (eager ? all(dep <- deps, facts[dep]?)
-                                  : all(dep <- deps, facts[dep]?, isFullyInstantiated(facts[dep])));
     
-    bool allDependenciesKnown(list[loc] deps, bool eager)
-        = isEmpty(deps) || (eager ? all(dep <- deps, facts[dep]?)
-                                  : all(dep <- deps, facts[dep]?, isFullyInstantiated(facts[dep])));
+    bool allDependenciesKnown(set[loc] deps, bool eager){
+        if(isEmpty(deps)) return true;
+        if(eager) return all(dep <- deps, facts[dep]?);
+        return all(dep <- deps, facts[dep]?, isFullyInstantiated(facts[dep]));
+    }
     
+    bool allDependenciesKnown(list[loc] deps, bool eager){
+        if(isEmpty(deps)) return true;
+        if(eager) return all(dep <- deps, facts[dep]?);
+        return all(dep <- deps, facts[dep]?, isFullyInstantiated(facts[dep]));  
+    }
+    
+    //TODO changed to the above due to compiler issue
+    //bool allDependenciesKnown(set[loc] deps, bool eager)
+    //    = isEmpty(deps) || (eager ? all(dep <- deps, facts[dep]?)
+    //                              : all(dep <- deps, facts[dep]?, isFullyInstantiated(facts[dep])));
+    //
+    //bool allDependenciesKnown(list[loc] deps, bool eager)
+    //   = isEmpty(deps) || (eager ? all(dep <- deps, facts[dep]?)
+    //                              : all(dep <- deps, facts[dep]?, isFullyInstantiated(facts[dep])));
+    //
     bool isFullyInstantiated(AType atype){
         visit(atype){
             case tvar(loc tname): { if(!facts[tname]?) return false;
@@ -1636,7 +1655,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     if(evalCalc(calc)){
                        solvedCalc(calc);
                     } else {
-                        ;//if(logSolverSteps){ print("?"); print(calc, "", facts, full=false); }
+                        if(logSolverSteps){ print("?"); print(calc, "", facts, full=false); }
                     }
                  } catch checkFailed(list[FailMessage] fms): {
                         failMessages += fms;
