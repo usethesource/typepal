@@ -13,4 +13,8 @@ TModel dmTModelFromName(str mname){
     return dmTModelForTree(pt);
 }
 
-value main() = dmTModelFromName("example1").messages;
+value main() {
+    tm = dmTModelFromName("example1");
+    //iprintln(tm, lineLimit=10000);
+    return tm.messages;
+}

@@ -15,7 +15,7 @@ data AType
     
 str prettyAType(intType()) = "int";
 str prettyAType(strType()) = "str";
-str prettyAType(setType(str name)) = "Set\<<name>\>";
+str prettyAType(setType(AType tp)) = "Set\<<prettyAType(tp)>\>";
 str prettyAType(entityType(str name)) = name;
 str prettyAType(fieldType(str name)) = name;
 
@@ -54,6 +54,18 @@ void collect(current: (Field) `<Id name> -\> <Type typ> inverse <Id ref> :: <Id 
     c.define("<name>", fieldId(), current, defType(typ));
     c.use(ref, {entityId()});
     c.useViaType(ref, attr, {fieldId()});
+    c.require("check inverse", current, [attr],
+        void(Solver s){
+            field_type = s.getType(typ);
+            attr_type = s.getType(attr);
+            ref_type = s.getType(ref);
+            
+            if(setType(elm_type) := field_type){
+                s.requireEqual(elm_type, ref_type, error(attr, "Field type %t does not match reference type %t", typ, ref)); 
+            } else {
+                s.requireEqual(ref_type, field_type, error(attr, "Field type %t should be equal to reference type %t", field_type, ref_type));
+            }
+        });
     collect(typ, ref, attr, c);
 }
 
