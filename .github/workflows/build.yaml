@@ -13,12 +13,12 @@ on:
       - main
 
 env:
-  MAVEN_OPTS: "-Xmx4G -Dhttps.protocols=TLSv1.2 -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
+  MAVEN_OPTS: "-Xmx6G -Dhttps.protocols=TLSv1.2 -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
 
 jobs:
   builds:
     if: ${{ !(github.ref == 'refs/heads/master' && contains(github.event.head_commit.message, '[maven-release-plugin]')) }}
-    runs-on: buildjet-4vcpu-ubuntu-2204
+    runs-on: buildjet-2vcpu-ubuntu-2204
 
     steps:
       - uses: actions/checkout@v3
