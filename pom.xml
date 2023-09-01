@@ -9,7 +9,7 @@
 
     <groupId>org.rascalmpl</groupId>
     <artifactId>typepal</artifactId>
-    <version>0.8.8-RC2-SNAPSHOT</version>
+    <version>0.8.8</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -20,7 +20,7 @@
 
     <scm>
         <developerConnection>scm:git:ssh://git@github.com/usethesource/typepal.git</developerConnection>
-      <tag>v0.8.5</tag>
+      <tag>v0.8.8</tag>
   </scm>
 
     <build>
@@ -59,7 +59,7 @@
             <plugin>
                 <groupId>org.rascalmpl</groupId>
                 <artifactId>rascal-maven-plugin</artifactId>
-                <version>0.20.2</version>
+                <version>0.20.4</version>
                 <configuration>
                     <bin>${project.build.outputDirectory}</bin>
                     <srcs>
