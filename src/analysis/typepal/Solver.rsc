@@ -297,7 +297,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         missing = dependencies - domain(calcMap) - domain(facts) - uses - defs;
         if(!isEmpty(missing)){
             //printSolverState();
-            for(m <- missing) messages += warning("Missing calculator", m);
+            for(loc m <- missing) messages += warning("Missing calculator", m);
             //was: throw TypePalUsage("Missing calculators", toList(missing));
         }
     }
@@ -326,11 +326,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         if(trigger in activeTriggers) return;
         addActiveTrigger(trigger);
         
-        for(calc <- (triggersCalculator[trigger] ? {}) && calc in calculators){  
+        for(Calculator calc <- (triggersCalculator[trigger] ? {}) && calc in calculators){  
             evalOrScheduleCalc(calc);
         }
         
-        for(req <- triggersRequirement[trigger] ? {} && req in requirements){
+        for(Requirement req <- triggersRequirement[trigger] ? {} && req in requirements){
             evalOrScheduleReq(req);
         }
         
@@ -430,7 +430,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             for(dep <- dependsOn) { if(facts[dep]?) nAvailable += 1; }
             enabled = nAvailable == size(dependsOn);
             if(enabled) calculatorJobs += calc;
-            //if(logSolverSteps){ print(enabled ? "*" : "+"); print(calc, "", facts, full=false); }
+            if(logSolverSteps){ print(enabled ? "*" : "+"); print(calc, "", facts, full=false); }
         }
     }
     
