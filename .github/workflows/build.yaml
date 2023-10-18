@@ -2,14 +2,12 @@ name: Build and Deploy
 on:
   push:
     branches:
-      - master
       - main
       - 'tpls-[0-9]+.*'
     tags:
       - 'v[0-9]+.*'
   pull_request:
     branches:
-      - master
       - main
 
 env:
@@ -17,7 +15,7 @@ env:
 
 jobs:
   builds:
-    if: ${{ !(github.ref == 'refs/heads/master' && contains(github.event.head_commit.message, '[maven-release-plugin]')) }}
+    if: ${{ !(github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[maven-release-plugin]')) }}
     runs-on: buildjet-2vcpu-ubuntu-2204
 
     steps:
