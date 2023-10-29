@@ -9,7 +9,7 @@ import ParseTree;                           // In order to parse tests
 // ---- Testing ---------------------------------------------------------------
 
 TModel calcTModelForTree(Tree pt){
-    return collectAndSolve(pt);
+    return collectAndSolve(pt, modelName = "calc");
 }
 
 TModel calcTModelFromStr(str text){

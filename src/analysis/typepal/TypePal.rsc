@@ -20,9 +20,9 @@ extend analysis::typepal::Version;
 
 // collectAndSolve shorthand for a common, simple, scenario
 
-TModel collectAndSolve(Tree pt, TypePalConfig config = tconfig()){
+TModel collectAndSolve(Tree pt, TypePalConfig config = tconfig(), str modelName = "no-name"){
     if(pt has top) pt = pt.top;
-    c = newCollector("collectAndSolve", pt, config);    // TODO get more meaningfull name
+    c = newCollector(modelName, pt, config);
     collect(pt, c);
     return newSolver(pt, c.run()).run();
 }

@@ -10,7 +10,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel staticFieldsTModelForTree(Tree pt){
-    return collectAndSolve(pt, config=staticFieldsConfig());
+    return collectAndSolve(pt, config=staticFieldsConfig(), modelName="staticfields");
 }
 
 TModel staticFieldsTModelFromName(str mname){

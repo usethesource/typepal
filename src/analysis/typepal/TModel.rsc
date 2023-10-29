@@ -19,7 +19,7 @@ data IdRole
 
 str prettyRole(IdRole idRole){
     stripped1 = replaceAll(getName(idRole), "Id", "");
-    return visit(stripped1) { case /<ch:[A-Z]>/ => " " + toLowerCase(ch) };
+    return visit(stripped1) { case /<ch:[A-Z]>/ => toLowerCase(ch) };
 }      
 
 // PathRole: the various (language-specific) labelled semantic paths
@@ -67,7 +67,7 @@ data DefInfo
     ;
 
 // A single definition: in scope, id is bound in a IdRole to defined, with DefInfo attached
-alias Define  = tuple[loc scope, str id, str orgId, IdRole idRole, loc defined, DefInfo defInfo];
+alias Define  = tuple[loc scope, str id, str orgId, IdRole idRole, int uid, loc defined, DefInfo defInfo];
 alias Defines = set[Define];                                 // All defines
 alias Scopes  = map[loc inner, loc outer];                   // Syntactic containment
 alias Paths   = rel[loc from, PathRole pathRole, loc to];    // Semantic containment path
@@ -97,6 +97,7 @@ data TModel (
     list[Message] messages = [],
     map[str,value] store = (),
     map[loc, Define] definitions = (),
+    map[loc,loc] logical2physical = (),
     TypePalConfig config = tconfig()
 )   = tmodel();
  

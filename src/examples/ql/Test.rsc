@@ -10,11 +10,11 @@ import ParseTree;
 
 TModel qlTModelForName(str name) {
     Tree pt = parse(#start[Form], |project://typepal/src/examples/ql/examples/<name>.ql|);
-    return collectAndSolve(pt);
+    return collectAndSolve(pt, modelName = "ql");
 }
 
 TModel qlTModelForTree(Tree pt) {
-    return collectAndSolve(pt);
+    return collectAndSolve(pt, modelName = "ql");
 }
 
 test bool qlTests() {

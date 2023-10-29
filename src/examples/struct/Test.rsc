@@ -10,7 +10,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel structTModelForTree(Tree pt){
-    return collectAndSolve(pt, config = structConfig());
+    return collectAndSolve(pt, config = structConfig(), modelName="struct");
 }
 
 TModel structTModelFromName(str mname){

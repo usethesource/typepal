@@ -11,7 +11,7 @@ import ParseTree;                           // In order to parse tests
 
 TModel evenOddTModelForTree(Tree pt){
     if(pt has top) pt = pt.top;
-    c = newCollector("collectAndSolve", pt,  tconfig());    // TODO get more meaningfull name
+    c = newCollector("even-odd", pt,  tconfig());
     collect(pt, c);
     return newSolver(pt, c.run()).run();
 }

@@ -10,7 +10,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel fixedMembersTModelForTree(Tree pt){
-    return collectAndSolve(pt, config = fixedMembersConfig());
+    return collectAndSolve(pt, config = fixedMembersConfig(), modelName="fixed-members");
 }
 
 TModel fixedMembersTModelFromName(str mname){

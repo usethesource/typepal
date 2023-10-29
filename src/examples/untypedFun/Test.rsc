@@ -14,7 +14,7 @@ list[Message] untypedFunCheck(str name){
 }
 
 TModel untypedFunTModelForTree(Tree pt)
-    = collectAndSolve(pt);
+    = collectAndSolve(pt, modelName="ufun");
 
 test bool untypedFunTests()
     = runTests([|project://typepal/src/examples/untypedFun/tests.ttl|], #Expression, untypedFunTModelForTree, runName="UntypedFun");

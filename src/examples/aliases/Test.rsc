@@ -9,7 +9,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel aliasesTModelForTree(Tree pt){
-    return collectAndSolve(pt, config = aliasesConfig());
+    return collectAndSolve(pt, config = aliasesConfig(), modelName = "alias");
 }
 
 TModel aliasesTModelFromName(str mname){

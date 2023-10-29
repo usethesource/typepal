@@ -15,7 +15,7 @@ TModel funTModel(str name){
 }
 
 TModel funTModelForTree(Tree pt){
-    return collectAndSolve(pt);
+    return collectAndSolve(pt, modelName = "fun");
 }
 
 TModel funTModelFromStr(str text){

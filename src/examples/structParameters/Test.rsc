@@ -10,7 +10,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel structParametersTModelForTree(Tree pt){
-    return collectAndSolve(pt, config = structParametersConfig());
+    return collectAndSolve(pt, config = structParametersConfig(), modelName="struct-parameters");
 }
 
 TModel structParametersTModelFromName(str mname){

@@ -11,7 +11,7 @@ import ParseTree;
 TModel fwjTModelForTree(Tree pt){
     if(pt has top) pt = pt.top;
     
-    c = newCollector("FWJ checker", pt, fwjConfig());
+    c = newCollector("fwj", pt, fwjConfig());
     fwjPreCollectInitialization(pt, c);
     collect(pt, c);
     return newSolver(pt, c.run()).run();

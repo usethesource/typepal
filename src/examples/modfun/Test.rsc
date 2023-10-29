@@ -15,7 +15,7 @@ TModel modfunTModel(str name){
 }
 
 TModel modfunTModelForTree(Tree pt){
-    return collectAndSolve(pt);
+    return collectAndSolve(pt, modelName="modfun");
 }
 
 TModel modfunTModelFromStr(str text){

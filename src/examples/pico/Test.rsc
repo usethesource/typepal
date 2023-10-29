@@ -10,11 +10,11 @@ import ParseTree;
 
 TModel picoTModelFromName(str name) {
     Tree pt = parse(#start[Program], |project://typepal/src/examples/pico/<name>.pico|);
-    return collectAndSolve(pt);
+    return collectAndSolve(pt, modelName="pico");
 }
 
 TModel picoTModelForTree(Tree pt) {
-    return collectAndSolve(pt);
+    return collectAndSolve(pt, modelName="pico");
 }
 
 test bool picoTests() {

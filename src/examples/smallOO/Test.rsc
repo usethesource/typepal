@@ -9,7 +9,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
                
 TModel smallOOTModelForTree(Tree pt){
-    return collectAndSolve(pt, config=smallConfig());
+    return collectAndSolve(pt, config=smallConfig(), modelName="smalloo");
 }
 
 TModel smallOOTModelFromName(str mname){

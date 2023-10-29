@@ -109,7 +109,7 @@ void collect(current: (Type) `<Id name>`, Collector c){
 // ----  Examples & Tests --------------------------------
 TModel modulesTModelFromTree(Tree pt, bool debug = false){
     if (pt has top) pt = pt.top;
-    c = newCollector("collectAndSolve", pt, config=getModulesConfig(debug = debug));    // TODO get more meaningfull name
+    c = newCollector("modules", pt, config=getModulesConfig(debug = debug));
     collect(pt, c);
     handleImports(c, pt, pathConfig(pt@\loc));
     return newSolver(pt, c.run()).run();

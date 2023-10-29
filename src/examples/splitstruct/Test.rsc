@@ -10,7 +10,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel splitstructTModelForTree(Tree pt){
-    return collectAndSolve(pt, config = splitstructConfig());
+    return collectAndSolve(pt, config = splitstructConfig(), modelName="splitstruct");
 }
 
 TModel splitstructTModelFromName(str mname){
