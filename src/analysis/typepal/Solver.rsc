@@ -16,6 +16,15 @@ import util::Benchmark;
 extend analysis::typepal::Collector;
 extend analysis::typepal::Messenger;
 
+void checkAllTypesAvailable(TModel tm){
+    //println("checkAllTypesAvailable: <tm.modelName>");
+    for(tup: <loc _, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
+        if(!(defInfo has atype)){
+            throw "checkTypesAvailable: <tm.modelName>, <tup>";
+        }
+    }
+}
+
 // Implementation of the Solver data type: a collection of call backs
    
 Solver newSolver(Tree pt, TModel tm){
@@ -55,6 +64,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     AType(AType containerType, Tree selector, loc scope, Solver s) getTypeInNamelessTypeFun = defaultGetTypeInNamelessType;
     
     bool(loc def, TModel tm) reportUnused = defaultReportUnused;
+    
+    map[loc,loc] logical2physical = tm.logical2physical;
     
     void configTypePal(TypePalConfig tc){
         
@@ -372,9 +383,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     // ---- evaluating a Define -----------------------------------------------
     // - amounts to creating a new calculator to compute the defined type
     
-    void evalDef(<loc scope, str id, str orgId, IdRole idRole, int uid, loc defined, DefInfo defInfo: noDefInfo()>) { }
+    void evalDef(<loc scope, str id, str orgId, IdRole idRole, /*int uid,*/ loc defined, DefInfo defInfo: noDefInfo()>) { }
      
-    void evalDef(<loc scope, str id, str orgId, IdRole idRole, int uid, loc defined, DefInfo defInfo: defType(value tp)>) {
+    void evalDef(<loc scope, str id, str orgId, IdRole idRole, /*int uid,*/ loc defined, DefInfo defInfo: defType(value tp)>) {
         if(AType atype := tp){
             if(isFullyInstantiated(atype)){
                 facts[defined] = atype;
@@ -393,11 +404,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         }
     }
         
-    void evalDef(<loc scope, str id, str orgId, IdRole idRole, int uid, loc defined, DefInfo defInfo: defTypeCall(list[loc] dependsOn, AType(Solver tm) getAType)>){
+    void evalDef(<loc scope, str id, str orgId, IdRole idRole, /*int uid,*/ loc defined, DefInfo defInfo: defTypeCall(list[loc] dependsOn, AType(Solver tm) getAType)>){
         calculators += calc(id, defined, dependsOn, getAType);
     }
     
-    void evalDef(<loc scope, str id, str orgId, IdRole idRole, int uid, loc defined, DefInfo defInfo: defTypeLub(list[loc] dependsOn, list[loc] defines, list[AType(Solver tm)] getATypes)>){
+    void evalDef(<loc scope, str id, str orgId, IdRole idRole, /*int uid,*/ loc defined, DefInfo defInfo: defTypeLub(list[loc] dependsOn, list[loc] defines, list[AType(Solver tm)] getATypes)>){
         calculators += calcLub(id, defines, dependsOn, getATypes);
     }
     
@@ -844,7 +855,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             results = {};
             try {
                 for(containerDef <- _getDefinitions(containerName, scope, containerRoles)){   
-                    results += { <id, getType(defInfo)> |  <str id, str _orgId, IdRole idRole, int _, loc _, DefInfo defInfo> <- defines[containerDef.defined] ? {}, idRole in idRoles };
+                    results += { <id, getType(defInfo)> |  <str id, str _orgId, IdRole idRole, /*int _,*/ loc _, DefInfo defInfo> <- defines[containerDef.defined] ? {}, idRole in idRoles };
                 }
                 return results;
              } catch AmbiguousDefinition(set[loc] foundDefs): {               //if(!mayOverloadFun(foundDefs, definitions)){             
@@ -1481,11 +1492,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         for(ud <- unusedDefs){
             udef = definitions[ud];
+            
             scope = udef.scope;
             id = udef.id;
             orgId = udef.orgId;
             idRole = udef.idRole;
             defined = udef.defined;
+            if(logical2physical[defined]?) continue;
         
             u = use(id, orgId, defined, scope, {idRole}); // turn each unused definition into a use and check for double declarations;
             try {
@@ -1870,7 +1883,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
           tm.specializedFacts = specializedFacts;
           tm.useDef = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
           
-          ldefines = for(tup: <loc _, str _, str _, IdRole _, int _, loc defined, DefInfo defInfo> <- tm.defines){
+          ldefines = for(tup: <loc _, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
                             if(defInfo has tree){
                                try {                   
                                        dt = defType(tm.facts[getLoc(defInfo.tree)]);
@@ -1883,7 +1896,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                                        dt = defType(tm.facts[defined]);
                                        tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo)); 
                                    } catch NoSuchKey(_): {
-                                     continue;
+                                        continue;
                                    }
                              } 
                              append tup;
@@ -1904,6 +1917,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
           if(logTime){
             println("<tm.modelName>, solver total: <(solverEnded - solverStarted)/M> ms; init: <(mainStarted - runStarted)/M> ms [ doubles <initFilterDoublesTime/M>; uses <initCheckUsesTime/M>; def <initDefTime/M>; register <initRegisterTime/M>; fact triggers <initFactTriggerTime/M>; calc <initCalcTime/M>; req <initReqTime/M> ]; run main loop: <(mainEnded - mainStarted)/M> ms [ calc <mainCalcTime/M>; req <mainReqTime/M> ]; finish: <(solverEnded - mainEnded)/M> ms [ postSolver <postSolverTime/M> ]");
           }
+          checkAllTypesAvailable(tm);
           return tm;
     }
     

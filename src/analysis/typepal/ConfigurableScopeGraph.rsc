@@ -6,6 +6,7 @@ extend analysis::typepal::ISolver;
 import IO;
 import Set;
 import Map;
+import util::Reflective;
 import String;
 extend ParseTree;
 
@@ -53,6 +54,18 @@ bool defaultReportUnused (loc _, TModel _) {
     return false;
 }
 
+str reduceToURIChars(str s){
+    return visit(s){
+            case /^<c:[a-zA-Z0-9+\-\.\_\~:\/\?\#\[\]\@\!\$\&\'\(\)\*\+\,\;\%\=]>/ => c
+            case str _ => ""
+        }
+    }
+
+loc defaultLogicalLoc(str id, IdRole idRole, loc physicalLoc, str modelName, PathConfig _pcfg){
+   path = physicalLoc.path;
+   return |<"<modelName>+<prettyRole(idRole)>">://<path>/<reduceToURIChars(id)>|; 
+}
+
 // Extends TypePalConfig defined in analysis::typepal::ScopeGraph
 
 data TypePalConfig(       
@@ -72,6 +85,8 @@ data TypePalConfig(
         bool logAttempts           = false,
         bool logTModel             = false,
         bool validateConstraints   = true,
+        set[IdRole] roleNeedslogicalLoc = {},
+        PathConfig typepalPathConfig = pathConfig(),
     
         AType() getMinAType                                         
             = AType (){  throw TypePalUsage("`getMinAType()` called but is not specified in TypePalConfig"); },
@@ -113,7 +128,9 @@ data TypePalConfig(
         TModel(map[str,Tree] namedTrees, TModel tm) preSolver = TModel(map[str,Tree] _, TModel tm) { return tm; },    
         void (map[str,Tree] namedTrees, Solver s) postSolver  = void(map[str,Tree] _, Solver _) { return ; },
         
-        bool(loc def, TModel tm) reportUnused = defaultReportUnused
+        bool(loc def, TModel tm) reportUnused = defaultReportUnused,
+        
+        loc (str id, IdRole idRole, loc physicalLoc, str modelName, PathConfig pcfg) createLogicalLoc = defaultLogicalLoc
     );
     
 
