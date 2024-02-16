@@ -192,12 +192,8 @@ Collector newCollector(str modelName, Tree pt, TypePalConfig config){
 
 anno loc Tree@src;
 
-loc convertLoc(map[loc,loc] locMap, loc l){
-    return locMap[l] ? l;
-}
-
 &T convertLocs(&T v, map[loc,loc] locMap){
-    return visit(v){ case loc l => convertLoc(locMap, l) };
+    return visit(v){ case loc l => locMap[l] ? l };
 }
 
 TModel convertTModel2PhysicalLocs(TModel tm){
@@ -259,13 +255,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     bool building = true;
     
-    //str reduceToURIChars(str s){
-    //    return visit(s){
-    //        case /^<c:[a-zA-Z0-9+\-\.\_\~:\/\?\#\[\]\@\!\$\&\'\(\)\*\+\,\;\%\=]>/ => c
-    //        case str _ => ""
-    //    }
-    //}
-    
     void defineLogicalLoc(str id, IdRole idRole, loc physicalLoc){
         if(idRole notin config.roleNeedslogicalLoc){
             return;
@@ -274,15 +263,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         i = alreadyDefined[def_tup] ? 0;
         alreadyDefined[def_tup] = i + 1;
         suffix = i == 0 ? "" : "$<"<i>">";
-        
-        path = physicalLoc.path;
-        j = findLast(path, ".rsc");
-        path = path[0..j];
-        
-        k = findLast(id, "::");  // TODO this is Rascal specific, generalize;
-        if(k >= 0){
-            id = id[k+2 ..];
-        }
+       
         logicalLoc = config.createLogicalLoc(id, idRole, physicalLoc, modelName, config.typepalPathConfig) + suffix;
         if(logicalLoc != physicalLoc){
             logical2physical[logicalLoc] = physicalLoc;
@@ -297,11 +278,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             else throw TypePalUsage("Argument `def` of `define` should be `Tree` or `loc`, found <typeOf(def)>");
             
             def_tup = <orgId, idRole>;
-            //if(def_tup in alreadyDefined){
-            //    println("Duplicate define of <orgId> as <idRole> at <l>");
-            //    //return;
-            //}
-            //alreadyDefined += def_tup;
             nname = normalizeName(orgId);
            
             //println("define: <orgId>, <idRole>, <def>");
@@ -994,27 +970,12 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         if(!isValidVersion(tm.version)){
             throw TypePalUsage("TModel for <tm.modelName> uses TPL version <tm.version>, but <getCurrentTplVersion()> is required");
         }
-       
-        tm_logical2physical = tm.logical2physical;
-       
-        tm = visit(tm){ case loc l => convertLoc(logical2physical, l) };
-        logical2physical += tm_logical2physical;
         
-       // 
-       // physical2logical += invertUnique(logical2physical);
-       // 
-       // rng = range(physical2logical);
-       // if(size(physical2logical) != size(rng)){
-       //     iv = invert(physical2logical);
-       //     for(k <- iv){
-       //         if(size(iv[k]) != 1){
-       //             println("<k> maps to: <iv[k]>");
-       //         }
-       //     }
-       //     throw "CANNOT INVERT while adding <tm.modelName> to <modelName>";
-       // }
+        tm = convertTModel2PhysicalLocs(tm);
         
+        logical2physical += tm.logical2physical;
         messages += tm.messages;
+        
         scopes += tm.scopes;
         defines += tm.defines;
         facts += tm.facts;
