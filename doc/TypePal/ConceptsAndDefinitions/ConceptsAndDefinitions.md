@@ -175,20 +175,21 @@ TypePal provides the data type `DefInfo` for this purpose:
 
 ```rascal
 data DefInfo
-    = noDefInfo()                                                                           //<1>
-    | defType(value contrib)                                                                //<2>
-    | defTypeCall(list[loc] dependsOn, AType(Solver s) getAType)                            //<3>
-    | defTypeLub(list[loc] dependsOn, list[loc] defines, list[AType(Solver s)] getATypes)   //<4>
+    = noDefInfo()                                                                          //<1>
+    | defType(loc src)                                                                     //<2>
+    | defType(Tree tree)                                                                   //<3>
+    | defType(AType atype)                                                                 //<4>
+    | defTypeCall(list[loc] dependsOn, AType(Solver s) getAType)                           //<5>
+    | defTypeLub(list[loc] dependsOn, list[loc] defines, list[AType(Solver s)] getATypes)  //<6>
     ;
 ```
 <1> No information associated with this definition.
-<2> Explicitly given AType contribution associated with this definition. `contrib` can either be an `AType`, or a `Tree`. 
-    In the latter case, the type of that tree is used (when it becomes available) for the current definition.
-<3> Type of this definition depends on the type of the entities given in `dependsOn`, when those are known, 
+<2> Explicitly given AType contribution associated with this definition. `src` is a source code location. The type of that source location is used (when it becomes available) for the current definition.
+<3> Explicitly given AType contribution associated with this definition. `tree` is a `Tree`. The type of that tree is used (when it becomes available) for the current definition.
+<4> Explicitly given AType contribution associated with this definition. `atype` is an `AType`. That type is used for the current definition.
+<5> Type of this definition depends on the type of the entities given in `dependsOn`, when those are known, 
     `getAType` can construct the type of this definition. 
     `getAType` will only be called by TypePal during constraint solving.
-<4> Refine a set of definitions by taking their LUB, mostly used for local type inference.
+<6> Refine a set of definitions by taking their LUB, mostly used for local type inference.
 
 The ((Solver)) argument of `getAType` and `getATypes` is the current constraint solver being used.
-
-WARNING: noDefInfo may be removed.

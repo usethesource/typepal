@@ -8,7 +8,7 @@ An overview of TypePal
 
 #### Description
 
-TypePal is a declarative framework that operates on a model of the program to be type checked that consisting of 
+TypePal is a declarative framework that operates on a model of the program to be type checked that consists of 
 
 * _facts_ that some source code fragment has a known type, e.g., an integer literal is of type integer,
   or that its type is equal to the type of another source code fragment, e.g., the type of the expression in parentheses `( e )` is equal to the type of `e`.
@@ -28,8 +28,8 @@ When a requirement is satisfied or a calculator computes a new type,
 this leads to the creation of new facts that may trigger the computation of other requirements and calculators.
 
 Technically, TypePal uses _scope graphs_ for expressing definition and use of names (including their role, scope, name space, and visibility),
-and _constraints_ to describe facts, requirements and calculators. 
-These constraints are such that they can express either type checking or type inference, or a mixture thereof.
+and _constraints_ to describe facts, requirements and calculators. These constraints are such that they can express either type checking or type inference, or a mixture thereof.
 Under the hood, these constraints are solved in an efficient, data-driven, fashion.
+Scope graphs have been inspired by Kastens and Waite, _Name analysis for modern languages: a general solution_, SP&E, 2017.
 
 TypePal is highly parameterized and can be adapted to specific type checking needs.
