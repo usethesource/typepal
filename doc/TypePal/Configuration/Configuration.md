@@ -252,12 +252,11 @@ A function `postSolver` that can enrich or transform the TModel after constraint
 
 ### Miscellaneous
 
-#### unescapeName
+#### normalizeName
 ```rascal
-/* Configuration field */  str(str) unescapeName  
+/* Configuration field */  str(str) normalizeName  
 ```
-A function _unescapeName_ to define language-specific escape rules for names.
-By default, all backslashes are removed from names.
+A function `normalizeName` to define language-specific escape rules for names. By default, all backslashes are removed from names.
 
 #### validateConstraints
 ```rascal
@@ -265,6 +264,18 @@ By default, all backslashes are removed from names.
 ```
 When `validateConstraints` is true, the validity of all constraints is checked before solving starts.
 For all dependencies (in facts, calculators and requirements) a calculator needs to be present to solve that dependency.
+
+#### createLogicalLoc
+```rascal
+/* Configuration field */ loc (str id, IdRole idRole, loc physicalLoc, str modelName, PathConfig pcfg) createLogicalLoc
+```
+Internally, TypePal operates on physical source locations, e.g., source locations that point to a specific location in a source file. This all works fine, until modules and separate compilation come into play. Case in point is a function `f` declared in file A that is used in file B. When file A is edited, the source location of `f` will most likely change, while in most cases the definition of `f` has not been changed. Any information based on `f`'s original source location will be broken. To solve this problem _logical source locations_ are introduced that abstract away from the precise source locations and are thus better.
+
+The function `createLogicalLoc` gives complete freedom in the way such logical locations are encoded. In the case of Rascal, `f` will, for instance, be encoded as `|rascal+function:///A/f|`. 
+
+:::warning
+When a function is overloaded, measures have to be taken to create unique logical locations for each overloaded version of that function.
+:::
 
 ### Verbosity
 

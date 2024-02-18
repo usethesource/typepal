@@ -8,8 +8,7 @@ How to format and report errors, warnings and info messages.
 
 #### Description
 
-Reporting may be done both in the Collector and the Solver. 
-It uses values of the datatype `FailMessage` that can be created as follows:
+Reporting may be done both in the Collector and the Solver.  It uses values of the datatype `FailMessage` that can be created as follows:
 
 ```rascal
 FailMessage error(value src, str msg, value args...);

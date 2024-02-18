@@ -21,15 +21,10 @@ TypePal is a declarative framework that operates on a model of the program to be
   then the type of the variable on the left-hand side should be compatible with the type integer.
 
   
-We call this model the _TModel_ (for "Type Model") of the program: facts describe elementary observations and equalities between types,
-calculators compute new type facts, and requirements impose restrictions on the types of program fragments. 
-A requirement or calculator may detect a type violation and will then generate an error message. 
-When a requirement is satisfied or a calculator computes a new type, 
+We call this model the _TModel_ (for "Type Model") of the program: facts describe elementary observations and equalities between types, calculators compute new type facts, and requirements impose restrictions on the types of program fragments.  A requirement or calculator may detect a type violation and will then generate an error message.  When a requirement is satisfied or a calculator computes a new type, 
 this leads to the creation of new facts that may trigger the computation of other requirements and calculators.
 
-Technically, TypePal uses _scope graphs_ for expressing definition and use of names (including their role, scope, name space, and visibility),
-and _constraints_ to describe facts, requirements and calculators. These constraints are such that they can express either type checking or type inference, or a mixture thereof.
-Under the hood, these constraints are solved in an efficient, data-driven, fashion.
+Technically, TypePal uses _scope graphs_ for expressing definition and use of names (including their role, scope, name space, and visibility), and _constraints_ to describe facts, requirements and calculators. These constraints are such that they can express either type checking or type inference, or a mixture thereof. Under the hood, these constraints are solved in an efficient, data-driven, fashion.
 Scope graphs have been inspired by Kastens and Waite, _Name analysis for modern languages: a general solution_, SP&E, 2017.
 
-TypePal is highly parameterized and can be adapted to specific type checking needs.
+TypePal is highly parameterized and can be adapted to specific type checking needs, see [Configuration]((Configuration)).

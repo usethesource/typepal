@@ -100,8 +100,7 @@ The function `comparable` determines whether the type of `l` is comparable with 
 ```rascal
 /* Solver field */ bool (value l, value r) unify
 ```
-The function `unify` determines whether the type of `l` can be unified with the type of `r`
-it calls the user-provided functions `getSubType` and `getLub`, see [Configuration]((TypePal:Configuration)). The bindings that may result from unification are effectuated when the enclosing calculate succeeds.
+The function `unify` determines whether the type of `l` can be unified with the type of `r` it calls the user-provided functions `getSubType` and `getLub`, see [Configuration]((TypePal:Configuration)). The bindings that may result from unification are effectuated when the enclosing calculate succeeds.
 
 ### lub
 ```rascal
@@ -142,8 +141,7 @@ The function `requireUnify just returns when the type of `l` can be unified with
 /* Solver field */ void (bool b, FailMessage fmsg) requireTrue
 /* Solver field */ void (bool b, FailMessage fmsg) requireFalse
 ```
-The function `requireTrue` returns when its condition is true, otherwise the FailMessage is reported.
-The function `requireFalse` returns when its condition is false, otherwise the FailMessage is reported.
+The function `requireTrue` returns when its condition is true, otherwise the FailMessage is reported. The function `requireFalse` returns when its condition is false, otherwise the FailMessage is reported.
 
 ## Types
 
@@ -190,8 +188,7 @@ Here
 * `idRoles` is a set of allowed identifier roles.
 
 ### getTypeInScopeFromName
-The function `getTypeInScopeFromName` determines the type of a given name that has been bound via given identifier roles in a given scope.  It is typically used to map a name of a type to its actual type, e.g., 
-mapping the name `POINT` as it occurs in a declaration to the actual record type of `POINT`.
+The function `getTypeInScopeFromName` determines the type of a given name that has been bound via given identifier roles in a given scope.  It is typically used to map a name of a type to its actual type, e.g., mapping the name `POINT` as it occurs in a declaration to the actual record type of `POINT`.
 
 ```rascal
 /* Solver field */ AType (str name, loc scope, set[IdRole] idRoles) getTypeInScopeFromName
@@ -204,8 +201,7 @@ Here:
 
 ### getTypeInType
 
-The function `getTypeInType` is typically used to determine parts of a container type such as, e.g., 
-the fields in a named record type or the methods in a named class type.
+The function `getTypeInType` is typically used to determine parts of a container type such as, e.g., the fields in a named record type or the methods in a named class type.
 ```rascal
 /* Solver field */ AType (AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope) getTypeInType
 ```
@@ -268,6 +264,7 @@ Returns the current [Configuration]((TypePal:Configuration)).
 ```rascal
 /* Solver field */ map[loc, AType]() getFacts
 ```
+Returns the current fact base as mapping from source locations to atypes.
 
 ### getPaths
 ```rascal

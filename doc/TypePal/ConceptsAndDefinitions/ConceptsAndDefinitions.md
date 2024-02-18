@@ -7,33 +7,17 @@ title: Concepts and Definitions
 The concepts and definitions used in TypePal.
 
 ## Identifier
-The syntax of a source language may impose various restrictions on the identifiers 
-that can occur in a program. They amount to including or excluding specific characters 
-for various occurrences of names in the program. One example is the requirement in Java that class names
-start with an upper case letter. TypePal is agnostic of such conventions and represents 
-each name as a string. _Qualified names_ are also supported and are represented by a list of strings.
+The syntax of a source language may impose various restrictions on the identifiers that can occur in a program. They amount to including or excluding specific characters for various occurrences of names in the program. One example is the requirement in Java that class names start with an upper case letter. TypePal is agnostic of such conventions and represents each name as a string. _Qualified names_ are also supported and are represented by a list of strings.
 
 ## Tree
 
-The Rascal data type `Tree` (REF) is used to represent all parse trees that can be generated for any syntax described in Rascal.
-`Tree` is also a super type of any syntactic construct that may occur in a parse tree. 
-In TypePal we interchangeably use `Tree` and the source area (a source location) associated with it to uniquely 
-identify program parts, definitions, uses and scopes.
+The Rascal data type `Tree` (see [ParseTree]((Rascal::ParseTree))) is used to represent all parse trees that can be generated for any syntax described in Rascal. `Tree` is also a super type of any syntactic construct that may occur in a parse tree. In TypePal we interchangeably use `Tree` and the source area (a source location) associated with it to uniquely identify program parts, definitions, uses and scopes.
 
 ## Scope
-A _scope_ is a region of a program that delimits where definitions of identifier are applicable.
-An identifier is defined in the scope where it is defined and in all nested subscopes, unless one of these subscopes
-redefines that same identifier. In that case, the inner definition applies inside that nested scope (and its subscopes).
-Scopes are identified by the subtree of the parse tree that introduces them such as, for instance, a module, a function declaration or a block.
-Special rules may apply such as _define-before-use_ or _scopes-with-holes_.
+A _scope_ is a region of a program that delimits where definitions of identifier are applicable. An identifier is defined in the scope where it is defined and in all nested subscopes, unless one of these subscopes redefines that same identifier. In that case, the inner definition applies inside that nested scope (and its subscopes). Scopes are identified by the subtree of the parse tree that introduces them such as, for instance, a module, a function declaration or a block. Special rules may apply such as _define-before-use_ or _scopes-with-holes_.
 
 ## Scope Graph
-The scope graph is one of the the oldest methods to describe the scope of names in a program.
-We use a version of scope graphs as described by Kastens & Waite, _Name analysis for modern languages: a general solution_, SP&E, 2017.
-This model uses text ranges in the source text (happily represented by Rascal's `loc` data type) to identify 
-and define all aspects of names. 
-A scope graph provides lookup operations on names that take both syntactic nesting and semantic linking (via _paths_) into account,
-as well as the specific roles of identifiers and paths (described below).
+The scope graph is one of the the oldest methods to describe the scope of names in a program. We use a version of scope graphs as described by Kastens & Waite, _Name analysis for modern languages: a general solution_, SP&E, 2017. This model uses text ranges in the source text (happily represented by Rascal's `loc` data type) to identify and define all aspects of names. A scope graph provides lookup operations on names that take both syntactic nesting and semantic linking (via _paths_) into account, as well as the specific roles of identifiers and paths (described below).
 
 ## Identifier definition
 The _definition_ of an identifier is inside TypePal characterized by a `Define`:
@@ -57,19 +41,10 @@ data Use
     | useq(list[str] ids, loc occ, loc scope, set[IdRole] idRoles, set[IdRole] qualifierRoles)
     ;
 ```
-where `use` represents the use of a simple name and `useq` that of a qualified name.
-In the latter case, a list of strings is given; the last string is a simple name in given `idRoles` and the preceeding strings are its qualifiers in `qualifierRoles`.
+where `use` represents the use of a simple name and `useq` that of a qualified name. In the latter case, a list of strings is given; the last string is a simple name in given `idRoles` and the preceeding strings are its qualifiers in `qualifierRoles`.
 
 ## Path
-TypePal is based on scope graphs that are not only based on syntactic containment of scopes but can also express semantic 
-connections between parse trees.
-While scopes are strictly determined by the hierarchical structure of a program (i.e., its parse tree),
-_paths_ provide an escape from this restriction and define a semantic connection between syntactic 
-entities that are not hierarchically related and may even be part of different syntax trees.
-Connections between syntactic entities are paths labelled with user-defined roles.
-Paths are represented by the Rascal datatype `PathRole`.
-An example is the import of a module _M_ into another module _N_ that makes the entities in _M_ known inside _N_.
-Here is an example of a path role to mark an import path between two parse trees.
+TypePal is based on scope graphs that are not only based on syntactic containment of scopes but can also express semantic connections between parse trees. While scopes are strictly determined by the hierarchical structure of a program (i.e., its parse tree), _paths_ provide an escape from this restriction and define a semantic connection between syntactic entities that are not hierarchically related and may even be part of different syntax trees. Connections between syntactic entities are paths labelled with user-defined roles. Paths are represented by the Rascal datatype `PathRole`. An example is the import of a module _M_ into another module _N_ that makes the entities in _M_ known inside _N_. Here is an example of a path role to mark an import path between two parse trees.
 
 ```rascal
 data PathRole
@@ -79,33 +54,28 @@ data PathRole
 Paths are, amongst others, used in the resolution of qualified names.
 
 ## Name Resolution
-Name resolution is based on the principle: __syntactic resolution first, semantic resolution second__.
-This means that we first search for a definition in the current parse tree and only when that fails 
-we follow semantic path to other trees (either in the current tree or in other trees):
+Name resolution is based on the principle: __syntactic resolution first, semantic resolution second__. This means that we first search for a definition in the current parse tree and only when that fails we follow semantic path to other trees (either in the current tree or in other trees):
 
 * First the current scope in which the name is used is searched for a definition.
 * If this fails surrounding scopes are searched.
 * If this fails semantic paths in the same parse tree or to other parse trees are searched, such as, for instance, 
   provided by an import statement.
 
-This is illustrated below, where a name occurrence _O_ 
-can be resolved to definitions _D1_ (syntactic resolution), _D2_ (semantic resolution) and/or _D3_ (semantic resolution).
+This is illustrated below, where a name occurrence _O_ can be resolved to definitions _D1_ (syntactic resolution), _D2_ (semantic resolution) and/or _D3_ (semantic resolution).
 
 ![]((NameResolution.png))
 
-IMPORTANT: Name resolution need not have a unique solution. 
-Therefore the author of a TypePal-based type checker can provide functions to 
-(a) filter valid solutions; (b) determine which identifiers may be overloaded.
+:::note
+Name resolution need not have a unique solution. Therefore the author of a TypePal-based type checker can provide functions to (a) filter valid solutions; (b) determine which identifiers may be overloaded.
+:::
 
 ## Role
 
-Identifiers, scopes and path can play different _roles_ that determine how they will be handled.
-They are represented by various Rascal datatypes that can be extended by the author of a typechecker.
+Identifiers, scopes and path can play different _roles_ that determine how they will be handled. They are represented by various Rascal datatypes that can be extended by the author of a typechecker.
 
 ### Identifier Role
 
-Identifier roles are modelled by the data type `IdRole`.
-Here is an example where roles are introduced for constants, variables, formal parameters and functions:
+Identifier roles are modelled by the data type `IdRole`. Here is an example where roles are introduced for constants, variables, formal parameters and functions:
 
 ```rascal
 data IdRole
@@ -116,15 +86,15 @@ data IdRole
     ;
 ```
 
-When _defining_ an identifier, the specific role of that identifier has to be given, e.g. as `constantId()`.
-When _using_ an identifier, the set of acceptables roles has to be given. For instance, an identifier
-used in an expression may accept the roles `{ constantId(), variableId(), formalId() }`.
+When _defining_ an identifier, the specific role of that identifier has to be given, e.g. as `constantId()`. When _using_ an identifier, the set of acceptables roles has to be given. For instance, an identifier used in an expression may accept the roles `{ constantId(), variableId(), formalId() }`.
+
+:::note
+We use the convention that IdRoles always end in "Id". In certain cases, e.g., in error messages and in logical source locations, this suffix is removed for clarity.
+:::
 
 ### Scope Role
 
-Scope roles are modelled by the data type `ScopeRole` and are used to distinguish different kinds of scopes.
-Later (REF) we will see that this can be used, for instance, to search for the innermost scope with a specific role,
-say the innermost function scope. Here is an example that introduces scopes for functions and loops:
+Scope roles are modelled by the data type `ScopeRole` and are used to distinguish different kinds of scopes. We will see that this can be used, for instance, to search for the innermost scope with a specific role, say the innermost function scope. Here is an example that introduces scopes for functions and loops:
 
 ```rascal
 data ScopeRole
@@ -144,8 +114,7 @@ data PathRole
 ```
 
 ## Types
-The type to be associated with names varies widely for different programming languages and has to be provided by the typechecker author.
-TypePal provides the data type `AType` that provides already some built-in constructors:
+The type to be associated with names varies widely for different programming languages and has to be provided by the typechecker author. TypePal provides the data type `AType` that provides already some built-in constructors:
 
 ```rascal
 data AType
@@ -192,4 +161,4 @@ data DefInfo
     `getAType` will only be called by TypePal during constraint solving.
 <6> Refine a set of definitions by taking their LUB, mostly used for local type inference.
 
-The ((Solver)) argument of `getAType` and `getATypes` is the current constraint solver being used.
+The [Solver]((Solver)) argument of `getAType` and `getATypes` is the current solver being used.

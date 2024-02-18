@@ -157,11 +157,11 @@ An expression consisting of a single identifier represents a _use_ of that ident
 - a matching define is found for one of the given roles: use and definition are connected to each other.
 - no matching define is found and an error is reported.
 
-::: Note
+:::note
 In larger languages names may be defined in different scopes. Scopes do not play a role in Cal.
 :::
 
-:::Note
+:::note
 We do not enforce _define-before-use_ in this example, but see [Configuration](Configuration:isAcceptableSimple) how to achieve this.
 :::
 
@@ -179,8 +179,9 @@ void collect(current: (Exp) `<Integer integer>`, Collector c){
 
 When encountering a Boolean or integer constant we record their type using `c.fact(current, _its type_)`.
 
-NOTE: The second argument of `fact` maybe an `AType`, an arbitrary parse tree (in which case the type of that tree will be used),
-      or a function that returns a type.
+:::note
+The second argument of `fact` maybe an `AType`, an arbitrary parse tree (in which case the type of that tree will be used), or a function that returns a type.
+:::
 
 #### Check Exp: parentheses
 ```rascal
@@ -223,14 +224,10 @@ where
 * _list of dependencies_ is a list of other parse trees whose type is needed in the computation of the type of `current`.
 * `AType(Solver s) { ... }` performs the type computation:
     * it is only called when the types of all dependencies are known.
-    * it has a `Solver` as argument: a `Solver` manages the constraint solving process and is aware of all facts and solved constraints so far and
-       knows, for instance, about the existence of type information for some parse tree.
+    * it has a `Solver` as argument: a `Solver` manages the constraint solving process and is aware of all facts and solved constraints so far and knows, for instance, about the existence of type information for some parse tree.
     * it either returns an `AType` or reports an error.
   
-The above code could be paraphrased as follows:
-_The type of `current` can only be computed when the types of `e1` and `e2` are known. When known,
-get their types (using `s.getType`) and distinguish cases: two integer arguments give an integer result type and two Boolean arguments a Boolean result type; 
-otherwise report an error._
+The above code could be paraphrased as follows: _The type of `current` can only be computed when the types of `e1` and `e2` are known. When known, get their types (using `s.getType`) and distinguish cases: two integer arguments give an integer result type and two Boolean arguments a Boolean result type; otherwise report an error._
 
 A final, essential, step is to collect constraints from the subparts `e1` and `e2`.
 
@@ -265,11 +262,7 @@ void collect(current: (Exp) `if <Exp cond> then <Exp e1> else <Exp e2>`, Collect
     collect(cond, e1, e2, c);
 }
 ```
-Checking a conditional expression amounts to checking that the condition has type Boolean and
-that the then and else branch have the same type (which also becomes the type of the conditional expression as a whole).
-In the above code we see `s.requireEqual(arg1, arg2, message)`. 
-Here _arg1_ and _arg2_ may either be a subtree (in which case its type is used) or an `AType`.
-`requireEqual` requires that both types are equal or reports an error.
+Checking a conditional expression amounts to checking that the condition has type Boolean and that the then and else branch have the same type (which also becomes the type of the conditional expression as a whole). In the above code we see `s.requireEqual(arg1, arg2, message)`. Here _arg1_ and _arg2_ may either be a subtree (in which case its type is used) or an `AType`. `requireEqual` requires that both types are equal or reports an error.
 
 A final, essential, step is to collect constraints from the subparts `cond`, `e1` and `e2`.
 
@@ -299,8 +292,7 @@ TModel calcTModelFromTree(Tree pt){
     return collectAndSolve(pt);
 }
 ```
-Given a parse tree `pt` for a Calc program, we apply ((collectAndSolve)) to it. This creates a Collector, uses it to collect constraints from `pt` and then creates a Solver 
-to solve all constraints. The result is a `TModel`. `calcTModelFromTree` will also be used during automated testing.
+Given a parse tree `pt` for a Calc program, we apply ((collectAndSolve)) to it. This creates a Collector, uses it to collect constraints from `pt` and then creates a Solver to solve all constraints. The result is a `TModel`. `calcTModelFromTree` will also be used during automated testing.
 
 ```rascal
 TModel calcTModelFromStr(str text){
@@ -310,8 +302,7 @@ TModel calcTModelFromStr(str text){
 ```
 In order to obtain a parse tree, we need to parse it as shown above.
 
-TModels contain much information but here we are only interested in the messages that have been generated during constraint solving.
-They are contained in the `messsages` field of a TModel.
+TModels contain much information but here we are only interested in the messages that have been generated during constraint solving. They are contained in the `messsages` field of a TModel.
 
 With the above machinery in place we can perform some experiments:
 
