@@ -72,7 +72,7 @@ To get you started more quickly, we give below a list of complete TypePal-based 
 
 ##### Aliases
 
-| *What*        |  [Struct]((examples::Struct)) extended with type aliases |
+| *What*        |  [Struct]((#Struct)) extended with type aliases |
 | --- | --- |
 | *Illustrates* | useViaType, TypePalConfig, getTypeNamesAndRole |
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/aliases |
@@ -82,7 +82,7 @@ To get you started more quickly, we give below a list of complete TypePal-based 
 ##### StaticFields
 
 
-| *What*        | [Struct]((examples::struct)) extended with fields on non-record type |
+| *What*        | [Struct]((#Struct)) extended with fields on non-record type |
 | --- | --- |
 | *Illustrates* | useViaType, TypePalConfig, getTypeNamesAndRole, getTypeInNamelessType  |
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/staticFields |
@@ -90,7 +90,7 @@ To get you started more quickly, we give below a list of complete TypePal-based 
 
 ##### StructParameters
 
-| *What*        | [Struct]((examples::struct)) with parameterized records |
+| *What*        | [Struct]((#Struct)) with parameterized records |
 | --- | --- |
 | *Illustrates* | useViaType, TypePalConfig, getTypeNamesAndRole, getTypeInNamelessType, instantiateTypeParameters |
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/structParameters |
