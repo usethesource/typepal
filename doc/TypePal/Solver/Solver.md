@@ -8,14 +8,11 @@ A `Solver` tries to solve the constraints in a `TModel`; unsolved constraints pr
 
 #### Description
 
-The purpose of a Solver is to solve the constraints that have been gathered by the ((Collector))
-and to produce a TModel.
-The functions provided by a Solver are summarized below:
+The purpose of a Solver is to solve the constraints that have been gathered by the [Collector]((Collector)) and to produce a TModel. The functions provided by a Solver are summarized below:
 
 ![]((Solver.png))
 
-Two dozen functions (some very similar to the ones provided for ((Collector))) are available 
-that fall into the following categories:
+Two dozen functions (some very similar to the ones provided for [Collector]((Collector))) are available  that fall into the following categories:
 
 * _Lifecycle of Solver_: create a new Solver and use it to solve the constraints in a given TModel.
 * _Fact_: establish facts.
@@ -24,35 +21,21 @@ that fall into the following categories:
 * _Types_: retrieve the type of a program fragment in various ways, if that type is available.
 * _Inference_: create new type variables for type inference.
 * _Reporting_: report errors, warnings and info messages.
-* _Global Info_:  access global information such as the current ((TypePal:Configuration)), available type facts,
-  and the global store.
-  
-(((TODO: explain global store better))) 
+* _Global Info_:  access global information such as the current [Configuration]((TypePal:Configuration)), available type facts, and the global store (to be explained in more detail below).
 
-In identical style as used for ((Collector)), `Solver` is a datatype with a single constructur and with a number of functions as fields,
-For instance, given a  `Solver` named `s`, calling the `getType` function amounts to: `s.getType(_argument-of-getType_)`.
-All Solver functions are prefixed with `/* Solver field */` to emphasize that they
-are a field of the Solver datatype.
+In identical style as used for the [Collector]((Collector)), `Solver` is a datatype with a single constructur and with a number of functions as fields, For instance, given a  `Solver` named `s`, calling the `getType` function amounts to: `s.getType(_argument-of-getType_)`. All Solver functions are prefixed with `/* Solver field */` to emphasize that they are a field of the Solver datatype.
 
-
-The result of the Solver is an enriched `TModel` that contains, amongst others, messages regarding violated requirements
-or types that could not be computed.
-It can also be used to generate other usefull information about the program such as a use-def relation and
-the used vocabulary (used for name completion).
+The result of the Solver is an enriched `TModel` that contains, amongst others, messages regarding violated requirements or types that could not be computed. It can also be used to generate other usefull information about the program such as a use-def relation and the used vocabulary (used for name completion).
 
 ## Lifecycle of Solver
 
-Once, an initial TModel has been created by a ((Collector)), a Solver takes over to solve constraints
-and produce a final TModel. A new Solver can be created by `newSolver` that comes in two flavours:
+Once, an initial TModel has been created by a [Collector]((Collector)), a Solver takes over to solve constraints and produce a final TModel. A new Solver can be created by `newSolver` that comes in two flavours:
 
 ```rascal
 Solver newSolver(Tree pt, TModel tm)
 Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 ```
-The former takes a parse tree and an initial TModel and is intended
-to solve the constraints for a single parse tree.
-The latter takes a map of named parse trees and an initial TModel and can handle the situation of multiple trees
-with mutual dependencies.
+The former takes a parse tree and an initial TModel and is intended to solve the constraints for a single parse tree. The latter takes a map of named parse trees and an initial TModel and can handle the situation of multiple trees with mutual dependencies.
 
 Finally, `run` creates the final TModel by solving the constraints in the initial TModel:
 ```rascal
@@ -91,10 +74,7 @@ All calculate (and require) functions use the following typing convention: an ar
 * an `AType`, or
 * a `Tree`.
 
-In the former case, the AType is used as is.
-In the latter case, the type of the tree is used provided that it exists. 
-Otherwise a `TypeUnavailable()` exception is generated and the calculator or requirement 
-in which the predicate occurs is re-evaluated at a later time.
+In the former case, the AType is used as is. In the latter case, the type of the tree is used provided that it exists.  Otherwise a `TypeUnavailable()` exception is generated and the calculator or requirement  in which the predicate occurs is re-evaluated at a later time.
 
 ### equal
 
@@ -107,31 +87,27 @@ The function `equal` determines whether the types of `l` and `r` are equal, the 
 ```rascal
 /* Solver field */ bool (value l, value r) subtype
 ```
-The function `subtype` determines whether the type of `l` is a subtype of the type of `r`;
-it calls the user-provided function `getSubType`, see ((TypePal:Configuration)).
+The function `subtype` determines whether the type of `l` is a subtype of the type of `r`; it calls the user-provided function `getSubType`, see [Configuration]((TypePal:Configuration)).
 
 
 ### comparable
 ```rascal
 /* Solver field */ bool (value l, value r) comparable
 ```
-The function `comparable` determines whether the type of `l` is comparable with the type of `r`;
-it calls the user-provided function `getSubType` twice, see ((TypePal:Configuration)).
+The function `comparable` determines whether the type of `l` is comparable with the type of `r`; it calls the user-provided function `getSubType` twice, see [Configuration]((TypePal:Configuration)).
 
 ### unify
 ```rascal
 /* Solver field */ bool (value l, value r) unify
 ```
 The function `unify` determines whether the type of `l` can be unified with the type of `r`
-it calls the user-provided functions `getSubType` and `getLub`, see ((TypePal:Configuration)).
-The bindings that may result from unification are effectuated when the enclosing calculate succeeds.
+it calls the user-provided functions `getSubType` and `getLub`, see [Configuration]((TypePal:Configuration)). The bindings that may result from unification are effectuated when the enclosing calculate succeeds.
 
 ### lub
 ```rascal
 /* Solver field */ AType (value l, value r) lub
 ```
-The function `lub` return the least upper bound of the types of `l` and `r`;
-it calls the user-provided function `getLub`, see ((TypePal:Configuration)).
+The function `lub` return the least upper bound of the types of `l` and `r`; it calls the user-provided function `getLub`, see [Configuration]((TypePal:Configuration)).
 
 
 ## Require
@@ -146,22 +122,19 @@ The function `requireEqual` returns when the types of `l` and `r` are equal, oth
 /* Solver field */ void (value l, value r, FailMessage fmsg) requireSubType
 ```
 The function `requireSubtype` returns when the type of `l` is a subtype of `r`, otherwise the FailMessage is reported;
-it calls the user-provided function `getSubType`, see ((TypePal:Configuration)).
+it calls the user-provided function `getSubType`, see [Configuration]((TypePal:Configuration)).
 
 ### requireCompare
 ```rascal
 /* Solver field */ void (value l, value r, FailMessage fmsg) requireComparable
 ```
-The function `requireComparable` returns when the type of `l` is comparable with the type of `r`, otherwise the FailMessage is generated;
-it calls the user-provided function `getSubType`twice, see ((TypePal:Configuration)).
+The function `requireComparable` returns when the type of `l` is comparable with the type of `r`, otherwise the FailMessage is generated; it calls the user-provided function `getSubType`twice, see [Configuration]((TypePal:Configuration)).
 
 ### requireUnify
 ```rascal
 /* Solver field */ void (value l, value r, FailMessage fmsg) requireUnify
 ```
-The function `requireUnify just returns when the type of `l` can be unified with the type of `r`, otherwise the FailMessage is reported;
-it calls the user-provided functions `getSubType` and `getLub`, see ((TypePal:Configuration)).
-The bindings that may result from unification are effectuated when the enclosing require succeeds.
+The function `requireUnify just returns when the type of `l` can be unified with the type of `r`, otherwise the FailMessage is reported; it calls the user-provided functions `getSubType` and `getLub`, see [Configuration]((TypePal:Configuration)). The bindings that may result from unification are effectuated when the enclosing require succeeds.
 
 ### requireTrue and requireFalse
 
@@ -174,21 +147,17 @@ The function `requireFalse` returns when its condition is false, otherwise the F
 
 ## Types
 
-Type-related functions try to retrieve various forms of type information from parts of the source program.
-When that information is available, it is returned as result.
-When it is not available, the internal exception `TypeUnavailable()` is thrown.
-This will abort the execution of the current requirement or calculator which will then be tried later again.
+Type-related functions try to retrieve various forms of type information from parts of the source program. When that information is available, it is returned as result. When it is not available, the internal exception `TypeUnavailable()` is thrown. This will abort the execution of the current requirement or calculator which will then be tried later again.
 
 ### getType
-The workhorse of TypePal is the function `getType` that determines 
-the type of a given source code fragment in the current scope:
+The workhorse of TypePal is the function `getType` that determines  the type of a given source code fragment in the current scope:
 
 ```rascal
 /* Solver field */ AType(value src) getType
 ```
 `src` may either be a `Tree` (i.e., a parse tree fragment) or a `loc` (the source location of a parse tree fragment).
 
-Here is how `getType` is used in ((examples::pico)) to check the addition operator:
+Here is how `getType` is used in [the Pico example]((examples::pico)) to check the addition operator:
 
 * two integer arguments give an integer result;
 * two string arguments give a string result;
@@ -209,8 +178,7 @@ void collect(current: (Expression) `<Expression lhs> + <Expression rhs>`, Collec
 ```
 
 ### getTypeInScope
-The function `getTypeInScope` determines 
-the type of a given source code fragment in a given scope  and given roles:
+The function `getTypeInScope` determines  the type of a given source code fragment in a given scope  and given roles:
 ```rascal
 /* Solver field */ AType (Tree occ, loc scope, set[IdRole] idRoles) getTypeInScope
 ```
@@ -222,9 +190,7 @@ Here
 * `idRoles` is a set of allowed identifier roles.
 
 ### getTypeInScopeFromName
-The function `getTypeInScopeFromName` determines the type of a given name that has been bound via given identifier roles
-in a given scope. 
-It is typically used to map a name of a type to its actual type, e.g., 
+The function `getTypeInScopeFromName` determines the type of a given name that has been bound via given identifier roles in a given scope.  It is typically used to map a name of a type to its actual type, e.g., 
 mapping the name `POINT` as it occurs in a declaration to the actual record type of `POINT`.
 
 ```rascal
@@ -267,17 +233,13 @@ Here:
 
 
 ## Inference
-Type inference is supported by the introduction of type variables
-using `newTypeVar` in combination with unification primitives
-inside `calculateEager` [Calculate](#calculate) and `requireEager` [Require](#require)
-such as `requireUnify` and `unify`. The following functions support the computation
-with types possibly containing type variables.
+Type inference is supported by the introduction of type variables using `newTypeVar` in combination with unification primitives inside `calculateEager` [Calculate](#calculate) and `requireEager` [Require](#require) such as `requireUnify` and `unify`. The following functions support the computation with types possibly containing type variables.
 
 ### instantiate
 ```rascal
 /* Solver field */ AType (AType atype) instantiate
 ```
-replaces all type variables occurring in `atype` by their binding (when present).
+Replaces all type variables occurring in `atype` by their binding (when present).
 
 ### isFullyInstantiated
 ```rascal
@@ -289,7 +251,10 @@ checks whether `atype` contains any occurrences of type variables.
 ```rascal
 /* Solver field */ bool(FailMessage fmsg) report
 /* Solver field */ bool (list[FailMessage] fmsgs) reports
+/* Solver field */ bool () reportedErrors
 ```
+
+A single message (`report`), or multiple messages can be reported (`reports`). The function `reportedErrors` returns true if any error has been reported.
 
 ## Global Info
 
@@ -297,21 +262,51 @@ checks whether `atype` contains any occurrences of type variables.
 ```rascal
 /* Solver field */ TypePalConfig () getConfig
 ```
-Returns the current ((TypePal:Configuration)).
+Returns the current [Configuration]((TypePal:Configuration)).
 
 ### getFacts
 ```rascal
 /* Solver field */ map[loc, AType]() getFacts
 ```
 
-Returns the type facts known to the Solver as mapping from source location to AType.
+### getPaths
+```rascal
+/* Solver field */ Paths() getPaths
+```
+Returns all the paths known to the Solver.
+
+### getDefinitions
+```rascal
+/* Solver field */ set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions
+```
+Returns all the defines for a given identifier.
+
+### getAllDefines
+```rascal
+/* Solver field */ set[Define] () getAllDefines
+```
+Returns all the defines.
+
+### getDefine
+```rascal
+/* Solver field */ Define(loc) getDefine,
+```
+Returns the define associated with a given source location.
 
 ### getStore
 ```rascal
 /* Solver field */ map[str,value]() getStore
 ```
+Returns the global store of the Solver. The global store is a key-value store intended to share information between Collector and Solver as well as pass on information to later users of the typechecker as a whole. Examples taken from the Rascal typechecker include:
+* The name of the current module.
+* The bill-of-materials (BOM) of the current module, i.e., all used modules including a time stamp.
+* The PathConfig used for typechceking.
+* The grammar rules defined in the module
+* The data declarations defined in the module
 
-Returns the global store of the Solver. The following elements may occur in the store:
+It is also possible to create an arbitrary number of (named) of push down stacks in the global store. These can be used to represent context information during the collect or solve phase, see [Nested info](Collector#nested-info).
 
-* Remaining [Nested Info](/docs/Packages/typepal/TypePal/Collector#nested-info) from the collect phase. For instance, a single `push` to a stack during the collect phase will be visible during the solve phase and
-can me (mis)used to communicate information between the two phases.
+:::caution
+With the availability of a global store come serious responsibilities. Don't overuse it, do not misuse it.
+:::
+

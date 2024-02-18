@@ -157,11 +157,13 @@ An expression consisting of a single identifier represents a _use_ of that ident
 - a matching define is found for one of the given roles: use and definition are connected to each other.
 - no matching define is found and an error is reported.
 
-NOTE: In larger languages names may be defined in different scopes. Scopes do not play a role in Cal.
+::: Note
+In larger languages names may be defined in different scopes. Scopes do not play a role in Cal.
+:::
 
-NOTE: We do not enforce _define-before-use_ in this example, but see XXX how to achieve this.
-
-(((TODO:add reference for XXX)))
+:::Note
+We do not enforce _define-before-use_ in this example, but see [Configuration](Configuration:isAcceptableSimple) how to achieve this.
+:::
 
 #### Check Exp: Boolean and Integer constants
 

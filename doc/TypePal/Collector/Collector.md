@@ -19,8 +19,7 @@ to access and change its internal state. The global services provided by a `Coll
 * Maintain a single value per scope. This enables decoupling the collection of information from separate but related language constructs.
   Typical examples are:
   ** While collecting information from a function declaration: 
-     create a new function scope and associate the required return type with it so 
-     that return statements in the function body can check that
+     create a new function scope and associate the required return type with it so that return statements in the function body can check that
      (a) they occur inside a function; 
      (b) that the type of their returned value is compatible with the required return type.
   ** While collecting information from an optionally labelled loop statement: 
@@ -46,14 +45,11 @@ Three dozen functions are available that fall into the following categories:
 * _Define_: define identifiers in various ways.
 * _Use_: use identifiers in various ways.
 * _Inference_: create new type variables for type inference.
-* _Facts_: establish facts.
+* _Facts_: establish or retrieve facts.
 * _Calculate_: define calculators.
 * _Require_: define requirements.
 
-Technically, `Collector` is a datatype with a single constructur and a number of functions as fields,
-For instance, given a  `Collector` named `c`, calling the `define` function amounts to: `c.define(_the-arguments-of-define_)`.
-All Collector functions are prefixed with `/* Collector field */` to emphasize that they
-are a field of the Collector datatype.
+Technically, `Collector` is a datatype with a single constructur and a number of functions as fields. For instance, given a  `Collector` named `c`, calling the `define` function amounts to: `c.define(_the-arguments-of-define_)`. All Collector functions are prefixed with `/* Collector field */` to emphasize that they are a field of the Collector datatype.
 
 ##### LifeCycle of Collector
 A new `Collector` is created using the function `newCollector`.
@@ -78,7 +74,7 @@ Finally, `run` creates the desired `TModel` that will be used by the ((Solver)):
 
 A typical scenario is (for a given a parse tree `pt` of the program to be checked): 
 ```rascal
-c = newCollector("my_model", pt);   // create Collector
+c = newCollector("my_model", pt);   // create Collector, default TypePalConfig
 collect(pt, c);                     // collect constraints
 model = c.run();                    // create initial TModel to be handled by the Solver
 ```
@@ -92,11 +88,13 @@ where:
 * `lc` is a syntactic type from the language under consideration.
 * `c` is a `Collector`.
 
-IMPORTANT: Each `collect` function is responsible for collecting constraints from its subtrees. 
+::: Caution
+Each `collect` function is responsible for collecting constraints from its subtrees. 
+:::
 
 ##### Configuration
 
-The ((TypePal:Configuration)) can be retrieved or adjusted by the following two functions:
+The [Configuration]((TypePal:Configuration)) can be retrieved or adjusted by the following two functions:
 ```rascal
 /* Collector field */ TypePalConfig () getConfig;
 /* Collector field */ void (TypePalConfig cfg) setConfig;
@@ -109,12 +107,16 @@ Scope management amounts to entering a new scope, leave the current scope and re
 
 ```rascal
 /* Collector field */ void (Tree inner) enterScope;
+/* Collector field */ void (list[Tree] trees) enterCompositeScope;
+/* Collector field */ void (Tree inner) enterLubScope;
+/* Collector field */ void (list[Tree] trees) enterCompositeLubScope;
 /* Collector field */ void (Tree inner) leaveScope;
+/* Collector field */ void (list[Tree] trees) leaveCompositeScope;
 /* Collector field */ loc () getScope,
 ```
 In order to check consistency, `leaveScope` has the inner scope that it is supposed to be leaving as argument.
 
-Here is an example how the `let` expression in ((examples::fun)) handles subscopes:
+Here is a simple example how the `let` expression in ((examples::fun)) handles subscopes:
 
 ```rascal
 void collect(current: (Expression) `let <Id name> : <Type tp> = <Expression exp1> in <Expression exp2> end`, Collector c) {  
@@ -125,12 +127,14 @@ void collect(current: (Expression) `let <Id name> : <Type tp> = <Expression exp1
      c.leaveScope(current);
 }
 ```
+A _composite scope_ is a scope that corresponds with nonconsecutive parts of the source code and is represented by a list of Trees.
 
+A _lub scope_ is a scope in which the type of not explcitly declared variables is determined by the least-upper bound (LUB) of the types of their uses. Lub scopes are, for instance, used to implement local type inference in Rascal.
+
+A _composite lub scope_ is a scope that corresponds with nonconsecutive parts of the source code and locally infers the types in those scopes.
 
 ##### Scope Info
-It is possible to associate auxiliary information with each scope.
-This enables the downward propagation of information during the topdown traversal of the source program by `collect`.
-Typical use cases are:
+It is possible to associate auxiliary information with each scope. This enables the downward propagation of information during the topdown traversal of the source program by `collect`. Typical use cases are:
 
 * recording the return type of a function declaration and checking that all return statements in the body of that function have
   a type that is compatible with the declared return type.
@@ -194,8 +198,7 @@ void collect(current:(Statement) `break <Target target>;`, Collector c){
     
 
 ##### Nested Info
-An arbitrary number of push down stacks can be maintained during the topdown traversal of the source code that is being type checked.
-A use case is recording that a certain syntax type is encountered and make children aware of this, e.g. "we are inside a parameter list".
+An arbitrary number of push down stacks can be maintained during the topdown traversal of the source code that is being type checked. A use case is recording that a certain syntax type is encountered and make children aware of this, e.g. "we are inside a parameter list".
 
 Each stack has a string name (`key`) and is created on demand.
 
@@ -206,8 +209,13 @@ Each stack has a string name (`key`) and is created on demand.
 /* Collector field */ list[value] (str key) getStack,
 /* Collector field */ void (str key) clearStack,
 ```
-`push`, `pop`, and `top` perform standard stack operations. `push` creates a stack when needed, while `top` and `pop` require
-the existence of the named stack. `getStack` returns all values in the named stack, while `clearStack` resets it to empty.
+`push`, `pop`, and `top` perform standard stack operations. `push` creates a stack when needed, while `top` and `pop` require the existence of the named stack. `getStack` returns all values in the named stack, while `clearStack` resets it to empty.
+
+These stacks are stored in the global store, see [Solver](Solver:getStore).
+
+:::caution
+With the availability of a global store come serious responsibilities. Don't overuse it, do not misuse it.
+:::
 
 ##### Composition
 
@@ -264,7 +272,7 @@ Similar to `addPathToDef` for the occurrence of a qualified names rather than a 
 `occ` is a parse tree with has a certain type.
 The effect is to add a `pathRole` path between the current scope and the definition of that type.
 
-A prime example is type checking of ((examples::pascal))'s `with` statement which _opens_ the definition
+A prime example is type checking of [Pascal]((examples::pascal))'s `with` statement which _opens_ the definition
 of a record type and makes all defined fields available in the body of the `with` statement.
 Here we create a `withPath` between the scope of the with statement and all definitions
 of the record types of the given record variables:
@@ -280,7 +288,9 @@ void collect(current: (WithStatement) `with <{RecordVariable ","}+ recordVars> d
 }
 ```
                        
-##### Define
+##### Define and Predefine
+
+###### Define
 
 The function `define` adds the definition of a name in the _current_ scope:
 ```rascal
@@ -296,6 +306,19 @@ where:
 The function `defineInScope` adds the definition of a name in a _given_ scope:
 ```rascal
 /* Collector field */  void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope
+```
+
+###### Predefine
+
+Most languages depend on predefined names such as `true`, `false`, `exp`, and the like. The function `predefine` adds the definition of such a predefined name in the _current_ scope:
+
+```rascal
+/* Collector field */  void (str id, IdRole idRole, value def, DefInfo info) predefine;
+```
+
+The function `predefineInScope` adds the definition of a predefined name in a _given_ scope:
+```rascal
+/* Collector field */  void (value scope, str id, IdRole idRole, value def, DefInfo info) predefineInScope
 ```
 
 ##### Use
@@ -399,6 +422,8 @@ are available *but those may contain type variables*.
 The bindings that are accumulated during `calculateEager` or `requireEager` 
 are effectuated upon successfull completion of that `calculateEager` or `requireEager`. 
 
+##### Fact and getType
+
 ##### Fact
 
 The function `fact` registers known type information for a program fragment `src`:
@@ -421,6 +446,11 @@ void collect(current: (Exp) `( <Exp e> )`, Collector c){
 <1> Registers the fact that the current expression has type `intType`.
 <2> Registers the fact that the current expression has the same type as the embedded expression `e`.
 
+###### GetType
+The function `getType` returns the type of a program fragment `src` (when available) and throws the exception `TypeUnavailable` otherwise:
+```rascal
+/* Collector field */ void (Tree src) getType;
+```
 
 ##### Calculate
 A calculator computes the type of a subtree `src` by way of an AType-returning function `calculator`.
