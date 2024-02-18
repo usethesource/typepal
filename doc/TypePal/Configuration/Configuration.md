@@ -277,6 +277,12 @@ The function `createLogicalLoc` gives complete freedom in the way such logical l
 When a function is overloaded, measures have to be taken to create unique logical locations for each overloaded version of that function.
 :::
 
+#### roleNeedsLogicalLoc
+```rascal
+/* Configuration field */ set[IdRole] roleNeedsLogicalLoc = {};
+```
+The set `roleNeedsLogicalLoc` defines the IdRoles for which a logical location will be generated. Typically, these will be roles for names of high-level concepts such as modules, functions, data types and the like.
+
 ### Verbosity
 
 The verbosity of TypePal can be controlled with several configurations settings.
