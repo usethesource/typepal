@@ -1,5 +1,8 @@
 module analysis::typepal::Solver
 
+/*
+    Implementation of the ISolver interface; this is the API of TypePal's constraint solver
+*/
 import Set; 
 import Node;
 import Map;

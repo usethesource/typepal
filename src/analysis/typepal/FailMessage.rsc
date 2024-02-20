@@ -1,5 +1,9 @@
 module analysis::typepal::FailMessage
 
+/*
+    FailMessages provide a convenient variation on Rascal's standard Message datatype. 
+    In the end, FailMessages are reduced to standard Messages.
+*/
 import Message;
 import String;
 

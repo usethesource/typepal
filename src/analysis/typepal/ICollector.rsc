@@ -1,8 +1,10 @@
 module analysis::typepal::ICollector
 
-extend analysis::typepal::ConfigurableScopeGraph;
+/*
+    Declaration of the ICollector interface; this is the API of TypePal's fact and constraint collector
+*/
 
-// The API of TypePal's fact and constraint collector
+extend analysis::typepal::ConfigurableScopeGraph;
 
 data Collector 
     = collector(

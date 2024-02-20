@@ -1,5 +1,8 @@
 module analysis::typepal::GetLoc
 
+/*
+    Convenience functions to get the location of a Tree
+*/
 import List;
 import ParseTree;
 import IO;

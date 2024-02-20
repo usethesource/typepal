@@ -1,5 +1,9 @@
 module analysis::typepal::TModel
 
+/*
+    A TModel (for Type Model) is the basic data structure to represent type information.
+    It can be extended to suit the needs of a specific type checker.
+*/
 import String;
 import Message;
 import List;
@@ -98,7 +102,6 @@ data TModel (
     map[str,value] store = (),
     map[loc, Define] definitions = (),
     map[loc,loc] logical2physical = (),
-    //rel[loc,loc] logical2physical = {},
     TypePalConfig config = tconfig()
 )   = tmodel();
  

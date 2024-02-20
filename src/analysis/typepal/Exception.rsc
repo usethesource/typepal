@@ -1,8 +1,10 @@
 module analysis::typepal::Exception
 
-extend analysis::typepal::FailMessage;
+/*
+    Exceptions that are used by TypePal
+*/
 
-// --- Exceptions
+extend analysis::typepal::FailMessage;
 
 data RuntimeException
     = TypePalUsage(str reason)                      // TypePal used incorrectly

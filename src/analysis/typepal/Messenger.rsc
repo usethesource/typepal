@@ -1,5 +1,8 @@
 module analysis::typepal::Messenger
 
+/*
+    Utilities for formatting Messages
+*/
 import ParseTree;
 import Message;
 import Exception;

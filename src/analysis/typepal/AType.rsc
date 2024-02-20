@@ -1,11 +1,13 @@
 module analysis::typepal::AType
+
+/*
+    Foundation of ATypes, to be extended for different type systems
+*/
   
 import List;
 
 extend analysis::typepal::GetLoc;
 extend analysis::typepal::TModel;
-
-// Foundation of ATypes, will be extended for different type systems
 
 data AType
     = tvar(loc tname)                                      // type variable, used for type inference

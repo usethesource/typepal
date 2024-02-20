@@ -1,5 +1,11 @@
 module analysis::typepal::ConfigurableScopeGraph
 
+/*
+    A ScopeGraph is the basis for TypePal's operations. It acts as a lookup function for names.
+    It is highly parameterized to reflect properties of different type systems and name binding mechanisms.
+    
+    ScopeGraphs are inspired by Kastens & Waite, Name analysis for modern languages: a general solution, SP&E, 2017
+*/
 extend analysis::typepal::Exception;
 extend analysis::typepal::ISolver;
 
@@ -132,12 +138,6 @@ data TypePalConfig(
         
         loc (str id, IdRole idRole, loc physicalLoc, str modelName, PathConfig pcfg) createLogicalLoc = defaultLogicalLoc
     );
-    
-
-// ScopeGraphs inspired by Kastens & Waite, Name analysis for modern languages: a general solution, SP&E, 2017
-
-
-//data Tree;      // workaround for bug in interpreter
 
    
 // Language-specific acceptance in case of multiple outcomes of a lookup
@@ -443,8 +443,6 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
       
         return res;
     }
-    
-   
     
     public set[loc] lookupWide(Use u){
     

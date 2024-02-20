@@ -1,10 +1,12 @@
 module analysis::typepal::ISolver
 
+/*
+    Declaration of the ISolver interface; this is the API of TypePal's constraint solver
+*/
+
 extend analysis::typepal::AType;
 extend analysis::typepal::FailMessage;
 import ParseTree;
-
-// The API of TypePal's constraint solver
 
 data Solver
     = solver(
