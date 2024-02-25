@@ -107,7 +107,7 @@ void collect(current: (Type) `<Id name>`, Collector c){
 }
 
 // ----  Examples & Tests --------------------------------
-TModel modulesTModelFromTree(Tree pt, bool debug = false){
+TModel modulesTModelFromTree(Tree pt){
     if (pt has top) pt = pt.top;
     c = newCollector("modules", pt, config=getModulesConfig(debug = debug));
     collect(pt, c);
@@ -118,13 +118,12 @@ TModel modulesTModelFromTree(Tree pt, bool debug = false){
 tuple[list[str] typeNames, set[IdRole] idRoles] modulesGetTypeNameAndRole(structType(str name)) = <[name], {structId()}>;
 tuple[list[str] typeNames, set[IdRole] idRoles] modulesGetTypeNameAndRole(AType t) = <[], {}>;
 
-private TypePalConfig getModulesConfig(bool debug = false) = tconfig(
-    getTypeNamesAndRole = modulesGetTypeNameAndRole,
-    verbose=debug, 
-    logTModel = debug, 
-    logAttempts = debug, 
-    logSolverIterations= debug, 
-    logSolverSteps = debug
+private TypePalConfig getModulesConfig() = tconfig(
+    getTypeNamesAndRole = modulesGetTypeNameAndRole
+    //verbose=debug 
+    //logTModel = debug
+    //logAttempts = debug, 
+    //logSolverIterations= debug
 );
 
 

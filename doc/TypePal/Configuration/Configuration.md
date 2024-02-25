@@ -15,7 +15,6 @@ TypePal provides configuration options for
 * _Retrieval of Types_: configures how named and structured types are handled.
 * _Extension Points_: configures operations before an after solving.
 * _Miscellaneous_: utility functions that can be configured.
-* _Verbosity_: configures the verbosity of TypePal.
 
 Here is an overview:
 
@@ -277,37 +276,3 @@ Given a Define `def`, the function `createLogicalLoc` returns the logical versio
 :::warning
 When a function is overloaded, measures have to be taken to create unique logical locations for each overloaded variant of that function. A naive solution is to use the line number of the declaration. A more solid solution is to use a hash of the actual contents of the function to distingush each function variant.
 :::
-
-### Verbosity
-
-The verbosity of TypePal can be controlled with several configurations settings.
-
-#### showTimes
-```rascal
-/* Configuration field */ bool showTimes = false
-```
-When `showTimes` is true, the time of the Collector and Solver phases is printed.
-
-#### showSolverSteps
-```rascal
-/* Configuration field */ bool showSolverSteps = false
-```
-When `showSolverSteps` is true, each step of the Solver is printed.
-
-#### showSolverIterations
-```rascal
-/* Configuration field */ bool showSolverIterations = false
-```
-When `showSolverIterations` is true, information is printed about each iteration of the Solver.
-
-#### showAttempts
-```rascal
-/* Configuration field */ bool showAttempts = false
-```
-When `showAttempts` is true, the number of evaluation attempts per calculator or requirement is printed when solving is complete.
-
-#### showTModel
-```rascal
-/* Configuration field */ bool showTModel = false
-```
-When `showTModel` is true, the resulting TModel is printed when solving is complete.

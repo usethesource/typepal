@@ -38,11 +38,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     // Configuration (and related state)
     
-    bool logSolverSteps = tm.config.logSolverSteps;
-    bool logSolverIterations = tm.config.logSolverIterations;
-    bool logAttempts = tm.config.logAttempts;
-    bool logTModel = tm.config.logTModel;
-    bool logTime = tm.config.logTime;
+    //bool logSolverSteps = tm.config.logSolverSteps;
+    //bool logSolverIterations = tm.config.logSolverIterations;
+    //bool logAttempts = tm.config.logAttempts;
+    //bool logTModel = tm.config.logTModel;
+    //bool logTime = tm.config.logTime;
     
     int solverStarted = cpuTime();
     
@@ -189,43 +189,43 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     // ---- printing
     
-    void printSolverState(){
-        println("\nDERIVED FACTS");
-            for(loc fact <- facts){
-                println("\t<fact>: <facts[fact]>");
-            }
-        if(size(requirements) + size(calculators)  + size(openUses) > 0){
-            println("\nUNRESOLVED");
-          
-            for(Requirement req <- requirements){
-                print(req in requirementJobs ? "*" : " ");
-                print(req, "\t", facts);
-            }
-            
-            for(Calculator calc <- calculators){
-                print(calc in calculatorJobs ? "*" : " ");
-                print(calc, "\t", facts);
-            }
-            
-            for(Use u <- openUses){
-                println("\t<u>");
-            }
-         }
-    }
-    
-    void printDef2uses(){
-        if(!isEmpty(def2uses)) println("\nDEFINE TO USES");
-        for(def <- def2uses){
-            println("\t<def> ==\> <def2uses[def]>");
-        }
-    }
-    
-    void printUse2Def(){
-        if(!isEmpty(definedBy)) println("\nUSE TO DEFINES");
-        for(occ <- definedBy){
-            println("\t<occ> ==\> <definedBy[occ]>");
-        }
-    }
+    //void printSolverState(){
+    //    println("\nDERIVED FACTS");
+    //        for(loc fact <- facts){
+    //            println("\t<fact>: <facts[fact]>");
+    //        }
+    //    if(size(requirements) + size(calculators)  + size(openUses) > 0){
+    //        println("\nUNRESOLVED");
+    //      
+    //        for(Requirement req <- requirements){
+    //            print(req in requirementJobs ? "*" : " ");
+    //            print(req, "\t", facts);
+    //        }
+    //        
+    //        for(Calculator calc <- calculators){
+    //            print(calc in calculatorJobs ? "*" : " ");
+    //            print(calc, "\t", facts);
+    //        }
+    //        
+    //        for(Use u <- openUses){
+    //            println("\t<u>");
+    //        }
+    //     }
+    //}
+    //
+    //void printDef2uses(){
+    //    if(!isEmpty(def2uses)) println("\nDEFINE TO USES");
+    //    for(def <- def2uses){
+    //        println("\t<def> ==\> <def2uses[def]>");
+    //    }
+    //}
+    //
+    //void printUse2Def(){
+    //    if(!isEmpty(definedBy)) println("\nUSE TO DEFINES");
+    //    for(occ <- definedBy){
+    //        println("\t<occ> ==\> <definedBy[occ]>");
+    //    }
+    //}
     
      // Error reporting
     
@@ -444,7 +444,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             for(dep <- dependsOn) { if(facts[dep]?) nAvailable += 1; }
             enabled = nAvailable == size(dependsOn);
             if(enabled) calculatorJobs += calc;
-            if(logSolverSteps){ print(enabled ? "*" : "+"); print(calc, "", facts, full=false); }
+            //if(logSolverSteps){ print(enabled ? "*" : "+"); print(calc, "", facts, full=false); }
         }
     }
     
@@ -494,7 +494,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
     
     bool evalCalc(calc:calc(str cname, loc src, list[loc] dependsOn,  AType(Solver tm) getAType)){
-        if(logAttempts) calculatorAttempts[calc] = (calculatorAttempts[calc] ? 0) + 1;
+        //if(logAttempts) calculatorAttempts[calc] = (calculatorAttempts[calc] ? 0) + 1;
         if(allDependenciesKnown(dependsOn, calc.eager)){
             try {
                 facts[src] = instantiate(getAType(thisSolver));
@@ -1429,7 +1429,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
      */
     TModel _run(){
     
-        int runStarted = cpuTime();
+        //int runStarted = cpuTime();
         
         tm = tm.config.preSolver(namedTrees, tm);
         
@@ -1457,7 +1457,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
        
         // Check that all uses have a definition and that all overloading is allowed
         //if(logSolverSteps) println("..... lookup <size(tm.uses)> uses");
-        int now = cpuTime();
+        //int now = cpuTime();
          
         set[loc] actuallyUsedDefs = {};
         for(Use u <- tm.uses){
@@ -1486,12 +1486,12 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 notYetDefinedUses += u;
             }
         }
-        int initCheckUsesTime = cpuTime() - now;
+        //int initCheckUsesTime = cpuTime() - now;
         
         // Check for illegal overloading of unused definitions
         set[loc] unusedDefs = domain(definitions) - actuallyUsedDefs;
         //if(logSolverSteps) println("..... filter doubles in <size(unusedDefs)> unused defines");
-        now = cpuTime();
+        //now = cpuTime();
         
         for(ud <- unusedDefs){
             udef = definitions[ud];
@@ -1525,11 +1525,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         unusedDefs = actuallyUsedDefs = {};
       
-        int initFilterDoublesTime = cpuTime() - now;
+        //int initFilterDoublesTime = cpuTime() - now;
         
         // Process all defines (which may create new calculators/facts)
         
-        now = cpuTime();
+        //now = cpuTime();
         //if(logSolverSteps) println("..... handle <size(defines)> defines");
         for(Define def <- defines){
             try {
@@ -1538,11 +1538,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 failMessages += fms;
             }
         }
-        int initDefTime = cpuTime() - now;
+        //int initDefTime = cpuTime() - now;
         
         // Register all dependencies
         
-        now = cpuTime();
+        //now = cpuTime();
         for(Calculator calc <- calculators){
             registerCalc(calc);
         }
@@ -1553,10 +1553,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         //validateTriggers();
         
-        int initRegisterTime = cpuTime() - now;
+        //int initRegisterTime = cpuTime() - now;
        
         // See what the facts derived sofar can trigger
-        now = cpuTime();
+        //now = cpuTime();
         for(fct <- facts){
             try {
                 fireTrigger(fct);
@@ -1565,10 +1565,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             }
         }
 
-        int initFactTriggerTime = cpuTime() - now;
+        //int initFactTriggerTime = cpuTime() - now;
         
         // Try to evaluate or schedule the calculators
-        now = cpuTime();
+        //now = cpuTime();
         //if(logSolverSteps) println("..... handle <size(calculators)> calculators");
  
         for(Calculator calc <- calculators){
@@ -1579,10 +1579,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 failMessages += fms;
             }
         }
-        int initCalcTime = cpuTime() - now;
+        //int initCalcTime = cpuTime() - now;
         
         // Try to evaluate or schedule the requirements
-        now = cpuTime();
+        //now = cpuTime();
         //if(logSolverSteps) println("..... handle <size(requirements)> requirement");
         for(Requirement req <- requirements){
             try {
@@ -1592,13 +1592,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 failMessages += fms;
              }
         }
-        int initReqTime = cpuTime() - now;
+        //int initReqTime = cpuTime() - now;
         
         // Here we have jobs for calculators and requirements with known dependencies
       
-        int mainStarted = cpuTime();
-        int mainCalcTime = 0;
-        int mainReqTime = 0;
+        //int mainStarted = cpuTime();
+        //int mainCalcTime = 0;
+        //int mainReqTime = 0;
         
         /****************** main solve loop *********************************/
         
@@ -1613,9 +1613,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         solve(nreferPaths, ncalculators, nrequirements, nfacts, nopenUses){ 
             iterations += 1;
-            if(logSolverIterations){
-                println("<tm.modelName>, iter #<iterations> -- calculators: <ncalculators>; calculatorJobs: <size(calculatorJobs)>; requirements: <nrequirements>; requirementJobs: <size(requirementJobs)>; uses: <size(openUses)>; referPaths: <nreferPaths>; facts: <size(facts)>; ");
-            }
+            //if(logSolverIterations){
+            //    println("<tm.modelName>, iter #<iterations> -- calculators: <ncalculators>; calculatorJobs: <size(calculatorJobs)>; requirements: <nrequirements>; requirementJobs: <size(requirementJobs)>; uses: <size(openUses)>; referPaths: <nreferPaths>; facts: <size(facts)>; ");
+            //}
             
             // ---- referPaths
             
@@ -1664,25 +1664,25 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 
             // ---- calculatorJobs
            
-            now = cpuTime();
+            //now = cpuTime();
             for(Calculator calc <- calculatorJobs){
                  try {
                  	clearActiveTriggers();
                     if(evalCalc(calc)){
                        solvedCalc(calc);
                     } else {
-                        if(logSolverSteps){ print("?"); print(calc, "", facts, full=false); }
+                        ;//if(logSolverSteps){ print("?"); print(calc, "", facts, full=false); }
                     }
                  } catch checkFailed(list[FailMessage] fms): {
                         failMessages += fms;
                         solvedCalc(calc);
                  }
             } 
-            mainCalcTime += cpuTime() - now;
+            //mainCalcTime += cpuTime() - now;
            
             // ---- requirementJobs
             
-            now = cpuTime();
+            //now = cpuTime();
             for(Requirement req <- requirementJobs){
                 try {
                     clearActiveTriggers(); // ? needed
@@ -1696,7 +1696,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     solvedReq(req);
                 }
             }
-            mainReqTime += cpuTime() - now;
+            //mainReqTime += cpuTime() - now;
              
             ncalculators = size(calculators);
             nrequirements = size(requirements);
@@ -1707,7 +1707,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
            
         /****************** end of main solve loop *****************************/
            
-        int mainEnded = cpuTime();
+        //int mainEnded = cpuTime();
            
         //if(logSolverSteps) println("..... solving complete");
         
@@ -1744,7 +1744,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         tm.config.postSolver(namedTrees, thisSolver);
         
-        int postSolverTime = cpuTime() - mainEnded;
+        //int postSolverTime = cpuTime() - mainEnded;
         
         // Convert all FaillMessages into Messages
         for(fm <- failMessages){
@@ -1845,24 +1845,24 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         //    }
         //}
        
-        if(logSolverIterations){
-            println("iterations: <iterations>; calculators: <ncalculators>; calculatorJobs: <size(calculatorJobs)>; requirements: <nrequirements>; requirementJobs: <size(requirementJobs)>; uses: <size(openUses)>; referPaths: <nreferPaths>; facts: <size(facts)>; ");
-         }
-         if(logTModel){
-            printSolverState();
-            printDef2uses();
-            printUse2Def();
-            if(isEmpty(messages) && isEmpty(requirements) && isEmpty(calculators)){
-                println("No type errors found");
-             } else {
-                println("Errors:");
-                for(msg <- messages){
-                    println(msg);
-                }
-                if(!isEmpty(requirements)) println("*** <size(requirements)> unresolved requirements ***");
-                if(!isEmpty(calculators)) println("*** <size(calculators)> unresolved calculators ***");
-             }
-          }
+        //if(logSolverIterations){
+        //    println("iterations: <iterations>; calculators: <ncalculators>; calculatorJobs: <size(calculatorJobs)>; requirements: <nrequirements>; requirementJobs: <size(requirementJobs)>; uses: <size(openUses)>; referPaths: <nreferPaths>; facts: <size(facts)>; ");
+        // }
+         //if(logTModel){
+         //   printSolverState();
+         //   printDef2uses();
+         //   printUse2Def();
+         //   if(isEmpty(messages) && isEmpty(requirements) && isEmpty(calculators)){
+         //       println("No type errors found");
+         //    } else {
+         //       println("Errors:");
+         //       for(msg <- messages){
+         //           println(msg);
+         //       }
+         //       if(!isEmpty(requirements)) println("*** <size(requirements)> unresolved requirements ***");
+         //       if(!isEmpty(calculators)) println("*** <size(calculators)> unresolved calculators ***");
+         //    }
+         // }
           
           tm.calculators = calculators;
           tm.requirements = requirements;
@@ -1915,11 +1915,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
           tm.messages = sortMostPrecise(toList(toSet(messages)));
          
           //if(logSolverSteps) println("Derived facts: <size(tm.facts)>");
-          solverEnded = cpuTime();
-          M = 1000000;
-          if(logTime){
-            println("<tm.modelName>, solver total: <(solverEnded - solverStarted)/M> ms; init: <(mainStarted - runStarted)/M> ms [ doubles <initFilterDoublesTime/M>; uses <initCheckUsesTime/M>; def <initDefTime/M>; register <initRegisterTime/M>; fact triggers <initFactTriggerTime/M>; calc <initCalcTime/M>; req <initReqTime/M> ]; run main loop: <(mainEnded - mainStarted)/M> ms [ calc <mainCalcTime/M>; req <mainReqTime/M> ]; finish: <(solverEnded - mainEnded)/M> ms [ postSolver <postSolverTime/M> ]");
-          }
+          //solverEnded = cpuTime();
+          //M = 1000000;
+          //if(logTime){
+          //  println("<tm.modelName>, solver total: <(solverEnded - solverStarted)/M> ms; init: <(mainStarted - runStarted)/M> ms [ doubles <initFilterDoublesTime/M>; uses <initCheckUsesTime/M>; def <initDefTime/M>; register <initRegisterTime/M>; fact triggers <initFactTriggerTime/M>; calc <initCalcTime/M>; req <initReqTime/M> ]; run main loop: <(mainEnded - mainStarted)/M> ms [ calc <mainCalcTime/M>; req <mainReqTime/M> ]; finish: <(solverEnded - mainEnded)/M> ms [ postSolver <postSolverTime/M> ]");
+          //}
           checkAllTypesAvailable(tm);
           return tm;
     }

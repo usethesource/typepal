@@ -85,13 +85,12 @@ data TypePalConfig(
 
 data TypePalConfig(
         bool verbose               = false,
-        bool logTime               = false,
-        bool logSolverSteps        = false,
-        bool logSolverIterations   = false,
-        bool logAttempts           = false,
-        bool logTModel             = false,
-        bool validateConstraints   = true,
-        set[IdRole] roleNeedslogicalLoc = {},
+        //bool logTime               = false,
+        //bool logSolverIterations   = false,
+        //bool logAttempts           = false,
+        //bool logTModel             = false,
+        //bool validateConstraints   = true,
+        //set[IdRole] roleNeedslogicalLoc = {},
         PathConfig typepalPathConfig = pathConfig(),
     
         AType() getMinAType                                         
