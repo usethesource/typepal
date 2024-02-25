@@ -193,7 +193,7 @@ Collector newCollector(str modelName, Tree pt, TypePalConfig config){
     return newCollector(modelName, (modelName : pt), config);
 }
 
-anno loc Tree@src;
+//anno loc Tree@src;
 
 &T convertLocs(&T v, map[loc,loc] locMap){
     return visit(v){ case loc l => locMap[l] ? l };
@@ -257,21 +257,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     bool building = true;
     
-    //void defineLogicalLoc(str id, IdRole idRole, loc physicalLoc){
-    //    if(idRole notin config.roleNeedslogicalLoc){
-    //        return;
-    //    }
-    //    def_tup = <id, idRole>;
-    //    i = alreadyDefined[def_tup] ? 0;
-    //    alreadyDefined[def_tup] = i + 1;
-    //    suffix = i == 0 ? "" : "$<"<i>">";
-    //   
-    //    logicalLoc = config.createLogicalLoc(id, idRole, physicalLoc, modelName, config.typepalPathConfig) + suffix;
-    //    if(logicalLoc != physicalLoc){
-    //        logical2physical[logicalLoc] = physicalLoc;
-    //    }
-    //}
-    
     void _define(str orgId, IdRole idRole, value def, DefInfo info){
         if(building){
             loc l = |undefined:///|;
@@ -281,10 +266,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             
             def_tup = <orgId, idRole>;
             nname = normalizeName(orgId);
-           
-            //println("define: <orgId>, <idRole>, <def>");
-            //println("definesPerLubScope[currentLubScope]: <definesPerLubScope[currentLubScope]>");
-            
+                       
             if(info is defTypeLub){  
                 // Look for an outer variable declaration of id that overrules the defTypeLub   
                 for(Define def <- defines + definesPerLubScope[currentLubScope]){
@@ -297,10 +279,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 }
                 lubDefinesPerLubScope[currentLubScope] += <currentScope, nname, orgId, idRole, l, info>;
             } else {
-                //defineLogicalLoc(orgId, idRole, l);
-                //println("define: add to definesPerLubScope[<currentLubScope>]: <<currentScope, nname, orgId, idRole, uid, l, info>>");
                 definesPerLubScope[currentLubScope] += <currentScope, nname, orgId, idRole, l, info>; 
-                
             }
         } else {
             throw TypePalUsage("Cannot call `define` on Collector after `run`");
@@ -360,17 +339,10 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             else if(loc ldef := def) l = ldef;
             else throw TypePalUsage("Argument `def` of `defineInScope` should be `Tree` or `loc`, found <typeOf(def)>");
             
-            def_tup = <orgId, idRole>;
-            //if(alreadyDefined[def_tup]?){
-            //    println("Duplicate define of <orgId> as <idRole> at <l>");
-            //    //return;
-            //}
-            
             nname = normalizeName(orgId);
             if(info is defTypeLub){
                 throw TypePalUsage("`defLub` cannot be used in combination with `defineInScope`");
             } else {
-                //defineLogicalLoc(orgId, idRole, l);
                 defines += <definingScope, nname, orgId, idRole, /*uid,*/ l, info>;
             }
         } else {
@@ -380,7 +352,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
    
     void _use(Tree occ, set[IdRole] idRoles) {
         if(building){            
-           //println("use <occ> at <getLoc(occ)> in scope <currentScope>");
            orgId = "<occ>";
            uses += use(normalizeName(orgId), orgId, getLoc(occ), currentScope, idRoles);
         } else {
@@ -390,7 +361,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     void _useLub(Tree occ, set[IdRole] idRoles) {
         if(building){
-           //println("useLub <occ> at <getLoc(occ)> in scope <currentScope>");
            lubUsesPerLubScope[currentLubScope] += <normalizeName("<occ>"), "<occ>", currentScope, idRoles, getLoc(occ)>;
         } else {
             throw TypePalUsage("Cannot call `useLub` on Collector after `run`");
@@ -509,15 +479,8 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
               }
               currentScope = scopeStack[0].scope;
               if(!isEmpty(lubScopeStack) && innerLoc == lubScopeStack[0]){
-                //println("LEAVE LUBSCOPE <inner>"); 
-                //println("lubDefinesPerLubScope before");
-                //iprintln(lubDefinesPerLubScope);
-                
                 extraDefs = finalizeDefines(currentLubScope);
                 defines += extraDefs;
-                //println("LEAVESCOPE, extraDefs"); iprintln(extraDefs);
-                //println("LEAVESCOPE, lubDefinesPerLubScope after");
-                //iprintln(lubDefinesPerLubScope);
                 lubScopeStack = tail(lubScopeStack);
                 if(isEmpty(lubScopeStack)){
                    currentLubScope = globalScope;
@@ -565,7 +528,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     loc _getScope(){
         if(building){
-           //if(currentScope == globalScope) throw TypePalUsage("`getScope` requires a user-defined scope; missing `enterScope`");
             return currentScope;
         } else {
             throw TypePalUsage("Cannot call `getScope` on Collector after `run`");
@@ -637,7 +599,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             return false;
     }
     
-     void _fact(Tree tree, value tp){  
+    void _fact(Tree tree, value tp){  
         if(building){
           srcLoc = getLoc(tree);
           if(AType atype := tp){
@@ -676,7 +638,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         if(building){
             srcLoc = getLoc(tree);
             if(facts[srcLoc]?) return facts[srcLoc];
-            //println("Collector.getType: unavailable: <srcLoc>");
             throw TypeUnavailable();
         } else {
             throw TypePalUsage("Cannot call `getType` on Collector after `run`");
@@ -686,7 +647,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     void _calculate(str name, Tree src, list[value] dependencies, AType(Solver s) calculator){
         if(building){
            srcLoc = getLoc(src);
-           //println("calculate: <name>, <srcLoc>");
            calculators += calc(name, srcLoc, dependenciesAslocList(dependencies) - srcLoc, calculator);
         } else {
             throw TypePalUsage("Cannot call `calculate` on Collector after `run`");
@@ -839,12 +799,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     // Is there a fixed (i.e. non-LubDef) define in an outer scope?
     
     bool existsFixedDefineInOuterScope(str id, loc lubScope){
-        //println("existsFixedDefineInOuterScope: <id>, <lubScope>");
         outer = lubScope;
         while(scopes[outer]? && scopes[outer] != |global-scope:///|){
             outer = scopes[outer];
-            //println("outer: <outer>");
-            //println("definesPerLubScope[outer] ? {}: <definesPerLubScope[outer] ? {}>");
             for(<loc _, id, _, idRole, /*int _,*/ loc _, DefInfo _> <- definesPerLubScope[outer] ? {}, config.isInferrable(idRole)){
                 return true;
             }
@@ -871,7 +828,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     // alias Define - tuple[loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo];
                 
      set[Define] finalizeDefines(loc lubScope){
-       // println("finalizeDefines: <lubScope>, <definesPerLubScope[lubScope]>");
         set[Define] extra_defines = {};
        
         rel[loc,loc] enclosedScopes = scopesPerLubScope[lubScope]* + <lubScope,lubScope>;
@@ -882,9 +838,8 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         rel[str id, str orgId, loc idScope, set[IdRole] idRoles, loc occ] uselubs_in_lubscope = lubUsesPerLubScope[lubScope];  
          
         
-        set[Define] local_fixed_defines = definesPerLubScope[lubScope]; //{ def | def <- definesPerLubScope[lubScope], config.isInferrable(def.idRole) };
+        set[Define] local_fixed_defines = definesPerLubScope[lubScope];
         extra_defines += definesPerLubScope[lubScope];
-        //extra_defines += local_fixed_defines;
         
         rel[str, loc] local_fixed_defines_scope = local_fixed_defines<1,0>;
         set[str] ids_with_fixed_def = domain(local_fixed_defines_scope);
@@ -893,11 +848,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             set[loc] id_defined_in_scopes = { def.scope | def <- deflubs_in_lubscope, def.id == id };
             set[Use] id_used_in_scopes = {use(tup.tid, tup.orgId, tup.occ, tup.idScope, tup.idRoles) | tuple[str tid, str orgId, loc idScope, set[IdRole] idRoles, loc occ] tup <- uselubs_in_lubscope, tup.tid == id};
             id_defined_in_scopes = { sc1 | loc sc1 <- id_defined_in_scopes, isEmpty(enclosedScopes) || !any(loc sc2 <- id_defined_in_scopes, sc1 != sc2, <sc2, sc1> in enclosedScopes)};
-            
-            //println("Consider <id>, defined in scopes <id_defined_in_scopes>");
-            //println("local_fixed_defines: <local_fixed_defines>");
-            //println("local_fixed_defines[lubScope, id]: <local_fixed_defines[lubScope, id]>");
-            
+                        
             if({ _ } := local_fixed_defines[lubScope, id]){   // Definition exists with fixed type in the lubScope; Use it instead of the lubDefines          
                //println("---top level fixedDef: <fixedDef> in <lubScope>");
                for(def <- deflubs_in_lubscope, def.id == id){
@@ -997,7 +948,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 my_logical2physical[logicalLoc] = def.defined;
             }
         }
-        //iprintln(my_logical2physical);
         return my_logical2physical;
     }
     
@@ -1033,15 +983,14 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
            tm.store = storeVals;        storeVals = ();
            tm.definitions = ( def.defined : def | Define def <- defines);
            map[loc, map[str, rel[IdRole idRole, loc defined]]] definesMap = ();
-           for(<loc scope, str id, str _orgId, IdRole idRole, /*int _,*/ loc defined, DefInfo _> <- defines){
+           for(<loc scope, str id, str _orgId, IdRole idRole, loc defined, DefInfo _> <- defines){
                 map[str, rel[IdRole idRole, loc defined]] dm = ();
                 if(definesMap[scope]?) dm = definesMap[scope];
                 dm[id] =  (dm[id] ? {}) + {<idRole, defined>};
                 definesMap[scope] = dm;
            }
            tm.definesMap = definesMap;
-           
-           //tm.logical2physical = logical2physical;
+          
            tm.logical2physical = buildLogical2physical(defines);
            defines = {};
            tm.messages = messages; 
