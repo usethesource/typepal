@@ -21,7 +21,7 @@ extend analysis::typepal::Messenger;
 
 void checkAllTypesAvailable(TModel tm){
     //println("checkAllTypesAvailable: <tm.modelName>");
-    for(tup: <loc _, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
+    for(tup: <loc _, str _, str _, IdRole _, loc _, DefInfo defInfo> <- tm.defines){
         if(!(defInfo has atype)){
             throw "checkTypesAvailable: <tm.modelName>, <tup>";
         }

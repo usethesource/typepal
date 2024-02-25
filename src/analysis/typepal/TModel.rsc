@@ -6,7 +6,6 @@ module analysis::typepal::TModel
 */
 import String;
 import Message;
-import List;
 import Node;
 import IO;
 

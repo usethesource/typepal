@@ -267,21 +267,16 @@ For all dependencies (in facts, calculators and requirements) a calculator needs
 
 #### createLogicalLoc
 ```rascal
-/* Configuration field */ loc (str id, IdRole idRole, loc physicalLoc, str modelName, PathConfig pcfg) createLogicalLoc
+/* Configuration field */ loc (Define def, str modelName, PathConfig pcfg) createLogicalLoc
 ```
 Internally, TypePal operates on physical source locations, e.g., source locations that point to a specific location in a source file. This all works fine, until modules and separate compilation come into play. Case in point is a function `f` declared in file A that is used in file B. When file A is edited, the source location of `f` will most likely change, while in most cases the definition of `f` has not been changed. Any information based on `f`'s original source location will be broken. To solve this problem _logical source locations_ are introduced that abstract away from the precise source locations and are thus better.
 
-The function `createLogicalLoc` gives complete freedom in the way such logical locations are encoded. In the case of Rascal, `f` will, for instance, be encoded as `|rascal+function:///A/f|`. 
+Given a Define `def`, the function `createLogicalLoc` returns the logical version of `def.defined` if desired, otherwise it returns `def.defined` unmodified. This function gives complete freedom for which `IdRole`s logical locations will be generated and in what way they are encoded. In the case of a simple functional language called `fun`, the function `f` will, for instance, be encoded as `|fun+function:///A/f|`. In the case of Rascal where extensive function overloading is present, we generate `|rascal+function:///A/f$abcde|`, where `$abcde` is a prefix of the md5hash of the complete function declaration of `f`.
+
 
 :::warning
-When a function is overloaded, measures have to be taken to create unique logical locations for each overloaded version of that function.
+When a function is overloaded, measures have to be taken to create unique logical locations for each overloaded variant of that function. A naive solution is to use the line number of the declaration. A more solid solution is to use a hash of the actual contents of the function to distingush each function variant.
 :::
-
-#### roleNeedsLogicalLoc
-```rascal
-/* Configuration field */ set[IdRole] roleNeedsLogicalLoc = {};
-```
-The set `roleNeedsLogicalLoc` defines the IdRoles for which a logical location will be generated. Typically, these will be roles for names of high-level concepts such as modules, functions, data types and the like.
 
 ### Verbosity
 

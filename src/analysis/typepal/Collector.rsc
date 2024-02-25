@@ -224,7 +224,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
          }
     loc globalScope = |global-scope:///|;
     Defines defines = {};
-    //map[IdRole, int] idRoleCounter = ();
 
     map[loc,loc] logical2physical = ();
     map[tuple[str orgId, IdRole idRole], int] alreadyDefined = ();
@@ -258,20 +257,20 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     bool building = true;
     
-    void defineLogicalLoc(str id, IdRole idRole, loc physicalLoc){
-        if(idRole notin config.roleNeedslogicalLoc){
-            return;
-        }
-        def_tup = <id, idRole>;
-        i = alreadyDefined[def_tup] ? 0;
-        alreadyDefined[def_tup] = i + 1;
-        suffix = i == 0 ? "" : "$<"<i>">";
-       
-        logicalLoc = config.createLogicalLoc(id, idRole, physicalLoc, modelName, config.typepalPathConfig) + suffix;
-        if(logicalLoc != physicalLoc){
-            logical2physical[logicalLoc] = physicalLoc;
-        }
-    }
+    //void defineLogicalLoc(str id, IdRole idRole, loc physicalLoc){
+    //    if(idRole notin config.roleNeedslogicalLoc){
+    //        return;
+    //    }
+    //    def_tup = <id, idRole>;
+    //    i = alreadyDefined[def_tup] ? 0;
+    //    alreadyDefined[def_tup] = i + 1;
+    //    suffix = i == 0 ? "" : "$<"<i>">";
+    //   
+    //    logicalLoc = config.createLogicalLoc(id, idRole, physicalLoc, modelName, config.typepalPathConfig) + suffix;
+    //    if(logicalLoc != physicalLoc){
+    //        logical2physical[logicalLoc] = physicalLoc;
+    //    }
+    //}
     
     void _define(str orgId, IdRole idRole, value def, DefInfo info){
         if(building){
@@ -296,11 +295,11 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                         }
                     }
                 }
-                lubDefinesPerLubScope[currentLubScope] += <currentScope, nname, orgId, idRole, /*0,*/  l, info>;
+                lubDefinesPerLubScope[currentLubScope] += <currentScope, nname, orgId, idRole, l, info>;
             } else {
-                defineLogicalLoc(orgId, idRole, l);
+                //defineLogicalLoc(orgId, idRole, l);
                 //println("define: add to definesPerLubScope[<currentLubScope>]: <<currentScope, nname, orgId, idRole, uid, l, info>>");
-                definesPerLubScope[currentLubScope] += <currentScope, nname, orgId, idRole, /*uid,*/ l, info>; 
+                definesPerLubScope[currentLubScope] += <currentScope, nname, orgId, idRole, l, info>; 
                 
             }
         } else {
@@ -371,7 +370,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             if(info is defTypeLub){
                 throw TypePalUsage("`defLub` cannot be used in combination with `defineInScope`");
             } else {
-                defineLogicalLoc(orgId, idRole, l);
+                //defineLogicalLoc(orgId, idRole, l);
                 defines += <definingScope, nname, orgId, idRole, /*uid,*/ l, info>;
             }
         } else {
@@ -985,6 +984,23 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         paths += tm.paths;
     }
     
+    map[loc,loc] buildLogical2physical(Defines defines){
+        map[loc,loc] my_logical2physical = logical2physical;
+        for(Define def <- defines){
+            logicalLoc = config.createLogicalLoc(def, modelName, config.typepalPathConfig);
+            if(logicalLoc != def.defined){
+                if(my_logical2physical[logicalLoc]?){
+                    if(my_logical2physical[logicalLoc] != def.defined){
+                        messages += error("<def.id>: <logicalLoc> has identical definitions at two locations: <my_logical2physical[logicalLoc]> and <def.defined>", def.defined);
+                    }
+                }
+                my_logical2physical[logicalLoc] = def.defined;
+            }
+        }
+        //iprintln(my_logical2physical);
+        return my_logical2physical;
+    }
+    
     TModel _run(){
         if(building){
            building = false;
@@ -1023,19 +1039,13 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 dm[id] =  (dm[id] ? {}) + {<idRole, defined>};
                 definesMap[scope] = dm;
            }
-           //for(<loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo> <- defines){
-           //     definesMap[<scope, id>] = definesMap[<scope, id>]? ?  definesMap[<scope, id>] + {<idRole, defined>} : {<idRole, defined>};
-           //}
            tm.definesMap = definesMap;
+           
+           //tm.logical2physical = logical2physical;
+           tm.logical2physical = buildLogical2physical(defines);
            defines = {};
-           tm.messages = messages;
-           //return resolvePath(tm); 
-           tm.logical2physical = logical2physical;
-           //for(l <- domain(logical2physical)){
-           // if(size(logical2physical[l]) > 1){
-           //     println("*** Collector::_run: <l> =\> <logical2physical[l]>");
-           // }
-           //}
+           tm.messages = messages; 
+           
            return tm;
         } else {
            throw TypePalUsage("Cannot call `run` on Collector after `run`");

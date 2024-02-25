@@ -67,9 +67,9 @@ str reduceToURIChars(str s){
         }
     }
 
-loc defaultLogicalLoc(str id, IdRole idRole, loc physicalLoc, str modelName, PathConfig _pcfg){
-   path = physicalLoc.path;
-   return |<"<modelName>+<prettyRole(idRole)>">://<path>/<reduceToURIChars(id)>|; 
+loc defaultLogicalLoc(Define def, str modelName, PathConfig _pcfg){
+   path = def.defined.path;
+   return |<"<modelName>+<prettyRole(def.idRole)>">://<path>/<reduceToURIChars(def.id)>|; 
 }
 
 // Extends TypePalConfig defined in analysis::typepal::ScopeGraph
@@ -136,7 +136,7 @@ data TypePalConfig(
         
         bool(loc def, TModel tm) reportUnused = defaultReportUnused,
         
-        loc (str id, IdRole idRole, loc physicalLoc, str modelName, PathConfig pcfg) createLogicalLoc = defaultLogicalLoc
+        loc (Define def, str modelName, PathConfig pcfg) createLogicalLoc = defaultLogicalLoc
     );
 
    

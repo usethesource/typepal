@@ -12,6 +12,10 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 }
 module analysis::typepal::TestFramework
 
+/*
+    Test framework for TypePal. Basically, tests are collected in .ttl files and are executed by this framework.
+*/
+
 import ParseTree;
 import IO;
 import String;
