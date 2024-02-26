@@ -68,8 +68,7 @@ str reduceToURIChars(str s){
     }
 
 loc defaultLogicalLoc(Define def, str modelName, PathConfig _pcfg){
-   path = def.defined.path;
-   return |<"<modelName>+<prettyRole(def.idRole)>">://<path>/<reduceToURIChars(def.id)>|; 
+   return def.defined; // retrun original and don't create logical loction
 }
 
 // Extends TypePalConfig defined in analysis::typepal::ScopeGraph
@@ -85,12 +84,7 @@ data TypePalConfig(
 
 data TypePalConfig(
         bool verbose               = false,
-        //bool logTime               = false,
-        //bool logSolverIterations   = false,
-        //bool logAttempts           = false,
-        //bool logTModel             = false,
-        //bool validateConstraints   = true,
-        //set[IdRole] roleNeedslogicalLoc = {},
+        
         PathConfig typepalPathConfig = pathConfig(),
     
         AType() getMinAType                                         

@@ -257,13 +257,6 @@ A function `postSolver` that can enrich or transform the TModel after constraint
 ```
 A function `normalizeName` to define language-specific escape rules for names. By default, all backslashes are removed from names.
 
-#### validateConstraints
-```rascal
-/* Configuration field */ bool validateConstraints = true
-```
-When `validateConstraints` is true, the validity of all constraints is checked before solving starts.
-For all dependencies (in facts, calculators and requirements) a calculator needs to be present to solve that dependency.
-
 #### createLogicalLoc
 ```rascal
 /* Configuration field */ loc (Define def, str modelName, PathConfig pcfg) createLogicalLoc
