@@ -68,7 +68,7 @@ str reduceToURIChars(str s){
     }
 
 loc defaultLogicalLoc(Define def, str modelName, PathConfig _pcfg){
-   return def.defined; // retrun original and don't create logical loction
+   return def.defined; // return original and don't create logical location
 }
 
 // Extends TypePalConfig defined in analysis::typepal::ScopeGraph
