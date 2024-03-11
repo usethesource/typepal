@@ -1502,8 +1502,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         tm.config.postSolver(namedTrees, thisSolver);
         
         // Convert all FaillMessages into Messages
+        error_locations = {};
         for(fm <- failMessages){
-            messages += toMessage(fm, getType);
+            msg = toMessage(fm, getType);
+            if(error(_,src) := msg){
+                error_locations += src;
+            }
+            messages += msg;
         }
         
         for(Use u <- openUses){
@@ -1523,9 +1528,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         for(rp <- referPaths){
             switch(rp){
             case referToDef(_, _):
-                messages += error("Reference to name `<rp.use.id>` cannot be resolved", rp.use.occ);
+                if(rp.use.occ notin error_locations){
+                    messages += error("Reference to name `<rp.use.id>` cannot be resolved", rp.use.occ);
+                }
             case referToType(occ, _, _):
-                messages += error("Reference to type definition cannot be resolved", occ);
+                if(occ notin error_locations){
+                    messages += error("Reference to type definition cannot be resolved", occ);
+                }
             }
         }
         
@@ -1581,7 +1590,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     reportedLocations += src;
                 }
             }
-        
         }
           
           tm.calculators = calculators;
