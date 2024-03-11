@@ -1502,13 +1502,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         tm.config.postSolver(namedTrees, thisSolver);
         
         // Convert all FaillMessages into Messages
-        error_locations = {};
-        for(fm <- failMessages){
-            msg = toMessage(fm, getType);
-            if(error(_,src) := msg){
-                error_locations += src;
-            }
-            messages += msg;
+        for(fm <- failMessages){        
+            messages += toMessage(fm, getType);
         }
         
         for(Use u <- openUses){
@@ -1524,6 +1519,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             roles = size(u.idRoles) > 5 ? "" : intercalateOr([prettyRole(idRole) | idRole <- u.idRoles]);
             messages += error("Undefined <roles> `<getOrgId(u)>`", u.occ);
         }
+        
+        error_locations = { src | error(_,loc src) <- messages };
          
         for(rp <- referPaths){
             switch(rp){
