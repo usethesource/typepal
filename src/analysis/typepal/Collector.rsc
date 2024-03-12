@@ -781,7 +781,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
   
         for(def <- sortedLubDefs){
             if(def != firstDefine && def.scope notin enclosedScopes[firstDefine.scope]){
-                mergedDefs += {<firstDefine.scope, id, id, role, /*0,*/ firstDefine.defined, defTypeLub(ldeps, ldefs, getATypes)> | role <- roles, <ldeps, ldefs> := computeDepsAndDefs(deps, defineds, uses, firstDefine.scope, enclosedScopes)};
+                mergedDefs += {<firstDefine.scope, id, id, role, firstDefine.defined, defTypeLub(ldeps, ldefs, getATypes)> | role <- roles, <ldeps, ldefs> := computeDepsAndDefs(deps, defineds, uses, firstDefine.scope, enclosedScopes)};
                 deps = {}; getATypes = [];
                 defineds = {};
                 roles = {};
@@ -792,7 +792,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             deps += toSet(def.defInfo.dependsOn);
             getATypes += def.defInfo.getATypes;
         }
-        mergedDefs += {<scope, id, id, role, /*0,*/ firstDefine.defined, defTypeLub(ldeps, ldefs, getATypes)> | role <- roles, <ldeps, ldefs> := computeDepsAndDefs(deps, defineds, uses, firstDefine.scope, enclosedScopes)};
+        mergedDefs += {<scope, id, id, role, firstDefine.defined, defTypeLub(ldeps, ldefs, getATypes)> | role <- roles, <ldeps, ldefs> := computeDepsAndDefs(deps, defineds, uses, firstDefine.scope, enclosedScopes)};
         return mergedDefs;
     }
     
@@ -802,7 +802,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         outer = lubScope;
         while(scopes[outer]? && scopes[outer] != |global-scope:///|){
             outer = scopes[outer];
-            for(<loc _, id, _, idRole, /*int _,*/ loc _, DefInfo _> <- definesPerLubScope[outer] ? {}, config.isInferrable(idRole)){
+            for(<loc _, id, _, idRole, loc _, DefInfo _> <- definesPerLubScope[outer] ? {}, config.isInferrable(idRole)){
                 return true;
             }
         }
