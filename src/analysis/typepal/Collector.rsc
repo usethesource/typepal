@@ -942,7 +942,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             if(logicalLoc != def.defined){
                 if(my_logical2physical[logicalLoc]?){
                     if(my_logical2physical[logicalLoc] != def.defined){
-                        messages += error("<def.id>: <logicalLoc> has identical definitions at two locations: <my_logical2physical[logicalLoc]> and <def.defined>", def.defined);
+                        messages += error("Remove code clone for <def.id> at <my_logical2physical[logicalLoc]> and <def.defined>", def.defined);
                     }
                 }
                 my_logical2physical[logicalLoc] = def.defined;
