@@ -67,7 +67,7 @@ str reduceToURIChars(str s){
         }
     }
 
-loc defaultLogicalLoc(Define def, str modelName, PathConfig _pcfg){
+loc defaultLogicalLoc(Define def, str _modelName, PathConfig _pcfg){
    return def.defined; // return original and don't create logical location
 }
 
