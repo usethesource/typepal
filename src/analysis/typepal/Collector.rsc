@@ -311,7 +311,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     }
     
     bool _isAlreadyDefined(str id,  Tree useOrDef){
-        lubdefs = { def | def <- lubDefinesPerLubScope[currentLubScope], def.id == id };
+        
+        lubdefs = { def | def <- definesPerLubScope[currentLubScope], def.id == id } +
+                  { def | def <- lubDefinesPerLubScope[currentLubScope], def.id == id };
         
         if(!isEmpty(lubdefs) && any(def <- lubdefs, isContainedIn(getLoc(useOrDef), def.scope))){
             return true;
