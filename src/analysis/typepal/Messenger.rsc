@@ -40,7 +40,7 @@ str intercalateAnd(list[str] strs){
       case 1: return strs[0];
       default: {
                 dist = distribution(strs);
-                newstrs = [(dist[key] > 1 ? "<dist[key]> x " : "") + "`<key>`" | key <- strs];
+                newstrs = [(dist[key] > 1 ? "<dist[key]> x " : "") + "`<key>`" | key <- dist];
                 return intercalate(", ", newstrs[0..-1]) + " and " + newstrs[-1];
                }
       };
@@ -53,7 +53,7 @@ str intercalateOr(list[str] strs){
       case 2: return strs[0] == strs[1] ? strs[0] : "<strs[0]> or <strs[1]>";
       default: {
                 dist = distribution(strs);
-                newstrs = [(dist[key] > 1 ? "<dist[key]> x " : "") + key | key <- strs];
+                newstrs = [(dist[key] > 1 ? "<dist[key]> x " : "") + key | key <- dist];
                 return intercalate(", ", newstrs[0..-1]) + " or " + newstrs[-1];
                }
       };
