@@ -2,9 +2,9 @@ module analysis::typepal::Version
 
 import util::SemVer;
 
-private str currentTplVersion = "1.1.0";
+private str currentTplVersion = "2.0.0";
 
-bool isValidVersion(str version){
+bool isValidTplVersion(str version){
     return equalVersion(version, currentTplVersion);
 }
 

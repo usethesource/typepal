@@ -922,7 +922,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     }
     
     void _addTModel(TModel tm){
-        if(!isValidVersion(tm.version)){
+        if(!isValidTplVersion(tm.version)){
             throw TypePalUsage("TModel for <tm.modelName> uses TPL version <tm.version>, but <getCurrentTplVersion()> is required");
         }
         
