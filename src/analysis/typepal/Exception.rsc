@@ -12,7 +12,7 @@ data RuntimeException
     | TypePalInternalError(str reason)              // TypePal internal error
     | TypeUnavailable()                             // Type is not available: used in control flow of solver
     | checkFailed(list[FailMessage] msgs)           // Type check failed: used in control flow of solver
-    | wrongTPLVersion(str reason)
+    | wrongTplVersion(str reason)                   // Outdated TPL version is used
     ;
     
 data Exception

@@ -152,12 +152,12 @@ Message fmt(str severity, value subject, str msg, TypeProvider getType, list[val
     }
 }
     
-Message toMessage(_error(value src, str msg, list[value] args), TypeProvider getType) 
+Message toMessage(fm_error(value src, str msg, list[value] args), TypeProvider getType) 
     = fmt("error", src, msg, getType, args);
 
-Message toMessage(_warning(value src, str msg, list[value] args), TypeProvider getType) 
+Message toMessage(fm_warning(value src, str msg, list[value] args), TypeProvider getType) 
     = fmt("warning", src, msg, getType, args);
     
-Message toMessage(_info(value src, str msg, list[value] args), TypeProvider getType) 
+Message toMessage(fm_info(value src, str msg, list[value] args), TypeProvider getType) 
     = fmt("info", src, msg, getType, args);
     

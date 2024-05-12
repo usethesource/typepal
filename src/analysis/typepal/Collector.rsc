@@ -226,7 +226,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     Defines defines = {};
 
     map[loc,loc] logical2physical = ();
-    map[tuple[str orgId, IdRole idRole], int] alreadyDefined = ();
     map[loc, set[Define]] definesPerLubScope = (globalScope: {});
     map[loc, set[Define]] lubDefinesPerLubScope = (globalScope: {});
     map[loc, rel[str id, str orgId, loc idScope, set[IdRole] idRoles, loc occ]] lubUsesPerLubScope = (globalScope: {});
@@ -257,7 +256,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     bool building = true;
     
-    void _define(str orgId, IdRole idRole, value def, DefInfo info){
+    void collector_define(str orgId, IdRole idRole, value def, DefInfo info){
         if(building){
             loc l = |undefined:///|;
             if(Tree tdef := def) l = getLoc(tdef);
@@ -286,19 +285,19 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    Tree _predefine(str id, IdRole idRole, value def, DefInfo info){
-        l = _getPredefinedTree(def, id);
-        _define(id, idRole, l, info);
+    Tree collector_predefine(str id, IdRole idRole, value def, DefInfo info){
+        l = collector_getPredefinedTree(def, id);
+        collector_define(id, idRole, l, info);
         return l;
     }
     
-    Tree _predefineInScope(value scope, str id, IdRole idRole, DefInfo info){
-        l = _getPredefinedTree(scope, id);
-        _defineInScope(scope, id, idRole, l, info);
+    Tree collector_predefineInScope(value scope, str id, IdRole idRole, DefInfo info){
+        l = collector_getPredefinedTree(scope, id);
+        collector_defineInScope(scope, id, idRole, l, info);
         return l;
     }
 
-    Tree _getPredefinedTree(value scope, str id){
+    Tree collector_getPredefinedTree(value scope, str id){
     
         loc defining = |undefined:///|;
         if(Tree tdef := scope) defining = getLoc(tdef);
@@ -310,7 +309,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                     [])[@\loc=defining[query="predefined=<id>"][fragment="<nPredefinedTree>"]];
     }
     
-    bool _isAlreadyDefined(str id,  Tree useOrDef){
+    bool collector_isAlreadyDefined(str id,  Tree useOrDef){
         
         lubdefs = { def | def <- definesPerLubScope[currentLubScope], def.id == id } +
                   { def | def <- lubDefinesPerLubScope[currentLubScope], def.id == id };
@@ -329,7 +328,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         return false;
     }
 
-    void _defineInScope(value scope, str orgId, IdRole idRole, value def, DefInfo info){
+    void collector_defineInScope(value scope, str orgId, IdRole idRole, value def, DefInfo info){
         if(building){
             loc definingScope = |undefined:///|;
             if(Tree tscope := scope) definingScope = getLoc(tscope);
@@ -352,7 +351,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
    
-    void _use(Tree occ, set[IdRole] idRoles) {
+    void collector_use(Tree occ, set[IdRole] idRoles) {
         if(building){            
            orgId = "<occ>";
            uses += use(normalizeName(orgId), orgId, getLoc(occ), currentScope, idRoles);
@@ -361,7 +360,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    void _useLub(Tree occ, set[IdRole] idRoles) {
+    void collector_useLub(Tree occ, set[IdRole] idRoles) {
         if(building){
            lubUsesPerLubScope[currentLubScope] += <normalizeName("<occ>"), "<occ>", currentScope, idRoles, getLoc(occ)>;
         } else {
@@ -369,14 +368,14 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    void _addPathToDef(Tree occ, set[IdRole] idRoles, PathRole pathRole) {
+    void collector_addPathToDef(Tree occ, set[IdRole] idRoles, PathRole pathRole) {
         if(building){
             orgId = "<occ>";
             u = use(normalizeName(orgId), orgId, getLoc(occ), currentScope, idRoles);
             uses += u;
             referPaths += referToDef(u, pathRole);
         } else {
-            throw TypePalUsage("Cannot call `_addPathToDef` on Collector after `run`");
+            throw TypePalUsage("Cannot call `collector_addPathToDef` on Collector after `run`");
         }
     }
     
@@ -386,7 +385,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
          };
     }
     
-    void _useViaType(Tree container, Tree selector, set[IdRole] idRolesSel){
+    void collector_useViaType(Tree container, Tree selector, set[IdRole] idRolesSel){
         if(building){
             name = normalizeName("<selector>");
             sloc = getLoc(selector);
@@ -396,7 +395,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
    
-    void _useQualified(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles){
+    void collector_useQualified(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles){
         if(building){
            uses += useq([normalizeName(id) | id <- ids], "<occ>", getLoc(occ), currentScope, idRoles, qualifierRoles);
         } else {
@@ -404,7 +403,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }  
      }
      
-     void _addPathToQualifiedDef(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole){
+     void collector_addPathToQualifiedDef(list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles, PathRole pathRole){
         if(building){
             u = useq([normalizeName(id) | id <- ids], "<occ>", getLoc(occ), currentScope, idRoles, qualifierRoles);
             uses += u;
@@ -414,7 +413,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         } 
     }
     
-    void _addPathToType(Tree occ, PathRole pathRole){
+    void collector_addPathToType(Tree occ, PathRole pathRole){
          if(building){
             referPaths += referToType(getLoc(occ), currentScope, pathRole);
         } else {
@@ -422,19 +421,19 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         } 
     }
     
-    void _enterScope(Tree inner){
+    void collector_enterScope(Tree inner){
         enterScope(getLoc(inner));
     }
     
-    void _enterCompositeScope(list[Tree] trees){
+    void collector_enterCompositeScope(list[Tree] trees){
         enterScope(cover([getLoc(t) | t <- trees]));
     }
     
-    void _enterLubScope(Tree inner){
+    void collector_enterLubScope(Tree inner){
         enterScope(getLoc(inner), lubScope=true);
     }
     
-    void _enterCompositeLubScope(list[Tree] trees){
+    void collector_enterCompositeLubScope(list[Tree] trees){
         enterScope(cover([getLoc(inner) | inner <- trees]), lubScope=true);
     }
     
@@ -464,11 +463,11 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    void _leaveScope(Tree inner){
+    void collector_leaveScope(Tree inner){
         leaveScope(getLoc(inner));
     }
     
-    void _leaveCompositeScope(list[Tree] trees){
+    void collector_leaveCompositeScope(list[Tree] trees){
         leaveScope(cover([getLoc(t) | t <- trees]));
     }
     
@@ -498,7 +497,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    void _setScopeInfo(loc scope, ScopeRole scopeRole, value scopeInfo){
+    void collector_setScopeInfo(loc scope, ScopeRole scopeRole, value scopeInfo){
         if(building){           
            for(int i <- index(scopeStack), <scope, lubScope, map[ScopeRole,value] scopeInfo2> := scopeStack[i]){
                scopeInfo2[scopeRole] = scopeInfo;
@@ -516,7 +515,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    lrel[loc scope, value scopeInfo] _getScopeInfo(ScopeRole scopeRole){
+    lrel[loc scope, value scopeInfo] collector_getScopeInfo(ScopeRole scopeRole){
         if(building){
             res =
                 for(<loc scope, _, map[ScopeRole,value] scopeInfo> <- scopeStack, scopeRole in scopeInfo){
@@ -528,7 +527,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    loc _getScope(){
+    loc collector_getScope(){
         if(building){
             return currentScope;
         } else {
@@ -536,7 +535,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
    
-    void _require(str name, Tree src, list[value] dependencies, void(Solver s) preds){ 
+    void collector_require(str name, Tree src, list[value] dependencies, void(Solver s) preds){ 
         if(building){
            requirements += req(name, getLoc(src), dependenciesAslocList(dependencies), preds);
         } else {
@@ -544,7 +543,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     } 
     
-    void _requireEager(str name, Tree src, list[value] dependencies, void(Solver s) preds){ 
+    void collector_requireEager(str name, Tree src, list[value] dependencies, void(Solver s) preds){ 
         if(building){
            requirements += req(name, getLoc(src), dependenciesAslocList(dependencies), preds, eager=true);
         } else {
@@ -561,7 +560,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     value getLocIfTree(value v) = Tree tree := v ? getLoc(tree) : v;
    
-    void _requireEqual(value l, value r, FailMessage fm){
+    void collector_requireEqual(value l, value r, FailMessage fm){
         if(building){
            requirements += reqEqual("`<l>` requireEqual `<r>`", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
         } else {
@@ -569,7 +568,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    void _requireComparable(value l, value r, FailMessage fm){
+    void collector_requireComparable(value l, value r, FailMessage fm){
         if(building){
            requirements += reqComparable("`<l>` requireEqual `<r>`", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
         } else {
@@ -577,7 +576,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    void _requireSubType(value l, value r, FailMessage fm){
+    void collector_requireSubType(value l, value r, FailMessage fm){
         if(building){
            requirements += reqSubtype("`<l>` requireSubType `<r>`", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
         } else {
@@ -585,7 +584,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    void _requireUnify(value l, value r, FailMessage fm){
+    void collector_requireUnify(value l, value r, FailMessage fm){
         if(building){
            requirements += reqUnify("`<l>` requireUnify `<r>`", getLocIfTree(l), getLocIfTree(r), getDeps(l, r), fm);
         } else {
@@ -601,7 +600,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             return false;
     }
     
-    void _fact(Tree tree, value tp){  
+    void collector_fact(Tree tree, value tp){  
         if(building){
           srcLoc = getLoc(tree);
           if(AType atype := tp){
@@ -636,7 +635,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    AType _getType(Tree tree){
+    AType collector_getType(Tree tree){
         if(building){
             srcLoc = getLoc(tree);
             if(facts[srcLoc]?) return facts[srcLoc];
@@ -646,7 +645,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    void _calculate(str name, Tree src, list[value] dependencies, AType(Solver s) calculator){
+    void collector_calculate(str name, Tree src, list[value] dependencies, AType(Solver s) calculator){
         if(building){
            srcLoc = getLoc(src);
            calculators += calc(name, srcLoc, dependenciesAslocList(dependencies) - srcLoc, calculator);
@@ -655,7 +654,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    void _calculateEager(str name, Tree src, list[value] dependencies, AType(Solver s) calculator){
+    void collector_calculateEager(str name, Tree src, list[value] dependencies, AType(Solver s) calculator){
         if(building){
            srcLoc = getLoc(src);
            calculators += calc(name, srcLoc, dependenciesAslocList(dependencies) - srcLoc, calculator, eager=true);
@@ -664,7 +663,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    bool _report(FailMessage fm){
+    bool collector_report(FailMessage fm){
        if(building){
             loc sloc = |unknown:///|;
             if(loc l := fm.src) sloc = l;
@@ -677,7 +676,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
        }
     }
     
-     bool _reports(list[FailMessage] fms){
+     bool collector_reports(list[FailMessage] fms){
        if(building){
             fm = getFirstFrom(fms);
             loc sloc = |unknown:///|;
@@ -691,7 +690,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
        }
     }
     
-    AType _newTypeVar(value src){
+    AType collector_newTypeVar(value src){
         if(building){
             tvLoc = |unknown:///|;
             if(Tree _ := src){
@@ -710,7 +709,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    void _push(str key, value val){
+    void collector_push(str key, value val){
         if(storeVals[key]? && list[value] old := storeVals[key]){
            storeVals[key] = val + old;
         } else {
@@ -718,7 +717,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    value _pop(str key){
+    value collector_pop(str key){
         if(storeVals[key]? && list[value] old := storeVals[key], size(old) > 0){
            pval = old[0];
            storeVals[key] = tail(old);
@@ -728,7 +727,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    value _top(str key){
+    value collector_top(str key){
         if(storeVals[key]? && list[value] old := storeVals[key], size(old) > 0){
            return old[0];
         } else {
@@ -736,22 +735,22 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
     
-    list[value] _getStack(str key){
+    list[value] collector_getStack(str key){
         if(storeVals[key]? && list[value] old := storeVals[key]){
             return old;
         }
         return [];
     }
     
-    void _clearStack(str key){
+    void collector_clearStack(str key){
         storeVals[key] = [];
     }
     
-    TypePalConfig _getConfig(){
+    TypePalConfig collector_getConfig(){
         return config;
     }
     
-    void _setConfig(TypePalConfig cfg){
+    void collector_setConfig(TypePalConfig cfg){
         config = cfg;
     }
     
@@ -921,9 +920,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         return extra_defines;
     }
     
-    void _addTModel(TModel tm){
+    void collector_addTModel(TModel tm){
         if(!isValidTplVersion(tm.version)){
-            throw TypePalUsage("TModel for <tm.modelName> uses TPL version <tm.version>, but <getCurrentTplVersion()> is required");
+            throw wrongTplVersion("TModel for <tm.modelName> uses TPL version <tm.version>, but <getCurrentTplVersion()> is required");
         }
         
         tm = convertTModel2PhysicalLocs(tm);
@@ -953,7 +952,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         return my_logical2physical;
     }
     
-    TModel _run(){
+    TModel collector_run(){
         if(building){
            building = false;
            
@@ -1004,63 +1003,63 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     }
         
     return collector(
-        /* Life cycle */    _run,
+        /* Life cycle */    collector_run,
         
-        /* Configure */     _getConfig,
-                            _setConfig,
+        /* Configure */     collector_getConfig,
+                            collector_setConfig,
                             
-        /* Scoping */       _enterScope, 
-                            _enterCompositeScope,
-                            _enterLubScope,
-                            _enterCompositeLubScope,
-                            _leaveScope,
-                            _leaveCompositeScope,
-                            _getScope,
+        /* Scoping */       collector_enterScope, 
+                            collector_enterCompositeScope,
+                            collector_enterLubScope,
+                            collector_enterCompositeLubScope,
+                            collector_leaveScope,
+                            collector_leaveCompositeScope,
+                            collector_getScope,
                             
-        /* Scope Info */    _setScopeInfo,
-                            _getScopeInfo,
+        /* Scope Info */    collector_setScopeInfo,
+                            collector_getScopeInfo,
                             
-        /* Nested Info */   _push,
-                            _pop,
-                            _top,
-                            _getStack,
-                            _clearStack,
+        /* Nested Info */   collector_push,
+                            collector_pop,
+                            collector_top,
+                            collector_getStack,
+                            collector_clearStack,
                             
-        /* Compose */       _addTModel,
+        /* Compose */       collector_addTModel,
         
-        /* Reporting */     _report, 
-                            _reports,
+        /* Reporting */     collector_report, 
+                            collector_reports,
                             
-        /* Define */        _define,
-                            _defineInScope,
-                            _predefine,
-                            _predefineInScope,
-                            _isAlreadyDefined,
+        /* Define */        collector_define,
+                            collector_defineInScope,
+                            collector_predefine,
+                            collector_predefineInScope,
+                            collector_isAlreadyDefined,
                             
-        /* Use */           _use, 
-                            _useQualified, 
-                            _useViaType,
-                            _useLub,
+        /* Use */           collector_use, 
+                            collector_useQualified, 
+                            collector_useViaType,
+                            collector_useLub,
                             
-        /* Path */          _addPathToDef,
-                            _addPathToQualifiedDef,
-                            _addPathToType,
+        /* Path */          collector_addPathToDef,
+                            collector_addPathToQualifiedDef,
+                            collector_addPathToType,
                            
-        /* Inference */     _newTypeVar,  
+        /* Inference */     collector_newTypeVar,  
                 
-        /* Fact */          _fact,
+        /* Fact */          collector_fact,
         
-        /* GetType */       _getType,
+        /* GetType */       collector_getType,
         
-        /* Calculate */     _calculate, 
-                            _calculateEager,
+        /* Calculate */     collector_calculate, 
+                            collector_calculateEager,
                             
-        /* Require */       _require, 
-                            _requireEager,
-                            _requireEqual,
-                            _requireComparable,
-                            _requireSubType,
-                            _requireUnify
+        /* Require */       collector_require, 
+                            collector_requireEager,
+                            collector_requireEqual,
+                            collector_requireComparable,
+                            collector_requireSubType,
+                            collector_requireUnify
                     ); 
 }
 
