@@ -59,7 +59,7 @@
             <plugin>
                 <groupId>org.rascalmpl</groupId>
                 <artifactId>rascal-maven-plugin</artifactId>
-                <version>0.22.0</version>
+                <version>0.38.2-BOOT1</version>
                 <configuration>
                     <bin>${project.build.outputDirectory}</bin>
                     <srcs>
