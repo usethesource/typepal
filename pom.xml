@@ -185,7 +185,7 @@
         <dependency>
         	<groupId>org.rascalmpl</groupId>
         	<artifactId>rascal</artifactId>
-        	<version>0.39.2-BOOT0</version>
+        	<version>0.39.3-BOOT0</version>
         </dependency>
     </dependencies>
 </project>
