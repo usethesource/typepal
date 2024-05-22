@@ -1,24 +1,25 @@
-** Release 0.11.5 **
+##  Release 0.11.5 
 
-* Administrative release
+* Administrative release that prepares for a complete Rascal bootstrap
+* RELEASE-NOTES added for the benefit of the generated documentation
 
-** Release 0.11.4 **
+##  Release 0.11.4 
 
 * Minor changes for version checking
 
-** Release 0.11.3 **
+##  Release 0.11.3 
 
 * Fixed error in intercalateAnd and intercalateOr.
 
-** Release 0.11.2 **
+##  Release 0.11.2 
 
 * Fixed subtle omission in isAlreadyDefined
 
-** Release 0.11.1 **
+##  Release 0.11.1 
 
 * Improved error messages
 
-** Release 0.11.0 **
+##  Release 0.11.0 
 
 * Fixed test that expected error message that is no longer generated
 * Removed redundant print: "Skipping (type-incorrect) def"
@@ -29,7 +30,7 @@
     "Reference to name ..." and "Reference to type ..." messages are
     suppressed if there is alerady an error for the same location
 
-** Release 0.10.0 **
+##  Release 0.10.0 
 
 * Fixed incorrect default for `defaultLogicalLoc`
 * Code clean up
@@ -45,11 +46,11 @@
      do not change, then the module is binary backward compatible from the perspective
      of typepal type checking and name resolution.
 
-** Release 0.9.0 **
+##  Release 0.9.0 
 
 * Added some type declarations
 
-** Release 0.8.6 **
+##  Release 0.8.6 
 
 * added zenodo software citation
 * Described funding and citation for typepal
@@ -60,7 +61,7 @@
 * Minor changes related to Rascal compiler development
 * Added example: a struct declaration split over several declarations
 
-** Release 0.8.5 **
+##  Release 0.8.5 
 
 * improved error message for missing collect for large trees (shortened and added ...)
 * fixed missing case for parametrized-lex and changes warnings to info for missing collect cases
@@ -73,22 +74,22 @@
     
  Normally this isn't an issue, but since `TestFramework` needs to be extended in the module it's used, an import of `DateTime` can break this code, as `parseTime` is a function.
 
-** Release 0.8.3 **
+##  Release 0.8.3 
 
 * added source and issues for generating main tutor page
 
-** Release 0.8.2 **
+##  Release 0.8.2 
 
 * Better use of the newest rascal-tutor features
 
-** Release 0.8.1 **
+##  Release 0.8.1 
 
 * Documentation was improvied
    * experiment to fix weird links
    * fixed some header syntax
    * fixed links and anchors and headings
 
-** Release 0.8.0 **
+##  Release 0.8.0 
 
 * Updated dependencies such that newer downstream dependencies can use typepal
 * resolved all broken links for the tutor in the markdown files
@@ -96,12 +97,12 @@
 * fixed link errors in Configuration.md
 * Made some loc handling more robust
 
-** Release 0.8.0 **
+##  Release 0.8.0 
 
 * Updated dependencies such that newer downstream dependencies can use typepal
 * Experimenting with new tutor compiler
 
-** Release 0.7.9 **
+##  Release 0.7.9 
 
 * First iteration of optimizing getId/use
 * included TypePal documentation in typepal project, for later processing by the tutor compiler when it is released
@@ -120,25 +121,25 @@
 * Avoided a syntax rule just to get a loc
 * Changes to enable compilation of TypePal
 
-** Release 0.7.4-0.7.8 **
+##  Release 0.7.4-0.7.8 
 
 * Made tests robust against different execution orders of solver
 * In TTL tests: expect {m1, m2, ...} now means expect ONEOF m1, m2, ...
 * Fixed side effect of changed definition of Define.
 
-** Release 0.7.3 **
+##  Release 0.7.3 
 
 * Improved version handling
 
 * Commented out picoci tests to avoid Rascal evaluator bug
 
-** Release 0.7.2 **
+##  Release 0.7.2 
 
 * Added basic machinery for versioning TPL files
 * Fixed some type warnings
 * Fix related to Issue #1588
 
-** Release 0.7.0-0.7.1 **
+##  Release 0.7.0-0.7.1 
 
 * Added support for case-independent names
 * Added case-independent Pico
@@ -146,33 +147,33 @@
 * Added missing check and simplications (thx @rodinaarsen)
 * Added missing case for brackets (thx @rodinaarsen)
 
-** Release 0.6.2 **
+##  Release 0.6.2 
 
 * Solved another quoting issue in formatted messages
 * Fixed issue with quoting in formatted messages.
 
-** Release 0.6.1 **
+##  Release 0.6.1 
 
 * Fixed issue in message formatting print order
 * Changed back src => loc
 * Fixed yaml
 * Fixed typepal crashing the maven compiler
 
-** Release 0.6.0 **
+##  Release 0.6.0 
 
 * Removed some loc annotations
 * Some error recovery in case of type errors
 
-** Release 0.5.0-0.5.4 **
+##  Release 0.5.0-0.5.4 
 
 * Upgrading package to Java 11
 
-** Release 0.4.12 **
+##  Release 0.4.12 
 
 * Minor restructuring to fix error so correctly found by typechecker
 * Eliminate all defTypeCalls before handing control to the postSolver
 
-** Release 0.4.11 **
+##  Release 0.4.11 
 
 * Cleaning up typepal and the size of the generated jar
 * Trying to run compiler in parallel
@@ -181,12 +182,12 @@
 * Further simplifcations to faciltate down stream usage
 * Renaming + further simplification
 
-** Release 0.4.9 **
+##  Release 0.4.9 
 
 * Merged with restructure branch and clean up
 * Major simplification/restructuring that removes all import and extend cycles
 
-** Release 0.4.8 **
+##  Release 0.4.8 
 
 * removed left-overs from when this was an Eclipse project
 * removed all unused Eclipse metadata to prevent Eclipse from picking it up and producing ambiguous classpaths for projects depending on typepal
@@ -196,7 +197,7 @@
 * removed dead StrCon case and fixed expected replies of type-checker
 * changed packaging of typepal to a normal jar (as opposed to an Eclipse bundle)
 
-** Release 0.4.6-0.4.7 **
+##  Release 0.4.6-0.4.7 
 
 * Made global store functionality in Solver identitical to Collector
 * Fixed error in recent change
@@ -206,35 +207,35 @@
 * Disabled println if not in verbose mode
 * Improvements & optimizations to the inference engine
 
-** Release 0.4.4 **
+##  Release 0.4.4 
 
 * Eliminated use of isContainedIn for scope inclusion
 * Added link to repository to find the pom parent
 
-** Release 0.4.3 **
+##  Release 0.4.3 
 
 * Removed two defensive throws, that are actually legal cases
 * Removed more warnings
 * Temporarily turned off packaging for typepal to avoid readBinaryFile bug
 
-** Release 0.4.2 **
+##  Release 0.4.2 
 
 * Changing the version to reflect the pom versions for the release
 * Added more precise typing to `defType` 
 
-** Release 0.4.1 **
+##  Release 0.4.1 
 
 * Added `getType` on Collectors
 * Added missing returns;
 * Fixed various missing returns
 
-** Release 0.4.0 **
+##  Release 0.4.0 
 
 * Reorganization: fully typechecked, better modularization, same API
 * Added testsuite to run at command line
 * Removed a number of type errors
 
-** Release 0.3.0 **
+##  Release 0.3.0 
 
 * Fixed error due to recent change in ScopeGraph
 * Disabled FWJTests for now
@@ -264,7 +265,7 @@
 
 * added more memory to typepal
 
-** Release 0.2.1 **
+##  Release 0.2.1 
 
 * added config
 * included release config here because it can not be inherited from the parent
