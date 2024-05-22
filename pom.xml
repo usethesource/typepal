@@ -97,6 +97,7 @@
                             <errorsAsWarnings>false</errorsAsWarnings>
                             <bin>${project.build.outputDirectory}</bin>
                             <sources>|http://github.com/usethesource/typepal|</sources>
+                            <releaseNotes>${project.basedir}/RELEASE-NOTES.md</releaseNotes>
                             <issues>|http://github.com/usethesource/typepal/issues|</issues>
                             <srcs>
                                 <src>${project.basedir}/doc/TypePal/</src>
