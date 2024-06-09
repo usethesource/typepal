@@ -499,7 +499,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
     
     Solver the_solver = dummySolver();
     
-    void _setSolver(Solver s){
+    void do_setSolver(Solver s){
         the_solver = s;
         paths = the_solver.getPaths();
         pathRoles = paths.pathRole;
@@ -514,6 +514,6 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
        
     return scopegraph(
             lookupWide,
-            _setSolver
+            do_setSolver
         );
 }
