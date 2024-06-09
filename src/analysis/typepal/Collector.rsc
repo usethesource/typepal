@@ -193,11 +193,36 @@ Collector newCollector(str modelName, Tree pt, TypePalConfig config){
     return newCollector(modelName, (modelName : pt), config);
 }
 
-//anno loc Tree@src;
-
-&T convertLocs(&T v, map[loc,loc] locMap){
-    return visit(v){ case loc l => locMap[l] ? l };
+TModel convertLocs(TModel tm, map[loc,loc] locMap){
+    defines = {};
+    definitions = ();
+    for(d:<loc scope, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
+        defi = visit(defInfo){ case loc l => locMap[l] ? l };
+        d1 = d[scope=locMap[scope]?scope][defined=locMap[defined]?defined][defInfo=defi];
+        defines += d1;
+        definitions[d1.defined] = d1;
+    }
+    tm.defines = defines;
+    tm.definitions = definitions;
+        
+    tm.scopes = ( locMap[outer]?outer : locMap[inner]?inner | loc outer <- tm.scopes, loc inner := tm.scopes[outer] );
+    tm.paths = { <locMap[from]?from, pathRole, locMap[to]?to> | <loc from, PathRole pathRole, loc to> <- tm.paths };
+   
+    tm.referPaths =  visit(tm.referPaths){ case loc l => locMap[l] ? l };
+    tm.uses = visit(tm.uses){ case loc l => locMap[l] ? l };
+    tm.definesMap = visit(tm.definesMap){ case loc l => locMap[l] ? l };
+    tm.moduleLocs = ( key : locMap[l] ? l | key <- tm.moduleLocs, l := tm.moduleLocs[key] );
+    tm.facts = visit(tm.facts){ case loc l => locMap[l] ? l };
+    tm.specializedFacts = visit(tm.specializedFacts){ case loc l => locMap[l] ? l };
+    tm.useDef = { < locMap[f] ? f, locMap[t] ? t > | <f, t> <- tm.useDef };
+    tm.messages =  visit(tm.messages){ case loc l => locMap[l] ? l };
+    tm.store =  visit(tm.store){ case loc l => locMap[l] ? l };
+    tm.config = visit(tm.config){ case loc l => locMap[l] ? l };
+    return tm;
 }
+
+loc convertLoc(loc l, map[loc,loc] locMap)
+    = locMap[l] ? l;
 
 TModel convertTModel2PhysicalLocs(TModel tm){
     logical2physical = tm.logical2physical;
@@ -979,8 +1004,8 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
            tm.referPaths = referPaths;
            tm.uses = uses;      uses = [];
            
-           tm.calculators = calculators;
-           tm.requirements = requirements;  
+           tm.calculators = calculators; calculators = {};
+           tm.requirements = requirements;  requiremenrs = {}; 
            tm.store = storeVals;        storeVals = ();
            tm.definitions = ( def.defined : def | Define def <- defines);
            map[loc, map[str, rel[IdRole idRole, loc defined]]] definesMap = ();
