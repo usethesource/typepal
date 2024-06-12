@@ -963,8 +963,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     map[loc,loc] buildLogical2physical(Defines defines){
         map[loc,loc] my_logical2physical = logical2physical;
+        map[loc,loc] my_physical2logical = invertUnique(logical2physical);
         for(Define def <- defines){
-            logicalLoc = config.createLogicalLoc(def, modelName, config.typepalPathConfig);
+            logicalLoc = my_physical2logical[def.defined] ? config.createLogicalLoc(def, modelName, config.typepalPathConfig);
             if(logicalLoc != def.defined){
                 if(my_logical2physical[logicalLoc]?){
                     if(my_logical2physical[logicalLoc] != def.defined){
