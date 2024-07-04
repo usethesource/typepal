@@ -37,14 +37,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     
     // Configuration (and related state)
     
-    //bool logSolverSteps = tm.config.logSolverSteps;
-    //bool logSolverIterations = tm.config.logSolverIterations;
-    //bool logAttempts = tm.config.logAttempts;
-    //bool logTModel = tm.config.logTModel;
-    //bool logTime = tm.config.logTime;
-    
-    //int solverStarted = cpuTime();
-    
     str(str) normalizeName  = defaultNormalizeName;
     bool(AType,AType) isSubTypeFun = defaultIsSubType;
     
@@ -161,6 +153,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     map[loc, AType] specializedFacts = ();
     
     set[Define] defines = {};
+    map[loc,loc] def2id = tm.def2id;
     
     map[loc, Define] definitions = ();
     
@@ -1359,6 +1352,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
  
         for(Calculator calc <- calculators){
             try {
+                //bindings = ();
             	clearActiveTriggers();
                 evalOrScheduleCalc(calc);
             } catch checkFailed(list[FailMessage] fms): {
@@ -1370,6 +1364,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         
         for(Requirement req <- requirements){
             try {
+                //bindings = ();
                 clearActiveTriggers(); // ? needed
                 evalOrScheduleReq(req);
             } catch checkFailed(list[FailMessage] fms): {

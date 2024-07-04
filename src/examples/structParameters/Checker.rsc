@@ -60,7 +60,7 @@ TypePalConfig structParametersConfig() =
 // ---- Collect facts and constraints -----------------------------------------
 
 void collect(current:(Declaration)`<Type typ> <Id id> = <Expression exp> ;`, Collector c) {
-    c.define("<id>", variableId(), current, defType(typ));
+    c.define(id, variableId(), current, defType(typ));
     c.requireEqual(typ, exp, error(exp, "Incorrect initialization, expected %t, found %t", typ, exp));
     
     c.enterScope(current);
@@ -70,17 +70,17 @@ void collect(current:(Declaration)`<Type typ> <Id id> = <Expression exp> ;`, Col
 
 void collect(current:(Declaration) `struct <Id name> <TypeFormals formals> { <{Field ","}* fields> };`, Collector c) {
     type_formal_list = formals is noTypeFormals ? [] : [f | f <- formals.formals];
-    c.define("<name>", structId(), current,  defType(structDef("<name>", [ "<tf>" | tf <- type_formal_list])));
+    c.define(name, structId(), current,  defType(structDef("<name>", [ "<tf>" | tf <- type_formal_list])));
     c.enterScope(current);
         for(tf <- type_formal_list){
-            c.define("<tf>", typeFormalId(), tf, defType(typeFormal("<tf>")));
+            c.define(tf, typeFormalId(), tf, defType(typeFormal("<tf>")));
         }
         collect(formals, fields, c);
     c.leaveScope(current);
 }
 
 void collect(current:(Field)`<Type typ> <Id name>`, Collector c) {
-    c.define("<name>", fieldId(), current, defType(typ));
+    c.define(name, fieldId(), current, defType(typ));
     collect(typ, c);
 } 
 

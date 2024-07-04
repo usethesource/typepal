@@ -31,15 +31,15 @@ data IdRole
 // ---- Form ------------------------------------------------------------------
 
 void collect(current: (Form) `form <Id name> { <Question* questions> }`, Collector c){
-    c.define("<name>", formId(), current, defType(formType("<name>")));
+    c.define(name, formId(), current, defType(formType("<name>")));
     collect(questions, c);
 }
 
 // ---- Question --------------------------------------------------------------
 
 void collect(current: (Question) `<Label label> <Var var> : <Type t> <Value? v>`, Collector c){
-    c.define("<label>", labelId(), label, defType(labelType()));
-    c.define("<var>", variableId(), var, defType(t));
+    c.define(label, labelId(), label, defType(labelType()));
+    c.define(var, variableId(), var, defType(t));
     for((Value) `[<Const const>]` <- v){
         c.requireEqual(const, t, error(const, "Incompatible expression type %t, expected %t", const, t));
         collect(const, c);
@@ -48,8 +48,8 @@ void collect(current: (Question) `<Label label> <Var var> : <Type t> <Value? v>`
 }
 
 void collect(current: (Question) `<Label label> <Var var> : <Type t> = <Expr e> <Value? v>`, Collector c){
-    c.define("<label>", labelId(), label, defType(labelType()));
-    c.define("<var>", variableId(), var, defType(t));
+    c.define(label, labelId(), label, defType(labelType()));
+    c.define(var, variableId(), var, defType(t));
     c.requireEqual(e, t, error(e, "Incompatible expression type %t, expected %t", e, t));
     for((Value) `[<Const const>]` <-  v){
         c.requireEqual(const, t, error(const, "Incompatible expression type %t, expected %t", const, t));

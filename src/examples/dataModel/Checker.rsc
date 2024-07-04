@@ -44,14 +44,14 @@ void collect(current: (Program) `<Declaration+ decls>`, Collector c){
 }
 
 void collect(current: (Declaration) `entity <Id name>  { <Field+ fields> }`, Collector c){
-    c.define("<name>", entityId(), current, defType(entityType("<name>")));
+    c.define(name, entityId(), current, defType(entityType("<name>")));
     c.enterScope(current);
         collect(fields, c);
     c.leaveScope(current);
 }
 
 void collect(current: (Field) `<Id name> -\> <Type typ> inverse <Id ref> :: <Id attr>`, Collector c){
-    c.define("<name>", fieldId(), current, defType(typ));
+    c.define(name, fieldId(), current, defType(typ));
     c.use(ref, {entityId()});
     c.useViaType(ref, attr, {fieldId()});
     c.require("check inverse", current, [attr],

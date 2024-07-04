@@ -43,7 +43,7 @@ void collect(current:(Module)`module <Identifier _> <Import* _> <Declaration* de
 }
 
 void collect(current:(Declaration)`class <Identifier className> { <Declaration* decls> }`, Collector c) {
-    c.define("<className>", classId(), current, defType(classType("<className>")));
+    c.define(className, classId(), current, defType(classType("<className>")));
     c.enterScope(current);
         collect(decls, c);
     c.leaveScope(current);
@@ -52,7 +52,7 @@ void collect(current:(Declaration)`class <Identifier className> { <Declaration* 
 void collect(current:(Declaration)`<Type returnType> <Identifier functionName> ( <{Parameter ","}* params> ) = <Expression returnExpression> ;`, Collector c) {
     classScope = c.getScope(); 
     c.enterScope(current); {
-        c.defineInScope(classScope, "<functionName>", methodId(), functionName, 
+        c.defineInScope(classScope, functionName, methodId(), functionName, 
             defType(returnType + [p.name | p <- params], AType(Solver s) { return functionType(s.getType(returnType), atypeList([s.getType(p.name) | p <- params])); }));
      
         c.requireEqual(returnType, returnExpression, error(returnExpression, "Return expression is not the same type as the return type (%t) instead of (%t)", returnExpression, returnType));
@@ -62,13 +62,13 @@ void collect(current:(Declaration)`<Type returnType> <Identifier functionName> (
 }
 
 void collect(current:(Declaration)`<Type fieldType> <Identifier fieldName>;`, Collector c) {
-    c.define("<fieldName>", fieldId(), fieldName, defType(fieldType));
+    c.define(fieldName, fieldId(), fieldName, defType(fieldType));
     c.fact(current, fieldType);
     collect(fieldType, c);
 }
 
 void collect(current:(Parameter)`<Type paramType> <Identifier paramName>`, Collector c) {
-    c.define("<paramName>", parameterId(), paramName, defType(paramType));
+    c.define(paramName, parameterId(), paramName, defType(paramType));
     c.fact(current, paramType);
     collect(paramType, c);
 }

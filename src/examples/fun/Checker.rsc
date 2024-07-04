@@ -57,7 +57,7 @@ void collect(current: (Type) `<Type from> -\> <Type to>`, Collector c){
 
 void collect(current: (Expression) `fun <Id name> : <Type tp> { <Expression body> }`, Collector c) {   
      c.enterScope(current);
-        c.define("<name>", variableId(), name, defType(tp));
+        c.define(name, variableId(), name, defType(tp));
         c.calculate("function declaration", current, [body], 
             AType(Solver s){ 
                 s.requireEqual(tp, body, error(tp, "Declared type %t should be equal to type of body %t", tp, body));
@@ -71,7 +71,7 @@ void collect(current: (Expression) `fun <Id name> : <Type tp> { <Expression body
 
 void collect(current: (Expression) `let <Id name> : <Type tp> = <Expression exp1> in <Expression exp2> end`, Collector c) {  
      c.enterScope(current);
-         c.define("<name>", variableId(), name, defType(tp));
+         c.define(name, variableId(), name, defType(tp));
          c.calculate("let", current, [exp2], AType(Solver s) { return s.getType(exp2); } );
          collect(tp, exp1, exp2, c);  
      c.leaveScope(current);

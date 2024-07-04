@@ -35,20 +35,20 @@ TypePalConfig structConfig() =
 // ---- Collect facts and constraints -----------------------------------------
 
 void collect(current:(Declaration)`<Type typ> <Id id> = <Expression exp> ;`, Collector c) {
-    c.define("<id>", variableId(), current, defType(typ));
+    c.define(id, variableId(), current, defType(typ));
     c.requireEqual(typ, exp, error(exp, "Incorrect initialization, expected %t, found %t", typ, exp));
     collect(typ, exp, c);
 }
 
 void collect(current:(Declaration)`struct <Id name> { <{Field ","}* fields> };`, Collector c) {
-    c.define("<name>", structId(), current, defType(structType("<name>"))); 
+    c.define(name, structId(), current, defType(structType("<name>"))); 
     c.enterScope(current);
         collect(fields, c);
     c.leaveScope(current);
 }
 
 void collect(current:(Field)`<Type typ> <Id name>`, Collector c) {
-    c.define("<name>", fieldId(), current, defType(typ));
+    c.define(name, fieldId(), current, defType(typ));
     collect(typ, c);
 }
 

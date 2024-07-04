@@ -80,7 +80,7 @@ void handleImports(Collector c, Tree root, PathConfig pcfg) {
 
 
 void collect(current: (Program) `module <ModuleId moduleName>  <Import* imports> <TopLevelDecl* decls>`, Collector c){
- 	c.define("<moduleName>", moduleId(), current, defType(moduleType()));
+ 	c.define(moduleName, moduleId(), current, defType(moduleType()));
  	c.enterScope(current); {
  		collect(imports, c);
     	collect(decls, c);
@@ -89,7 +89,7 @@ void collect(current: (Program) `module <ModuleId moduleName>  <Import* imports>
 }
  
 void collect(current:(TopLevelDecl) `struct <Id id> { <DeclInStruct* decls> }`,  Collector c) {
-     c.define("<id>", structId(), current, defType(structType("<id>")));
+     c.define(id, structId(), current, defType(structType("<id>")));
      
      c.enterScope(current); {
      	collect(decls, c);

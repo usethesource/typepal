@@ -256,6 +256,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     map[loc, rel[str id, str orgId, loc idScope, set[IdRole] idRoles, loc occ]] lubUsesPerLubScope = (globalScope: {});
     map[loc, rel[loc,loc]]  scopesPerLubScope = (globalScope: {});
  
+    map[loc,loc] def2id = ();
     Scopes scopes = ();
     map[loc, set[loc]] scopesStar = (globalScope: {});
     
@@ -281,49 +282,47 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     bool building = true;
     
-    void collector_define(str orgId, IdRole idRole, value def, DefInfo info){
+    void _define(str orgId, str nname, loc lid, IdRole idRole, loc ldef, DefInfo info){
         if(building){
-            loc l = |undefined:///|;
-            if(Tree tdef := def) l = getLoc(tdef);
-            else if(loc ldef := def) l = ldef;
-            else throw TypePalUsage("Argument `def` of `define` should be `Tree` or `loc`, found <typeOf(def)>");
-            
-            def_tup = <orgId, idRole>;
-            nname = normalizeName(orgId);
-                       
+            def2id[ldef] = lid;     
             if(info is defTypeLub){  
                 // Look for an outer variable declaration of id that overrules the defTypeLub   
                 for(Define def <- defines + definesPerLubScope[currentLubScope]){
                     if(def.id == nname && config.isInferrable(def.idRole)){
                         if(def.scope in scopeStack<0>) {
-                            uses += use(nname, orgId, l, currentScope, {def.idRole});
+                            uses += use(nname, orgId, ldef, currentScope, {def.idRole});
                             return;
                         }
                     }
                 }
-                lubDefinesPerLubScope[currentLubScope] += <currentScope, nname, orgId, idRole, l, info>;
+                lubDefinesPerLubScope[currentLubScope] += <currentScope, nname, orgId, idRole, ldef, info>;
             } else {
-                definesPerLubScope[currentLubScope] += <currentScope, nname, orgId, idRole, l, info>; 
+                definesPerLubScope[currentLubScope] += <currentScope, nname, orgId, idRole, ldef, info>; 
             }
         } else {
             throw TypePalUsage("Cannot call `define` on Collector after `run`");
         }
     }
     
-    Tree collector_predefine(str id, IdRole idRole, value def, DefInfo info){
-        l = collector_getPredefinedTree(def, id);
-        collector_define(id, idRole, l, info);
-        return l;
+    void collector_define(Tree id, IdRole idRole, Tree tdef, DefInfo info){
+        _define("<id>", normalizeName("<id>"), getLoc(id), idRole, getLoc(tdef), info);
     }
     
-    Tree collector_predefineInScope(value scope, str id, IdRole idRole, DefInfo info){
-        l = collector_getPredefinedTree(scope, id);
-        collector_defineInScope(scope, id, idRole, l, info);
-        return l;
+    Tree collector_predefine(str id, IdRole idRole, value def, DefInfo info){
+        tdef = collector_getPredefinedTree(def, id);
+        ldef = getLoc(tdef);
+        _define(id, id, ldef, idRole, ldef, info);
+        return tdef;
+    }
+    
+    Tree collector_predefineInScope(loc scope, str id, IdRole idRole, DefInfo info){
+        tdef = collector_getPredefinedTree(scope, id);
+        ldef = getLoc(tdef);
+        defineInScope(scope, id, id, ldef, idRole, ldef, info);
+        return tdef;
     }
 
     Tree collector_getPredefinedTree(value scope, str id){
-    
         loc defining = |undefined:///|;
         if(Tree tdef := scope) defining = getLoc(tdef);
         else if(loc ldef := scope) defining = ldef;
@@ -352,28 +351,26 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
         return false;
     }
-
-    void collector_defineInScope(value scope, str orgId, IdRole idRole, value def, DefInfo info){
-        if(building){
-            loc definingScope = |undefined:///|;
-            if(Tree tscope := scope) definingScope = getLoc(tscope);
-            else if(loc lscope := scope) definingScope = lscope;
-            else throw TypePalUsage("Argument `scope` of `defineInScope` should be `Tree` or `loc`, found <typeOf(scope)>");
-            
-            loc l = |undefined:///|;
-            if(Tree tdef := def) l = getLoc(tdef);
-            else if(loc ldef := def) l = ldef;
-            else throw TypePalUsage("Argument `def` of `defineInScope` should be `Tree` or `loc`, found <typeOf(def)>");
-            
-            nname = normalizeName(orgId);
+    
+    void defineInScope(loc lscope, str orgId, str nname, loc lid, IdRole idRole, loc ldef, DefInfo info){
+        if(building){      
             if(info is defTypeLub){
                 throw TypePalUsage("`defLub` cannot be used in combination with `defineInScope`");
             } else {
-                defines += <definingScope, nname, orgId, idRole, /*uid,*/ l, info>;
+                defines += <lscope, nname, orgId, idRole, ldef, info>;
             }
         } else {
             throw TypePalUsage("Cannot call `defineInScope` on Collector after `run`");
         }
+    }
+    
+    void collector_defineInScope(loc lscope, Tree id, IdRole idRole, Tree tdef, DefInfo info){
+                   
+        loc ldef = getLoc(tdef);
+        orgId = "<id>"; //TODO: pretty print           
+        nname = normalizeName(orgId);
+        
+        defineInScope(lscope, orgId, nname, getLoc(id), idRole, ldef, info);
     }
    
     void collector_use(Tree occ, set[IdRole] idRoles) {

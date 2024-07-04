@@ -213,7 +213,7 @@ void collect(current: (Program) `<ProgramHeading programHeading> <Block block> .
 
 void collect(ProgramHeading ph, Collector c) {
     for(fid <- ph.fileIdentifiers){
-        c.define("<fid>", fileId(), fid, defType(fileType(textType())));
+        c.define(fid, fileId(), fid, defType(fileType(textType())));
     }
 }
 
@@ -238,7 +238,7 @@ void collect(current: (Block) `<LabelDeclarationPart? labelDeclarationPart> <Con
 
 void collect(current: (LabelDeclarationPart) `label <{Label ","}+  labels> ;`, Collector c) {
     for(lab <- labels){
-        c.define("<lab>", labelId(), lab, defType(labelType()));
+        c.define(lab, labelId(), lab, defType(labelType()));
     }
 }
 
@@ -249,7 +249,7 @@ void collect(current: (ConstantDefinitionPart) `const <{ConstantDefinition ";"}+
 }
 
 void collect(current: (ConstantDefinition) `<Identifier id> = <Constant constant>`, Collector c) {
-   c.define("<id>", constantId(), id, defType(constant));
+   c.define(id, constantId(), id, defType(constant));
    collect(constant, c);
 }
 
@@ -310,7 +310,7 @@ void collect(current: (TypeDefinitionPart) `type <{TypeDefinition ";"}+ typeDefs
 }
 
 void collect(current: (TypeDefinition) `<Identifier id> = <Type rtype>`, Collector c) {
-    c.define("<id>", typeId(), id, defType(rtype));
+    c.define(id, typeId(), id, defType(rtype));
     collect(rtype, c);
 }
 
@@ -320,7 +320,7 @@ void collect(current: (ScalarType) `(  <{Identifier ","}+ ids> )`, Collector c){
     st = scalarType(["<id>" | id <- ids]);
     c.fact(current, st);
     for(id <- ids){
-        c.define("<id>", constantId(), id, defType(st));
+        c.define(id, constantId(), id, defType(st));
     }
 }
 
@@ -350,8 +350,8 @@ void collect(current: (ArrayType) `array [ <{SimpleType ","}+ indexTypes> ] of <
 // record type
 
 void collect(current: (RecordType) `record <FieldList fieldList> end`, Collector c){
-    recordName = "<getLoc(current)>"; //create an artifical name for the record.
-    c.define(recordName, recordId(), current, defType(recordType(recordName)));
+    // Since there is no name field, we use the whole record as name.
+    c.define(current, recordId(), current, defType(recordType("<current>")));
     c.enterScope(current);
         collect(fieldList, c);   
     c.leaveScope(current);
@@ -363,13 +363,13 @@ void collect(current:(FieldList) `<FixedPart fixedPart> ; <VariantPart variantPa
 
 void collect(current: (RecordSection) `<{FieldIdentifier ","}+ fieldIdentifiers> : <Type rtype>`, Collector c){
     for(fid <- fieldIdentifiers){
-        c.define("<fid>", fieldId(), fid, defType(rtype));
+        c.define(fid, fieldId(), fid, defType(rtype));
     }
    collect(rtype, c);
 }
 
 void collect(current: (VariantPart) `case <TagField tagField> <TypeIdentifier ctype> of <{Variant ";"}+ variantList>`, Collector c){
-    c.define("<tagField>", tagId(), tagField, defType(ctype));
+    c.define(tagField, tagId(), tagField, defType(ctype));
     //TODO: check that all case labels are complete and are compatible with ctype
     collect(ctype, variantList, c);
 } 
@@ -415,7 +415,7 @@ void collect(current: (VariableDeclarationPart) `var <{VariableDeclaration ";"}+
 
 void collect(current: (VariableDeclaration) `<{Identifier ","}+ ids> : <Type typ>`, Collector c) {
     for(Identifier id <- ids){
-        c.define("<id>", variableId(), id, defType(typ));
+        c.define(id, variableId(), id, defType(typ));
     }
     collect(typ, c);
 }
@@ -432,7 +432,7 @@ void collect(current: (ProcedureOrFunctionDeclaration) `<FunctionDeclaration fun
 
 void collect(current: (FormalParameterSection) `<{Identifier ","}+ ids> : <Type rtype>`, Collector c){
     for(id <- ids){
-        c.define("<id>", formalId(), id, defType(rtype));
+        c.define(id, formalId(), id, defType(rtype));
     }
     c.calculate("parameter group", current, [rtype],
         AType(Solver s) {
@@ -443,7 +443,7 @@ void collect(current: (FormalParameterSection) `<{Identifier ","}+ ids> : <Type 
 
 void collect(current: (FormalParameterSection) `var <{Identifier ","}+ ids> : <Type rtype>`, Collector c){
     for(id <- ids){
-        c.define("<id>", variableId(), id, defType(rtype));
+        c.define(id, variableId(), id, defType(rtype));
     }
     c.calculate("var parameter group", current, [rtype],
         AType(Solver s) {
@@ -454,7 +454,7 @@ void collect(current: (FormalParameterSection) `var <{Identifier ","}+ ids> : <T
 
 void collect(current: (FormalParameterSection) `function <{Identifier ","}+ ids> : <Type rtype>`, Collector c){
     for(id <- ids){
-        c.define("<id>", functionId(), id, defType([rtype], AType(Solver s) { return anyFunctionType(s.getType(rtype)); }));
+        c.define(id, functionId(), id, defType([rtype], AType(Solver s) { return anyFunctionType(s.getType(rtype)); }));
     }
     c.calculate("function parameter group", current, [rtype],
         AType(Solver s) {
@@ -465,7 +465,7 @@ void collect(current: (FormalParameterSection) `function <{Identifier ","}+ ids>
 
 void collect(current: (FormalParameterSection) `procedure <{Identifier ","}+ ids>`, Collector c){
     for(id <- ids){
-        c.define("<id>", procedureId(), id, defType(anyProcedureType()));
+        c.define(id, procedureId(), id, defType(anyProcedureType()));
     }
     c.fact(current, atypeList([ anyProcedureType() | _ <- ids ]));
 }
@@ -491,11 +491,11 @@ void collect(FunctionDeclaration fd, Collector c){
     outer = c.getScope();
     c.enterScope(fd);
         if(hd has formals){
-          c.defineInScope(outer, "<hd.id>", functionId(), hd.id, 
+          c.defineInScope(outer, hd.id, functionId(), hd.id, 
                    defType([hd.formals, hd.rtype], AType(Solver s){ return functionType(s.getType(hd.formals), s.getType(hd.rtype)); }));
           collect(hd.formals, hd.rtype, c);
         } else {
-           c.defineInScope(outer, "<hd.id>", functionId(), hd.id, 
+           c.defineInScope(outer, hd.id, functionId(), hd.id, 
                     defType([hd.rtype], AType(Solver s) { return functionType(atypeList([]), s.getType(hd.rtype)); }));
            collect(hd.rtype, c);
         }
@@ -507,10 +507,10 @@ void collect(ProcedureDeclaration pd, Collector c){
     outer = c.getScope();
     c.enterScope(pd);
         if(hd has formals){
-           c.defineInScope(outer, "<hd.id>", procedureId(), hd.id, defType([hd.formals],  AType(Solver s) { return procedureType(s.getType(hd.formals)); }));
+           c.defineInScope(outer, hd.id, procedureId(), hd.id, defType([hd.formals],  AType(Solver s) { return procedureType(s.getType(hd.formals)); }));
            collect(hd.formals, c); 
         } else {
-           c.defineInScope(outer, "<hd.id>", procedureId(), hd.id, defType(procedureType(atypeList([])))); 
+           c.defineInScope(outer, hd.id, procedureId(), hd.id, defType(procedureType(atypeList([])))); 
         }
     c.leaveScope(pd);
 }
@@ -518,7 +518,7 @@ void collect(ProcedureDeclaration pd, Collector c){
 // Statement
 
 void collect(current: (Statement) `<Label label>: <UnlabelledStatement us>`, Collector c) {
-    c.define("<label>", labelId(), label, defType(labelType()));
+    c.define(label, labelId(), label, defType(labelType()));
     collect(us, c);
 }
 
@@ -960,7 +960,7 @@ void collect(current: (RepeatStatement) `repeat <{Statement ";"}+ repeatStats> u
 
 void collect(current: (ForStatement) `for <Identifier control> := <ForList forList> do <Statement doStat>`, Collector c){
     c.enterScope(current);
-        c.define("<control>", variableId(), control, defType(integerType()));
+        c.define(control, variableId(), control, defType(integerType()));
         collect(forList, doStat, c);
     c.leaveScope(current);
 }

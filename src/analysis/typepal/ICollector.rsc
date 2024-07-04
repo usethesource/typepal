@@ -35,9 +35,9 @@ data Collector
      /* Reporting */     bool (FailMessage msg) report,
                          bool (list[FailMessage] msgs) reports,
 
-     /* Define */        void (str id, IdRole idRole, value def, DefInfo info) define,
-                         void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope,
-                         Tree (str id, IdRole idRole, value def, DefInfo info) predefine,
+     /* Define */        void (Tree id, IdRole idRole, Tree def, DefInfo info) define,
+                         void (loc scope, Tree id, IdRole idRole, Tree def, DefInfo info) defineInScope,
+                         Tree (str id, IdRole idRole, Tree def, DefInfo info) predefine,
                          Tree (value scope, str id, IdRole idRole, DefInfo info) predefineInScope,
                          bool (str id, Tree useOrDef) isAlreadyDefined,
 

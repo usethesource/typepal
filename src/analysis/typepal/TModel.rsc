@@ -85,6 +85,7 @@ data TypePalConfig = tconfig();
 data TModel (
     str version = getCurrentTplVersion(),
     Defines defines = {},
+    map[loc,loc] def2id = (),
     Scopes scopes = (),
     Paths paths = {}, 
     ReferPaths referPaths = {},

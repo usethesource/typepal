@@ -39,7 +39,7 @@ void collect(current: (Expression) `fun <Id arg> { <Expression body> }`, Collect
         tau1 = c.newTypeVar(arg); 
         tau2 = c.newTypeVar(body);
         c.fact(current, functionType(tau1, tau2));
-        c.define("<arg>", variableId(), arg, defType(tau1));
+        c.define(arg, variableId(), arg, defType(tau1));
         collect(body, c);
      c.leaveScope(current);
 }
@@ -60,7 +60,7 @@ void collect(current: (Expression) `<Expression exp1>(<Expression exp2>)`, Colle
 
 void collect(current: (Expression) `let <Id name> = <Expression exp1> in <Expression exp2> end`, Collector c) { 
     c.enterScope(current); 
-        c.define("<name>", variableId(), name, defType(exp1));
+        c.define(name, variableId(), name, defType(exp1));
         c.fact(current, exp2);
         collect(exp1, exp2, c);
     c.leaveScope(current);

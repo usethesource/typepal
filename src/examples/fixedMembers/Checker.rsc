@@ -42,7 +42,7 @@ void collect(current: (Program) `<Module* modules>`, Collector c){
 }
 
 void collect(current:(Module)`module <Id modId> <Import* imports> { <Function* funs> <Stmt* stmts>}`, Collector c) {
-    c.define("<modId>", moduleId(), current, defType(moduleType("<modId>")));
+    c.define(modId, moduleId(), current, defType(moduleType("<modId>")));
     c.enterScope(current);
     	collect(imports, c);
     	collect(funs, c);
@@ -55,7 +55,7 @@ void collect(current:(Import)`import <Id modId>;`, Collector c) {
 }
 
 void collect(current:(Function)`fun <Id id> { }`, Collector c) {
-    c.define("<id>", functionId(), current, defType(functionType("<id>")));
+    c.define(id, functionId(), current, defType(functionType("<id>")));
 }
 
 

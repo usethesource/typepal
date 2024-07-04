@@ -32,7 +32,7 @@ void collect(current:(Type) `string`, Collector c){
 }
  
 void collect(current:(Declaration) `<Id id> : <Type tp>`,  Collector c) {
-     c.define("<id>", variableId(), id, defType(tp));
+     c.define(id, variableId(), id, defType(tp));
      collect(tp, c);
 }
 

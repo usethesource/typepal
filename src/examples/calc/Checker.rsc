@@ -16,7 +16,7 @@ str prettyAType(intType()) = "int";
 // ---- collect constraints for Calc ------------------------------------------
 
 void collect(current: (Decl) `var <Id name> = <Exp exp> ;`, Collector c){
-    c.define("<name>", variableId(), current, defType(exp));
+    c.define(name, variableId(), current, defType(exp));
     collect(exp, c);
 } 
 

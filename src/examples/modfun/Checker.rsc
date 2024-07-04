@@ -23,7 +23,7 @@ data PathRole
 // ----  Collect facts & constraints ------------------------------------------
 
 void collect(current: (ModuleDecl) `module <ModId mid> { <Decl* decls> }`, Collector c) {
-     c.define("<mid>", moduleId(), mid, defType(moduleType("<mid>")));
+     c.define(mid, moduleId(), mid, defType(moduleType("<mid>")));
      //c.enterScope(current);
         collect(decls, c);
      //c.leaveScope(current);
@@ -34,7 +34,7 @@ void collect(current: (ImportDecl) `import <ModId mid> ;`, Collector c){
 }
 
 void collect(current: (VarDecl) `def <Id id> : <Type tp> = <Expression expression> ;`, Collector c)     {
-     c.define("<id>", variableId(), id, defType(tp));
+     c.define(id, variableId(), id, defType(tp));
      c.requireEqual(tp, expression, error(current, "Expected initializing expression of type %t, found %t", expression, tp));
      collect(tp, expression, c);
 }
