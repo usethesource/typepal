@@ -60,12 +60,20 @@ bool defaultReportUnused (loc _, TModel _) {
     return false;
 }
 
+// https://en.wikipedia.org/wiki/Uniform_Resource_Identifier#:~:text=A%20URI%20is%20composed%20from,)%2C%20and%20the%20character%20%25%20.
+// gen-delims: : / ? # [ ] @
+// sub-delims: ! $ & ' ( ) * + , ;
+// unreserved chars: a-z A-Z 0-9 - . _ ~
+// percent: %
+
+str legalInURI = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-,_~!$\'()*+;";
+public set[str] legalInURIChars = { legalInURI[i] | i <- [0..size(legalInURI)] };
+
 str reduceToURIChars(str s){
-    return visit(s){
-            case /^<c:[a-zA-Z0-9+\-\.\_\~:\/\?\#\[\]\@\!\$\&\'\(\)\*\+\,\;\%\=]>/ => c
-            case str _ => ""
-        }
-    }
+    res = "<for(int i <- [0 .. size(s)]){><s[i] in legalInURIChars ? s[i] : "_"><}>";
+    //println("reduceToURIChars(<s>) =\> <res>");
+    return res;
+}
 
 loc defaultLogicalLoc(Define def, str _modelName, PathConfig _pcfg){
    return def.defined; // return original and don't create logical location
