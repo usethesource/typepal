@@ -9,7 +9,7 @@
 
     <groupId>org.rascalmpl</groupId>
     <artifactId>typepal</artifactId>
-    <version>0.13.4-SNAPSHOT</version>
+    <version>0.13.4-BOOT1</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -20,7 +20,7 @@
 
     <scm>
         <developerConnection>scm:git:ssh://git@github.com/usethesource/typepal.git</developerConnection>
-        <tag>v0.11.5</tag>
+        <tag>v0.13.4-BOOT1</tag>
   </scm>
 
     <build>
