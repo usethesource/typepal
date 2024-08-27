@@ -675,7 +675,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     void addUse(set[loc] defs, Use u){
         for(loc def <- defs){
             if(definedBy[u.occ]?){  // TODO is this isContainedIn safe to use?
-                definedBy[u.occ]  = { isContainedIn(def, d) ? def : d | loc d <- definedBy[u.occ] };
+                if(!any(loc d <- definedBy[u.occ], isContainedIn(d, def))){
+                     definedBy[u.occ] += {def};
+                }                
             } else {
                 definedBy[u.occ] = {def};
             }
@@ -816,6 +818,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     set[Define] solver_getAllDefines() = tm.defines;
     
     Define solver_getDefine(loc l) = definitions[l];
+    
+    rel[loc,loc] solver_getUseDef()
+        = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
     
     // ---- resolvePath -------------------------------------------------------
     
@@ -1589,12 +1594,12 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             }
         }
           
-          tm.calculators = calculators;
-          tm.requirements = requirements;
+        tm.calculators = calculators;
+        tm.requirements = requirements;
  
-          tm.facts = facts;
-         // prune the definedBy relation using specialized facts
-          for(loc u <- specializedFacts){
+        tm.facts = facts;
+        // prune the definedBy relation using specialized facts
+        for(loc u <- specializedFacts){
             orgtp = facts[u];
             spectp = specializedFacts[u];
             if(definedBy[u]? && overloadedAType(org_overloads) := orgtp){
@@ -1606,39 +1611,41 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             }
           }
           
-          tm.specializedFacts = specializedFacts;
-          tm.useDef = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
+        tm.specializedFacts = specializedFacts;
+        
+        //println("definedBy;"); iprintln(definedBy);
+        tm.useDef = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
           
-          ldefines = for(tup: <loc _, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
-                            if(defInfo has tree){
+        ldefines = for(tup: <loc _, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
+                        if(defInfo has tree){
+                           try {                   
+                                   dt = defType(tm.facts[getLoc(defInfo.tree)]);
+                                   tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo)); 
+                               } catch NoSuchKey(_): {
+                                     continue;
+                               }
+                        } else {
                                try {                   
-                                       dt = defType(tm.facts[getLoc(defInfo.tree)]);
-                                       tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo)); 
-                                   } catch NoSuchKey(_): {
-                                         continue;
-                                   }
-                            } else {
-                                   try {                   
-                                       dt = defType(tm.facts[defined]);
-                                       tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo)); 
-                                   } catch NoSuchKey(_): {
-                                        continue;
-                                   }
-                             } 
-                             append tup;
-                          };
-          tm.defines = toSet(ldefines);
+                                   dt = defType(tm.facts[defined]);
+                                   tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo)); 
+                               } catch NoSuchKey(_): {
+                                    continue;
+                               }
+                         } 
+                         append tup;
+                      };
+        tm.defines = toSet(ldefines);
                           
-          for(Define def <- tm.defines){
-                if(def.defined notin def2uses && def.defined notin doubleDefs && reportUnused(def.defined, tm)){ 
-                    messages += warning("Unused <prettyRole(def.idRole)> `<def.id>`", def.defined); 
-                }
-          }
+        for(Define def <- tm.defines){
+            if(def.defined notin def2uses && def.defined notin doubleDefs && reportUnused(def.defined, tm)){ 
+                messages += warning("Unused <prettyRole(def.idRole)> `<def.id>`", def.defined); 
+            }
+        }
           
-          tm.messages = sortMostPrecise(toList(toSet(messages)));
+        tm.messages = sortMostPrecise(toList(toSet(messages)));
 
-          checkAllTypesAvailable(tm);
-          return tm;
+        checkAllTypesAvailable(tm);
+        return tm;
     }
     
     // The actual code of newSolver
@@ -1682,6 +1689,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                                 solver_getDefinitions,
                                 solver_getAllDefines,
                                 solver_getDefine,
+                                solver_getUseDef,
                                 
           /* Nested Info */     solver_push,
                                 solver_pop,
