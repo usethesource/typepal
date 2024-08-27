@@ -50,6 +50,7 @@ data Solver
                         set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions,    // deprecated
                         set[Define] () getAllDefines,
                         Define(loc) getDefine,
+                        rel[loc,loc] () getUseDef,
                         
     /* Nested Info */   void(str key, value val) push,
                         value (str key) pop,
