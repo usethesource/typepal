@@ -963,7 +963,14 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     
     map[loc,loc] buildLogical2physical(Defines defines){
         map[loc,loc] my_logical2physical = logical2physical;
-        map[loc,loc] my_physical2logical = invertUnique(logical2physical);
+        map[loc,loc] my_physical2logical = ();
+        try {
+            my_physical2logical = invertUnique(logical2physical);
+        } catch MultipleKey(value key, value first, value second):{
+            where = loc l := key ? l : |unknown:///|;
+            messages += error("Probably some tpl files are outdated, please clean project", where);
+            return ();
+        }
         for(Define def <- defines){
             logicalLoc = my_physical2logical[def.defined] ? config.createLogicalLoc(def, modelName, config.typepalPathConfig);
             if(logicalLoc != def.defined){
