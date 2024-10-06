@@ -333,21 +333,37 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         return appl(prod(sort("$PREDEFINED-<id>"), [], {}),
                     [])[@\loc=defining[query="predefined=<id>"][fragment="<nPredefinedTree>"]];
     }
+
+    bool isContainedInScopes(loc l, loc r){
+        outer = r;
+        do {
+            if(isContainedIn(l, outer)){
+                return true;
+            }
+            if(scopes[outer]?) {
+                outer = scopes[outer];
+            } else {
+                return false;
+            }
+        } while (true);
+        return false;
+    }
     
     bool collector_isAlreadyDefined(str id,  Tree useOrDef){
         
         lubdefs = { def | def <- definesPerLubScope[currentLubScope], def.id == id } +
                   { def | def <- lubDefinesPerLubScope[currentLubScope], def.id == id };
+        useOrDefLoc = getLoc(useOrDef);
         
-        if(!isEmpty(lubdefs) && any(def <- lubdefs, isContainedIn(getLoc(useOrDef), def.scope))){
+        if(!isEmpty(lubdefs) && any(def <- lubdefs, isContainedInScopes(useOrDefLoc, def.scope))){
             return true;
         }
         
-        for(def <- defines, def.id == id, config.isInferrable(def.idRole), isContainedIn(getLoc(useOrDef), def.scope)){
+        for(def <- defines, def.id == id, config.isInferrable(def.idRole), isContainedInScopes(useOrDefLoc, def.scope)){
             return true;
         }
         
-        for(def <- defines, def.id == id, isContainedIn(getLoc(useOrDef), def.scope)){
+        for(def <- defines, def.id == id, isContainedInScopes(useOrDefLoc, def.scope)){
             return true;
         }
         return false;
