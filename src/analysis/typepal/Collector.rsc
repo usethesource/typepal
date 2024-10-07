@@ -965,7 +965,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             my_physical2logical = invertUnique(logical2physical);
         } catch MultipleKey(value key, value first, value second):{
             where = loc l := key ? l : |unknown:///|;
-            messages += error("Probably some tpl files are outdated, please clean project", where);
+            messages += error("Mapping from physical to logical locations is not unique; remove outdated information and try again", where);
             return ();
         }
         for(Define def <- defines){
