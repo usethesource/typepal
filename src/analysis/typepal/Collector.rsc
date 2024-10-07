@@ -963,7 +963,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         map[loc,loc] my_physical2logical = ();
         try {
             my_physical2logical = invertUnique(logical2physical);
-        } catch MultipleKey(value key, value first, value second):{
+        } catch MultipleKey(value key, value _first, value _second):{
             where = loc l := key ? l : |unknown:///|;
             messages += error("Mapping from physical to logical locations is not unique; remove outdated information and try again", where);
             return ();
