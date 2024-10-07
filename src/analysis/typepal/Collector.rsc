@@ -341,7 +341,12 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 return true;
             }
             if(scopes[outer]?) {
-                outer = scopes[outer];
+                outer2 = scopes[outer];
+                if(isContainedIn(outer2, currentLubScope)){
+                    outer = outer2;
+                } else {
+                    return false;
+                }
             } else {
                 return false;
             }
@@ -358,10 +363,10 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         if(!isEmpty(lubdefs) && any(def <- lubdefs, isContainedInScopes(useOrDefLoc, def.scope))){
             return true;
         }
-        
-        for(def <- defines, def.id == id, config.isInferrable(def.idRole), isContainedInScopes(useOrDefLoc, def.scope)){
-            return true;
-        }
+
+        // for(def <- defines, def.id == id, config.isInferrable(def.idRole), isContainedInScopes(useOrDefLoc, def.scope)){
+        //     return true;
+        // }
         
         for(def <- defines, def.id == id, isContainedInScopes(useOrDefLoc, def.scope)){
             return true;
