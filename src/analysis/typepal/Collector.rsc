@@ -215,6 +215,7 @@ TModel convertLocs(TModel tm, map[loc,loc] locMap){
     tm.facts = visit(tm.facts){ case loc l => locMap[l] ? l };
     tm.specializedFacts = visit(tm.specializedFacts){ case loc l => locMap[l] ? l };
     tm.useDef = { < locMap[f] ? f, locMap[t] ? t > | <f, t> <- tm.useDef };
+    // Exlude messages from conversion: otherwise users would see logical locations
     //tm.messages =  visit(tm.messages){ case loc l => locMap[l] ? l };
     tm.store =  visit(tm.store){ case loc l => locMap[l] ? l };
     tm.config = visit(tm.config){ case loc l => locMap[l] ? l };
