@@ -301,7 +301,7 @@ Returns the global store of the Solver. The global store is a key-value store in
 * The grammar rules defined in the module
 * The data declarations defined in the module
 
-It is also possible to create an arbitrary number of (named) of push down stacks in the global store. These can be used to represent context information during the collect or solve phase, see [Nested info](Collector#nested-info).
+It is also possible to create an arbitrary number of (named) of push down stacks in the global store. These can be used to represent context information during the collect or solve phase, see [Nested info]((Collector#nested-info)).
 
 :::caution
 With the availability of a global store come serious responsibilities. Don't overuse it, do not misuse it.

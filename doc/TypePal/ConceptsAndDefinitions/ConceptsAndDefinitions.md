@@ -11,7 +11,7 @@ The syntax of a source language may impose various restrictions on the identifie
 
 ## Tree
 
-The Rascal data type `Tree` (see [ParseTree]((../Rascal/Library::ParseTree))) is used to represent all parse trees that can be generated for any syntax described in Rascal. `Tree` is also a super type of any syntactic construct that may occur in a parse tree. In TypePal we interchangeably use `Tree` and the source area (a source location) associated with it to uniquely identify program parts, definitions, uses and scopes.
+The Rascal data type `Tree` (see ((Library:module:ParseTree)) is used to represent all parse trees that can be generated for any syntax described in Rascal. `Tree` is also a super type of any syntactic construct that may occur in a parse tree. In TypePal we interchangeably use `Tree` and the source area (a source location) associated with it to uniquely identify program parts, definitions, uses and scopes.
 
 ## Scope
 A _scope_ is a region of a program that delimits where definitions of identifier are applicable. An identifier is defined in the scope where it is defined and in all nested subscopes, unless one of these subscopes redefines that same identifier. In that case, the inner definition applies inside that nested scope (and its subscopes). Scopes are identified by the subtree of the parse tree that introduces them such as, for instance, a module, a function declaration or a block. Special rules may apply such as _define-before-use_ or _scopes-with-holes_.

@@ -194,6 +194,7 @@ void collect(current:(Statement) `break <Target target>;`, Collector c){
     
 
 ##### Nested Info
+
 An arbitrary number of push down stacks can be maintained during the topdown traversal of the source code that is being type checked. A use case is recording that a certain syntax type is encountered and make children aware of this, e.g. "we are inside a parameter list".
 
 Each stack has a string name (`key`) and is created on demand.
@@ -291,7 +292,7 @@ where:
 * `id` is the textual appearance of the name.
 * `idRole` is the role played by the name.
 * `def` is the part of the parse tree that corresponds to the definition of the name.
-* `info` is the definition information [DefInfo]((Collector#DefInfo)) to be associated with this definition, see [DefInfo]((Collector#DefInfo)).
+* `info` is the definition information to be associated with this definition. See [DefInfo](https://www.rascal-mpl.org/docs/Packages/Typepal/TypePal/Collector#def-info).
 
 The function `defineInScope` adds the definition of a name in a _given_ scope:
 ```rascal

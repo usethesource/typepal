@@ -72,7 +72,7 @@ To get you started more quickly, we give below a list of complete TypePal-based 
 
 ##### Aliases
 
-| *What*        |  [Struct]((#Struct)) extended with type aliases |
+| *What*        |  Struct extended with type aliases |
 | --- | --- |
 | *Illustrates* | useViaType, TypePalConfig, getTypeNamesAndRole |
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/aliases |
