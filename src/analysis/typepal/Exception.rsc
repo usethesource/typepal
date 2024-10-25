@@ -14,7 +14,7 @@ data RuntimeException
     | checkFailed(list[FailMessage] msgs)           // Type check failed: used in control flow of solver
     | wrongTplVersion(str reason)                   // Outdated TPL version is used
     ;
-    
+
 data Exception
     = NoBinding()
     | AmbiguousDefinition(set[loc] definitions)
