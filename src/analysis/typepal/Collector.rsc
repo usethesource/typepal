@@ -193,11 +193,25 @@ Collector newCollector(str modelName, Tree pt, TypePalConfig config){
     return newCollector(modelName, (modelName : pt), config);
 }
 
+// The folliwng function can be written with a single (expensive) visit
+// This version avoids visis as much as possible
 TModel convertLocs(TModel tm, map[loc,loc] locMap){
     defines = {};
     definitions = ();
     for(d:<loc scope, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
-        defi = visit(defInfo){ case loc l => locMap[l] ? l };
+        defi = defInfo;
+        if(defType(loc src) := defInfo){
+             defi.src = locMap[src] ? src;
+        } else
+        if(defType(AType atype) := defInfo){
+            if(overloadedAType(rel[loc, IdRole, AType] overloads) := atype){
+                defi.atype =  overloadedAType({ <locMap[l] ? l, idr, at> | <l, idr, at> <- overloads });
+            }
+        } else {
+            throw "convertLocs: cannot handle <defInfo>";
+        }
+        // defi = visit(defInfo){ case loc l => locMap[l] ? l };
+
         d1 = d[scope=locMap[scope]?scope][defined=locMap[defined]?defined][defInfo=defi];
         defines += d1;
         definitions[d1.defined] = d1;
@@ -212,8 +226,20 @@ TModel convertLocs(TModel tm, map[loc,loc] locMap){
     tm.uses = visit(tm.uses){ case loc l => locMap[l] ? l };
     tm.definesMap = visit(tm.definesMap){ case loc l => locMap[l] ? l };
     tm.moduleLocs = ( key : locMap[l] ? l | key <- tm.moduleLocs, l := tm.moduleLocs[key] );
-    tm.facts = visit(tm.facts){ case loc l => locMap[l] ? l };
-    tm.specializedFacts = visit(tm.specializedFacts){ case loc l => locMap[l] ? l };
+    facts = tm.facts;
+    tm.facts = ((locMap[l] ? l) : ( (overloadedAType(rel[loc, IdRole, AType] overloads) := atype)
+                                  ? overloadedAType({ <locMap[l] ? l, idr, at> | <l, idr, at> <- overloads })
+                                  : atype)
+               | l <- facts, atype := facts[l]
+               );
+    //tm.facts = visit(tm.facts){ case loc l => locMap[l] ? l };
+    tm.specializedFacts =
+        ((locMap[l] ? l) : ( (overloadedAType(rel[loc, IdRole, AType] overloads) := atype)
+                           ? overloadedAType({ <locMap[l] ? l, idr, at> | <l, idr, at> <- overloads })
+                           : atype)
+        | l <- tm.specializedFacts, atype := tm.specializedFacts[l]
+        );
+    //tm.specializedFacts = visit(tm.specializedFacts){ case loc l => locMap[l] ? l };
     tm.useDef = { < locMap[f] ? f, locMap[t] ? t > | <f, t> <- tm.useDef };
     // Exlude messages from conversion: otherwise users would see logical locations
     //tm.messages =  visit(tm.messages){ case loc l => locMap[l] ? l };
