@@ -23,7 +23,7 @@ data IdRole
 str prettyRole(IdRole idRole){
     stripped1 = replaceAll(getName(idRole), "Id", "");
     return visit(stripped1) { case /<ch:[A-Z]>/ => toLowerCase(ch) };
-}      
+}
 
 // PathRole: the various (language-specific) labelled semantic paths
 // between program parts
@@ -37,9 +37,9 @@ data PathRole;
 data ScopeRole
     = anonymousScope()
     ;
-    
+
 // Applied occurrence (use) of id for given IdRoles
-// IdRoles are used to fold multiple scopeGraphs into one 
+// IdRoles are used to fold multiple scopeGraphs into one
 // (e.g., one for class and package names, one for variable names etc.)
 data Use
     = use(str id, str orgId, loc occ, loc scope, set[IdRole] idRoles)
@@ -86,29 +86,30 @@ data TModel (
     str version = getCurrentTplVersion(),
     Defines defines = {},
     Scopes scopes = (),
-    Paths paths = {}, 
+    Paths paths = {},
     ReferPaths referPaths = {},
     Uses uses = [],
     map[loc, map[str, rel[IdRole idRole, loc defined]]] definesMap = (),
     str modelName = "",
     map[str,loc] moduleLocs = (),
     set[Calculator] calculators = {},
-    map[loc,AType] facts = (), 
-    map[loc,AType] specializedFacts = (), 
+    map[loc,AType] facts = (),
+    map[loc,AType] specializedFacts = (),
     set[Requirement] requirements = {},
     rel[loc, loc] useDef = {},
     list[Message] messages = [],
     map[str,value] store = (),
     map[loc, Define] definitions = (),
     map[loc,loc] logical2physical = (),
+    bool convertedToPhysical = true, // Are locations in physical format?
     TypePalConfig config = tconfig()
 )   = tmodel();
- 
+
 void printTModel(TModel tm){
     println("TModel(");
     println("  defines = {");
     for(Define d <- tm.defines){
-        println("    \<<d.scope>, <d.id>, <d.idRole>, <d.defined>\>"); 
+        println("    \<<d.scope>, <d.id>, <d.idRole>, <d.defined>\>");
     }
     println("  },");
     println("  facts = (");

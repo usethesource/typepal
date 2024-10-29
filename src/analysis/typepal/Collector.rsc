@@ -252,20 +252,26 @@ loc convertLoc(loc l, map[loc,loc] locMap)
     = locMap[l] ? l;
 
 TModel convertTModel2PhysicalLocs(TModel tm){
-    logical2physical = tm.logical2physical;
-    tm.logical2physical = ();
-    tm = convertLocs(tm, logical2physical);
-    tm.logical2physical = logical2physical;
+    if(!tm.convertedToPhysical){
+        logical2physical = tm.logical2physical;
+        tm.logical2physical = ();
+        tm = convertLocs(tm, logical2physical);
+        tm.logical2physical = logical2physical;
+        tm.convertedToPhysical = true;
+    }
     return tm;
 }
 
 TModel convertTModel2LogicalLocs(TModel tm, map[str,TModel] tmodels){
-    tmodels[tm.modelName] = tm;
-    physical2logical = invertUnique((() | it + tm1.logical2physical | tm1 <- range(tmodels)));
-    logical2physical = tm.logical2physical;
-    tm.logical2physical = ();
-    tm = convertLocs(tm, physical2logical);
-    tm.logical2physical = logical2physical;
+    if(tm.convertedToPhysical){
+        tmodels[tm.modelName] = tm;
+        physical2logical = invertUnique((() | it + tm1.logical2physical | tm1 <- range(tmodels)));
+        logical2physical = tm.logical2physical;
+        tm.logical2physical = ();
+        tm = convertLocs(tm, physical2logical);
+        tm.logical2physical = logical2physical;
+        tm.convertedToPhysical = false;
+    }
     return tm;
 }
 
@@ -969,12 +975,14 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         return extra_defines;
     }
 
+    // We don't convert here logical/physical locations and just reuse
     void collector_addTModel(TModel tm){
         if(!isValidTplVersion(tm.version)){
             throw wrongTplVersion("TModel for <tm.modelName> uses TPL version <tm.version>, but <getCurrentTplVersion()> is required");
         }
-
-        //tm = convertTModel2PhysicalLocs(tm);
+        if(!tm.convertedToPhysical){
+            tm = convertTModel2PhysicalLocs(tm);
+        }
 
         logical2physical += tm.logical2physical;
         messages += tm.messages;

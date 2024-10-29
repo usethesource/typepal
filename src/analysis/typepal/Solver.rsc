@@ -1618,19 +1618,20 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
         ldefines = for(tup: <loc _, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
                         if(defInfo has tree){
-                           try {
-                                   dt = defType(tm.facts[getLoc(defInfo.tree)]);
+                            l = getLoc(defInfo.tree);
+                            if(tm.facts[l]?){
+                                   dt = defType(tm.facts[l]);
                                    tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo));
-                               } catch NoSuchKey(_): {
-                                     continue;
-                               }
+                            } else {
+                                continue;
+                            }
                         } else {
-                               try {
-                                   dt = defType(tm.facts[defined]);
-                                   tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo));
-                               } catch NoSuchKey(_): {
-                                    continue;
-                               }
+                            if(tm.facts[defined]?){
+                                dt = defType(tm.facts[defined]);
+                                tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo));
+                            } else {
+                                continue;
+                            }
                          }
                          append tup;
                       };
