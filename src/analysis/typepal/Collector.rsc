@@ -974,7 +974,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             throw wrongTplVersion("TModel for <tm.modelName> uses TPL version <tm.version>, but <getCurrentTplVersion()> is required");
         }
 
-        tm = convertTModel2PhysicalLocs(tm);
+        //tm = convertTModel2PhysicalLocs(tm);
 
         logical2physical += tm.logical2physical;
         messages += tm.messages;
