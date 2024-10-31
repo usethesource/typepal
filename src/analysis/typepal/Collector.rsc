@@ -193,29 +193,35 @@ Collector newCollector(str modelName, Tree pt, TypePalConfig config){
     return newCollector(modelName, (modelName : pt), config);
 }
 
-// The folliwng function can be written with a single (expensive) visit
+// The following function can be written with a single (expensive) visit
 // This version avoids visis as much as possible
 TModel convertLocs(TModel tm, map[loc,loc] locMap){
     defines = {};
     definitions = ();
     for(d:<loc scope, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
-        defi = defInfo;
-        if(defType(loc src) := defInfo){
-             defi.src = locMap[src] ? src;
-        } else
-        if(defType(AType atype) := defInfo){
-            if(overloadedAType(rel[loc, IdRole, AType] overloads) := atype){
-                defi.atype =  overloadedAType({ <locMap[l] ? l, idr, at> | <l, idr, at> <- overloads });
-            }
-        } else {
-            throw "convertLocs: cannot handle <defInfo>";
-        }
-        // defi = visit(defInfo){ case loc l => locMap[l] ? l };
-
+        defi = visit(defInfo){ case loc l => locMap[l] ? l };
         d1 = d[scope=locMap[scope]?scope][defined=locMap[defined]?defined][defInfo=defi];
         defines += d1;
         definitions[d1.defined] = d1;
     }
+    // for(d:<loc scope, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
+    //     defi = defInfo;
+    //     if(defType(loc src) := defInfo){
+    //          defi.src = locMap[src] ? src;
+    //     } else
+    //     if(defType(AType atype) := defInfo){
+    //         if(overloadedAType(rel[loc, IdRole, AType] overloads) := atype){
+    //             defi.atype =  overloadedAType({ <locMap[l] ? l, idr, at> | <l, idr, at> <- overloads });
+    //         }
+    //     } else {
+    //         throw "convertLocs: cannot handle <defInfo>";
+    //     }
+    //     // defi = visit(defInfo){ case loc l => locMap[l] ? l };
+
+    //     d1 = d[scope=locMap[scope]?scope][defined=locMap[defined]?defined][defInfo=defi];
+    //     defines += d1;
+    //     definitions[d1.defined] = d1;
+    // }
     tm.defines = defines;
     tm.definitions = definitions;
 
