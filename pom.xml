@@ -85,7 +85,7 @@
                         <goals>
                             <goal>package</goal>
                         </goals>
-                    </execution> 
+                    </execution>
                     <execution>
                         <id>default-cli</id>
                         <phase>compile</phase>
@@ -104,7 +104,7 @@
                                 <src>${project.basedir}/src</src>
                             </srcs>
                         </configuration>
-                    </execution> 
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
@@ -186,7 +186,7 @@
         <dependency>
         	<groupId>org.rascalmpl</groupId>
         	<artifactId>rascal</artifactId>
-            <version>0.40.13-BOOT2</version>
+            <version>0.40.15-SNAPSHOT</version>
         </dependency>
     </dependencies>
 </project>
