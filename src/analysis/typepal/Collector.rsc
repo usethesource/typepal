@@ -204,24 +204,6 @@ TModel convertLocs(TModel tm, map[loc,loc] locMap){
         defines += d1;
         definitions[d1.defined] = d1;
     }
-    // for(d:<loc scope, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
-    //     defi = defInfo;
-    //     if(defType(loc src) := defInfo){
-    //          defi.src = locMap[src] ? src;
-    //     } else
-    //     if(defType(AType atype) := defInfo){
-    //         if(overloadedAType(rel[loc, IdRole, AType] overloads) := atype){
-    //             defi.atype =  overloadedAType({ <locMap[l] ? l, idr, at> | <l, idr, at> <- overloads });
-    //         }
-    //     } else {
-    //         throw "convertLocs: cannot handle <defInfo>";
-    //     }
-    //     // defi = visit(defInfo){ case loc l => locMap[l] ? l };
-
-    //     d1 = d[scope=locMap[scope]?scope][defined=locMap[defined]?defined][defInfo=defi];
-    //     defines += d1;
-    //     definitions[d1.defined] = d1;
-    // }
     tm.defines = defines;
     tm.definitions = definitions;
 
@@ -258,25 +240,25 @@ loc convertLoc(loc l, map[loc,loc] locMap)
     = locMap[l] ? l;
 
 TModel convertTModel2PhysicalLocs(TModel tm){
-    if(!tm.convertedToPhysical){
+    if(!tm.usesPhysicalLocs){
         logical2physical = tm.logical2physical;
         tm.logical2physical = ();
         tm = convertLocs(tm, logical2physical);
         tm.logical2physical = logical2physical;
-        tm.convertedToPhysical = true;
+        tm.usesPhysicalLocs = true;
     }
     return tm;
 }
 
 TModel convertTModel2LogicalLocs(TModel tm, map[str,TModel] tmodels){
-    if(tm.convertedToPhysical){
+    if(tm.usesPhysicalLocs){
         tmodels[tm.modelName] = tm;
         physical2logical = invertUnique((() | it + tm1.logical2physical | tm1 <- range(tmodels)));
         logical2physical = tm.logical2physical;
         tm.logical2physical = ();
         tm = convertLocs(tm, physical2logical);
         tm.logical2physical = logical2physical;
-        tm.convertedToPhysical = false;
+        tm.usesPhysicalLocs = false;
     }
     return tm;
 }
@@ -986,9 +968,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         if(!isValidTplVersion(tm.version)){
             throw wrongTplVersion("TModel for <tm.modelName> uses TPL version <tm.version>, but <getCurrentTplVersion()> is required");
         }
-        if(!tm.convertedToPhysical){
-            tm = convertTModel2PhysicalLocs(tm);
-        }
+        tm = convertTModel2PhysicalLocs(tm);
 
         logical2physical += tm.logical2physical;
         messages += tm.messages;
