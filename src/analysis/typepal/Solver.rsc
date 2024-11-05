@@ -934,6 +934,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     bool unify(AType given, AType expected){
+        boolean ok = false;
         <ok, bindings1> = unify(given, expected, bindings);
         if(ok){
             bindings += bindings1;
