@@ -23,9 +23,9 @@ FailMessage info(value src, str msg, value args..., list[CodeAction] fixes=[])
 
 str escapePercent(str s) = replaceAll(s, "%", "%%");
 
-FailMessage convert(error(str msg, loc at, fixes=list[CodeAction] fixes))
-    = fixes? ? fm_error(at, escapePercent(msg), [], fixes=fixes) : fm_error(src, msg, args);
-FailMessage convert(warning(str msg, loc at, fixes=list[CodeAction] fixes))
-    = fixes? ? fm_warning(at, escapePercent(msg), [], fixes=fixes) : fm_warning(src, msg, args);
-FailMessage convert(info(str msg, loc at, fixes=list[CodeAction] fixes))
-    = fixes? ? fm_info(at, escapePercent(msg), [], fixes=fixes) : fm_info(at, escapePercent(msg), []);
+FailMessage convert(m: error(str msg, loc at))
+    = m.fixes? ? fm_error(at, escapePercent(msg), [], fixes=m.fixes) : fm_error(at, escapePercent(msg), []);
+FailMessage convert(m: warning(str msg, loc at))
+    = m.fixes? ? fm_warning(at, escapePercent(msg), [], fixes=m.fixes) : fm_warning(at,  escapePercent(msg), []);
+FailMessage convert(m:info(str msg, loc at))
+    = m.fixes? ? fm_info(at, escapePercent(msg), [], fixes=m.fixes) : fm_info(at, escapePercent(msg), []);
