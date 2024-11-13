@@ -1016,7 +1016,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 throw TypePalUsage("Missing `leaveScope`(s): unclosed scopes <unclosed>");
            }
 
-           tm = tmodel();
+           tm = tmodel()[usesPhysicalLocs=true];
            tm.modelName = modelName;
 
            tm.moduleLocs = (nm : getLoc(namedTrees[nm]) | nm <- namedTrees);

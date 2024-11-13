@@ -1519,7 +1519,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
              } catch NoBinding(): {
                 roles = size(u.idRoles) > 5 ? "" : intercalateOr([prettyRole(idRole) | idRole <- u.idRoles]);
                 msg =  error("Undefined <roles> `<getOrgId(u)>`", u.occ);
-                if(config.enableErrorFixes){
+                if(tm.config.enableErrorFixes){
                     msg.fixes = undefinedNameProposals(u, tm);
                 }
                 messages += msg;
@@ -1529,7 +1529,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         for(u <- notYetDefinedUses){
             roles = size(u.idRoles) > 5 ? "" : intercalateOr([prettyRole(idRole) | idRole <- u.idRoles]);
             msg = error("Undefined <roles> `<getOrgId(u)>`", u.occ);
-            if(config.enableErrorFixes){
+            if(tm.config.enableErrorFixes){
                 msg.fixes = undefinedNameProposals(u, tm);
             }
             messages += msg;
