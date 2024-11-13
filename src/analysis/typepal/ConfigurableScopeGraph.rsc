@@ -137,7 +137,11 @@ data TypePalConfig(
 
         bool(loc def, TModel tm) reportUnused = defaultReportUnused,
 
-        loc (Define def, str modelName, PathConfig pcfg) createLogicalLoc = defaultLogicalLoc
+        loc (Define def, str modelName, PathConfig pcfg) createLogicalLoc = defaultLogicalLoc,
+
+        bool enableErrorFixes = true,
+
+        int cutoffForNameSimilarity = 3
     );
 
 
