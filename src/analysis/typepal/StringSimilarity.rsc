@@ -13,7 +13,7 @@ int lev(str a, str b){
     int sizea = size(a);
     int sizeb = size(b);
 
-    @memo
+    @memo{expireAfter(minutes=1),maximumSize(50)}
     int lev(int ia, int ib){
         if(ib == sizeb) return sizea - ia;
         if(ia == sizea) return sizeb - ib;
@@ -52,8 +52,8 @@ alias WordSim = tuple[str word, int sim];
 list[str] similarWords(str w, list[str] vocabulary, int maxDistance)
 = sort([ <v, d> | str v <- vocabulary, d := lev(w, v), d <= maxDistance ], bool (WordSim x, WordSim y){ return x.sim < y.sim;}).word;
 
-@synopsis{Find in TModel tm, names similar to w, in gives roles, with at most maxDistance edits}
-list[str] similarNames(str w, set[IdRole] idRoles, TModel tm, int maxDistance){
+@synopsis{Find in TModel tm, names similar to w, in gives roles. Max edit distance comes from TypePal Configuration.}
+list[str] similarNames(str w, set[IdRole] idRoles, TModel tm){
     vocabulary = [ d.orgId | d <- tm.defines, d.idRole in idRoles ];
-    return similarWords(w, vocabulary, maxDistance);
+    return similarWords(w, vocabulary, maxDistance,tm.config.cutoffForNameSimilarity);
 }
