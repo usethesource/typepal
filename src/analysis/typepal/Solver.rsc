@@ -1518,13 +1518,21 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                  foundDefs = scopeGraph.lookup(u);
              } catch NoBinding(): {
                 roles = size(u.idRoles) > 5 ? "" : intercalateOr([prettyRole(idRole) | idRole <- u.idRoles]);
-                messages += error("Undefined <roles> `<getOrgId(u)>`", u.occ, fixes=undefinedNameProposals(u, tm));
+                msg =  error("Undefined <roles> `<getOrgId(u)>`", u.occ);
+                if(config.enableErrorFixes){
+                    msg.fixes = undefinedNameProposals(u, tm);
+                }
+                messages += msg;
              }
         }
 
         for(u <- notYetDefinedUses){
             roles = size(u.idRoles) > 5 ? "" : intercalateOr([prettyRole(idRole) | idRole <- u.idRoles]);
-            messages += error("Undefined <roles> `<getOrgId(u)>`", u.occ, fixes=undefinedNameProposals(u, tm));
+            msg = error("Undefined <roles> `<getOrgId(u)>`", u.occ);
+            if(config.enableErrorFixes){
+                msg.fixes = undefinedNameProposals(u, tm);
+            }
+            messages += msg;
         }
 
         error_locations = { src | error(_,loc src) <- messages };
@@ -1714,5 +1722,5 @@ list[CodeAction] undefinedNameProposals(Use u, TModel tm)
         title="Replace undefined `<getOrgId(u)>`", 
         edits=[changed([replace(u.occ, prop)])]
       )
-    | str prop <- similarNames(getOrgId(u), u.idRoles, tm, 3)
+    | str prop <- similarNames(getOrgId(u), u.idRoles, tm)
     ];
