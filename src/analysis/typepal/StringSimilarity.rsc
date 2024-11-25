@@ -1,10 +1,12 @@
 module analysis::typepal::StringSimilarity
 
 import List;
+import IO;
+import Location;
 import Set;
 import String;
 import analysis::typepal::TModel;
-import  analysis::typepal::ConfigurableScopeGraph;
+import analysis::typepal::ConfigurableScopeGraph;
 
 @synopsis{Tryadic minimum function on integers}
 int min(int a, int b, int c)
@@ -52,10 +54,13 @@ alias WordSim = tuple[str word, int sim];
 
 @synopsis{Compute list of words from vocabulary, that are similar to give word w with at most maxDistance edits}
 list[str] similarWords(str w, list[str] vocabulary, int maxDistance)
-= sort({ <v, d> | str v <- vocabulary, d := lev(w, v), d <= maxDistance }, bool (WordSim x, WordSim y){ return x.sim < y.sim;}).word;
+= sort({ <v, d> | str v <- vocabulary, d := lev(w, v), d <= maxDistance }, 
+                  bool (WordSim x, WordSim y){ return x.sim < y.sim;}).word;
 
-@synopsis{Find in TModel tm, names similar to w, in gives roles. Max edit distance comes from TypePal Configuration.}
-list[str] similarNames(str w, set[IdRole] idRoles, TModel tm){
-    vocabulary = [ d.orgId | d <- tm.defines, d.idRole in idRoles ];
+@synopsis{Find in TModel tm, names similar to Use u. Max edit distance comes from TypePal Configuration.}
+list[str] similarNames(Use u, TModel tm){
+    w = getOrgId(u);
+    idRoles = u.idRoles;
+    vocabulary = [ d.orgId | d <- tm.defines, d.idRole in idRoles, isContainedIn(u.occ, d.scope) ];
     return similarWords(w, vocabulary, tm.config.cutoffForNameSimilarity);
 }

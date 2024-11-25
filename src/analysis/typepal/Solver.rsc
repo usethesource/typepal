@@ -1722,5 +1722,5 @@ list[CodeAction] undefinedNameProposals(Use u, TModel tm)
         title="Replace undefined `<getOrgId(u)>`", 
         edits=[changed([replace(u.occ, prop)])]
       )
-    | str prop <- similarNames(getOrgId(u), u.idRoles, tm)
+    | str prop <- tm.config.similarNames(u, tm)
     ];

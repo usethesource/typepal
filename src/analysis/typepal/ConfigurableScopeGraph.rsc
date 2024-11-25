@@ -15,6 +15,7 @@ import Map;
 import util::Reflective;
 import String;
 extend ParseTree;
+import analysis::typepal::StringSimilarity;
 
 public loc anonymousOccurrence = |rascal-typepal:///anonymous_occurrence|(0,1,<2,3>,<2,4>);
 
@@ -79,6 +80,8 @@ loc defaultLogicalLoc(Define def, str _modelName, PathConfig _pcfg){
    return def.defined; // return original and don't create logical location
 }
 
+list[str] defaultSimilarNames(Use u, TModel tm) = similarNames(u, tm);
+
 // Extends TypePalConfig defined in analysis::typepal::ScopeGraph
 
 data TypePalConfig(
@@ -138,6 +141,8 @@ data TypePalConfig(
         bool(loc def, TModel tm) reportUnused = defaultReportUnused,
 
         loc (Define def, str modelName, PathConfig pcfg) createLogicalLoc = defaultLogicalLoc,
+
+        list[str] (Use u, TModel tm) similarNames = defaultSimilarNames,
 
         bool enableErrorFixes = true,
 
