@@ -53,7 +53,7 @@ test bool lev9() = lev("march", "may") == 3;
 alias WordSim = tuple[str word, int sim];
 
 @synopsis{Compute list of words from vocabulary, that are similar to give word w with at most maxDistance edits}
-list[str] similarWords(str w, list[str] vocabulary, int maxDistance)
+list[str] similarWords(str w, set[str] vocabulary, int maxDistance)
 = sort({ <v, d> | str v <- vocabulary, d := lev(w, v), d <= maxDistance }, 
                   bool (WordSim x, WordSim y){ return x.sim < y.sim;}).word;
 
@@ -61,6 +61,6 @@ list[str] similarWords(str w, list[str] vocabulary, int maxDistance)
 list[str] similarNames(Use u, TModel tm){
     w = getOrgId(u);
     idRoles = u.idRoles;
-    vocabulary = [ d.orgId | d <- tm.defines, d.idRole in idRoles, isContainedIn(u.occ, d.scope) ];
+    vocabulary = { d.orgId | d <- tm.defines, d.idRole in idRoles, isContainedIn(u.occ, d.scope) };
     return similarWords(w, vocabulary, tm.config.cutoffForNameSimilarity);
 }
