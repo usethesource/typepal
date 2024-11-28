@@ -1719,7 +1719,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 list[CodeAction] undefinedNameProposals(Use u, TModel tm)
     =
     [ action(
-        title="Replace undefined `<getOrgId(u)>`", 
+        title="Replace by `<prop>`", 
         edits=[changed([replace(u.occ, prop)])]
       )
     | str prop <- tm.config.similarNames(u, tm)
