@@ -130,7 +130,7 @@ data TypePalConfig(
             = bool(IdRole _) { return false; },
 
         str(str) normalizeName
-            = str (str s) { return replaceAll(s, "\\", ""); },
+            = defaultNormalizeName,
 
         AType (Tree selector, AType def, AType ins, AType act, Solver s) instantiateTypeParameters
             = AType(Tree _, AType _, AType _, AType act, Solver _){ return act; },
