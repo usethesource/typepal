@@ -27,6 +27,7 @@ import Location;
 import String;
 
 import analysis::typepal::Version;
+import analysis::typepal::Messenger;
 
 extend analysis::typepal::ConfigurableScopeGraph;
 extend analysis::typepal::ICollector;
@@ -253,7 +254,21 @@ TModel convertTModel2PhysicalLocs(TModel tm){
 TModel convertTModel2LogicalLocs(TModel tm, map[str,TModel] tmodels){
     if(tm.usesPhysicalLocs){
         tmodels[tm.modelName] = tm;
-        physical2logical = invertUnique((() | it + tm1.logical2physical | tm1 <- range(tmodels)));
+        physical2logical = ();
+        try {
+            physical2logical = invertUnique((() | it + tm1.logical2physical | tm1 <- range(tmodels)));
+        } catch MultipleKey(value physLoc, value _, value _):{
+            where = loc l := physLoc ? l : |unknown:///|;
+            // find the offending modules
+            mnames = {};
+            for(mname <- domain(tmodels)){
+                if(physLoc in range(tmodels[mname].logical2physical)){
+                    mnames += mname;
+                }
+            }
+            tm.messages += error("Please recheck modules <intercalateAnd(toList(mnames))>; their mapping from physical to logical locations is outdated", where);
+            return tm;
+        }
         logical2physical = tm.logical2physical;
         tm.logical2physical = ();
         tm = convertLocs(tm, physical2logical);
