@@ -27,11 +27,34 @@ POSSIBILITY OF SUCH DAMAGE.
 module examples::pico::RenameTest
 
 import examples::pico::Rename;
+
 import util::LanguageServer; // computeFocusList
 
-test bool doesNotCrash() {
+import IO;
+import Set;
+import String;
+import util::FileSystem;
+
+tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] basicRename() {
     prog = parseLoc(|lib://typepal/src/examples/pico/fac.pico|);
     cursor = computeFocusList(prog, 2, 17);
-    <edits, annos, msgs> = rename(<cursor, "foo">);
+    return rename(<cursor, "foo", {|lib://typepal/src/examples/pico|}>);
+}
+
+test bool doesNotCrash() {
+    <edits, _, _> = basicRename();
+    return true;
+}
+
+test bool hasAtMostOnceChangePerFile() {
+    <edits, _, _> = basicRename();
+    return size(edits) <= size(find(|lib://typepal/src/examples/pico|, "pico"));
+}
+
+test bool editsHaveLangthOfNameUnderCursor() {
+    <edits, _, _> = basicRename();
+    for (changed(_, rs) <- edits, replace(loc l, _) <- rs) {
+        if (size("output") != l.length) return false;
+    }
     return true;
 }

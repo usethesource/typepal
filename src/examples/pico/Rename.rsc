@@ -27,60 +27,124 @@ POSSIBILITY OF SUCH DAMAGE.
 module examples::pico::Rename
 
 import examples::pico::PicoSyntax;
+extend examples::pico::PicoChecker;
 
 extend analysis::typepal::refactor::Rename;
 
+import Exception;
+import IO;
+import Relation;
+import util::FileSystem;
+
 data Tree;
 
-
-alias RenameRequest = tuple[list[Tree] cursorFocus, str newName];
+alias RenameRequest = tuple[list[Tree] cursor, str newName, set[loc] workspaceFolders];
 
 data RenameState
     = initialRequest(RenameRequest r)
     | downstreamUsers(loc l, str newName)
     ;
 
-void initSolver(RenameSolver solver, RenameConfig config, <list[Tree] cursorFocus, str newName>) {
-    if (!isValidName(newName)) {
+@memo{expireAfter(minutes=1), maximumSize(50)}
+Tree parseLoc(loc l) {
+    return parse(#start[Program], l);
+}
+
+@memo{expireAfter(minutes=1), maximumSize(50)}
+TModel tmodelForLoc(loc l) {
+    return collectAndSolve(parseLoc(l));
+}
+
+public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] rename(RenameRequest request) {
+    RenameConfig config = rconfig(parseLoc, tmodelForLoc);
+
+    RenameSolver solver = newSolverForConfig(config);
+    initSolver(solver, config, request);
+    return solver.run();
+}
+
+void initSolver(RenameSolver solver, RenameConfig config, RenameRequest req) {
+    if (!isValidName(req.newName)) {
         // gooi errors
-        solver.msg(error("Not a valid name!"));
+        solver.msg(error("Not a valid name: \'<req.newName>\'!"));
         return;
     }
 
-    loc currentModule = cursorFocus[0].src.top;
-    solver.collectTModel(currentModule, collect, initialRequest(<cursorFocus, newName>));
+    loc currentModule = req.cursor[0].src.top;
+    solver.collectTModel(currentModule, renameByModel, initialRequest(req));
 }
 
-void collect(initialRequest(<cursorFocus, newName>), TModel tm, RenameSolver solver) {
-    loc def = getDefLocation(tm, cursorFocus);
+void renameByModel(initialRequest(RenameRequest req), TModel tm, RenameSolver solver) {
+    println("Processing TModel \'<tm.modelName>\'");
+
+    loc def = getDefLocation(tm, req.cursor);
+
+    // Register edit for definition name
+    solver.textEdit(replace(def, req.newName));
+
     if (!isLocalRename(tm, def)) {
-        for (loc m <- possibleDownstreamUsers(solver, def)) {
-            solver.collectParseTree(m, consider, downstreamUsers(def, newName));
+        for (loc m <- possibleDownstreamUsers(solver, req.workspaceFolders, def)) {
+            solver.collectParseTree(m, renameByTree, downstreamUsers(def, req.newName));
         }
     }
 
-    collect(downstreamUsers(def, newName), tm, solver);
+    renameByModel(downstreamUsers(def, req.newName), tm, solver);
 }
 
-void collect(downstreamUsers(l, newName), TModel tm, RenameSolver solver) {
-    // Register edits and
+void renameByModel(downstreamUsers(def, newName), TModel tm, RenameSolver solver) {
+    println("Processing TModel \'<tm.modelName>\'");
+
+    for (loc u <- invert(tm.useDef)[def]) {
+        // Register edit for use
+        solver.textEdit(replace(u, newName));
+    }
 }
 
-default void collect(RenameState state, TModel _, RenameSolver _) {
-    throw "`collect` not implemented for `<state>`";
+default void renameByModel(RenameState state, TModel _, RenameSolver _) {
+    throw "`renameByModel` not implemented for `<state>`";
 }
 
-void consider(downstreamUsers(l, newName), Tree m, RenameSolver solver) {
+void renameByTree(downstreamUsers(l, newName), Tree m, RenameSolver solver) {
+    println("Processing tree \'<m.src>\'");
     // If newName exists in parse tree, call collectTModel
     // Else, do nothing
 }
 
-default void consider(RenameState state, Tree _, RenameSolver _) {
-    throw "`consider` not implemented for `<state>`";
+default void renameByTree(RenameState state, Tree _, RenameSolver _) {
+    throw "`renameByTree` not implemented for `<state>`";
 }
 
 
-bool isValidName(str name);
-loc getDefLocation(TModel tm, list[Tree] focus);
-bool isLocalRename(TModel tm, loc def);
-set[loc] possibleDownstreamUsers(RenameSolver solver, loc def);
+bool isValidName(str name) {
+    try {
+        parse(#Id, name);
+        return true;
+    } catch ParseError(_): {
+        return false;
+    }
+}
+
+loc getDefLocation(TModel tm, list[Tree] focus) {
+    for (Tree t <- focus) {
+        if (tm.definitions[t.src]?) {
+            return tm.definitions[t.src].defined;
+        }
+    }
+
+    throw "No definition for any cursor!";
+}
+
+bool isLocalRename(TModel tm, loc def) {
+    // TODO Optimize
+    return false;
+}
+
+set[loc] possibleDownstreamUsers(RenameSolver solver, set[loc] workspaceFolders, loc def) {
+    set[loc] possibleUsers = {};
+    for (loc wsFolder <- workspaceFolders) {
+        for (loc picoFile <- find(wsFolder, "pico")) {
+            possibleUsers += picoFile;
+        }
+    }
+    return possibleUsers;
+}

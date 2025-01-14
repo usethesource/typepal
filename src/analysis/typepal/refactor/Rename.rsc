@@ -41,8 +41,8 @@ alias RenameResult = tuple[list[DocumentEdit], map[str, ChangeAnnotation], set[M
 
 data RenameSolver(
         RenameResult() run = RenameResult() { fail; }
-      , void(loc l, void(RenameState, Tree, RenameSolver) doWork, RenameState state) collectParseTree = void(loc _, void(RenameState, Tree, RenameSolver) _, RenameState _) { fail; }
-      , void(loc l, void(RenameState, TModel, RenameSolver) doWork, RenameState state) collectTModel = void(loc _, void(RenameState, TModel, RenameSolver) _, RenameState _) { fail; }
+      , void(loc l, void(RenameState, Tree, RenameSolver) doWork, RenameState state) collectParseTree = void(loc _, void(RenameState, Tree, RenameSolver) _, RenameState _) { throw "Not implemented!"; }
+      , void(loc l, void(RenameState, TModel, RenameSolver) doWork, RenameState state) collectTModel = void(loc _, void(RenameState, TModel, RenameSolver) _, RenameState _) { throw "Not implemented!"; }
       , void(Message) msg = void(Message _) { fail; }
       , void(DocumentEdit) documentEdit = void(DocumentEdit _) { fail; }
       , void(TextEdit) textEdit = void(TextEdit _) { fail; }
