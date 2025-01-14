@@ -27,48 +27,43 @@ POSSIBILITY OF SUCH DAMAGE.
 @bootstrapParser
 module analysis::typepal::refactor::Rename
 
-import analysis::typepal::refactor::TextEdits;
+extend analysis::typepal::refactor::TextEdits;
 
 extend Message;
-import ParseTree;
 import util::Reflective;
 
 data TModel;
+data Tree;
+
 data RenameState;
 
+alias RenameResult = tuple[list[DocumentEdit], map[str, ChangeAnnotation], set[Message]];
 
-data RenameSolver
-    = solver(
-      void(loc l, void(RenameState, Tree, RenameSolver) doWork, RenameState state) collectParseTree
-    , void(loc l, void(RenameState, TModel, RenameSolver) doWork, RenameState state) collectTModel
-    , void(Message) message
-    , void(set[Message]) messages
-    , void(DocumentEdit) documentEdit
-    , void(TextEdit) textEdit
-    , void(ChangeAnnotation) annotation
-    , value(str) readStore
-    , void(str, value) writeStore
-);
-
-
+data RenameSolver(
+        RenameResult() run = RenameResult() { fail; }
+      , void(loc l, void(RenameState, Tree, RenameSolver) doWork, RenameState state) collectParseTree = void(loc _, void(RenameState, Tree, RenameSolver) _, RenameState _) { fail; }
+      , void(loc l, void(RenameState, TModel, RenameSolver) doWork, RenameState state) collectTModel = void(loc _, void(RenameState, TModel, RenameSolver) _, RenameState _) { fail; }
+      , void(Message) msg = void(Message _) { fail; }
+      , void(DocumentEdit) documentEdit = void(DocumentEdit _) { fail; }
+      , void(TextEdit) textEdit = void(TextEdit _) { fail; }
+      , void(str, ChangeAnnotation) annotation = void(str _, ChangeAnnotation _) { fail; }
+      , value(str) readStore = value(str _) { fail; }
+      , void(str, value) writeStore = void(str _, value _) { fail; }
+) = rsolver();
 
 data RenameConfig
     = rconfig(
-        Tree(loc) parseLocs
-      , TModel(loc) tmodelForLocs
-    )
-    ;
+        Tree(loc) parseLoc
+      , TModel(loc) tmodelForLoc
+    );
 
 @example{
     Consumer implements something like:
     ```
     alias RenameRequest = tuple[list[Tree] cursorFocus, str newName];
 
-    public tuple[list[DocumentEdit], map[str, ChangeAnnotation], set[Message] msgs] rename(
-        RenameConfig config
-      , RenameRequest request
-      , void(RenameSolver, RenameConfig, RenameRequest) initSolver // pre-check
-    ) {
+    public tuple[list[DocumentEdit], map[str, ChangeAnnotation], set[Message] msgs] rename(RenameRequest request) {
+        RenameConfig config = rconfig(parseFunc, typeCheckFunc);
         RenameSolver solver = newSolverForConfig(config);
         initSolver(solver, config, request);
         return solver.run();
@@ -76,5 +71,59 @@ data RenameConfig
     ```
 }
 RenameSolver newSolverForConfig(RenameConfig config) {
-    fail;
+    RenameSolver solver = rsolver();
+    // COLLECT
+
+    // TODO Batch & cache parse operations
+    // lrel[loc file, void(RenameState, Tree, RenameSolver) work] treeTasks = [];
+    solver.collectParseTree = void(loc l, void(RenameState, Tree, RenameSolver) doWork, RenameState state) {
+        Tree t = config.parseLoc(l);
+        doWork(state, t, solver);
+    };
+
+    solver.collectTModel = void(loc l, void(RenameState, TModel, RenameSolver) doWork, RenameState state) {
+        // TODO Batch & cache TC operations
+        TModel tm = config.tmodelForLoc(l);
+        doWork(state, tm, solver);
+    };
+
+    // REGISTER
+    set[Message] messages = {};
+    solver.msg = void(Message msg) {
+        messages += msg;
+    };
+
+    lrel[loc file, DocumentEdit edit] docEdits = [];
+    solver.documentEdit = void(DocumentEdit edit) {
+        loc f = edit has file ? edit.file : edit.from;
+        // TODO Implement merging with existing doc edit
+        docEdits += <f, edit>;
+    };
+
+    solver.textEdit = void(TextEdit edit) {
+        loc f = edit.range.top;
+        // TODO Implement merging with exiting doc edit
+        docEdits += <f, changed(f, [edit])>;
+    };
+
+    map[str id, ChangeAnnotation annotation] annotations = ();
+    solver.annotation = void(str annotationId, ChangeAnnotation annotation) {
+        if (annotationId in annotations) throw "An annotation with id \'<annotationId>\' already exists!";
+        annotations[annotationId] = annotation;
+    };
+
+    // STORE
+    map[str, value] store = ();
+    solver.readStore = value(str key) { return store[key]; };
+    solver.writeStore = void(str key, value val) {
+        store[key] = val;
+    };
+
+    // RUN
+    solver.run = RenameResult() {
+        // Merge document edits
+        return <docEdits.edit, annotations, messages>;
+    };
+
+    return solver;
 }

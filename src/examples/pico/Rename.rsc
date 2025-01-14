@@ -43,7 +43,7 @@ data RenameState
 void initSolver(RenameSolver solver, RenameConfig config, <list[Tree] cursorFocus, str newName>) {
     if (!isValidName(newName)) {
         // gooi errors
-        solver.message(error("Not a valid name!"));
+        solver.msg(error("Not a valid name!"));
         return;
     }
 
