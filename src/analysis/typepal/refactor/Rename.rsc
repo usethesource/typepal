@@ -96,13 +96,11 @@ RenameSolver newSolverForConfig(RenameConfig config) {
     lrel[loc file, DocumentEdit edit] docEdits = [];
     solver.documentEdit = void(DocumentEdit edit) {
         loc f = edit has file ? edit.file : edit.from;
-        // TODO Implement merging with existing doc edit
         docEdits += <f, edit>;
     };
 
     solver.textEdit = void(TextEdit edit) {
         loc f = edit.range.top;
-        // TODO Implement merging with exiting doc edit
         docEdits += <f, changed(f, [edit])>;
     };
 
@@ -122,8 +120,42 @@ RenameSolver newSolverForConfig(RenameConfig config) {
     // RUN
     solver.run = RenameResult() {
         // Merge document edits
-        return <docEdits.edit, annotations, messages>;
+        return <mergeTextEdits(docEdits.edit), annotations, messages>;
     };
 
     return solver;
+}
+
+list[DocumentEdit] mergeTextEdits(list[DocumentEdit] edits) {
+    // Only merge subqequent text edits to the same file.
+    // Leave all other edits in the order in which they were registered
+    list[DocumentEdit] mergedEdits = [];
+    loc runningFile = |unknown:///|;
+    list[TextEdit] runningEdits = [];
+
+    void batchRunningEdits(loc thisFile) {
+        if (runningEdits != []) {
+            mergedEdits += changed(runningFile, runningEdits);
+        }
+        runningFile = thisFile;
+        runningEdits = [];
+    }
+
+    for (DocumentEdit e <- edits) {
+        loc thisFile = e has file ? e.file : e.from;
+        if (thisFile != runningFile) {
+            batchRunningEdits(thisFile);
+        }
+
+        if (e is changed) {
+            runningEdits += e.edits;
+        } else {
+            batchRunningEdits(thisFile);
+            mergedEdits += e;
+        }
+    }
+
+    batchRunningEdits(|unknown:///|);
+
+    return mergedEdits;
 }
