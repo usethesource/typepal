@@ -26,7 +26,7 @@ POSSIBILITY OF SUCH DAMAGE.
 }
 module examples::pico::Rename
 
-import examples::pico::Syntax;
+import examples::pico::PicoSyntax;
 
 extend analysis::typepal::refactor::Rename;
 
