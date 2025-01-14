@@ -48,7 +48,7 @@ test bool doesNotCrash() {
 
 test bool hasAtMostOnceChangePerFile() {
     <edits, _, _> = basicRename();
-    return size(edits) <= size(find(|lib://typepal/src/examples/pico|, "pico"));
+    return size(edits) > 0 && size(edits) <= size(find(|lib://typepal/src/examples/pico|, "pico"));
 }
 
 test bool editsHaveLangthOfNameUnderCursor() {

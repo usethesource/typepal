@@ -32,6 +32,9 @@ extend analysis::typepal::refactor::TextEdits;
 extend Message;
 import util::Reflective;
 
+import IO;
+import List;
+
 data TModel;
 data Tree;
 
@@ -57,6 +60,9 @@ data RenameConfig
       , TModel(loc) tmodelForLoc
     );
 
+alias TreeTask = tuple[loc file, void(RenameState, Tree, RenameSolver) work, RenameState state];
+alias ModelTask = tuple[loc file, void(RenameState, TModel, RenameSolver) work, RenameState state];
+
 @example{
     Consumer implements something like:
     ```
@@ -73,18 +79,14 @@ data RenameConfig
 RenameSolver newSolverForConfig(RenameConfig config) {
     RenameSolver solver = rsolver();
     // COLLECT
-
-    // TODO Batch & cache parse operations
-    // lrel[loc file, void(RenameState, Tree, RenameSolver) work] treeTasks = [];
+    list[TreeTask] treeTasks = [];
     solver.collectParseTree = void(loc l, void(RenameState, Tree, RenameSolver) doWork, RenameState state) {
-        Tree t = config.parseLoc(l);
-        doWork(state, t, solver);
+        treeTasks += <l, doWork, state>;
     };
 
+    list[ModelTask] modelTasks = [];
     solver.collectTModel = void(loc l, void(RenameState, TModel, RenameSolver) doWork, RenameState state) {
-        // TODO Batch & cache TC operations
-        TModel tm = config.tmodelForLoc(l);
-        doWork(state, tm, solver);
+        modelTasks += <l, doWork, state>;
     };
 
     // REGISTER
@@ -119,6 +121,24 @@ RenameSolver newSolverForConfig(RenameConfig config) {
 
     // RUN
     solver.run = RenameResult() {
+        solve(treeTasks, modelTasks) {
+            // TODO Batch per file
+            // TODO Cache (& invalidate!) results
+            println("<size(treeTasks)> tree tasks remaining");
+            while ([TreeTask tt, *remaining] := treeTasks) {
+                treeTasks = remaining;
+                Tree t = config.parseLoc(tt.file);
+                tt.work(tt.state, t, solver);
+            }
+
+            println("<size(modelTasks)> model tasks remaining");
+            while ([ModelTask mt, *remaining] := modelTasks) {
+                modelTasks = remaining;
+                TModel tm = config.tmodelForLoc(mt.file);
+                mt.work(mt.state, tm, solver);
+            }
+        }
+
         // Merge document edits
         return <mergeTextEdits(docEdits.edit), annotations, messages>;
     };
