@@ -38,7 +38,7 @@ import util::FileSystem;
 tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] basicRename() {
     prog = parseLoc(|lib://typepal/src/examples/pico/fac.pico|);
     cursor = computeFocusList(prog, 2, 17);
-    return rename(<cursor, "foo", {|lib://typepal/src/examples/pico|}>);
+    return renamePico(<cursor, "foo"/*, {|lib://typepal/src/examples/pico|}*/>);
 }
 
 test bool doesNotCrash() {
@@ -46,9 +46,9 @@ test bool doesNotCrash() {
     return true;
 }
 
-test bool hasAtMostOnceChangePerFile() {
+test bool hasFiveChanges() {
     <edits, _, _> = basicRename();
-    return size(edits) > 0 && size(edits) <= size(find(|lib://typepal/src/examples/pico|, "pico"));
+    return size(edits) == 1 && size(edits[0].edits) == 5;
 }
 
 test bool editsHaveLangthOfNameUnderCursor() {
