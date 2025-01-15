@@ -134,6 +134,27 @@ RenameSolver newSolverForConfig(RenameConfig config) {
     };
 
     // RUN
+    map[loc, Tree] treeCache = ();
+    map[loc, TModel] modelCache = ();
+
+    Tree getTree(loc l) {
+        if (l notin treeCache) {
+            treeCache[l] = config.parseLoc(l);
+        } else if (config.debug) {
+            println("-- Using cached tree for <l>");
+        }
+        return treeCache[l];
+    }
+
+    TModel getTModel(loc l) {
+        if (l notin modelCache) {
+            modelCache[l] = config.tmodelForLoc(l);
+        } else if (config.debug) {
+            println("-- Using cached TModel for <l>");
+        }
+        return modelCache[l];
+    }
+
     solver.run = RenameResult() {
         while (treeTaskQueue != [] || modelTaskQueue != []) {
             treeTaskQueueCopy = treeTaskQueue;
@@ -143,12 +164,11 @@ RenameSolver newSolverForConfig(RenameConfig config) {
             treeTaskQueue = [];
             modelTaskQueue = [];
 
-            // TODO Cache (& invalidate!) results
             for (loc f <- treeTaskQueueCopy.file + modelTaskQueueCopy.file) {
                 fileTreeTasks = treeTaskQueueCopy[f];
                 if (config.debug) println("<size(fileTreeTasks)> tasks for tree of <f>");
 
-                Tree tree = config.parseLoc(f);
+                Tree tree = getTree(f);
                 for (<treeWork, state> <- treeTaskQueueCopy[f]) {
                     treeWork(state, tree, solver);
                 }
@@ -156,7 +176,7 @@ RenameSolver newSolverForConfig(RenameConfig config) {
                 fileModelTasks = modelTaskQueueCopy[f];
                 if (config.debug) println("<size(fileModelTasks)> tasks for model of <f>");
 
-                TModel model = config.tmodelForLoc(f);
+                TModel model = getTModel(f);
                 for (<modelWork, state> <- modelTaskQueueCopy[f]) {
                     modelWork(state, model, solver);
                 }
