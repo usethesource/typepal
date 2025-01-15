@@ -43,15 +43,15 @@ data RenameState;
 alias RenameResult = tuple[list[DocumentEdit], map[str, ChangeAnnotation], set[Message]];
 
 data RenameSolver(
-        RenameResult() run = RenameResult() { fail; }
+        RenameResult() run = RenameResult() { throw "Not implemented"; }
       , void(loc l, void(RenameState, Tree, RenameSolver) doWork, RenameState state) collectParseTree = void(loc _, void(RenameState, Tree, RenameSolver) _, RenameState _) { throw "Not implemented!"; }
       , void(loc l, void(RenameState, TModel, RenameSolver) doWork, RenameState state) collectTModel = void(loc _, void(RenameState, TModel, RenameSolver) _, RenameState _) { throw "Not implemented!"; }
-      , void(Message) msg = void(Message _) { fail; }
-      , void(DocumentEdit) documentEdit = void(DocumentEdit _) { fail; }
-      , void(TextEdit) textEdit = void(TextEdit _) { fail; }
-      , void(str, ChangeAnnotation) annotation = void(str _, ChangeAnnotation _) { fail; }
-      , value(str) readStore = value(str _) { fail; }
-      , void(str, value) writeStore = void(str _, value _) { fail; }
+      , void(Message) msg = void(Message _) { throw "Not implemented"; }
+      , void(DocumentEdit) documentEdit = void(DocumentEdit _) { throw "Not implemented"; }
+      , void(TextEdit) textEdit = void(TextEdit _) { throw "Not implemented"; }
+      , void(str, ChangeAnnotation) annotation = void(str _, ChangeAnnotation _) { throw "Not implemented"; }
+      , value(str) readStore = value(str _) { throw "Not implemented"; }
+      , void(str, value) writeStore = void(str _, value _) { throw "Not implemented"; }
 ) = rsolver();
 
 data RenameConfig
