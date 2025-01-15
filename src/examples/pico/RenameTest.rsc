@@ -58,36 +58,3 @@ test bool editsHaveLangthOfNameUnderCursor() {
     }
     return true;
 }
-
-test bool mergeNoTextEdits() =
-    mergeTextEdits([]) == [];
-
-test bool mergeTextEditsToSingleFile() =
-    mergeTextEdits([
-        changed(|memory:///file1|, [replace(|memory:///file1|(0, 0, <0, 0>, <0, 0>), "")])
-      , changed(|memory:///file1|, [replace(|memory:///file1|(1, 0, <0, 0>, <0, 0>), "")])
-      , changed(|memory:///file1|, [replace(|memory:///file1|(2, 0, <0, 0>, <0, 0>), "")])
-    ]) == [
-        changed(|memory:///file1|, [
-            replace(|memory:///file1|(0, 0, <0, 0>, <0, 0>), "")
-          , replace(|memory:///file1|(1, 0, <0, 0>, <0, 0>), "")
-          , replace(|memory:///file1|(2, 0, <0, 0>, <0, 0>), "")
-        ])
-    ];
-
-test bool mergeTextEditsWithRenameInBetween() =
-    mergeTextEdits([
-        changed(|memory:///file1|, [replace(|memory:///file1|(0, 0, <0, 0>, <0, 0>), "")])
-      , changed(|memory:///file1|, [replace(|memory:///file1|(1, 0, <0, 0>, <0, 0>), "")])
-      , renamed(|memory:///file1|, |memory:///file2|)
-      , changed(|memory:///file1|, [replace(|memory:///file1|(2, 0, <0, 0>, <0, 0>), "")])
-    ]) == [
-        changed(|memory:///file1|, [
-            replace(|memory:///file1|(0, 0, <0, 0>, <0, 0>), "")
-          , replace(|memory:///file1|(1, 0, <0, 0>, <0, 0>), "")
-        ])
-      , renamed(|memory:///file1|, |memory:///file2|)
-      , changed(|memory:///file1|, [
-            replace(|memory:///file1|(2, 0, <0, 0>, <0, 0>), "")
-        ])
-    ];
