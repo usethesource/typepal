@@ -34,6 +34,7 @@ import util::Reflective;
 
 import IO;
 import List;
+import Node;
 
 data TModel;
 data Tree;
@@ -65,6 +66,8 @@ data RenameConfig
 alias TreeTask = tuple[loc file, void(RenameState, Tree, RenameSolver) work, RenameState state];
 alias ModelTask = tuple[loc file, void(RenameState, TModel, RenameSolver) work, RenameState state];
 
+str describeState(RenameState s) = "<getName(s)>#<arity(s)>";
+
 @example{
     Consumer implements something like:
     ```
@@ -88,7 +91,7 @@ RenameSolver newSolverForConfig(RenameConfig config) {
             treeTaskQueue += <l, doWork, state>;
             treeTasksDone += <l, state>;
         } else if (config.reportCollectCycles) {
-            println("Cycle detected: skipping parse tree collection for <state> (<l>)");
+            println("-- Cycle detected: skipping parse tree collection for <describeState(state)> (<l>)");
         }
     };
 
@@ -99,7 +102,7 @@ RenameSolver newSolverForConfig(RenameConfig config) {
             modelTaskQueue += <l, doWork, state>;
             modelTasksDone += <l, state>;
         } else if (config.reportCollectCycles) {
-            println("Cycle detected: skipping TModel collection for <state> (<l>)");
+            println("-- Cycle detected: skipping TModel collection for <describeState(state)> (<l>)");
         }
     };
 
