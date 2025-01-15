@@ -59,6 +59,7 @@ data RenameConfig
         Tree(loc) parseLoc
       , TModel(loc) tmodelForLoc
       , bool reportCollectCycles = false
+      , bool debug = true
     );
 
 alias TreeTask = tuple[loc file, void(RenameState, Tree, RenameSolver) work, RenameState state];
@@ -80,22 +81,22 @@ alias ModelTask = tuple[loc file, void(RenameState, TModel, RenameSolver) work, 
 RenameSolver newSolverForConfig(RenameConfig config) {
     RenameSolver solver = rsolver();
     // COLLECT
-    list[TreeTask] treeTasks = [];
+    list[TreeTask] treeTaskQueue = [];
     list[tuple[loc, RenameState]] treeTasksDone = [];
     solver.collectParseTree = void(loc l, void(RenameState, Tree, RenameSolver) doWork, RenameState state) {
         if (<l, state> notin treeTasksDone) {
-            treeTasks += <l, doWork, state>;
+            treeTaskQueue += <l, doWork, state>;
             treeTasksDone += <l, state>;
         } else if (config.reportCollectCycles) {
             println("Cycle detected: skipping parse tree collection for <state> (<l>)");
         }
     };
 
-    list[ModelTask] modelTasks = [];
+    list[ModelTask] modelTaskQueue = [];
     list[tuple[loc, RenameState]] modelTasksDone = [];
     solver.collectTModel = void(loc l, void(RenameState, TModel, RenameSolver) doWork, RenameState state) {
         if (<l, state> notin modelTasksDone) {
-            modelTasks += <l, doWork, state>;
+            modelTaskQueue += <l, doWork, state>;
             modelTasksDone += <l, state>;
         } else if (config.reportCollectCycles) {
             println("Cycle detected: skipping TModel collection for <state> (<l>)");
@@ -134,21 +135,31 @@ RenameSolver newSolverForConfig(RenameConfig config) {
 
     // RUN
     solver.run = RenameResult() {
-        solve(treeTasks, modelTasks) {
-            // TODO Batch per file
-            // TODO Cache (& invalidate!) results
-            println("<size(treeTasks)> tree tasks remaining");
-            while ([TreeTask tt, *remaining] := treeTasks) {
-                treeTasks = remaining;
-                Tree t = config.parseLoc(tt.file);
-                tt.work(tt.state, t, solver);
-            }
+        while (treeTaskQueue != [] || modelTaskQueue != []) {
+            treeTaskQueueCopy = treeTaskQueue;
+            modelTaskQueueCopy = modelTaskQueue;
 
-            println("<size(modelTasks)> model tasks remaining");
-            while ([ModelTask mt, *remaining] := modelTasks) {
-                modelTasks = remaining;
-                TModel tm = config.tmodelForLoc(mt.file);
-                mt.work(mt.state, tm, solver);
+            // We will do all tasks in the queue
+            treeTaskQueue = [];
+            modelTaskQueue = [];
+
+            // TODO Cache (& invalidate!) results
+            for (loc f <- treeTaskQueueCopy.file + modelTaskQueueCopy.file) {
+                fileTreeTasks = treeTaskQueueCopy[f];
+                if (config.debug) println("<size(fileTreeTasks)> tasks for tree of <f>");
+
+                Tree tree = config.parseLoc(f);
+                for (<treeWork, state> <- treeTaskQueueCopy[f]) {
+                    treeWork(state, tree, solver);
+                }
+
+                fileModelTasks = modelTaskQueueCopy[f];
+                if (config.debug) println("<size(fileModelTasks)> tasks for model of <f>");
+
+                TModel model = config.tmodelForLoc(f);
+                for (<modelWork, state> <- modelTaskQueueCopy[f]) {
+                    modelWork(state, model, solver);
+                }
             }
         }
 
