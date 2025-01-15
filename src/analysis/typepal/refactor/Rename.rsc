@@ -58,6 +58,7 @@ data RenameConfig
     = rconfig(
         Tree(loc) parseLoc
       , TModel(loc) tmodelForLoc
+      , bool reportCollectCycles = false
     );
 
 alias TreeTask = tuple[loc file, void(RenameState, Tree, RenameSolver) work, RenameState state];
@@ -80,13 +81,25 @@ RenameSolver newSolverForConfig(RenameConfig config) {
     RenameSolver solver = rsolver();
     // COLLECT
     list[TreeTask] treeTasks = [];
+    list[tuple[loc, RenameState]] treeTasksDone = [];
     solver.collectParseTree = void(loc l, void(RenameState, Tree, RenameSolver) doWork, RenameState state) {
-        treeTasks += <l, doWork, state>;
+        if (<l, state> notin treeTasksDone) {
+            treeTasks += <l, doWork, state>;
+            treeTasksDone += <l, state>;
+        } else if (config.reportCollectCycles) {
+            println("Cycle detected: skipping parse tree collection for <state> (<l>)");
+        }
     };
 
     list[ModelTask] modelTasks = [];
+    list[tuple[loc, RenameState]] modelTasksDone = [];
     solver.collectTModel = void(loc l, void(RenameState, TModel, RenameSolver) doWork, RenameState state) {
-        modelTasks += <l, doWork, state>;
+        if (<l, state> notin modelTasksDone) {
+            modelTasks += <l, doWork, state>;
+            modelTasksDone += <l, state>;
+        } else if (config.reportCollectCycles) {
+            println("Cycle detected: skipping TModel collection for <state> (<l>)");
+        }
     };
 
     // REGISTER

@@ -56,7 +56,11 @@ TModel tmodelForLoc(loc l) {
 }
 
 public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] rename(RenameRequest request) {
-    RenameConfig config = rconfig(parseLoc, tmodelForLoc);
+    RenameConfig config = rconfig(
+        parseLoc
+      , tmodelForLoc
+      , reportCollectCycles = true
+    );
 
     RenameSolver solver = newSolverForConfig(config);
     initSolver(solver, config, request);
