@@ -48,7 +48,7 @@ public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Mes
         return <[], (), {error("Invalid name: <newName>", cursor[0].src)}>;
     }
 
-    set[loc] findCandidateFiles(set[Define] defs, Renamer r) =
+    set[loc] findCandidateFiles(set[Define] _, Renamer _) =
         {*ls | loc wsFolder <- workspaceFolders, ls := find(wsFolder, "modules")};
 
     return rename(
@@ -56,16 +56,14 @@ public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Mes
       , newName
       , Tree(loc l) { return parse(#start[Program], l); }
       , collectAndSolve
-      , findDefinitions(workspaceFolders)
+      , findDefinitions
       , findCandidateFiles
       , renameDef
       , skipCandidate = skipCandidate
     );
 }
 
-set[Define](list[Tree], Tree(loc), TModel(Tree), Renamer) findDefinitions(set[loc] workspaceFolders) =
-    set[Define](list[Tree] cursor, Tree(loc) getTree, TModel(Tree) getTModel, Renamer r) {
-
+set[Define] findDefinitions(list[Tree] cursor, Tree(loc) getTree, TModel(Tree) getTModel, Renamer _) {
     TModel tm = getTModel(cursor[-1]);
     if (just(Define def) := findDef(cursor, tm)) {
         // Definition lives in this module
@@ -79,7 +77,7 @@ set[Define](list[Tree], Tree(loc), TModel(Tree), Renamer) findDefinitions(set[lo
     }
 
     return {};
-};
+}
 
 bool tryParse(type[&T <: Tree] tp, str s) {
     try {
@@ -93,7 +91,7 @@ bool tryParse(type[&T <: Tree] tp, str s) {
 bool isValidName(moduleId(), str name) = tryParse(#ModuleId, name);
 bool isValidName(structId(), str name) = tryParse(#Id, name);
 
-bool skipCandidate(set[Define] defs, Tree modTree, Renamer r) {
+bool skipCandidate(set[Define] defs, Tree modTree, Renamer _) {
     // Only if the name of the definition appears in the module, consider it a rename candidate
     set[str] names = {d.id | d <- defs};
     if (/Tree t := modTree, "<t>" in names) {

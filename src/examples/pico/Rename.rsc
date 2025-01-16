@@ -57,7 +57,7 @@ public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Mes
     );
 }
 
-set[Define] findDefinitions(list[Tree] cursor, Tree(loc) getTree, TModel(Tree) getTModel, Renamer r) {
+set[Define] findDefinitions(list[Tree] cursor, Tree(loc) _, TModel(Tree) getTModel, Renamer _) {
     TModel tm = getTModel(cursor[-1]);
     if (Tree t <- cursor
       , tm.definitions[t.src]?) {
