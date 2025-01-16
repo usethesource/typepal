@@ -57,9 +57,9 @@ public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Mes
       , reportCollectCycles = true
     );
 
-    RenameSolver solver = newSolverForConfig(config);
-    initSolver(solver, request);
-    return solver.run();
+    RenameSolver renamer = newSolverForConfig(config);
+    initRename(renamer, request);
+    return renamer.run();
 }
 
 data RenameState
@@ -68,25 +68,19 @@ data RenameState
     | rename(Define d, RenameRequest req)
     ;
 
-bool isValidName(moduleId(), str name) {
+bool tryParse(type[&T <: Tree] tp, str s) {
     try {
-        parse(#ModuleId, name);
+        parse(tp, s);
         return true;
     } catch ParseError(_): {
         return false;
     }
 }
 
-bool isValidName(structId(), str name) {
-    try {
-        parse(#Id, name);
-        return true;
-    } catch ParseError(_): {
-        return false;
-    }
-}
+bool isValidName(moduleId(), str name) = tryParse(#ModuleId, name);
+bool isValidName(structId(), str name) = tryParse(#Id, name);
 
-void initSolver(RenameSolver solver, RenameRequest req) {
+void initRename(RenameSolver renamer, RenameRequest req) {
     bool nameIsValid = any(ModuleId _ <- req.cursor)
         ? isValidName(moduleId(), req.newName)
         : isValidName(structId(), req.newName);
@@ -97,14 +91,14 @@ void initSolver(RenameSolver solver, RenameRequest req) {
     
     // Find definition of name under cursor
     loc fileUnderCursor = req.cursor[0].src.top; 
-    solver.collectTModel(fileUnderCursor, renameByModel, findDefinition(req));
+    renamer.collectTModel(fileUnderCursor, renameByModel, findDefinition(req));
 }
 
-void renameByTree(checkCandidate(Define d, RenameRequest req), Tree modTree, RenameSolver solver) {
+void renameByTree(checkCandidate(Define d, RenameRequest req), Tree modTree, RenameSolver renamer) {
     println("Checking <modTree.src.top> for occurrences of \'<d.id>\'");
     // Only if the name of the definition appears in the module, consider it a rename candidate
     if (/Tree t := modTree, "<t>" == d.id) {
-        solver.collectTModel(modTree.src.top, renameByModel, rename(d, req));
+        renamer.collectTModel(modTree.src.top, renameByModel, rename(d, req));
     }
 }
 
@@ -122,13 +116,13 @@ Maybe[Define] findDef(list[Tree] cursor, TModel tm) {
     return nothing();
 }
 
-void renameByModel(state:findDefinition(RenameRequest req), TModel tm, RenameSolver solver) {
+void renameByModel(state:findDefinition(RenameRequest req), TModel tm, RenameSolver renamer) {
     println("Looking for defintion in <tm.modelName>");
     if (just(Define def) := findDef(req.cursor, tm)) {
         // Definition lives in this module
         // Check for occurrences of the definition name in all other files
         for (loc wsFolder <- req.workspaceFolders, loc m <- find(wsFolder, "modules")) {
-            solver.collectParseTree(m, renameByTree, checkCandidate(def, req));
+            renamer.collectParseTree(m, renameByTree, checkCandidate(def, req));
         }
     } else {
         // Definition lives in another module.
@@ -137,19 +131,19 @@ void renameByModel(state:findDefinition(RenameRequest req), TModel tm, RenameSol
          && set[loc] defs := tm.useDef[c.src]
          && defs != {}) {
             for (loc d <- defs) {
-                solver.collectTModel(d.top, renameByModel, state);
+                renamer.collectTModel(d.top, renameByModel, state);
             }
         }
     }
 }
 
-void renameByModel(rename(Define d, RenameRequest req), TModel tm, RenameSolver solver) {
+void renameByModel(rename(Define d, RenameRequest req), TModel tm, RenameSolver renamer) {
     println("Renaming all references to <d.defined> in <tm.modelName>");
 
     // If the definition lives in this module, rename it
     if (tm.definitions[d.defined]?) {
         println("++ Definition in this module; renaming <d.defined>");
-        solver.textEdit(replace(d.defined, req.newName));
+        renamer.textEdit(replace(d.defined, req.newName));
     }
 
     // Rename any uses of the definition in this module
@@ -157,7 +151,7 @@ void renameByModel(rename(Define d, RenameRequest req), TModel tm, RenameSolver 
     set[IdRole] roles = {d.idRole};
     for (use(id, _, loc occ, _, roles) <- tm.uses) {
         println("++ Use in this module; renaming <occ>");
-        solver.textEdit(replace(occ, req.newName));
+        renamer.textEdit(replace(occ, req.newName));
     }
 }
 
