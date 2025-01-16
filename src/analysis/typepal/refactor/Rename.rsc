@@ -168,6 +168,7 @@ RenameResult rename(
 
     if (debug) println("+ Finding definitions for cursor at <cursor[0].src>");
     set[Define] defs = findDefinitions(cursor, parseLocCached, getTModelCached, r);
+    if (defs == {}) r.error("No definitions found", cursor[0].src);
     if (errorReported()) return <docEdits, annotations, messages>;
 
     if (debug) println("+ Finding candidate files");

@@ -78,7 +78,6 @@ set[Define](list[Tree], Tree(loc), TModel(Tree), Renamer) findDefinitions(set[lo
         return {tm.definitions[d] | d <- defs, tm := getTModel(getTree(d.top))};
     }
 
-    r.msg(error("No definition for name under cursor", cursor[0].src));
     return {};
 };
 

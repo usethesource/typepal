@@ -64,7 +64,6 @@ set[Define] findDefinitions(list[Tree] cursor, Tree(loc) getTree, TModel(Tree) g
             return {tm.definitions[t.src]};
     }
 
-    r.msg(error("No definition for name under cursor", cursor[0].src));
     return {};
 }
 
