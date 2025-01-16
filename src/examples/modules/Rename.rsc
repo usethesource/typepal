@@ -39,47 +39,48 @@ import Relation;
 import util::FileSystem;
 import util::Maybe;
 
-alias RenameRequest = tuple[list[Tree] cursor, str newName, set[loc] workspaceFolders];
-
-@memo{expireAfter(minutes=1), maximumSize(50)}
-Tree parseLoc(loc l) {
-    return parse(#start[Program], l);
-}
-
-@memo{expireAfter(minutes=1), maximumSize(50)}
-TModel tmodelForLoc(loc l) {
-    return collectAndSolve(parseLoc(l));
-}
-
-public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] renameModules(RenameRequest request) {
-    bool nameIsValid = any(ModuleId _ <- req.cursor)
-        ? isValidName(moduleId(), req.newName)
-        : isValidName(structId(), req.newName);
+public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] renameModules(list[Tree] cursor, str newName, set[loc] workspaceFolders) {
+    bool nameIsValid = any(ModuleId _ <- cursor)
+        ? isValidName(moduleId(), newName)
+        : isValidName(structId(), newName);
 
     if (!nameIsValid) {
-        return <[], (), {error(request.cursor[0].src, "Invalid name: <req.newName>")}>;
+        return <[], (), {error("Invalid name: <newName>", cursor[0].src)}>;
     }
 
-    RenameConfig config = rconfig(
-        parseLoc
-      , tmodelForLoc
-      , reportCollectCycles = true
+    set[loc] findCandidateFiles(set[Define] defs, Renamer r) =
+        {*ls | loc wsFolder <- workspaceFolders, ls := find(wsFolder, "modules")};
+
+    return rename(
+        cursor
+      , newName
+      , Tree(loc l) { return parse(#start[Program], l); }
+      , collectAndSolve
+      , findDefinitions(workspaceFolders)
+      , findCandidateFiles
+      , renameDef
+      , skipCandidate = skipCandidate
     );
-
-    RenameSolver renamer = newSolverForConfig(config);
-
-    // Find definition of name under cursor
-    loc fileUnderCursor = req.cursor[0].src.top;
-    renamer.collectTModel(fileUnderCursor, renameByModel, findDefinition(req));
-
-    return renamer.run();
 }
 
-data RenameState
-    = checkCandidate(Define d, RenameRequest req)
-    | findDefinition(RenameRequest req)
-    | rename(Define d, RenameRequest req)
-    ;
+set[Define](list[Tree], Tree(loc), TModel(Tree), Renamer) findDefinitions(set[loc] workspaceFolders) =
+    set[Define](list[Tree] cursor, Tree(loc) getTree, TModel(Tree) getTModel, Renamer r) {
+
+    TModel tm = getTModel(cursor[-1]);
+    if (just(Define def) := findDef(cursor, tm)) {
+        // Definition lives in this module
+        return {def};
+    }
+
+    // Definition lives in another module.
+    if (Tree c <- cursor
+     && set[loc] defs:{_, *_} := tm.useDef[c.src]) {
+        return {tm.definitions[d] | d <- defs, tm := getTModel(getTree(d.top))};
+    }
+
+    r.msg(error("No definition for name under cursor", cursor[0].src));
+    return {};
+};
 
 bool tryParse(type[&T <: Tree] tp, str s) {
     try {
@@ -93,16 +94,13 @@ bool tryParse(type[&T <: Tree] tp, str s) {
 bool isValidName(moduleId(), str name) = tryParse(#ModuleId, name);
 bool isValidName(structId(), str name) = tryParse(#Id, name);
 
-void renameByTree(checkCandidate(Define d, RenameRequest req), Tree modTree, RenameSolver renamer) {
-    println("Checking <modTree.src.top> for occurrences of \'<d.id>\'");
+bool skipCandidate(set[Define] defs, Tree modTree, Renamer r) {
     // Only if the name of the definition appears in the module, consider it a rename candidate
-    if (/Tree t := modTree, "<t>" == d.id) {
-        renamer.collectTModel(modTree.src.top, renameByModel, rename(d, req));
+    set[str] names = {d.id | d <- defs};
+    if (/Tree t := modTree, "<t>" in names) {
+        return false;
     }
-}
-
-default void renameByTree(RenameState state, Tree _, RenameSolver _) {
-    throw "Not implemented: `renameByTree` for state <describeState(state)>";
+    return true;
 }
 
 Maybe[Define] findDef(list[Tree] cursor, TModel tm) {
@@ -115,45 +113,16 @@ Maybe[Define] findDef(list[Tree] cursor, TModel tm) {
     return nothing();
 }
 
-void renameByModel(state:findDefinition(RenameRequest req), TModel tm, RenameSolver renamer) {
-    println("Looking for defintion in <tm.modelName>");
-    if (just(Define def) := findDef(req.cursor, tm)) {
-        // Definition lives in this module
-        // Check for occurrences of the definition name in all other files
-        for (loc wsFolder <- req.workspaceFolders, loc m <- find(wsFolder, "modules")) {
-            renamer.collectParseTree(m, renameByTree, checkCandidate(def, req));
-        }
-    } else {
-        // Definition lives in another module.
-        // Load that first, and continue from there
-        if (Tree c <- req.cursor
-         && set[loc] defs := tm.useDef[c.src]
-         && defs != {}) {
-            for (loc d <- defs) {
-                renamer.collectTModel(d.top, renameByModel, state);
-            }
-        }
-    }
-}
-
-void renameByModel(rename(Define d, RenameRequest req), TModel tm, RenameSolver renamer) {
-    println("Renaming all references to <d.defined> in <tm.modelName>");
-
+void renameDef(Define def, str newName, TModel tm, Renamer r) {
     // If the definition lives in this module, rename it
-    if (tm.definitions[d.defined]?) {
-        println("++ Definition in this module; renaming <d.defined>");
-        renamer.textEdit(replace(d.defined, req.newName));
+    if (def in tm.defines) {
+        r.textEdit(replace(def.defined, newName));
     }
 
     // Rename any uses of the definition in this module
-    str id = d.id;
-    set[IdRole] roles = {d.idRole};
-    for (use(id, _, loc occ, _, roles) <- tm.uses) {
-        println("++ Use in this module; renaming <occ>");
-        renamer.textEdit(replace(occ, req.newName));
+    str id = def.id;
+    for (use(id, _, loc occ, _, set[IdRole] roles) <- tm.uses
+       , def.idRole in roles) {
+        r.textEdit(replace(occ, newName));
     }
-}
-
-default void renameByModel(RenameState state, TModel _, RenameSolver _) {
-    throw "Not implemented: `renameByModel` for state <describeState(state)>";
 }

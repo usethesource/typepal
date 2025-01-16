@@ -27,21 +27,23 @@ POSSIBILITY OF SUCH DAMAGE.
 module examples::modules::RenameTest
 
 import examples::modules::Rename;
+import examples::modules::Syntax;
+
 import analysis::typepal::refactor::TextEdits;
 
 import util::LanguageServer; // computeFocusList
 
 import IO;
 import List;
+import ParseTree;
 import Set;
 import String;
 import util::FileSystem;
 
 tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] basicRename(str modName, int line, int col, str newName = "foo") {
-    prog = parseLoc(|lib://typepal/src/examples/modules/<modName>.modules|);
+    prog = parse(#start[Program], |lib://typepal/src/examples/modules/<modName>.modules|);
     cursor = computeFocusList(prog, line, col);
-    println("Cursor: <"<cursor[0]>"> at <cursor[0].src>");
-    return renameModules(<cursor, newName, {|lib://typepal/src/examples/modules|}>);
+    return renameModules(cursor, newName, {|lib://typepal/src/examples/modules|});
 }
 
 test bool localStructName() {

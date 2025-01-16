@@ -59,7 +59,7 @@ RenameResult rename(
       , str newName
       , Tree(loc) parseLoc
       , TModel(Tree) tmodelForTree
-      , set[Define](list[Tree] cursor, TModel(Tree) getTModel, Renamer r) findDefinitions
+      , set[Define](list[Tree] cursor, Tree(loc) getTree, TModel(Tree) getTModel, Renamer r) findDefinitions
       , set[loc](set[Define] defs, Renamer r) findCandidateFiles
       , void(Define def, str newName, TModel tm, Renamer r) renameDef
       , bool(set[Define] defs, Tree t, Renamer r) skipCandidate = bool(_, _, _) { return false; }
@@ -162,7 +162,7 @@ RenameResult rename(
     if (debug) println("Renaming <cursor[0].src> to \'<newName>\'");
 
     if (debug) println("+ Finding definitions for cursor at <cursor[0].src>");
-    set[Define] defs = findDefinitions(cursor, getTModelCached, r);
+    set[Define] defs = findDefinitions(cursor, parseLocCached, getTModelCached, r);
     if (debug) println("+ Finding candidate files");
     set[loc] candidates = findCandidateFiles(defs, r);
     for (loc f <- candidates) {
