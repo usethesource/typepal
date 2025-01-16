@@ -37,17 +37,15 @@ import List;
 import Map;
 import Message;
 import Node;
+import ParseTree;
 import Set;
 
 import util::Reflective;
 
-
-data Tree;
-
 alias RenameResult = tuple[list[DocumentEdit], map[str, ChangeAnnotation], set[Message]];
 
 data Renamer
-    = rsolver(
+    = renamer(
         void(Message) msg
       , void(DocumentEdit) documentEdit
       , void(TextEdit) textEdit
@@ -61,10 +59,10 @@ RenameResult rename(
       , str newName
       , Tree(loc) parseLoc
       , TModel(Tree) tmodelForTree
-      , set[Define](list[Tree] cursor, TModel(Tree) getTModel, Renamer renamer) findDefinitions
-      , set[loc](set[Define] defs, Renamer renamer) findCandidateFiles
-      , void(Define def, str newName, TModel tm, Renamer renamer) rename
-      , bool(set[Define] defs, Tree, Renamer renamer) skipCandidate = bool(_, _, _) { return false; }
+      , set[Define](list[Tree] cursor, TModel(Tree) getTModel, Renamer r) findDefinitions
+      , set[loc](set[Define] defs, Renamer r) findCandidateFiles
+      , void(Define def, str newName, TModel tm, Renamer r) renameDef
+      , bool(set[Define] defs, Tree t, Renamer r) skipCandidate = bool(_, _, _) { return false; }
       , bool debug = true) {
 
     // Tree & TModel caching
@@ -130,9 +128,11 @@ RenameResult rename(
         checkEdit(e);
 
         loc f = e.range.top;
-        if ([*_, changed(f, prev)] := docEdits) {
+        if ([*pre, changed(f, prev)] := docEdits) {
             // If possible, merge with latest document edit
-            docEdits[-1] = changed(f, prev + e);
+            // TODO Just assign to docEdits[-1], once this issue has been solved:
+            // https://github.com/usethesource/rascal/issues/2123
+            docEdits = [*pre, changed(f, prev + e)];
         } else {
             // Else, create new document edit
             docEdits += changed(f, [e]);
@@ -150,7 +150,7 @@ RenameResult rename(
     value readStore(str key) { return store[key]; };
     void writeStore(str key, value val) { store[key] = val; };
 
-    Renamer renamer = rsolver(
+    Renamer r = renamer(
         registerMessage
       , registerDocumentEdit
       , registerTextEdit
@@ -162,14 +162,14 @@ RenameResult rename(
     if (debug) println("Renaming <cursor[0].src> to \'<newName>\'");
 
     if (debug) println("+ Finding definitions for cursor at <cursor[0].src>");
-    set[Define] defs = findDefinitions(cursor, getTModelCached, renamer);
+    set[Define] defs = findDefinitions(cursor, getTModelCached, r);
     if (debug) println("+ Finding candidate files");
-    set[loc] candidates = findCandidateFiles(defs, renamer);
+    set[loc] candidates = findCandidateFiles(defs, r);
     for (loc f <- candidates) {
         if (debug) println("  - Processing candidate <f>");
         if (debug) println("    + Retrieving parse tree");
         Tree t = parseLocCached(f);
-        if (skipCandidate(defs, t, renamer)) {
+        if (skipCandidate(defs, t, r)) {
             if (debug) println("    + Skipping");
             continue;
         }
@@ -179,7 +179,7 @@ RenameResult rename(
         if (debug) println("    + Renaming each definition");
         for (Define d <- defs) {
             if (debug) println("      - Renaming <d.idRole> \'<d.id>\'");
-            rename(d, newName, tm, renamer);
+            renameDef(d, newName, tm, r);
         }
         if (debug) println("  - Done!");
     }
