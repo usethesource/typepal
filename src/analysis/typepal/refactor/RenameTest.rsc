@@ -26,7 +26,7 @@ POSSIBILITY OF SUCH DAMAGE.
 }
 module analysis::typepal::refactor::RenameTest
 
-import examples::pico::Rename;
+import analysis::typepal::refactor::Rename;
 
 test bool mergeNoTextEdits() =
     mergeTextEdits([]) == [];

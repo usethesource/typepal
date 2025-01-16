@@ -27,10 +27,13 @@ POSSIBILITY OF SUCH DAMAGE.
 module examples::pico::RenameTest
 
 import examples::pico::Rename;
+import analysis::typepal::refactor::TextEdits;
 
 import util::LanguageServer; // computeFocusList
 
 import IO;
+import List;
+import Message;
 import Set;
 import String;
 import util::FileSystem;

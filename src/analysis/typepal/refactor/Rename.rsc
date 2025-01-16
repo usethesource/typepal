@@ -27,9 +27,9 @@ POSSIBILITY OF SUCH DAMAGE.
 @bootstrapParser
 module analysis::typepal::refactor::Rename
 
-extend analysis::typepal::refactor::TextEdits;
+import analysis::typepal::refactor::TextEdits;
 
-extend Message;
+import Message;
 import util::Reflective;
 
 import IO;
