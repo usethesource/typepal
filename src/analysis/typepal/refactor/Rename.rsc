@@ -52,6 +52,11 @@ data Renamer
       , void(str, ChangeAnnotation) annotation
       , value(str) readStore
       , void(str, value) writeStore
+
+      // Helpers
+      , void(str, loc) warning
+      , void(str, loc) info
+      , void(str, loc) error
     );
 
 RenameResult rename(
@@ -82,41 +87,37 @@ RenameResult rename(
 
     // Messages
     set[Message] messages = {};
-    void registerMessage(Message msg) {
-        messages += msg;
-    };
+    void registerMessage(Message msg) { messages += msg; };
 
     // Edits
-    set[value] editsSeen = {};
+    set[loc] editsSeen = {};
     list[DocumentEdit] docEdits = [];
 
-    void checkEdit(te:replace(loc range, _)) {
-        if (te in editsSeen) {
-            messages += error("Multiple replace edits for this location.", range);
+    void checkEdit(replace(loc range, _)) {
+        if (range in editsSeen) {
+            registerMessage(error("Multiple replace edits for this location.", range));
         }
-
-        loc f = range.top;
-        for (changed(f, _) <- editsSeen) {
-            messages += error("Multiple replace edits for this location.", range);
-        }
+        editsSeen += range;
     }
 
     void checkEdit(DocumentEdit e) {
+        loc file = e has file ? e.file : e.from;
         if (changed(f, tes) := e) {
             // Check contents of DocumentEdit
             for (te:replace(range, _) <- tes) {
                 // Check integrity
                 if (range.top != f) {
-                    messages += error("Invalid replace edit for this location. This location is not in <f>, for which it was registered.", range);
+                    registerMessage(error("Invalid replace edit for this location. This location is not in <f>, for which it was registered.", range));
                 }
 
                 // Check text edits
                 checkEdit(te);
             }
-        } else if (e in editsSeen) {
-            loc file = e has file ? e.file : e.from;
-            messages += error("Multiple <getName(e)> edits for this file.", file);
+        } else if (file in editsSeen) {
+            registerMessage(error("Multiple <getName(e)> edits for this file.", file));
         }
+
+        editsSeen += file;
     }
 
     void registerDocumentEdit(DocumentEdit e) {
@@ -141,7 +142,7 @@ RenameResult rename(
 
     map[str id, ChangeAnnotation annotation] annotations = ();
     void registerAnnotation(str annotationId, ChangeAnnotation annotation) {
-        if (annotationId in annotations) throw "An annotation with id \'<annotationId>\' already exists!";
+        if (annotationId in annotations) registerMessage(error("An annotation with id \'<annotationId>\' already exists!"));
         annotations[annotationId] = annotation;
     };
 
@@ -157,6 +158,9 @@ RenameResult rename(
       , registerAnnotation
       , readStore
       , writeStore
+      , void(str s, loc at) { registerMessage(info(s, at)); }
+      , void(str s, loc at) { registerMessage(warning(s, at)); }
+      , void(str s, loc at) { registerMessage(error(s, at)); }
     );
 
     if (debug) println("Renaming <cursor[0].src> to \'<newName>\'");
