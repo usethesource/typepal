@@ -85,13 +85,13 @@ void initRename(RenameSolver renamer, RenameRequest req) {
     bool nameIsValid = any(ModuleId _ <- req.cursor)
         ? isValidName(moduleId(), req.newName)
         : isValidName(structId(), req.newName);
-    
+
     if (!nameIsValid) {
         throw "Invalid name: <req.newName>";
     }
-    
+
     // Find definition of name under cursor
-    loc fileUnderCursor = req.cursor[0].src.top; 
+    loc fileUnderCursor = req.cursor[0].src.top;
     renamer.collectTModel(fileUnderCursor, renameByModel, findDefinition(req));
 }
 
