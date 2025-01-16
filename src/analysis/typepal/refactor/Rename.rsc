@@ -87,6 +87,7 @@ RenameResult rename(
 
     // Messages
     set[Message] messages = {};
+    bool errorReported() = messages != {} && any(m <- messages, m is error);
     void registerMessage(Message msg) { messages += msg; };
 
     // Edits
@@ -167,8 +168,12 @@ RenameResult rename(
 
     if (debug) println("+ Finding definitions for cursor at <cursor[0].src>");
     set[Define] defs = findDefinitions(cursor, parseLocCached, getTModelCached, r);
+    if (errorReported()) return <docEdits, annotations, messages>;
+
     if (debug) println("+ Finding candidate files");
     set[loc] candidates = findCandidateFiles(defs, r);
+    if (errorReported()) return <docEdits, annotations, messages>;
+
     for (loc f <- candidates) {
         if (debug) println("  - Processing candidate <f>");
         if (debug) println("    + Retrieving parse tree");
