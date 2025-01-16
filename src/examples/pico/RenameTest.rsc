@@ -27,6 +27,8 @@ POSSIBILITY OF SUCH DAMAGE.
 module examples::pico::RenameTest
 
 import examples::pico::Rename;
+import examples::pico::Syntax;
+
 import analysis::typepal::refactor::TextEdits;
 
 import util::LanguageServer; // computeFocusList
@@ -34,14 +36,15 @@ import util::LanguageServer; // computeFocusList
 import IO;
 import List;
 import Message;
+import ParseTree;
 import Set;
 import String;
 import util::FileSystem;
 
-tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] basicRename() {
-    prog = parseLoc(|lib://typepal/src/examples/pico/fac.pico|);
-    cursor = computeFocusList(prog, 2, 17);
-    return renamePico(<cursor, "foo"/*, {|lib://typepal/src/examples/pico|}*/>);
+tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] basicRename(str newName = "foo", int line = 2, int col = 17) {
+    prog = parse(#start[Program], |lib://typepal/src/examples/pico/fac.pico|);
+    cursor = computeFocusList(prog, line, col);
+    return renamePico(cursor, newName);
 }
 
 test bool doesNotCrash() {
@@ -60,4 +63,18 @@ test bool editsHaveLangthOfNameUnderCursor() {
         if (size("output") != l.length) return false;
     }
     return true;
+}
+
+test bool failsWithError() {
+    if (<_, _, {error(_, _), *_}> := basicRename(col = 26)) {
+        return true;
+    }
+    return false;
+}
+
+test bool invalidName() {
+    if (<_, _, {error(_, _), *_}> := basicRename(newName = "_foo")) {
+        return true;
+    }
+    return false;
 }
