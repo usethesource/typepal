@@ -52,6 +52,14 @@ TModel tmodelForLoc(loc l) {
 }
 
 public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] renameModules(RenameRequest request) {
+    bool nameIsValid = any(ModuleId _ <- req.cursor)
+        ? isValidName(moduleId(), req.newName)
+        : isValidName(structId(), req.newName);
+
+    if (!nameIsValid) {
+        return <[], (), {error(request.cursor[0].src, "Invalid name: <req.newName>")}>;
+    }
+
     RenameConfig config = rconfig(
         parseLoc
       , tmodelForLoc
@@ -59,7 +67,11 @@ public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Mes
     );
 
     RenameSolver renamer = newSolverForConfig(config);
-    initRename(renamer, request);
+
+    // Find definition of name under cursor
+    loc fileUnderCursor = req.cursor[0].src.top;
+    renamer.collectTModel(fileUnderCursor, renameByModel, findDefinition(req));
+
     return renamer.run();
 }
 
@@ -80,20 +92,6 @@ bool tryParse(type[&T <: Tree] tp, str s) {
 
 bool isValidName(moduleId(), str name) = tryParse(#ModuleId, name);
 bool isValidName(structId(), str name) = tryParse(#Id, name);
-
-void initRename(RenameSolver renamer, RenameRequest req) {
-    bool nameIsValid = any(ModuleId _ <- req.cursor)
-        ? isValidName(moduleId(), req.newName)
-        : isValidName(structId(), req.newName);
-
-    if (!nameIsValid) {
-        throw "Invalid name: <req.newName>";
-    }
-
-    // Find definition of name under cursor
-    loc fileUnderCursor = req.cursor[0].src.top;
-    renamer.collectTModel(fileUnderCursor, renameByModel, findDefinition(req));
-}
 
 void renameByTree(checkCandidate(Define d, RenameRequest req), Tree modTree, RenameSolver renamer) {
     println("Checking <modTree.src.top> for occurrences of \'<d.id>\'");
