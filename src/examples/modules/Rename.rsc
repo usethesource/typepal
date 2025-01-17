@@ -101,10 +101,8 @@ bool isValidName(structId(), str name) = tryParse(#Id, name);
 bool skipCandidate(set[Define] defs, Tree modTree, Renamer _) {
     // Only if the name of the definition appears in the module, consider it a rename candidate
     set[str] names = {d.id | d <- defs};
-    if (/Tree t := modTree, "<t>" in names) {
-        return false;
-    }
-    return true;
+    return !(any(/Id t := modTree, "<t>" in names)
+          || any(/ModuleId t := modTree, "<t>" in names));
 }
 
 Maybe[Define] findDef(list[Tree] cursor, TModel tm) {
