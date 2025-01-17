@@ -50,8 +50,7 @@ data Renamer
       , void(DocumentEdit) documentEdit
       , void(TextEdit) textEdit
       , void(str, ChangeAnnotation) annotation
-      , value(str) readStore
-      , void(str, value) writeStore
+      , RenameConfig() getConfig
 
       // Helpers
       , void(str, loc) warning
@@ -59,21 +58,26 @@ data Renamer
       , void(str, loc) error
     );
 
-RenameResult rename(
-        list[Tree] cursor
-      , str newName
-      , Tree(loc) parseLoc
+data RenameConfig
+    = rconfig(
+        Tree(loc) parseLoc
       , TModel(Tree) tmodelForTree
       , set[Define](list[Tree] cursor, Tree(loc) getTree, TModel(Tree) getTModel, Renamer r) findDefinitions
       , set[loc](set[Define] defs, Renamer r) findCandidateFiles
       , void(Define def, str newName, TModel tm, Renamer r) renameDef
       , bool(set[Define] defs, Tree t, Renamer r) skipCandidate = bool(_, _, _) { return false; }
+    );
+
+RenameResult rename(
+        list[Tree] cursor
+      , str newName
+      , RenameConfig config
       , bool debug = true) {
 
     // Tree & TModel caching
 
     @memo{maximumSize(50)}
-    TModel getTModelCached(Tree t) = tmodelForTree(t);
+    TModel getTModelCached(Tree t) = config.tmodelForTree(t);
 
     @memo{maximumSize(50)}
     Tree parseLocCached(loc l) {
@@ -82,7 +86,7 @@ RenameResult rename(
             return cursor[-1];
         }
 
-        return parseLoc(l);
+        return config.parseLoc(l);
     }
 
     // Messages
@@ -147,18 +151,12 @@ RenameResult rename(
         annotations[annotationId] = annotation;
     };
 
-    // Store
-    map[str, value] store = ();
-    value readStore(str key) { return store[key]; };
-    void writeStore(str key, value val) { store[key] = val; };
-
     Renamer r = renamer(
         registerMessage
       , registerDocumentEdit
       , registerTextEdit
       , registerAnnotation
-      , readStore
-      , writeStore
+      , RenameConfig() { return config; }
       , void(str s, loc at) { registerMessage(info(s, at)); }
       , void(str s, loc at) { registerMessage(warning(s, at)); }
       , void(str s, loc at) { registerMessage(error(s, at)); }
@@ -167,19 +165,19 @@ RenameResult rename(
     if (debug) println("Renaming <cursor[0].src> to \'<newName>\'");
 
     if (debug) println("+ Finding definitions for cursor at <cursor[0].src>");
-    set[Define] defs = findDefinitions(cursor, parseLocCached, getTModelCached, r);
+    set[Define] defs = config.findDefinitions(cursor, parseLocCached, getTModelCached, r);
     if (defs == {}) r.error("No definitions found", cursor[0].src);
     if (errorReported()) return <docEdits, annotations, messages>;
 
     if (debug) println("+ Finding candidate files");
-    set[loc] candidates = findCandidateFiles(defs, r);
+    set[loc] candidates = config.findCandidateFiles(defs, r);
     if (errorReported()) return <docEdits, annotations, messages>;
 
     for (loc f <- candidates) {
         if (debug) println("  - Processing candidate <f>");
         if (debug) println("    + Retrieving parse tree");
         Tree t = parseLocCached(f);
-        if (skipCandidate(defs, t, r)) {
+        if (config.skipCandidate(defs, t, r)) {
             if (debug) println("    + Skipping");
             continue;
         }
@@ -189,7 +187,7 @@ RenameResult rename(
         if (debug) println("    + Renaming each definition");
         for (Define d <- defs) {
             if (debug) println("      - Renaming <d.idRole> \'<d.id>\'");
-            renameDef(d, newName, tm, r);
+            config.renameDef(d, newName, tm, r);
         }
         if (debug) println("  - Done!");
     }

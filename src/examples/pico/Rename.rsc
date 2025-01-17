@@ -49,11 +49,14 @@ public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Mes
     return rename(
         cursor
       , newName
-      , Tree(loc l) { return parse(#start[Program], l); }
-      , collectAndSolve
-      , findDefinitions
-      , findCandidateFiles
-      , renameDef
+      , rconfig(
+          Tree(loc l) { return parse(#start[Program], l); }
+        , collectAndSolve
+        , findDefinitions
+        , findCandidateFiles
+        , renameDef
+        , skipCandidate = bool(_, _, _) { return false; }
+      )
     );
 }
 

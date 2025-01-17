@@ -39,6 +39,10 @@ import Relation;
 import util::FileSystem;
 import util::Maybe;
 
+data RenameConfig(
+    set[loc] workspaceFolders = {}
+);
+
 public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] renameModules(list[Tree] cursor, str newName, set[loc] workspaceFolders) {
     bool nameIsValid = any(ModuleId _ <- cursor)
         ? isValidName(moduleId(), newName)
@@ -48,18 +52,18 @@ public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Mes
         return <[], (), {error("Invalid name: <newName>", cursor[0].src)}>;
     }
 
-    set[loc] findCandidateFiles(set[Define] _, Renamer _) =
-        {*ls | loc wsFolder <- workspaceFolders, ls := find(wsFolder, "modules")};
-
     return rename(
         cursor
       , newName
-      , Tree(loc l) { return parse(#start[Program], l); }
-      , collectAndSolve
-      , findDefinitions
-      , findCandidateFiles
-      , renameDef
-      , skipCandidate = skipCandidate
+      , rconfig(
+          Tree(loc l) { return parse(#start[Program], l); }
+        , collectAndSolve
+        , findDefinitions
+        , findCandidateFiles
+        , renameDef
+        , skipCandidate = skipCandidate
+        , workspaceFolders = workspaceFolders
+      )
     );
 }
 
@@ -78,6 +82,9 @@ set[Define] findDefinitions(list[Tree] cursor, Tree(loc) getTree, TModel(Tree) g
 
     return {};
 }
+
+set[loc] findCandidateFiles(set[Define] _, Renamer r) =
+    {*ls | loc wsFolder <- r.getConfig().workspaceFolders, ls := find(wsFolder, "modules")};
 
 bool tryParse(type[&T <: Tree] tp, str s) {
     try {
