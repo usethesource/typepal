@@ -1,0 +1,4 @@
+module A {
+    def x : int -> int = fun a : int { 5 + a };
+    def x : int -> int = fun a : int { 6 + a };
+}

@@ -64,7 +64,7 @@ data RenameConfig
       , TModel(Tree) tmodelForTree
       , tuple[set[Define] defs, set[loc] uses](list[Tree] cursor, Tree(loc) getTree, TModel(Tree) getTModel, Renamer r) findCandidates
       , void(Define def, str newName, TModel tm, Renamer r) renameDef
-      , void(Define def, str newName, set[loc] candidates, TModel tm, Renamer r) renameUses
+      , void(set[Define] defs, str newName, set[loc] candidates, TModel tm, Renamer r) renameUses
       , bool(set[Define] defs, Tree t, Renamer r) skipCandidate = bool(_, _, _) { return false; }
     );
 
@@ -185,9 +185,12 @@ RenameResult rename(
         TModel tm = getTModelCached(t);
         if (debug) println("    + Renaming each definition");
         for (Define d <- defs) {
-            if (debug) println("      - Renaming <d.idRole> \'<d.id>\'");
+            if (debug) println("      - Renaming <d.idRole> \'<d.id>\' @ <d.defined>");
             config.renameDef(d, newName, tm, r);
-            config.renameUses(d, newName, fileUses, tm, r);
+        }
+        if (fileUses != {}) {
+        if (debug) println("      - Renaming uses @ <fileUses>");
+            config.renameUses(defs, newName, fileUses, tm, r);
         }
         if (debug) println("  - Done!");
     }

@@ -77,7 +77,7 @@ void renameDef(Define def, str newName, TModel tm, Renamer r) {
     r.textEdit(replace(def.defined, newName));
 }
 
-void renameUses(Define def, str newName, set[loc] candidates, TModel tm, Renamer r) {
+void renameUses(set[Define] _, str newName, set[loc] candidates, TModel tm, Renamer r) {
     // Register edit for uses of def in this file
     for (loc u <- candidates) {
         r.textEdit(replace(u, newName));

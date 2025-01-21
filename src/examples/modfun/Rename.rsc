@@ -25,19 +25,19 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 }
 
-module examples::modules::Rename
+module examples::modfun::Rename
 
-import examples::modules::Checker;
-import examples::modules::Syntax;
+import examples::modfun::Checker;
+import examples::modfun::Syntax;
 
 import analysis::typepal::refactor::Rename;
 import analysis::typepal::refactor::TextEdits;
 
 import Exception;
 import IO;
+import List;
 import Map;
 import Relation;
-import Set;
 import util::FileSystem;
 import util::Maybe;
 
@@ -46,9 +46,9 @@ data RenameConfig(
 );
 
 public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] renameModules(list[Tree] cursor, str newName, set[loc] workspaceFolders) {
-    bool nameIsValid = any(ModuleId _ <- cursor)
+    bool nameIsValid = any(ModId _ <- cursor)
         ? isValidName(moduleId(), newName)
-        : isValidName(structId(), newName);
+        : isValidName(variableId(), newName);
 
     if (!nameIsValid) {
         return <[], (), {error("Invalid name: <newName>", cursor[0].src)}>;
@@ -58,8 +58,8 @@ public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Mes
         cursor
       , newName
       , rconfig(
-          Tree(loc l) { return parse(#start[Program], l); }
-        , collectAndSolve
+          Tree(loc l) { return parse(#start[ModFun], l); }
+        , TModel(Tree pt) { return collectAndSolve(pt, config = tconfig(mayOverload = bool(set[loc] defs, map[loc, Define] defines) { return true; })); }
         , findCandidates
         , renameDef
         , renameUses
@@ -70,52 +70,51 @@ public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Mes
 }
 
 tuple[set[Define], set[loc]] findCandidates(list[Tree] cursor, Tree(loc) getTree, TModel(Tree) getTModel, Renamer r) {
-    str cursorName = "<cursor[0]>";
-
     set[Define] defs = {};
     set[loc] uses = {};
+    str cursorName = "<cursor[0]>";
 
     for (loc wsFolder <- r.getConfig().workspaceFolders
-       , loc f <- find(wsFolder, "modules")) {
+       , loc f <- find(wsFolder, "mfun")) {
         Tree t = getTree(f);
 
-        Maybe[TModel] tmCache = nothing();
+        Maybe[TModel] tmodelCache = nothing();
         TModel getLocalTModel() {
-            if (tmCache is nothing) {
-                tmCache = just(getTModel(t));
+            if (tmodelCache is nothing) {
+                tmodelCache = just(getTModel(t));
             }
-            return tmCache.val;
+            return tmodelCache.val;
         }
 
-        visit (t) {
-            case (Import) `import <ModuleId id>`: {
+        visit(t) {
+            case (ModuleDecl) `module <ModId id> { <Decl* _> }`: {
+                if ("<id>" == cursorName) {
+                    defs += getLocalTModel().definitions[id.src];
+                }
+            }
+            case (ImportDecl) `import <ModId id>;`: {
                 if ("<id>" == cursorName) {
                     uses += id.src;
                 }
             }
-            case (DeclInStruct) `<Type ty>`: {
-                if ("<ty>" == cursorName) {
-                    uses += ty.src;
+            case (VarDecl) `def <Id id> : <Type _> = <Expression _>;`: {
+                if ("<id>" == cursorName) {
+                    defs += getLocalTModel().definitions[id.src];
                 }
             }
-            case s:(TopLevelDecl) `struct <Id id> { <DeclInStruct* _> }`: {
-                if ("<id>" == cursorName
-                 && tm := getLocalTModel()
-                 && Define d:<_, _, _, structId(), _, _> := tm.definitions[s.src]) {
-                    defs += d;
-                }
-            }
-            case m:(Program) `module <ModuleId id> <Import* _> <TopLevelDecl* _>`: {
-                if ("<id>" == cursorName
-                 && tm := getLocalTModel()
-                 && Define d:<_, _, _, moduleId(), _, _> := tm.definitions[m.src]) {
-                    defs += d;
+            case (Expression) `<Id id>`: {
+                if ("<id>" == cursorName) {
+                    uses += id.src;
                 }
             }
         }
     }
+
     return <defs, uses>;
 }
+
+set[loc] findCandidateFiles(set[loc] workspaceFolders) =
+    {*ls | loc wsFolder <- workspaceFolders, ls := find(wsFolder, "modules")};
 
 bool tryParse(type[&T <: Tree] tp, str s) {
     try {
@@ -126,24 +125,29 @@ bool tryParse(type[&T <: Tree] tp, str s) {
     }
 }
 
-bool isValidName(moduleId(), str name) = tryParse(#ModuleId, name);
-bool isValidName(structId(), str name) = tryParse(#Id, name);
+bool isValidName(moduleId(), str name) = tryParse(#ModId, name);
+bool isValidName(variableId(), str name) = tryParse(#Id, name);
 
 bool skipCandidate(set[Define] defs, Tree modTree, Renamer _) {
     // Only if the name of the definition appears in the module, consider it a rename candidate
     set[str] names = {d.id | d <- defs};
     return !(any(/Id t := modTree, "<t>" in names)
-          || any(/ModuleId t := modTree, "<t>" in names));
+          || any(/ModId t := modTree, "<t>" in names));
 }
 
 void renameDef(Define def, str newName, TModel tm, Renamer r) {
-    if (def in tm.defines) {
+    if (def.defined in tm.defines.defined) {
         r.textEdit(replace(def.defined, newName));
     }
 }
 
-void renameUses(set[Define] _, str newName, set[loc] useCandidates, TModel _, Renamer r) {
-    for (loc u <- useCandidates) {
+void renameUses(set[Define] defs, str newName, set[loc] useCandidates, TModel tm, Renamer r) {
+    set[loc] uses = {occ
+        | <Define _:<_, id, orgId, idRole, _, _>,
+           use(id, orgId, loc occ, _, {idRole, *_})>
+        <- defs * toSet(tm.uses)
+    };
+    for (loc u <- useCandidates & uses) {
         r.textEdit(replace(u, newName));
     }
 }
