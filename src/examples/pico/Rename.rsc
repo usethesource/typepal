@@ -41,9 +41,9 @@ import util::FileSystem;
 
 data Tree;
 
-public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] renamePico(list[Tree] cursor, str newName) {
+public tuple[list[DocumentEdit] edits, set[Message] msgs] renamePico(list[Tree] cursor, str newName) {
     if (!isValidName(newName)) {
-        return <[], (), {error("\'<newName>\' is not a valid name here.", cursor[0].src)}>;
+        return <[], {error("\'<newName>\' is not a valid name here.", cursor[0].src)}>;
     }
 
     return rename(

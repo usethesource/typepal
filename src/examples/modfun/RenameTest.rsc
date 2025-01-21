@@ -40,7 +40,7 @@ import Set;
 import String;
 import util::FileSystem;
 
-tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] basicRename(str modName, int line, int col, str newName = "foo") {
+tuple[list[DocumentEdit] edits, set[Message] msgs] basicRename(str modName, int line, int col, str newName = "foo") {
     prog = parse(#start[ModFun], |project://rename-framework/src/main/rascal/examples/modfun/<modName>.mfun|);
     cursor = computeFocusList(prog, line, col);
     return renameModules(cursor, newName, {|project://rename-framework/src/main/rascal/examples/modfun/|});
@@ -53,7 +53,7 @@ void checkNoErrors(set[Message] msgs) {
 }
 
 test bool moduleName() {
-    <edits, _, msgs> = basicRename("A", 1, 8, newName = "B");
+    <edits, msgs> = basicRename("A", 1, 8, newName = "B");
 
     checkNoErrors(msgs);
     iprintln(edits);
@@ -63,7 +63,7 @@ test bool moduleName() {
 }
 
 test bool overloadedFunc() {
-    <edits, _, msgs> = basicRename("A", 2, 9);
+    <edits, msgs> = basicRename("A", 2, 9);
 
     checkNoErrors(msgs);
     return size(edits) == 2
@@ -72,7 +72,7 @@ test bool overloadedFunc() {
 }
 
 test bool importedFunc() {
-    <edits, _, msgs> = basicRename("B", 3, 19);
+    <edits, msgs> = basicRename("B", 3, 19);
 
     checkNoErrors(msgs);
     return size(edits) == 2

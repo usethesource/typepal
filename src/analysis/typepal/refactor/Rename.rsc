@@ -42,14 +42,13 @@ import Set;
 
 import util::Reflective;
 
-alias RenameResult = tuple[list[DocumentEdit], map[str, ChangeAnnotation], set[Message]];
+alias RenameResult = tuple[list[DocumentEdit], set[Message]];
 
 data Renamer
     = renamer(
         void(Message) msg
       , void(DocumentEdit) documentEdit
       , void(TextEdit) textEdit
-      , void(str, ChangeAnnotation) annotation
       , RenameConfig() getConfig
 
       // Helpers
@@ -145,17 +144,10 @@ RenameResult rename(
         }
     };
 
-    map[str id, ChangeAnnotation annotation] annotations = ();
-    void registerAnnotation(str annotationId, ChangeAnnotation annotation) {
-        if (annotationId in annotations) registerMessage(error("An annotation with id \'<annotationId>\' already exists!"));
-        annotations[annotationId] = annotation;
-    };
-
     Renamer r = renamer(
         registerMessage
       , registerDocumentEdit
       , registerTextEdit
-      , registerAnnotation
       , RenameConfig() { return config; }
       , void(str s, loc at) { registerMessage(info(s, at)); }
       , void(str s, loc at) { registerMessage(warning(s, at)); }
@@ -167,7 +159,7 @@ RenameResult rename(
     if (debug) println("+ Finding rename candidates for cursor at <cursor[0].src>");
     <defs, uses> = config.findCandidates(cursor, parseLocCached, getTModelCached, r);
     if (defs == {}) r.error("No definitions found", cursor[0].src);
-    if (errorReported()) return <docEdits, annotations, messages>;
+    if (errorReported()) return <docEdits, messages>;
 
     set[loc] candidates = {l.top | l <- uses} + {d.defined.top | d <- defs};
     for (loc f <- candidates) {
@@ -208,7 +200,6 @@ RenameResult rename(
         println(" # of text edits:         <nEdits>");
         println(" # of messages:           <size(messages)>");
         println("   (<nErrors> errors, <nWarnings> warnings and <nInfos> infos)");
-        println(" # of annotations:        <size(annotations)>");
 
         if (size(messages) > 0) {
             println("\n===============\nMessages\n===============");
@@ -219,5 +210,5 @@ RenameResult rename(
         }
     }
 
-    return <docEdits, annotations, messages>;
+    return <docEdits, messages>;
 }

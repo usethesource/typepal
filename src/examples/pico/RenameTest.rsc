@@ -41,24 +41,24 @@ import Set;
 import String;
 import util::FileSystem;
 
-tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] basicRename(str newName = "foo", int line = 2, int col = 17) {
+tuple[list[DocumentEdit] edits, set[Message] msgs] basicRename(str newName = "foo", int line = 2, int col = 17) {
     prog = parse(#start[Program], |lib://typepal/src/examples/pico/fac.pico|);
     cursor = computeFocusList(prog, line, col);
     return renamePico(cursor, newName);
 }
 
 test bool doesNotCrash() {
-    <edits, _, _> = basicRename();
+    <edits, _> = basicRename();
     return true;
 }
 
 test bool hasFiveChanges() {
-    <edits, _, _> = basicRename();
+    <edits, _> = basicRename();
     return size(edits) == 1 && size(edits[0].edits) == 5;
 }
 
 test bool editsHaveLangthOfNameUnderCursor() {
-    <edits, _, _> = basicRename();
+    <edits, _> = basicRename();
     for (changed(_, rs) <- edits, replace(loc l, _) <- rs) {
         if (size("output") != l.length) return false;
     }
@@ -66,14 +66,14 @@ test bool editsHaveLangthOfNameUnderCursor() {
 }
 
 test bool failsWithError() {
-    if (<_, _, {error(_, _), *_}> := basicRename(col = 26)) {
+    if (<_, {error(_, _), *_}> := basicRename(col = 26)) {
         return true;
     }
     return false;
 }
 
 test bool invalidName() {
-    if (<_, _, {error(_, _), *_}> := basicRename(newName = "_foo")) {
+    if (<_, {error(_, _), *_}> := basicRename(newName = "_foo")) {
         return true;
     }
     return false;

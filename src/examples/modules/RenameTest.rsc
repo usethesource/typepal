@@ -40,7 +40,7 @@ import Set;
 import String;
 import util::FileSystem;
 
-tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] basicRename(str modName, int line, int col, str newName = "foo") {
+tuple[list[DocumentEdit] edits, set[Message] msgs] basicRename(str modName, int line, int col, str newName = "foo") {
     prog = parse(#start[Program], |lib://typepal/src/examples/modules/<modName>.modules|);
     cursor = computeFocusList(prog, line, col);
     return renameModules(cursor, newName, {|lib://typepal/src/examples/modules|});
@@ -53,7 +53,7 @@ void checkNoErrors(set[Message] msgs) {
 }
 
 test bool localStructName() {
-    <edits, _, msgs> = basicRename("C", 6, 9);
+    <edits, msgs> = basicRename("C", 6, 9);
 
     checkNoErrors(msgs);
     return size(edits) == 1
@@ -61,7 +61,7 @@ test bool localStructName() {
 }
 
 test bool importedStructName() {
-    <edits, _, msgs> = basicRename("C", 8, 1);
+    <edits, msgs> = basicRename("C", 8, 1);
 
     checkNoErrors(msgs);
     return size(edits) == 2
@@ -70,7 +70,7 @@ test bool importedStructName() {
 }
 
 test bool moduleName() {
-    <edits, _, msgs> = basicRename("A", 1, 8);
+    <edits, msgs> = basicRename("A", 1, 8);
 
     checkNoErrors(msgs);
     return size(edits) == 2
@@ -79,12 +79,12 @@ test bool moduleName() {
 }
 
 // test bool hasFiveChanges() {
-//     <edits, _, _> = basicRename();
+//     <edits, _> = basicRename();
 //     return size(edits) == 1 && size(edits[0].edits) == 5;
 // }
 
 // test bool editsHaveLangthOfNameUnderCursor() {
-//     <edits, _, _> = basicRename();
+//     <edits, _> = basicRename();
 //     for (changed(_, rs) <- edits, replace(loc l, _) <- rs) {
 //         if (size("output") != l.length) return false;
 //     }

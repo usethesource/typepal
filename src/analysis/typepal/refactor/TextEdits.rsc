@@ -31,13 +31,8 @@ extend analysis::diff::edits::TextEdits;
 
 import util::Maybe;
 
-alias ChangeAnnotationId = str;
-
 data ChangeAnnotation
     = changeAnnotation(str label, str description, bool needsConfirmation)
     ;
 
 data TextEdit(Maybe[ChangeAnnotation] annotation = nothing());
-
-alias ChangeAnnotationRegister =
-    ChangeAnnotationId(str label, str description, bool needsConfirmation);

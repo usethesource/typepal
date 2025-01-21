@@ -45,13 +45,13 @@ data RenameConfig(
     set[loc] workspaceFolders = {}
 );
 
-public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] renameModules(list[Tree] cursor, str newName, set[loc] workspaceFolders) {
+public tuple[list[DocumentEdit] edits, set[Message] msgs] renameModules(list[Tree] cursor, str newName, set[loc] workspaceFolders) {
     bool nameIsValid = any(ModId _ <- cursor)
         ? isValidName(moduleId(), newName)
         : isValidName(variableId(), newName);
 
     if (!nameIsValid) {
-        return <[], (), {error("Invalid name: <newName>", cursor[0].src)}>;
+        return <[], {error("Invalid name: <newName>", cursor[0].src)}>;
     }
 
     return rename(
