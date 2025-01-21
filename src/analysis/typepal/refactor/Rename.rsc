@@ -29,6 +29,8 @@ module analysis::typepal::refactor::Rename
 
 import analysis::typepal::refactor::TextEdits;
 
+import analysis::typepal::FailMessage;
+import analysis::typepal::Messenger;
 import analysis::typepal::TModel;
 
 
@@ -46,7 +48,7 @@ alias RenameResult = tuple[list[DocumentEdit], set[Message]];
 
 data Renamer
     = renamer(
-        void(Message) msg
+        void(FailMessage) msg
       , void(DocumentEdit) documentEdit
       , void(TextEdit) textEdit
       , RenameConfig() getConfig
@@ -89,9 +91,18 @@ RenameResult rename(
     }
 
     // Messages
-    set[Message] messages = {};
+    set[FailMessage] messages = {};
     bool errorReported() = messages != {} && any(m <- messages, m is error);
-    void registerMessage(Message msg) { messages += msg; };
+    void registerMessage(FailMessage msg) { messages += msg; };
+    AType getType(Tree t) {
+        TModel tm = getTModelCached(parseLocCached(t.src.top));
+        if (tm.facts[t.src]?) {
+            return tm.facts[t.src];
+        }
+
+        return tvar(|unknown:///|);
+    }
+    set[Message] getMessages() = {toMessage(m, getType) | m <- messages};
 
     // Edits
     set[loc] editsSeen = {};
@@ -99,7 +110,7 @@ RenameResult rename(
 
     void checkEdit(replace(loc range, _)) {
         if (range in editsSeen) {
-            registerMessage(error("Multiple replace edits for this location.", range));
+            registerMessage(error(range, "Multiple replace edits for this location."));
         }
         editsSeen += range;
     }
@@ -111,14 +122,14 @@ RenameResult rename(
             for (te:replace(range, _) <- tes) {
                 // Check integrity
                 if (range.top != f) {
-                    registerMessage(error("Invalid replace edit for this location. This location is not in <f>, for which it was registered.", range));
+                    registerMessage(error(range, "Invalid replace edit for this location. This location is not in <f>, for which it was registered."));
                 }
 
                 // Check text edits
                 checkEdit(te);
             }
         } else if (file in editsSeen) {
-            registerMessage(error("Multiple <getName(e)> edits for this file.", file));
+            registerMessage(error(file, "Multiple <getName(e)> edits for this file."));
         }
 
         editsSeen += file;
@@ -149,9 +160,9 @@ RenameResult rename(
       , registerDocumentEdit
       , registerTextEdit
       , RenameConfig() { return config; }
-      , void(str s, loc at) { registerMessage(info(s, at)); }
-      , void(str s, loc at) { registerMessage(warning(s, at)); }
-      , void(str s, loc at) { registerMessage(error(s, at)); }
+      , void(str s, value at) { registerMessage(info(at, s)); }
+      , void(str s, value at) { registerMessage(warning(at, s)); }
+      , void(str s, value at) { registerMessage(error(at, s)); }
     );
 
     if (debug) println("Renaming <cursor[0].src> to \'<newName>\'");
@@ -159,7 +170,7 @@ RenameResult rename(
     if (debug) println("+ Finding rename candidates for cursor at <cursor[0].src>");
     <defs, uses> = config.findCandidates(cursor, parseLocCached, getTModelCached, r);
     if (defs == {}) r.error("No definitions found", cursor[0].src);
-    if (errorReported()) return <docEdits, messages>;
+    if (errorReported()) return <docEdits, getMessages()>;
 
     set[loc] candidates = {l.top | l <- uses} + {d.defined.top | d <- defs};
     for (loc f <- candidates) {
@@ -186,29 +197,32 @@ RenameResult rename(
         }
         if (debug) println("  - Done!");
     }
+
+    set[Message] convertedMessages = getMessages();
+
     if (debug) println("+ Done!");
     if (debug) {
         println("\n\n=================\nRename statistics\n=================\n");
         int nDocs = size({f | de <- docEdits, f := (de has file ? de.file : de.from)});
         int nEdits = (0 | it + ((changed(_, tes) := e) ? size(tes) : 1) | e <- docEdits);
 
-        int nErrors = size({msg | msg <- messages, msg is error});
-        int nWarnings = size({msg | msg <- messages, msg is warning});
-        int nInfos = size({msg | msg <- messages, msg is info});
+        int nErrors = size({msg | msg <- convertedMessages, msg is error});
+        int nWarnings = size({msg | msg <- convertedMessages, msg is warning});
+        int nInfos = size({msg | msg <- convertedMessages, msg is info});
 
         println(" # of documents affected: <nDocs>");
         println(" # of text edits:         <nEdits>");
-        println(" # of messages:           <size(messages)>");
+        println(" # of messages:           <size(convertedMessages)>");
         println("   (<nErrors> errors, <nWarnings> warnings and <nInfos> infos)");
 
-        if (size(messages) > 0) {
+        if (size(convertedMessages) > 0) {
             println("\n===============\nMessages\n===============");
-            for (msg <- messages) {
+            for (msg <- convertedMessages) {
                 println(" ** <msg>");
             }
             println();
         }
     }
 
-    return <docEdits, messages>;
+    return <docEdits, convertedMessages>;
 }
