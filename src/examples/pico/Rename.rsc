@@ -52,35 +52,36 @@ public tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Mes
       , rconfig(
           Tree(loc l) { return parse(#start[Program], l); }
         , collectAndSolve
-        , findDefinitions
-        , findCandidateFiles
+        , findCandidates
         , renameDef
+        , renameUses
         , skipCandidate = bool(_, _, _) { return false; }
       )
     );
 }
 
-set[Define] findDefinitions(list[Tree] cursor, Tree(loc) _, TModel(Tree) getTModel, Renamer _) {
+tuple[set[Define], set[loc]] findCandidates(list[Tree] cursor, Tree(loc) _, TModel(Tree) getTModel, Renamer _) {
     TModel tm = getTModel(cursor[-1]);
     if (Tree t <- cursor
       , tm.definitions[t.src]?) {
-            return {tm.definitions[t.src]};
+        set[Define] defs = {tm.definitions[t.src]};
+        set[loc] uses = invert(tm.useDef)[defs.defined];
+            return <defs, uses>;
     }
 
-    return {};
+    return <{}, {}>;
 }
 
-set[loc] findCandidateFiles(set[Define] defs, Renamer _) =
-    {d.defined.top | d <- defs};
-
 void renameDef(Define def, str newName, TModel tm, Renamer r) {
-    // Register edit for uses of def in this file
-    for (loc u <- invert(tm.useDef)[def.defined]) {
-        r.textEdit(replace(u, newName));
-    }
-
     // Register edit for definitions in this file
     r.textEdit(replace(def.defined, newName));
+}
+
+void renameUses(Define def, str newName, set[loc] candidates, TModel tm, Renamer r) {
+    // Register edit for uses of def in this file
+    for (loc u <- candidates) {
+        r.textEdit(replace(u, newName));
+    }
 }
 
 bool isValidName(str name) {

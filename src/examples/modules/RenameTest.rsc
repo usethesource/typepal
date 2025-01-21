@@ -46,21 +46,33 @@ tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] m
     return renameModules(cursor, newName, {|lib://typepal/src/examples/modules|});
 }
 
+void checkNoErrors(set[Message] msgs) {
+    if (m <- msgs, m is error) {
+        throw "Renaming threw errors:\n - <intercalate("\n - ", toList(msgs))>";
+    }
+}
+
 test bool localStructName() {
-    <edits, _, _> = basicRename("C", 6, 9);
+    <edits, _, msgs> = basicRename("C", 6, 9);
+
+    checkNoErrors(msgs);
     return size(edits) == 1
         && size(edits[0].edits) == 1;
 }
 
 test bool importedStructName() {
-    <edits, _, _> = basicRename("B", 3, 9);
+    <edits, _, msgs> = basicRename("C", 8, 1);
+
+    checkNoErrors(msgs);
     return size(edits) == 2
         && size(edits[0].edits) == 1
         && size(edits[1].edits) == 1;
 }
 
 test bool moduleName() {
-    <edits, _, _> = basicRename("A", 1, 9);
+    <edits, _, msgs> = basicRename("A", 1, 8);
+
+    checkNoErrors(msgs);
     return size(edits) == 2
         && size(edits[0].edits) == 1
         && size(edits[1].edits) == 1;

@@ -62,9 +62,9 @@ data RenameConfig
     = rconfig(
         Tree(loc) parseLoc
       , TModel(Tree) tmodelForTree
-      , set[Define](list[Tree] cursor, Tree(loc) getTree, TModel(Tree) getTModel, Renamer r) findDefinitions
-      , set[loc](set[Define] defs, Renamer r) findCandidateFiles
+      , tuple[set[Define] defs, set[loc] uses](list[Tree] cursor, Tree(loc) getTree, TModel(Tree) getTModel, Renamer r) findCandidates
       , void(Define def, str newName, TModel tm, Renamer r) renameDef
+      , void(Define def, str newName, set[loc] candidates, TModel tm, Renamer r) renameUses
       , bool(set[Define] defs, Tree t, Renamer r) skipCandidate = bool(_, _, _) { return false; }
     );
 
@@ -164,17 +164,16 @@ RenameResult rename(
 
     if (debug) println("Renaming <cursor[0].src> to \'<newName>\'");
 
-    if (debug) println("+ Finding definitions for cursor at <cursor[0].src>");
-    set[Define] defs = config.findDefinitions(cursor, parseLocCached, getTModelCached, r);
+    if (debug) println("+ Finding rename candidates for cursor at <cursor[0].src>");
+    <defs, uses> = config.findCandidates(cursor, parseLocCached, getTModelCached, r);
     if (defs == {}) r.error("No definitions found", cursor[0].src);
     if (errorReported()) return <docEdits, annotations, messages>;
 
-    if (debug) println("+ Finding candidate files");
-    set[loc] candidates = config.findCandidateFiles(defs, r);
-    if (errorReported()) return <docEdits, annotations, messages>;
-
+    set[loc] candidates = {l.top | l <- uses} + {d.defined.top | d <- defs};
     for (loc f <- candidates) {
         if (debug) println("  - Processing candidate <f>");
+        set[loc] fileUses = {u | u <- uses, u.top == f};
+
         if (debug) println("    + Retrieving parse tree");
         Tree t = parseLocCached(f);
         if (config.skipCandidate(defs, t, r)) {
@@ -188,12 +187,13 @@ RenameResult rename(
         for (Define d <- defs) {
             if (debug) println("      - Renaming <d.idRole> \'<d.id>\'");
             config.renameDef(d, newName, tm, r);
+            config.renameUses(d, newName, fileUses, tm, r);
         }
         if (debug) println("  - Done!");
     }
     if (debug) println("+ Done!");
     if (debug) {
-        println("\n\n============\nRename statistics\n============\n");
+        println("\n\n=================\nRename statistics\n=================\n");
         int nDocs = size({f | de <- docEdits, f := (de has file ? de.file : de.from)});
         int nEdits = (0 | it + ((changed(_, tes) := e) ? size(tes) : 1) | e <- docEdits);
 
@@ -206,6 +206,14 @@ RenameResult rename(
         println(" # of messages:           <size(messages)>");
         println("   (<nErrors> errors, <nWarnings> warnings and <nInfos> infos)");
         println(" # of annotations:        <size(annotations)>");
+
+        if (size(messages) > 0) {
+            println("\n===============\nMessages\n===============");
+            for (msg <- messages) {
+                println(" ** <msg>");
+            }
+            println();
+        }
     }
 
     return <docEdits, annotations, messages>;
