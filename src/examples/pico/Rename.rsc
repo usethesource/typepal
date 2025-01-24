@@ -39,8 +39,6 @@ import IO;
 import Relation;
 import util::FileSystem;
 
-data Tree;
-
 public tuple[list[DocumentEdit] edits, set[Message] msgs] renamePico(list[Tree] cursor, str newName) {
     if (!isValidName(newName)) {
         return <[], {error("\'<newName>\' is not a valid name here.", cursor[0].src)}>;
@@ -52,36 +50,8 @@ public tuple[list[DocumentEdit] edits, set[Message] msgs] renamePico(list[Tree] 
       , rconfig(
           Tree(loc l) { return parse(#start[Program], l); }
         , collectAndSolve
-        , findCandidates
-        , renameDef
-        , renameUses
-        , skipCandidate = bool(_, _, _) { return false; }
       )
     );
-}
-
-tuple[set[Define], set[loc]] findCandidates(list[Tree] cursor, Tree(loc) _, TModel(Tree) getTModel, Renamer _) {
-    TModel tm = getTModel(cursor[-1]);
-    if (Tree t <- cursor
-      , tm.definitions[t.src]?) {
-        set[Define] defs = {tm.definitions[t.src]};
-        set[loc] uses = invert(tm.useDef)[defs.defined];
-            return <defs, uses>;
-    }
-
-    return <{}, {}>;
-}
-
-void renameDef(Define def, str newName, TModel tm, Renamer r) {
-    // Register edit for definitions in this file
-    r.textEdit(replace(def.defined, newName));
-}
-
-void renameUses(set[Define] _, str newName, set[loc] candidates, TModel tm, Renamer r) {
-    // Register edit for uses of def in this file
-    for (loc u <- candidates) {
-        r.textEdit(replace(u, newName));
-    }
 }
 
 bool isValidName(str name) {

@@ -30,7 +30,7 @@ module examples::modules::Rename
 import examples::modules::Checker;
 import examples::modules::Syntax;
 
-import analysis::typepal::refactor::Rename;
+extend analysis::typepal::refactor::Rename;
 import analysis::typepal::refactor::TextEdits;
 
 import Exception;
@@ -40,12 +40,13 @@ import Relation;
 import Set;
 import util::FileSystem;
 import util::Maybe;
+import util::Reflective;
 
 data RenameConfig(
-    set[loc] workspaceFolders = {}
+    PathConfig pcfg = pathConfig()
 );
 
-public tuple[list[DocumentEdit] edits, set[Message] msgs] renameModules(list[Tree] cursor, str newName, set[loc] workspaceFolders) {
+public tuple[list[DocumentEdit] edits, set[Message] msgs] renameModules(list[Tree] cursor, str newName) {
     bool nameIsValid = any(ModuleId _ <- cursor)
         ? isValidName(moduleId(), newName)
         : isValidName(structId(), newName);
@@ -60,61 +61,75 @@ public tuple[list[DocumentEdit] edits, set[Message] msgs] renameModules(list[Tre
       , rconfig(
           Tree(loc l) { return parse(#start[Program], l); }
         , collectAndSolve
-        , findCandidates
-        , renameDef
-        , renameUses
-        , skipCandidate = skipCandidate
-        , workspaceFolders = workspaceFolders
+        , pcfg = pathConfig(srcs = [cursor[0].src.top.parent])
       )
     );
 }
 
-tuple[set[Define], set[loc]] findCandidates(list[Tree] cursor, Tree(loc) getTree, TModel(Tree) getTModel, Renamer r) {
-    str cursorName = "<cursor[0]>";
+bool isValidName(moduleId(), str name) = tryParse(#ModuleId, name);
+bool isValidName(structId(), str name) = tryParse(#Id, name);
 
-    set[Define] defs = {};
-    set[loc] uses = {};
+set[loc] projectFiles(pathConfig(srcs = srcs)) =
+    {*fs | dir <- srcs
+       , fs := find(dir, "modules")};
 
-    for (loc wsFolder <- r.getConfig().workspaceFolders
-       , loc f <- find(wsFolder, "modules")) {
-        Tree t = getTree(f);
+private Maybe[tuple[IdRole, str]] analyzeUse((Import) `import <ModuleId id>`) = just(<moduleId(), "<id>">);
+private Maybe[tuple[IdRole, str]] analyzeUse((DeclInStruct) `<Type id>`) = just(<structId(), "<id>">);
+private default Maybe[tuple[IdRole, str]] analyzeUse(Tree _) = nothing();
 
-        Maybe[TModel] tmCache = nothing();
-        TModel getLocalTModel() {
-            if (tmCache is nothing) {
-                tmCache = just(getTModel(t));
+private Maybe[tuple[IdRole, str]] analyzeDef((Program) `module <ModuleId id> <Import* _> <TopLevelDecl* _>`) = just(<moduleId(), "<id>">);
+private Maybe[tuple[IdRole, str]] analyzeDef((TopLevelDecl) `struct <Id id> { <DeclInStruct* _> }`) = just(<structId(), "<id>">);
+private default Maybe[tuple[IdRole, str]] analyzeDef(Tree _) = nothing();
+
+set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) getTree, TModel(Tree) getModel, Renamer r) {
+    TModel tm = getModel(cursor[-1]);
+    for (Tree c <- cursor) {
+        if (tm.definitions[c.src]?) {
+            return {tm.definitions[c.src]};
+        } else {
+            str cursorName = "<c>";
+            pcfg = r.getConfig().pcfg;
+            set[Define] defs = {};
+            for (referToDef(use(modId, _, _, _, {moduleId(), *_}), importPath()) <- tm.referPaths
+               , <true, f> := lookupModule(modId, pcfg)) {
+                Tree fTree = getTree(f);
+                for (/Tree t := fTree) {
+                    if (just(<idRole, cursorName>) := analyzeDef(t)) {
+                        tm = getModel(fTree);
+                        defs += {d | Define d:<_, cursorName, _, idRole, _, _> <- tm.defines};
+                    }
+                }
             }
-            return tmCache.val;
+            if (defs != {}) return defs;
         }
+    }
 
-        visit (t) {
-            case (Import) `import <ModuleId id>`: {
-                if ("<id>" == cursorName) {
-                    uses += id.src;
-                }
-            }
-            case (DeclInStruct) `<Type ty>`: {
-                if ("<ty>" == cursorName) {
-                    uses += ty.src;
-                }
-            }
-            case s:(TopLevelDecl) `struct <Id id> { <DeclInStruct* _> }`: {
-                if ("<id>" == cursorName
-                 && tm := getLocalTModel()
-                 && Define d:<_, _, _, structId(), _, _> := tm.definitions[s.src]) {
-                    defs += d;
-                }
-            }
-            case m:(Program) `module <ModuleId id> <Import* _> <TopLevelDecl* _>`: {
-                if ("<id>" == cursorName
-                 && tm := getLocalTModel()
-                 && Define d:<_, _, _, moduleId(), _, _> := tm.definitions[m.src]) {
-                    defs += d;
-                }
+    fail;
+}
+
+tuple[set[loc], set[loc]] findOccurrenceFiles(set[Define] defs, list[Tree] cursor, Tree(loc) getTree, Renamer r) {
+    set[loc] defFiles = {};
+    set[loc] useFiles = {};
+
+    for (Define _:<_, name, _, idRole, _, _> <- defs) {
+        for (loc f <- projectFiles(r.getConfig().pcfg)) {
+            for (/Tree t := getTree(f)) {
+                if (just(<idRole, name>) := analyzeDef(t)) defFiles += f;
+                if (just(<idRole, name>) := analyzeUse(t)) useFiles += f;
             }
         }
     }
-    return <defs, uses>;
+
+    return <defFiles, useFiles>;
+}
+
+void renameUses(set[Define] defs, str newName, TModel tm, Renamer r) {
+    // Somehow, tm.useDef is empty, so we need to use tm.uses
+    rel[loc, loc] defUse = {<d, u> | <Define _:<_, id, orgId, idRole, d, _>, use(id, orgId, u, _, _)> <- defs * toSet(tm.uses)};
+
+    for (loc u <- defUse[defs.defined]) {
+        r.textEdit(replace(u, newName));
+    }
 }
 
 bool tryParse(type[&T <: Tree] tp, str s) {
@@ -123,27 +138,5 @@ bool tryParse(type[&T <: Tree] tp, str s) {
         return true;
     } catch ParseError(_): {
         return false;
-    }
-}
-
-bool isValidName(moduleId(), str name) = tryParse(#ModuleId, name);
-bool isValidName(structId(), str name) = tryParse(#Id, name);
-
-bool skipCandidate(set[Define] defs, Tree modTree, Renamer _) {
-    // Only if the name of the definition appears in the module, consider it a rename candidate
-    set[str] names = {d.id | d <- defs};
-    return !(any(/Id t := modTree, "<t>" in names)
-          || any(/ModuleId t := modTree, "<t>" in names));
-}
-
-void renameDef(Define def, str newName, TModel tm, Renamer r) {
-    if (def in tm.defines) {
-        r.textEdit(replace(def.defined, newName));
-    }
-}
-
-void renameUses(set[Define] _, str newName, set[loc] useCandidates, TModel _, Renamer r) {
-    for (loc u <- useCandidates) {
-        r.textEdit(replace(u, newName));
     }
 }

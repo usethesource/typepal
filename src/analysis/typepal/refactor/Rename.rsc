@@ -24,7 +24,6 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 }
-@bootstrapParser
 module analysis::typepal::refactor::Rename
 
 import analysis::typepal::refactor::TextEdits;
@@ -40,9 +39,8 @@ import Map;
 import Message;
 import Node;
 import ParseTree;
+import Relation;
 import Set;
-
-import util::Reflective;
 
 alias RenameResult = tuple[list[DocumentEdit], set[Message]];
 
@@ -63,10 +61,6 @@ data RenameConfig
     = rconfig(
         Tree(loc) parseLoc
       , TModel(Tree) tmodelForTree
-      , tuple[set[Define] defs, set[loc] uses](list[Tree] cursor, Tree(loc) getTree, TModel(Tree) getTModel, Renamer r) findCandidates
-      , void(Define def, str newName, TModel tm, Renamer r) renameDef
-      , void(set[Define] defs, str newName, set[loc] candidates, TModel tm, Renamer r) renameUses
-      , bool(set[Define] defs, Tree t, Renamer r) skipCandidate = bool(_, _, _) { return false; }
     );
 
 RenameResult rename(
@@ -89,6 +83,9 @@ RenameResult rename(
 
         return config.parseLoc(l);
     }
+
+    // Make sure user uses cached functions
+    cachedConfig = config[parseLoc = parseLocCached][tmodelForTree = getTModelCached];
 
     // Messages
     set[FailMessage] messages = {};
@@ -159,7 +156,7 @@ RenameResult rename(
         registerMessage
       , registerDocumentEdit
       , registerTextEdit
-      , RenameConfig() { return config; }
+      , RenameConfig() { return cachedConfig; }
       , void(str s, value at) { registerMessage(info(at, s)); }
       , void(str s, value at) { registerMessage(warning(at, s)); }
       , void(str s, value at) { registerMessage(error(at, s)); }
@@ -167,35 +164,50 @@ RenameResult rename(
 
     if (debug) println("Renaming <cursor[0].src> to \'<newName>\'");
 
-    if (debug) println("+ Finding rename candidates for cursor at <cursor[0].src>");
-    <defs, uses> = config.findCandidates(cursor, parseLocCached, getTModelCached, r);
+    if (debug) println("+ Finding definitions for cursor at <cursor[0].src>");
+    defs = getCursorDefinitions(cursor, parseLocCached, getTModelCached, r);
+
     if (defs == {}) r.error("No definitions found", cursor[0].src);
     if (errorReported()) return <docEdits, getMessages()>;
 
-    set[loc] candidates = {l.top | l <- uses} + {d.defined.top | d <- defs};
-    for (loc f <- candidates) {
-        if (debug) println("  - Processing candidate <f>");
-        set[loc] fileUses = {u | u <- uses, u.top == f};
+    if (debug) println("+ Finding occurrences of cursor");
+    <maybeDefFiles, maybeUseFiles> = findOccurrenceFiles(defs, cursor, parseLocCached, r);
 
-        if (debug) println("    + Retrieving parse tree");
-        Tree t = parseLocCached(f);
-        if (config.skipCandidate(defs, t, r)) {
-            if (debug) println("    + Skipping");
-            continue;
+    if (maybeDefFiles != {}) {
+        if (debug) println("+ Finding additional definitions");
+        set[Define] additionalDefs = {};
+        for (loc f <- maybeDefFiles) {
+            if (debug) println("  - ... in <f>");
+            tr = parseLocCached(f);
+            tm = getTModelCached(tr);
+            additionalDefs += findAdditionalDefinitions(defs, tr, tm);
         }
+        defs += additionalDefs;
+    }
 
-        if (debug) println("    + Retrieving TModel");
-        TModel tm = getTModelCached(t);
-        if (debug) println("    + Renaming each definition");
-        for (Define d <- defs) {
-            if (debug) println("      - Renaming <d.idRole> \'<d.id>\' @ <d.defined>");
-            config.renameDef(d, newName, tm, r);
+    defFiles = {d.defined.top | d <- defs};
+
+    if (debug) println("+ Renaming definitions across <size(defFiles)> files");
+    for (loc f <- defFiles) {
+        fileDefs = {d | d <- defs, d.defined.top == f};
+        if (debug) println("  - ... <size(fileDefs)> in <f>");
+
+        tr = parseLocCached(f);
+        tm = getTModelCached(tr);
+
+        for (d <- defs, d.defined.top == f) {
+            renameDefinition(d, newName, tm, r);
         }
-        if (fileUses != {}) {
-        if (debug) println("      - Renaming uses @ <fileUses>");
-            config.renameUses(defs, newName, fileUses, tm, r);
-        }
-        if (debug) println("  - Done!");
+    }
+
+    if (debug) println("+ Renaming uses across <size(maybeUseFiles)> files");
+    for (loc f <- maybeUseFiles) {
+        if (debug) println("  - ... in <f>");
+
+        tr = parseLocCached(f);
+        tm = getTModelCached(tr);
+
+        renameUses(defs, newName, tm, r);
     }
 
     set[Message] convertedMessages = getMessages();
@@ -225,4 +237,46 @@ RenameResult rename(
     }
 
     return <docEdits, convertedMessages>;
+}
+
+default set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) _, TModel(Tree) getModel, Renamer r) {
+    loc cursorLoc = cursor[0].src;
+    TModel tm = getModel(cursor[-1]);
+    for (Tree c <- cursor) {
+        if (tm.definitions[c.src]?) {
+            return {tm.definitions[c.src]};
+        } else if (defs: {_, *_} := tm.useDef[c.src]) {
+            if (any(d <- defs, d.top != cursorLoc.top)) {
+                r.error("Rename not implemented for cross-file definitions. Please overload `getCursorDefinitions`.", cursorLoc);
+                return {};
+            }
+
+            return {tm.definitions[d] | d <- defs, tm.definitions[d]?};
+        }
+    }
+
+    r.error("Could not find definition to rename.", cursorLoc);
+    return {};
+}
+
+default tuple[set[loc] defFiles, set[loc] useFiles] findOccurrenceFiles(set[Define] cursorDefs, list[Tree] cursor, Tree(loc) _, Renamer r) {
+    loc f = cursor[0].src.top;
+    if (any(d <- cursorDefs, f != d.defined.top)) {
+        r.error("Rename not implemented for cross-file definitions. Please overload `findOccurrenceFiles`.", cursor[0].src);
+        return <{}, {}>;
+    }
+
+    return <{f}, {f}>;
+}
+
+default set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm) = {};
+
+default void renameDefinition(Define d, str newName, TModel tm, Renamer r) {
+    r.textEdit(replace(d.defined, newName));
+}
+
+default void renameUses(set[Define] defs, str newName, TModel tm, Renamer r) {
+    for (loc u <- invert(tm.useDef)[defs.defined]) {
+        r.textEdit(replace(u, newName));
+    }
 }

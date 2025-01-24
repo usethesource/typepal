@@ -47,18 +47,27 @@ tuple[list[DocumentEdit] edits, set[Message] msgs] basicRename(str newName = "fo
     return renamePico(cursor, newName);
 }
 
+void checkNoErrors(set[Message] msgs) {
+    if (m <- msgs, m is error) {
+        throw "Renaming threw errors:\n - <intercalate("\n - ", toList(msgs))>";
+    }
+}
+
 test bool doesNotCrash() {
-    <edits, _> = basicRename();
+    <edits, msgs> = basicRename();
+    checkNoErrors(msgs);
     return true;
 }
 
 test bool hasFiveChanges() {
-    <edits, _> = basicRename();
+    <edits, msgs> = basicRename();
+    checkNoErrors(msgs);
     return size(edits) == 1 && size(edits[0].edits) == 5;
 }
 
 test bool editsHaveLangthOfNameUnderCursor() {
-    <edits, _> = basicRename();
+    <edits, msgs> = basicRename();
+    checkNoErrors(msgs);
     for (changed(_, rs) <- edits, replace(loc l, _) <- rs) {
         if (size("output") != l.length) return false;
     }
