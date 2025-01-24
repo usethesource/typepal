@@ -61,13 +61,19 @@ data RenameConfig
     = rconfig(
         Tree(loc) parseLoc
       , TModel(Tree) tmodelForTree
+      , bool debug = true
     );
 
 RenameResult rename(
         list[Tree] cursor
       , str newName
-      , RenameConfig config
-      , bool debug = true) {
+      , RenameConfig config) {
+
+    void printDebug(str s) {
+        if (config.debug) {
+            println(s);
+        }
+    }
 
     // Tree & TModel caching
 
@@ -162,22 +168,22 @@ RenameResult rename(
       , void(str s, value at) { registerMessage(error(at, s)); }
     );
 
-    if (debug) println("Renaming <cursor[0].src> to \'<newName>\'");
+    printDebug("Renaming <cursor[0].src> to \'<newName>\'");
 
-    if (debug) println("+ Finding definitions for cursor at <cursor[0].src>");
+    printDebug("+ Finding definitions for cursor at <cursor[0].src>");
     defs = getCursorDefinitions(cursor, parseLocCached, getTModelCached, r);
 
     if (defs == {}) r.error("No definitions found", cursor[0].src);
     if (errorReported()) return <docEdits, getMessages()>;
 
-    if (debug) println("+ Finding occurrences of cursor");
+    printDebug("+ Finding occurrences of cursor");
     <maybeDefFiles, maybeUseFiles> = findOccurrenceFiles(defs, cursor, parseLocCached, r);
 
     if (maybeDefFiles != {}) {
-        if (debug) println("+ Finding additional definitions");
+        printDebug("+ Finding additional definitions");
         set[Define] additionalDefs = {};
         for (loc f <- maybeDefFiles) {
-            if (debug) println("  - ... in <f>");
+            printDebug("  - ... in <f>");
             tr = parseLocCached(f);
             tm = getTModelCached(tr);
             additionalDefs += findAdditionalDefinitions(defs, tr, tm);
@@ -187,10 +193,10 @@ RenameResult rename(
 
     defFiles = {d.defined.top | d <- defs};
 
-    if (debug) println("+ Renaming definitions across <size(defFiles)> files");
+    printDebug("+ Renaming definitions across <size(defFiles)> files");
     for (loc f <- defFiles) {
         fileDefs = {d | d <- defs, d.defined.top == f};
-        if (debug) println("  - ... <size(fileDefs)> in <f>");
+        printDebug("  - ... <size(fileDefs)> in <f>");
 
         tr = parseLocCached(f);
         tm = getTModelCached(tr);
@@ -200,9 +206,9 @@ RenameResult rename(
         }
     }
 
-    if (debug) println("+ Renaming uses across <size(maybeUseFiles)> files");
+    printDebug("+ Renaming uses across <size(maybeUseFiles)> files");
     for (loc f <- maybeUseFiles) {
-        if (debug) println("  - ... in <f>");
+        printDebug("  - ... in <f>");
 
         tr = parseLocCached(f);
         tm = getTModelCached(tr);
@@ -212,8 +218,8 @@ RenameResult rename(
 
     set[Message] convertedMessages = getMessages();
 
-    if (debug) println("+ Done!");
-    if (debug) {
+    printDebug("+ Done!");
+    if (config.debug) {
         println("\n\n=================\nRename statistics\n=================\n");
         int nDocs = size({f | de <- docEdits, f := (de has file ? de.file : de.from)});
         int nEdits = (0 | it + ((changed(_, tes) := e) ? size(tes) : 1) | e <- docEdits);
