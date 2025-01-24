@@ -52,9 +52,9 @@ data Renamer
       , RenameConfig() getConfig
 
       // Helpers
-      , void(str, loc) warning
-      , void(str, loc) info
-      , void(str, loc) error
+      , void(value, str) warning
+      , void(value, str) info
+      , void(value, str) error
     );
 
 data RenameConfig
@@ -163,9 +163,9 @@ RenameResult rename(
       , registerDocumentEdit
       , registerTextEdit
       , RenameConfig() { return cachedConfig; }
-      , void(str s, value at) { registerMessage(info(at, s)); }
-      , void(str s, value at) { registerMessage(warning(at, s)); }
-      , void(str s, value at) { registerMessage(error(at, s)); }
+      , void(value at, str s) { registerMessage(info(at, s)); }
+      , void(value at, str s) { registerMessage(warning(at, s)); }
+      , void(value at, str s) { registerMessage(error(at, s)); }
     );
 
     printDebug("Renaming <cursor[0].src> to \'<newName>\'");
@@ -173,7 +173,7 @@ RenameResult rename(
     printDebug("+ Finding definitions for cursor at <cursor[0].src>");
     defs = getCursorDefinitions(cursor, parseLocCached, getTModelCached, r);
 
-    if (defs == {}) r.error("No definitions found", cursor[0].src);
+    if (defs == {}) r.error(cursor[0].src, "No definitions found");
     if (errorReported()) return <docEdits, getMessages()>;
 
     printDebug("+ Finding occurrences of cursor");
@@ -253,7 +253,7 @@ default set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) _, TModel(
             return {tm.definitions[c.src]};
         } else if (defs: {_, *_} := tm.useDef[c.src]) {
             if (any(d <- defs, d.top != cursorLoc.top)) {
-                r.error("Rename not implemented for cross-file definitions. Please overload `getCursorDefinitions`.", cursorLoc);
+                r.error(cursorLoc, "Rename not implemented for cross-file definitions. Please overload `getCursorDefinitions`.");
                 return {};
             }
 
@@ -261,14 +261,14 @@ default set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) _, TModel(
         }
     }
 
-    r.error("Could not find definition to rename.", cursorLoc);
+    r.error(cursorLoc, "Could not find definition to rename.");
     return {};
 }
 
 default tuple[set[loc] defFiles, set[loc] useFiles] findOccurrenceFiles(set[Define] cursorDefs, list[Tree] cursor, Tree(loc) _, Renamer r) {
     loc f = cursor[0].src.top;
     if (any(d <- cursorDefs, f != d.defined.top)) {
-        r.error("Rename not implemented for cross-file definitions. Please overload `findOccurrenceFiles`.", cursor[0].src);
+        r.error(cursor[0].src, "Rename not implemented for cross-file definitions. Please overload `findOccurrenceFiles`.");
         return <{}, {}>;
     }
 
