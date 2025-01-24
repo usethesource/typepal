@@ -147,11 +147,11 @@ RenameResult rename(
         checkEdit(e);
 
         loc f = e.range.top;
-        if ([*pre, changed(f, prev)] := docEdits) {
+        if ([*pre, c:changed(f, _)] := docEdits) {
             // If possible, merge with latest document edit
             // TODO Just assign to docEdits[-1], once this issue has been solved:
             // https://github.com/usethesource/rascal/issues/2123
-            docEdits = [*pre, changed(f, prev + e)];
+            docEdits = [*pre, c[edits = c.edits + e]];
         } else {
             // Else, create new document edit
             docEdits += changed(f, [e]);
