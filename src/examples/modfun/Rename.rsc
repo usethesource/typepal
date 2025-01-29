@@ -95,7 +95,8 @@ set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) getTree, TModel(Tr
         }
     }
 
-    fail;
+    r.error(cursor[0].src, "Could not find definition to rename.");
+    return {};
 }
 
 tuple[set[loc], set[loc]] findOccurrenceFiles(set[Define] defs, list[Tree] cursor, Tree(loc) getTree, Renamer r) {
