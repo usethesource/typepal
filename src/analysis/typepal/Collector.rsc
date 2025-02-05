@@ -266,7 +266,7 @@ TModel convertTModel2LogicalLocs(TModel tm, map[str,TModel] tmodels){
                     mnames += mname;
                 }
             }
-            tm.messages += error("Please recheck modules <intercalateAnd(toList(mnames))>; their mapping from physical to logical locations is outdated", where);
+            tm.messages += [error("Please recheck modules <intercalateAnd(toList(mnames))>; their mapping from physical to logical locations is outdated", where)];
             return tm;
         }
         logical2physical = tm.logical2physical;
