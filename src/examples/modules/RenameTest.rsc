@@ -27,50 +27,64 @@ POSSIBILITY OF SUCH DAMAGE.
 module examples::modules::RenameTest
 
 import examples::modules::Rename;
+import examples::modules::Syntax;
+
 import analysis::typepal::refactor::TextEdits;
 
 import util::LanguageServer; // computeFocusList
 
 import IO;
 import List;
+import ParseTree;
 import Set;
 import String;
 import util::FileSystem;
 
-tuple[list[DocumentEdit] edits, map[str, ChangeAnnotation] annos, set[Message] msgs] basicRename(str modName, int line, int col, str newName = "foo") {
-    prog = parseLoc(|lib://typepal/src/examples/modules/<modName>.modules|);
+tuple[list[DocumentEdit] edits, set[Message] msgs] basicRename(str modName, int line, int col, str newName = "foo") {
+    prog = parse(#start[Program], |lib://typepal/src/examples/modules/<modName>.modules|);
     cursor = computeFocusList(prog, line, col);
-    println("Cursor: <"<cursor[0]>"> at <cursor[0].src>");
-    return renameModules(<cursor, newName, {|lib://typepal/src/examples/modules|}>);
+    return renameModules(cursor, newName);
+}
+
+void checkNoErrors(set[Message] msgs) {
+    if (m <- msgs, m is error) {
+        throw "Renaming threw errors:\n - <intercalate("\n - ", toList(msgs))>";
+    }
 }
 
 test bool localStructName() {
-    <edits, _, _> = basicRename("C", 6, 9);
+    <edits, msgs> = basicRename("C", 6, 9);
+
+    checkNoErrors(msgs);
     return size(edits) == 1
         && size(edits[0].edits) == 1;
 }
 
 test bool importedStructName() {
-    <edits, _, _> = basicRename("B", 3, 9);
+    <edits, msgs> = basicRename("C", 8, 1);
+
+    checkNoErrors(msgs);
     return size(edits) == 2
         && size(edits[0].edits) == 1
         && size(edits[1].edits) == 1;
 }
 
 test bool moduleName() {
-    <edits, _, _> = basicRename("A", 1, 9);
+    <edits, msgs> = basicRename("A", 1, 8);
+
+    checkNoErrors(msgs);
     return size(edits) == 2
         && size(edits[0].edits) == 1
         && size(edits[1].edits) == 1;
 }
 
 // test bool hasFiveChanges() {
-//     <edits, _, _> = basicRename();
+//     <edits, _> = basicRename();
 //     return size(edits) == 1 && size(edits[0].edits) == 5;
 // }
 
 // test bool editsHaveLangthOfNameUnderCursor() {
-//     <edits, _, _> = basicRename();
+//     <edits, _> = basicRename();
 //     for (changed(_, rs) <- edits, replace(loc l, _) <- rs) {
 //         if (size("output") != l.length) return false;
 //     }

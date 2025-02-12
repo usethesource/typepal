@@ -24,20 +24,14 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 }
-@bootstrapParser
 module analysis::typepal::refactor::TextEdits
 
 extend analysis::diff::edits::TextEdits;
 
 import util::Maybe;
 
-alias ChangeAnnotationId = str;
-
 data ChangeAnnotation
     = changeAnnotation(str label, str description, bool needsConfirmation)
     ;
 
 data TextEdit(Maybe[ChangeAnnotation] annotation = nothing());
-
-alias ChangeAnnotationRegister =
-    ChangeAnnotationId(str label, str description, bool needsConfirmation);

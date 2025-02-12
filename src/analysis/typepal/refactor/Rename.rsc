@@ -24,205 +24,265 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 }
-@bootstrapParser
 module analysis::typepal::refactor::Rename
 
 import analysis::typepal::refactor::TextEdits;
 
-import Message;
-import util::Reflective;
+import analysis::typepal::FailMessage;
+import analysis::typepal::Messenger;
+import analysis::typepal::TModel;
+
 
 import IO;
 import List;
+import Map;
+import Message;
 import Node;
+import ParseTree;
+import Relation;
+import Set;
 
-data TModel;
-data Tree;
+alias RenameResult = tuple[list[DocumentEdit], set[Message]];
 
-data RenameState;
+data Renamer
+    = renamer(
+        void(FailMessage) msg
+      , void(DocumentEdit) documentEdit
+      , void(TextEdit) textEdit
+      , RenameConfig() getConfig
 
-alias RenameResult = tuple[list[DocumentEdit], map[str, ChangeAnnotation], set[Message]];
-
-data RenameSolver(
-        RenameResult() run = RenameResult() { throw "Not implemented"; }
-      , void(loc l, void(RenameState, Tree, RenameSolver) doWork, RenameState state) collectParseTree = void(loc _, void(RenameState, Tree, RenameSolver) _, RenameState _) { throw "Not implemented!"; }
-      , void(loc l, void(RenameState, TModel, RenameSolver) doWork, RenameState state) collectTModel = void(loc _, void(RenameState, TModel, RenameSolver) _, RenameState _) { throw "Not implemented!"; }
-      , void(Message) msg = void(Message _) { throw "Not implemented"; }
-      , void(DocumentEdit) documentEdit = void(DocumentEdit _) { throw "Not implemented"; }
-      , void(TextEdit) textEdit = void(TextEdit _) { throw "Not implemented"; }
-      , void(str, ChangeAnnotation) annotation = void(str _, ChangeAnnotation _) { throw "Not implemented"; }
-      , value(str) readStore = value(str _) { throw "Not implemented"; }
-      , void(str, value) writeStore = void(str _, value _) { throw "Not implemented"; }
-) = rsolver();
+      // Helpers
+      , void(value, str) warning
+      , void(value, str) info
+      , void(value, str) error
+    );
 
 data RenameConfig
     = rconfig(
         Tree(loc) parseLoc
-      , TModel(loc) tmodelForLoc
-      , bool reportCollectCycles = false
+      , TModel(Tree) tmodelForTree
       , bool debug = true
     );
 
-alias TreeTask = tuple[loc file, void(RenameState, Tree, RenameSolver) work, RenameState state];
-alias ModelTask = tuple[loc file, void(RenameState, TModel, RenameSolver) work, RenameState state];
+RenameResult rename(
+        list[Tree] cursor
+      , str newName
+      , RenameConfig config) {
 
-str describeState(RenameState s) = "<getName(s)>#<arity(s)>";
-
-@example{
-    Consumer implements something like:
-    ```
-    alias RenameRequest = tuple[list[Tree] cursorFocus, str newName];
-
-    public tuple[list[DocumentEdit], map[str, ChangeAnnotation], set[Message] msgs] rename(RenameRequest request) {
-        RenameConfig config = rconfig(parseFunc, typeCheckFunc);
-        RenameSolver solver = newSolverForConfig(config);
-        initSolver(solver, config, request);
-        return solver.run();
-    }
-    ```
-}
-RenameSolver newSolverForConfig(RenameConfig config) {
-    RenameSolver solver = rsolver();
-    // COLLECT
-    list[TreeTask] treeTaskQueue = [];
-    list[tuple[loc, RenameState]] treeTasksDone = [];
-    solver.collectParseTree = void(loc l, void(RenameState, Tree, RenameSolver) doWork, RenameState state) {
-        if (<l, state> notin treeTasksDone) {
-            treeTaskQueue += <l, doWork, state>;
-            treeTasksDone += <l, state>;
-        } else if (config.reportCollectCycles) {
-            println("-- Cycle detected: skipping parse tree collection for <describeState(state)> (<l>)");
+    void printDebug(str s) {
+        if (config.debug) {
+            println(s);
         }
-    };
-
-    list[ModelTask] modelTaskQueue = [];
-    list[tuple[loc, RenameState]] modelTasksDone = [];
-    solver.collectTModel = void(loc l, void(RenameState, TModel, RenameSolver) doWork, RenameState state) {
-        if (<l, state> notin modelTasksDone) {
-            modelTaskQueue += <l, doWork, state>;
-            modelTasksDone += <l, state>;
-        } else if (config.reportCollectCycles) {
-            println("-- Cycle detected: skipping TModel collection for <describeState(state)> (<l>)");
-        }
-    };
-
-    // REGISTER
-    set[Message] messages = {};
-    solver.msg = void(Message msg) {
-        messages += msg;
-    };
-
-    lrel[loc file, DocumentEdit edit] docEdits = [];
-    solver.documentEdit = void(DocumentEdit edit) {
-        loc f = edit has file ? edit.file : edit.from;
-        docEdits += <f, edit>;
-    };
-
-    solver.textEdit = void(TextEdit edit) {
-        loc f = edit.range.top;
-        docEdits += <f, changed(f, [edit])>;
-    };
-
-    map[str id, ChangeAnnotation annotation] annotations = ();
-    solver.annotation = void(str annotationId, ChangeAnnotation annotation) {
-        if (annotationId in annotations) throw "An annotation with id \'<annotationId>\' already exists!";
-        annotations[annotationId] = annotation;
-    };
-
-    // STORE
-    map[str, value] store = ();
-    solver.readStore = value(str key) { return store[key]; };
-    solver.writeStore = void(str key, value val) {
-        store[key] = val;
-    };
-
-    // RUN
-    map[loc, Tree] treeCache = ();
-    map[loc, TModel] modelCache = ();
-
-    Tree getTree(loc l) {
-        if (l notin treeCache) {
-            treeCache[l] = config.parseLoc(l);
-        } else if (config.debug) {
-            println("-- Using cached tree for <l>");
-        }
-        return treeCache[l];
     }
 
-    TModel getTModel(loc l) {
-        if (l notin modelCache) {
-            modelCache[l] = config.tmodelForLoc(l);
-        } else if (config.debug) {
-            println("-- Using cached TModel for <l>");
+    // Tree & TModel caching
+
+    @memo{maximumSize(50)}
+    TModel getTModelCached(Tree t) = config.tmodelForTree(t);
+
+    @memo{maximumSize(50)}
+    Tree parseLocCached(loc l) {
+        // We already have the parse tree of the module under cursor
+        if (l == cursor[-1].src.top) {
+            return cursor[-1];
         }
-        return modelCache[l];
+
+        return config.parseLoc(l);
     }
 
-    solver.run = RenameResult() {
-        while (treeTaskQueue != [] || modelTaskQueue != []) {
-            treeTaskQueueCopy = treeTaskQueue;
-            modelTaskQueueCopy = modelTaskQueue;
+    // Make sure user uses cached functions
+    cachedConfig = config[parseLoc = parseLocCached][tmodelForTree = getTModelCached];
 
-            // We will do all tasks in the queue
-            treeTaskQueue = [];
-            modelTaskQueue = [];
+    // Messages
+    set[FailMessage] messages = {};
+    bool errorReported() = messages != {} && any(m <- messages, m is error);
+    void registerMessage(FailMessage msg) { messages += msg; };
+    AType getType(Tree t) {
+        TModel tm = getTModelCached(parseLocCached(t.src.top));
+        if (tm.facts[t.src]?) {
+            return tm.facts[t.src];
+        }
 
-            for (loc f <- treeTaskQueueCopy.file + modelTaskQueueCopy.file) {
-                fileTreeTasks = treeTaskQueueCopy[f];
-                if (config.debug) println("<size(fileTreeTasks)> tasks for tree of <f>");
+        return tvar(|unknown:///|);
+    }
+    set[Message] getMessages() = {toMessage(m, getType) | m <- messages};
 
-                Tree tree = getTree(f);
-                for (<treeWork, state> <- treeTaskQueueCopy[f]) {
-                    treeWork(state, tree, solver);
+    // Edits
+    set[loc] editsSeen = {};
+    list[DocumentEdit] docEdits = [];
+
+    void checkEdit(replace(loc range, _)) {
+        if (range in editsSeen) {
+            registerMessage(error(range, "Multiple replace edits for this location."));
+        }
+        editsSeen += range;
+    }
+
+    void checkEdit(DocumentEdit e) {
+        loc file = e has file ? e.file : e.from;
+        if (changed(f, tes) := e) {
+            // Check contents of DocumentEdit
+            for (te:replace(range, _) <- tes) {
+                // Check integrity
+                if (range.top != f) {
+                    registerMessage(error(range, "Invalid replace edit for this location. This location is not in <f>, for which it was registered."));
                 }
 
-                fileModelTasks = modelTaskQueueCopy[f];
-                if (config.debug) println("<size(fileModelTasks)> tasks for model of <f>");
-
-                TModel model = getTModel(f);
-                for (<modelWork, state> <- modelTaskQueueCopy[f]) {
-                    modelWork(state, model, solver);
-                }
+                // Check text edits
+                checkEdit(te);
             }
+        } else if (file in editsSeen) {
+            registerMessage(error(file, "Multiple <getName(e)> edits for this file."));
         }
 
-        // Merge document edits
-        return <mergeTextEdits(docEdits.edit), annotations, messages>;
+        editsSeen += file;
+    }
+
+    void registerDocumentEdit(DocumentEdit e) {
+        checkEdit(e);
+        docEdits += e;
     };
 
-    return solver;
+    void registerTextEdit(TextEdit e) {
+        checkEdit(e);
+
+        loc f = e.range.top;
+        if ([*pre, c:changed(f, _)] := docEdits) {
+            // If possible, merge with latest document edit
+            // TODO Just assign to docEdits[-1], once this issue has been solved:
+            // https://github.com/usethesource/rascal/issues/2123
+            docEdits = [*pre, c[edits = c.edits + e]];
+        } else {
+            // Else, create new document edit
+            docEdits += changed(f, [e]);
+        }
+    };
+
+    Renamer r = renamer(
+        registerMessage
+      , registerDocumentEdit
+      , registerTextEdit
+      , RenameConfig() { return cachedConfig; }
+      , void(value at, str s) { registerMessage(info(at, s)); }
+      , void(value at, str s) { registerMessage(warning(at, s)); }
+      , void(value at, str s) { registerMessage(error(at, s)); }
+    );
+
+    printDebug("Renaming <cursor[0].src> to \'<newName>\'");
+
+    printDebug("+ Finding definitions for cursor at <cursor[0].src>");
+    defs = getCursorDefinitions(cursor, parseLocCached, getTModelCached, r);
+
+    if (defs == {}) r.error(cursor[0].src, "No definitions found");
+    if (errorReported()) return <docEdits, getMessages()>;
+
+    printDebug("+ Finding occurrences of cursor");
+    <maybeDefFiles, maybeUseFiles> = findOccurrenceFiles(defs, cursor, parseLocCached, r);
+
+    if (maybeDefFiles != {}) {
+        printDebug("+ Finding additional definitions");
+        set[Define] additionalDefs = {};
+        for (loc f <- maybeDefFiles) {
+            printDebug("  - ... in <f>");
+            tr = parseLocCached(f);
+            tm = getTModelCached(tr);
+            additionalDefs += findAdditionalDefinitions(defs, tr, tm);
+        }
+        defs += additionalDefs;
+    }
+
+    defFiles = {d.defined.top | d <- defs};
+
+    printDebug("+ Renaming definitions across <size(defFiles)> files");
+    for (loc f <- defFiles) {
+        fileDefs = {d | d <- defs, d.defined.top == f};
+        printDebug("  - ... <size(fileDefs)> in <f>");
+
+        tr = parseLocCached(f);
+        tm = getTModelCached(tr);
+
+        for (d <- defs, d.defined.top == f) {
+            renameDefinition(d, newName, tm, r);
+        }
+    }
+
+    printDebug("+ Renaming uses across <size(maybeUseFiles)> files");
+    for (loc f <- maybeUseFiles) {
+        printDebug("  - ... in <f>");
+
+        tr = parseLocCached(f);
+        tm = getTModelCached(tr);
+
+        renameUses(defs, newName, tm, r);
+    }
+
+    set[Message] convertedMessages = getMessages();
+
+    printDebug("+ Done!");
+    if (config.debug) {
+        println("\n\n=================\nRename statistics\n=================\n");
+        int nDocs = size({f | de <- docEdits, f := (de has file ? de.file : de.from)});
+        int nEdits = (0 | it + ((changed(_, tes) := e) ? size(tes) : 1) | e <- docEdits);
+
+        int nErrors = size({msg | msg <- convertedMessages, msg is error});
+        int nWarnings = size({msg | msg <- convertedMessages, msg is warning});
+        int nInfos = size({msg | msg <- convertedMessages, msg is info});
+
+        println(" # of documents affected: <nDocs>");
+        println(" # of text edits:         <nEdits>");
+        println(" # of messages:           <size(convertedMessages)>");
+        println("   (<nErrors> errors, <nWarnings> warnings and <nInfos> infos)");
+
+        if (size(convertedMessages) > 0) {
+            println("\n===============\nMessages\n===============");
+            for (msg <- convertedMessages) {
+                println(" ** <msg>");
+            }
+            println();
+        }
+    }
+
+    return <docEdits, convertedMessages>;
 }
 
-list[DocumentEdit] mergeTextEdits(list[DocumentEdit] edits) {
-    // Only merge subqequent text edits to the same file.
-    // Leave all other edits in the order in which they were registered
-    list[DocumentEdit] mergedEdits = [];
-    loc runningFile = |unknown:///|;
-    list[TextEdit] runningEdits = [];
+default set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) _, TModel(Tree) getModel, Renamer r) {
+    loc cursorLoc = cursor[0].src;
+    TModel tm = getModel(cursor[-1]);
+    for (Tree c <- cursor) {
+        if (tm.definitions[c.src]?) {
+            return {tm.definitions[c.src]};
+        } else if (defs: {_, *_} := tm.useDef[c.src]) {
+            if (any(d <- defs, d.top != cursorLoc.top)) {
+                r.error(cursorLoc, "Rename not implemented for cross-file definitions. Please overload `getCursorDefinitions`.");
+                return {};
+            }
 
-    void batchRunningEdits(loc thisFile) {
-        if (runningEdits != []) {
-            mergedEdits += changed(runningFile, runningEdits);
-        }
-        runningFile = thisFile;
-        runningEdits = [];
-    }
-
-    for (DocumentEdit e <- edits) {
-        loc thisFile = e has file ? e.file : e.from;
-        if (thisFile != runningFile) {
-            batchRunningEdits(thisFile);
-        }
-
-        if (e is changed) {
-            runningEdits += e.edits;
-        } else {
-            batchRunningEdits(thisFile);
-            mergedEdits += e;
+            return {tm.definitions[d] | d <- defs, tm.definitions[d]?};
         }
     }
 
-    batchRunningEdits(|unknown:///|);
+    r.error(cursorLoc, "Could not find definition to rename.");
+    return {};
+}
 
-    return mergedEdits;
+default tuple[set[loc] defFiles, set[loc] useFiles] findOccurrenceFiles(set[Define] cursorDefs, list[Tree] cursor, Tree(loc) _, Renamer r) {
+    loc f = cursor[0].src.top;
+    if (any(d <- cursorDefs, f != d.defined.top)) {
+        r.error(cursor[0].src, "Rename not implemented for cross-file definitions. Please overload `findOccurrenceFiles`.");
+        return <{}, {}>;
+    }
+
+    return <{f}, {f}>;
+}
+
+default set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm) = {};
+
+default void renameDefinition(Define d, str newName, TModel tm, Renamer r) {
+    r.textEdit(replace(d.defined, newName));
+}
+
+default void renameUses(set[Define] defs, str newName, TModel tm, Renamer r) {
+    for (loc u <- invert(tm.useDef)[defs.defined]) {
+        r.textEdit(replace(u, newName));
+    }
 }

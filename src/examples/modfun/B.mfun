@@ -1,0 +1,4 @@
+module B {
+    import A;
+    def i : int = x(1);
+}
