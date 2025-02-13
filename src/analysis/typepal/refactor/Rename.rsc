@@ -42,8 +42,6 @@ import ParseTree;
 import Relation;
 import Set;
 
-import util::Maybe;
-
 alias RenameResult = tuple[list[DocumentEdit], set[Message]];
 
 data Renamer

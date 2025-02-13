@@ -38,7 +38,6 @@ import Exception;
 import IO;
 import Relation;
 import util::FileSystem;
-import util::Maybe;
 
 public tuple[list[DocumentEdit] edits, set[Message] msgs] renamePico(list[Tree] cursor, str newName) {
     if (!isValidName(newName)) {
