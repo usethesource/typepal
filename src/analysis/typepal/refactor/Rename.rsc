@@ -257,14 +257,8 @@ private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer r) 
     map[Define, loc] defNames = ();
     for (/Tree t := tr, t@\loc?, t@\loc in defsToDo) {
         d = definitions[t@\loc];
-        if (just(nl) := nameLocation(t, d)) {
-            defNames[d] = nl;
-            defsToDo -= t@\loc;
-        }
-    }
-
-    for (d <- defsToDo) {
-        r.error(d, "Cannot find the name of this declaration. Implement `nameLocation` for it.");
+        defNames[d] = nameLocation(t, d);
+        defsToDo -= t@\loc;
     }
 
     return defNames;
@@ -312,4 +306,10 @@ default void renameUses(set[Define] defs, str newName, Tree _, TModel tm, Rename
     }
 }
 
-default Maybe[loc] nameLocation(Tree t, Define _) = nothing();
+default loc nameLocation(Tree t, Define d) {
+    // Try to find the first sub-tree that matches the name of the definition
+    for (/Tree tr := t, tr@\loc?, "<tr>" == d.id) {
+        return tr@\loc;
+    }
+    return t@\loc;
+}

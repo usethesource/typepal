@@ -63,6 +63,3 @@ bool isValidName(str name) {
         return false;
     }
 }
-
-Maybe[loc] nameLocation(Id id, Define _) = just(id.src);
-Maybe[loc] nameLocation(Declaration d, Define _) = just(d.id.src);
