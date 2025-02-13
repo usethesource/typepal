@@ -183,10 +183,11 @@ RenameResult rename(
         printDebug("+ Finding additional definitions");
         set[Define] additionalDefs = {};
         for (loc f <- maybeDefFiles) {
-            printDebug("  - ... in <f>");
             tr = parseLocCached(f);
             tm = getTModelCached(tr);
-            additionalDefs += findAdditionalDefinitions(defs, tr, tm);
+            fileAdditionalDefs = findAdditionalDefinitions(defs, tr, tm);
+            printDebug("  - ... (<size(fileAdditionalDefs)>) in <f>");
+            additionalDefs += fileAdditionalDefs;
         }
         defs += additionalDefs;
     }
@@ -201,10 +202,12 @@ RenameResult rename(
         tr = parseLocCached(f);
         tm = getTModelCached(tr);
 
-        for (d <- defs, d.defined.top == f) {
-            renameDefinition(d, newName, tm, r);
+        map[Define, loc] defNames = defNameLocations(tr, fileDefs, r);
+        for (d <- fileDefs) {
+            renameDefinition(d, defNames[d] ? d.defined, newName, tr, tm, r);
         }
     }
+    if (errorReported()) return <docEdits, getMessages()>;
 
     printDebug("+ Renaming uses across <size(maybeUseFiles)> files");
     for (loc f <- maybeUseFiles) {
@@ -213,7 +216,7 @@ RenameResult rename(
         tr = parseLocCached(f);
         tm = getTModelCached(tr);
 
-        renameUses(defs, newName, tm, r);
+        renameUses(defs, newName, tr, tm, r);
     }
 
     set[Message] convertedMessages = getMessages();
@@ -243,6 +246,20 @@ RenameResult rename(
     }
 
     return <docEdits, convertedMessages>;
+}
+
+private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer r) {
+    map[loc, Define] definitions = (d.defined: d | d <- defs);
+    set[loc] defsToDo = defs.defined;
+
+    map[Define, loc] defNames = ();
+    for (/Tree t := tr, t@\loc?, t@\loc in defsToDo) {
+        d = definitions[t@\loc];
+        defNames[d] = nameLocation(t, d);
+        defsToDo -= t@\loc;
+    }
+
+    return defNames;
 }
 
 default set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) _, TModel(Tree) getModel, Renamer r) {
@@ -277,12 +294,20 @@ default tuple[set[loc] defFiles, set[loc] useFiles] findOccurrenceFiles(set[Defi
 
 default set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm) = {};
 
-default void renameDefinition(Define d, str newName, TModel tm, Renamer r) {
-    r.textEdit(replace(d.defined, newName));
+default void renameDefinition(Define d, loc nameLoc, str newName, Tree _, TModel tm, Renamer r) {
+    r.textEdit(replace(nameLoc, newName));
 }
 
-default void renameUses(set[Define] defs, str newName, TModel tm, Renamer r) {
-    for (loc u <- invert(tm.useDef)[defs.defined]) {
+default void renameUses(set[Define] defs, str newName, Tree _, TModel tm, Renamer r) {
+    for (loc u <- invert(tm.useDef)[defs.defined] - defs.defined) {
         r.textEdit(replace(u, newName));
     }
+}
+
+default loc nameLocation(Tree t, Define d) {
+    // Try to find the first sub-tree that matches the name of the definition
+    for (/Tree tr := t, tr@\loc?, "<tr>" == d.id) {
+        return tr@\loc;
+    }
+    return t@\loc;
 }

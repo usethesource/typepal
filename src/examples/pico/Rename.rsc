@@ -31,7 +31,7 @@ import examples::pico::Checker;
 
 import analysis::typepal::TModel;
 
-import analysis::typepal::refactor::Rename;
+extend analysis::typepal::refactor::Rename;
 import analysis::typepal::refactor::TextEdits;
 
 import Exception;
