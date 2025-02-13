@@ -282,7 +282,7 @@ default void renameDefinition(Define d, str newName, Tree _, TModel tm, Renamer 
 }
 
 default void renameUses(set[Define] defs, str newName, Tree _, TModel tm, Renamer r) {
-    for (loc u <- invert(tm.useDef)[defs.defined]) {
+    for (loc u <- invert(tm.useDef)[defs.defined] - defs.defined) {
         r.textEdit(replace(u, newName));
     }
 }
