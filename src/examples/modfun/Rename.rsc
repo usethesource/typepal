@@ -178,7 +178,7 @@ set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm
     return overloads;
 }
 
-void renameUses(set[Define] defs, str newName, TModel tm, Renamer r) {
+void renameUses(set[Define] defs, str newName, Tree _, TModel tm, Renamer r) {
     // Somehow, tm.useDef is empty, so we need to use tm.uses
     rel[loc, loc] defUse = {<d, u> | <Define _:<_, id, orgId, idRole, d, _>, use(id, orgId, u, _, _)> <- defs * toSet(tm.uses)};
 
