@@ -46,9 +46,6 @@ import util::Maybe;
 
 alias RenameResult = tuple[list[DocumentEdit], set[Message]];
 
-// Workaround to be able to pattern match on the emulated `src` field
-data Tree (loc src = |unknown:///|(0,0,<0,0>,<0,0>));
-
 data Renamer
     = renamer(
         void(FailMessage) msg
@@ -258,11 +255,11 @@ private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer r) 
     set[loc] defsToDo = defs.defined;
 
     map[Define, loc] defNames = ();
-    for (/Tree t := tr, t.src in defsToDo) {
-        d = definitions[t.src];
+    for (/Tree t := tr, t@\loc?, t@\loc in defsToDo) {
+        d = definitions[t@\loc];
         if (just(nl) := nameLocation(t, d)) {
             defNames[d] = nl;
-            defsToDo -= t.src;
+            defsToDo -= t@\loc;
         }
     }
 
