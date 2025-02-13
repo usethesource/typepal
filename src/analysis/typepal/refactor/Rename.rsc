@@ -42,7 +42,12 @@ import ParseTree;
 import Relation;
 import Set;
 
+import util::Maybe;
+
 alias RenameResult = tuple[list[DocumentEdit], set[Message]];
+
+// Workaround to be able to pattern match on the emulated `src` field
+data Tree (loc src = |unknown:///|(0,0,<0,0>,<0,0>));
 
 data Renamer
     = renamer(
@@ -183,10 +188,11 @@ RenameResult rename(
         printDebug("+ Finding additional definitions");
         set[Define] additionalDefs = {};
         for (loc f <- maybeDefFiles) {
-            printDebug("  - ... in <f>");
             tr = parseLocCached(f);
             tm = getTModelCached(tr);
-            additionalDefs += findAdditionalDefinitions(defs, tr, tm);
+            fileAdditionalDefs = findAdditionalDefinitions(defs, tr, tm);
+            printDebug("  - ... (<size(fileAdditionalDefs)>) in <f>");
+            additionalDefs += fileAdditionalDefs;
         }
         defs += additionalDefs;
     }
@@ -201,10 +207,12 @@ RenameResult rename(
         tr = parseLocCached(f);
         tm = getTModelCached(tr);
 
-        for (d <- defs, d.defined.top == f) {
-            renameDefinition(d, newName, tr, tm, r);
+        map[Define, loc] defNames = defNameLocations(tr, fileDefs, r);
+        for (d <- fileDefs) {
+            renameDefinition(d, defNames[d] ? d.defined, newName, tr, tm, r);
         }
     }
+    if (errorReported()) return <docEdits, getMessages()>;
 
     printDebug("+ Renaming uses across <size(maybeUseFiles)> files");
     for (loc f <- maybeUseFiles) {
@@ -245,6 +253,26 @@ RenameResult rename(
     return <docEdits, convertedMessages>;
 }
 
+private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer r) {
+    map[loc, Define] definitions = (d.defined: d | d <- defs);
+    set[loc] defsToDo = defs.defined;
+
+    map[Define, loc] defNames = ();
+    for (/Tree t := tr, t.src in defsToDo) {
+        d = definitions[t.src];
+        if (just(nl) := nameLocation(t, d)) {
+            defNames[d] = nl;
+            defsToDo -= t.src;
+        }
+    }
+
+    for (d <- defsToDo) {
+        r.error(d, "Cannot find the name of this declaration. Implement `nameLocation` for it.");
+    }
+
+    return defNames;
+}
+
 default set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) _, TModel(Tree) getModel, Renamer r) {
     loc cursorLoc = cursor[0].src;
     TModel tm = getModel(cursor[-1]);
@@ -277,8 +305,8 @@ default tuple[set[loc] defFiles, set[loc] useFiles] findOccurrenceFiles(set[Defi
 
 default set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm) = {};
 
-default void renameDefinition(Define d, str newName, Tree _, TModel tm, Renamer r) {
-    r.textEdit(replace(d.defined, newName));
+default void renameDefinition(Define d, loc nameLoc, str newName, Tree _, TModel tm, Renamer r) {
+    r.textEdit(replace(nameLoc, newName));
 }
 
 default void renameUses(set[Define] defs, str newName, Tree _, TModel tm, Renamer r) {
@@ -286,3 +314,5 @@ default void renameUses(set[Define] defs, str newName, Tree _, TModel tm, Rename
         r.textEdit(replace(u, newName));
     }
 }
+
+default Maybe[loc] nameLocation(Tree t, Define _) = nothing();

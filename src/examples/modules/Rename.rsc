@@ -141,3 +141,8 @@ bool tryParse(type[&T <: Tree] tp, str s) {
         return false;
     }
 }
+
+Maybe[loc] nameLocation(Id id, Define _) = just(id.src);
+Maybe[loc] nameLocation(ModuleId id, Define _) = just(id.src);
+Maybe[loc] nameLocation((TopLevelDecl) `struct <Id id> { <DeclInStruct* _> }`, Define _) = just(id.src);
+Maybe[loc] nameLocation((Program) `module <ModuleId id> <Import* _> <TopLevelDecl* _>`, Define _) = just(id.src);

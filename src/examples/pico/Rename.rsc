@@ -31,13 +31,14 @@ import examples::pico::Checker;
 
 import analysis::typepal::TModel;
 
-import analysis::typepal::refactor::Rename;
+extend analysis::typepal::refactor::Rename;
 import analysis::typepal::refactor::TextEdits;
 
 import Exception;
 import IO;
 import Relation;
 import util::FileSystem;
+import util::Maybe;
 
 public tuple[list[DocumentEdit] edits, set[Message] msgs] renamePico(list[Tree] cursor, str newName) {
     if (!isValidName(newName)) {
@@ -62,3 +63,6 @@ bool isValidName(str name) {
         return false;
     }
 }
+
+Maybe[loc] nameLocation(Id id, Define _) = just(id.src);
+Maybe[loc] nameLocation(Declaration d, Define _) = just(d.id.src);

@@ -186,3 +186,6 @@ void renameUses(set[Define] defs, str newName, Tree _, TModel tm, Renamer r) {
         r.textEdit(replace(u, newName));
     }
 }
+
+Maybe[loc] nameLocation(Id id, Define _) = just(id.src);
+Maybe[loc] nameLocation(ModId id, Define _) = just(id.src);
