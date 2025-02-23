@@ -370,7 +370,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                     [])[@\loc=defining[query="predefined=<id>"][fragment="<nPredefinedTree>"]];
     }
 
-    bool collector_isAlreadyDefined(str id,  Tree useOrDef){
+    bool collector_isAlreadyDefined(str id,  Tree useOrDef, set[IdRole] globalRoles){
 
         lubdefs = { def | def <- definesPerLubScope[currentLubScope], def.id == id } +
                   { def | def <- lubDefinesPerLubScope[currentLubScope], def.id == id };
@@ -380,7 +380,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             return true;
         }
 
-        for(def <- defines, def.id == id, isContainedIn(useOrDefLoc, def.scope)){
+        for(def <- defines, def.id == id, (isContainedIn(useOrDefLoc, def.scope) || def.idRole in globalRoles)){
             return true;
         }
         return false;

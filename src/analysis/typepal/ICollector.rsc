@@ -51,7 +51,7 @@ data Collector
                          void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope,
                          Tree (str id, IdRole idRole, value def, DefInfo info) predefine,
                          Tree (value scope, str id, IdRole idRole, DefInfo info) predefineInScope,
-                         bool (str id, Tree useOrDef) isAlreadyDefined,
+                         bool (str id, Tree useOrDef, set[IdRole] globalRoles) isAlreadyDefined,
 
      /* Use */           void (Tree occ, set[IdRole] idRoles) use,
                          void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) useQualified,
