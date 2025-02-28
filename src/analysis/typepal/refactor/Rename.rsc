@@ -199,10 +199,11 @@ RenameResult rename(
         printDebug("+ Finding additional definitions");
         set[Define] additionalDefs = {};
         for (loc f <- maybeDefFiles) {
+            printDebug("  - ... in <f>");
             tr = parseLocCached(f);
             tm = getTModelCached(tr);
-            fileAdditionalDefs = findAdditionalDefinitions(defs, tr, tm);
-            printDebug("  - ... (<size(fileAdditionalDefs)>) in <f>");
+            fileAdditionalDefs = findAdditionalDefinitions(defs, tr, tm, r);
+            printDebug("    (found <size(fileAdditionalDefs)>)");
             additionalDefs += fileAdditionalDefs;
         }
         defs += additionalDefs;
@@ -220,7 +221,7 @@ RenameResult rename(
 
         map[Define, loc] defNames = defNameLocations(tr, fileDefs, r);
         for (d <- fileDefs) {
-            renameDefinition(d, defNames[d] ? d.defined, newName, tr, tm, r);
+            renameDefinition(d, defNames[d] ? d.defined, newName, tm, r);
         }
     }
     if (errorReported()) return <sortDocEdits(docEdits), getMessages()>;
@@ -232,7 +233,7 @@ RenameResult rename(
         tr = parseLocCached(f);
         tm = getTModelCached(tr);
 
-        renameUses(defs, newName, tr, tm, r);
+        renameUses(defs, newName, tm, r);
     }
 
     set[Message] convertedMessages = getMessages();
@@ -321,13 +322,13 @@ default tuple[set[loc] defFiles, set[loc] useFiles] findOccurrenceFiles(set[Defi
     return <{f}, {f}>;
 }
 
-default set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm) = {};
+default set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm, Renamer r) = {};
 
-default void renameDefinition(Define d, loc nameLoc, str newName, Tree _, TModel tm, Renamer r) {
+default void renameDefinition(Define d, loc nameLoc, str newName, TModel tm, Renamer r) {
     r.textEdit(replace(nameLoc, newName));
 }
 
-default void renameUses(set[Define] defs, str newName, Tree _, TModel tm, Renamer r) {
+default void renameUses(set[Define] defs, str newName, TModel tm, Renamer r) {
     for (loc u <- invert(tm.useDef)[defs.defined] - defs.defined) {
         r.textEdit(replace(u, newName));
     }
