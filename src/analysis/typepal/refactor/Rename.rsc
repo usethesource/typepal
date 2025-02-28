@@ -198,6 +198,7 @@ RenameResult rename(
         tr = parseLocCached(f);
         validateNewNameOccurrences(defs, newName, tr, r);
     }
+    if (errorReported()) return <docEdits, getMessages()>;
 
     defFiles = {d.defined.top | d <- defs};
 
