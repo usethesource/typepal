@@ -67,6 +67,7 @@ data RenameConfig
         Tree(loc) parseLoc
       , TModel(Tree) tmodelForTree
       , bool debug = true
+      , str jobLabel = "Renaming"
     );
 
 @synopsis{
@@ -189,26 +190,25 @@ RenameResult rename(
       , void(value at, str s) { registerMessage(error(at, s)); }
     );
 
-    str jobLabel = "Renaming <cursor[0].src> to \'<newName>\'";
-    jobStart(jobLabel, totalWork = 2 * WORKSPACE_WORK);
+    jobStart(config.jobLabel, totalWork = 2 * WORKSPACE_WORK);
 
-    jobStep(jobLabel, "Finding definitions for cursor at <cursor[0].src>", work = WORKSPACE_WORK);
+    jobStep(config.jobLabel, "Resolving definitions of <cursor[0].src>", work = WORKSPACE_WORK);
     defs = getCursorDefinitions(cursor, parseLocCached, getTModelCached, r);
 
     if (defs == {}) r.error(cursor[0].src, "No definitions found");
     if (errorReported()) {
-        jobEnd(jobLabel, success=false);
+        jobEnd(config.jobLabel, success=false);
         return <sortDocEdits(docEdits), getMessages()>;
     }
 
-    jobStep(jobLabel, "Finding occurrences of cursor", work = WORKSPACE_WORK);
+    jobStep(config.jobLabel, "Looking for files with occurrences of name under cursor", work = WORKSPACE_WORK);
     <maybeDefFiles, maybeUseFiles> = findOccurrenceFiles(defs, cursor, parseLocCached, r);
 
-    jobTodo(jobLabel, work = (size(maybeDefFiles) + size(maybeUseFiles)) * FILE_WORK);
+    jobTodo(config.jobLabel, work = (size(maybeDefFiles) + size(maybeUseFiles)) * FILE_WORK);
 
     set[Define] additionalDefs = {};
     for (loc f <- maybeDefFiles) {
-        jobStep(jobLabel, "Finding additional definitions in <f>", work = FILE_WORK);
+        jobStep(config.jobLabel, "Looking for additional definitions in <f>", work = FILE_WORK);
         tr = parseLocCached(f);
         tm = getTModelCached(tr);
         fileAdditionalDefs = findAdditionalDefinitions(defs, tr, tm, r);
@@ -218,12 +218,12 @@ RenameResult rename(
     defs += additionalDefs;
 
     defFiles = {d.defined.top | d <- defs};
-    jobTodo(jobLabel, work = size(defFiles) * FILE_WORK);
+    jobTodo(config.jobLabel, work = size(defFiles) * FILE_WORK);
 
     for (loc f <- defFiles) {
         fileDefs = {d | d <- defs, d.defined.top == f};
-        jobStep(jobLabel, "Renaming <size(fileDefs)> definitions in <f>", work = FILE_WORK);
-        jobTodo(jobLabel, work = size(fileDefs));
+        jobStep(config.jobLabel, "Renaming <size(fileDefs)> definitions in <f>", work = FILE_WORK);
+        jobTodo(config.jobLabel, work = size(fileDefs));
         tr = parseLocCached(f);
         tm = getTModelCached(tr);
 
@@ -235,12 +235,12 @@ RenameResult rename(
     }
 
     if (errorReported()) {
-        jobEnd(jobLabel, success=false);
+        jobEnd(config.jobLabel, success=false);
         return <sortDocEdits(docEdits), getMessages()>;
     }
 
     for (loc f <- maybeUseFiles) {
-        jobStep(jobLabel, "Renaming uses in <f>", work = FILE_WORK);
+        jobStep(config.jobLabel, "Renaming uses in <f>", work = FILE_WORK);
         tr = parseLocCached(f);
         tm = getTModelCached(tr);
 
@@ -272,7 +272,7 @@ RenameResult rename(
         }
     }
 
-    jobEnd(jobLabel, success = !errorReported());
+    jobEnd(config.jobLabel, success = !errorReported());
     return <sortDocEdits(docEdits), convertedMessages>;
 }
 

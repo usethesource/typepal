@@ -50,6 +50,7 @@ public tuple[list[DocumentEdit] edits, set[Message] msgs] renamePico(list[Tree] 
       , rconfig(
           Tree(loc l) { return parse(#start[Program], l); }
         , collectAndSolve
+        , jobLabel = "Renaming \'<cursor[0]>\' to \'<newName>\' at <cursor[0].src>"
       )
     );
 }
