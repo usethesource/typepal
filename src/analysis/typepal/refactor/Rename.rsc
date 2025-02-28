@@ -193,7 +193,7 @@ RenameResult rename(
     if (errorReported()) return <sortDocEdits(docEdits), getMessages()>;
 
     printDebug("+ Finding occurrences of cursor");
-    <maybeDefFiles, maybeUseFiles> = findOccurrenceFiles(defs, cursor, parseLocCached, r);
+    <maybeDefFiles, maybeUseFiles, newNameFiles> = findOccurrenceFiles(defs, cursor, newName, parseLocCached, r);
 
     if (maybeDefFiles != {}) {
         printDebug("+ Finding additional definitions");
@@ -208,6 +208,14 @@ RenameResult rename(
         }
         defs += additionalDefs;
     }
+
+    printDebug("+ Validating occurrences of new name \'<newName>\'");
+    for (loc f <- newNameFiles) {
+        printDebug("  - ... in <f>");
+        tr = parseLocCached(f);
+        validateNewNameOccurrences(defs, newName, tr, r);
+    }
+    if (errorReported()) return <sortDocEdits(docEdits), getMessages()>;
 
     defFiles = {d.defined.top | d <- defs};
 
@@ -312,17 +320,23 @@ default set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) _, TModel(
     return {};
 }
 
-default tuple[set[loc] defFiles, set[loc] useFiles] findOccurrenceFiles(set[Define] cursorDefs, list[Tree] cursor, Tree(loc) _, Renamer r) {
+default tuple[set[loc] defFiles, set[loc] useFiles, set[loc] newNameFiles] findOccurrenceFiles(set[Define] cursorDefs, list[Tree] cursor, str newName, Tree(loc) _, Renamer r) {
     loc f = cursor[0].src.top;
     if (any(d <- cursorDefs, f != d.defined.top)) {
         r.error(cursor[0].src, "Rename not implemented for cross-file definitions. Please overload `findOccurrenceFiles`.");
-        return <{}, {}>;
+        return <{}, {}, {}>;
     }
 
-    return <{f}, {f}>;
+    return <{f}, {f}, any(/Tree t := f, "<t>" == newName) ? {f} : {}>;
 }
 
 default set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm, Renamer r) = {};
+
+default void validateNewNameOccurrences(set[Define] cursorDefs, str newName, Tree tr, Renamer r) {
+    for (Define d <- cursorDefs) {
+        r.error(d.defined, "Renaming this to \'<newName>\' would clash with use of \'<newName>\' in <tr.src.top>.");
+    }
+}
 
 default void renameDefinition(Define d, loc nameLoc, str newName, TModel tm, Renamer r) {
     r.textEdit(replace(nameLoc, newName));

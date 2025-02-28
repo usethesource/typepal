@@ -99,58 +99,28 @@ set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) getTree, TModel(Tr
     return {};
 }
 
-tuple[set[loc], set[loc]] findOccurrenceFiles(set[Define] defs, list[Tree] cursor, Tree(loc) getTree, Renamer r) {
+tuple[set[loc], set[loc], set[loc]] findOccurrenceFiles(set[Define] defs, list[Tree] cursor, str newName, Tree(loc) getTree, Renamer r) {
     set[loc] defFiles = {};
     set[loc] useFiles = {};
+    set[loc] newNameFiles = {};
 
     for (Define _:<_, name, _, idRole, _, _> <- defs) {
         for (loc srcFolder <- r.getConfig().srcs
            , loc f <- find(srcFolder, "mfun")) {
             for (/Tree t := getTree(f)) {
-                if (just(<idRole, name>) := analyzeDef(t)) defFiles += f;
-                if (just(<idRole, name>) := analyzeUse(t)) useFiles += f;
-            }
-        }
-    }
-
-    return <defFiles, useFiles>;
-}
-
-tuple[set[loc] defFiles, set[loc] useFiles] findOccurrenceFiles(set[Define] defs, list[Tree] cursor, Tree(loc) getTree, Renamer r) {
-    set[loc] defFiles = {};
-    set[loc] useFiles = {};
-
-    for (Define _: <_, name, _, idRole, _, _> <- defs) {
-        for (loc srcFolder <- r.getConfig().srcs
-           , loc f <- find(srcFolder, "mfun")) {
-            Tree t = getTree(f);
-
-            visit(t) {
-                case (ModuleDecl) `module <ModId id> { <Decl* _> }`: {
-                    if ("<id>" == name) {
-                        defFiles += f;
-                    }
+                if (just(<idRole, str n>) := analyzeDef(t)) {
+                    if (n == name) defFiles += f;
+                    else if (n == newName) newNameFiles += f;
                 }
-                case (ImportDecl) `import <ModId id>;`: {
-                    if ("<id>" == name) {
-                        useFiles += f;
-                    }
-                }
-                case (VarDecl) `def <Id id> : <Type _> = <Expression _>;`: {
-                    if ("<id>" == name) {
-                        defFiles += f;
-                    }
-                }
-                case (Expression) `<Id id>`: {
-                    if ("<id>" == name) {
-                        useFiles += f;
-                    }
+                if (just(<idRole, str n>) := analyzeUse(t)) {
+                    if (n == name) useFiles += f;
+                    else if (n == newName) newNameFiles += f;
                 }
             }
         }
     }
 
-    return <defFiles, useFiles>;
+    return <defFiles, useFiles, newNameFiles>;
 }
 
 bool tryParse(type[&T <: Tree] tp, str s) {
