@@ -183,10 +183,11 @@ RenameResult rename(
         printDebug("+ Finding additional definitions");
         set[Define] additionalDefs = {};
         for (loc f <- maybeDefFiles) {
+            printDebug("  - ... in <f>");
             tr = parseLocCached(f);
             tm = getTModelCached(tr);
-            fileAdditionalDefs = findAdditionalDefinitions(defs, tr, tm);
-            printDebug("  - ... (<size(fileAdditionalDefs)>) in <f>");
+            fileAdditionalDefs = findAdditionalDefinitions(defs, tr, tm, r);
+            printDebug("    (found <size(fileAdditionalDefs)>)");
             additionalDefs += fileAdditionalDefs;
         }
         defs += additionalDefs;
@@ -292,7 +293,7 @@ default tuple[set[loc] defFiles, set[loc] useFiles] findOccurrenceFiles(set[Defi
     return <{f}, {f}>;
 }
 
-default set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm) = {};
+default set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm, Renamer r) = {};
 
 default void renameDefinition(Define d, loc nameLoc, str newName, TModel tm, Renamer r) {
     r.textEdit(replace(nameLoc, newName));

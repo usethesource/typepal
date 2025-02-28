@@ -165,7 +165,7 @@ bool tryParse(type[&T <: Tree] tp, str s) {
 bool isValidName(moduleId(), str name) = tryParse(#ModId, name);
 bool isValidName(variableId(), str name) = tryParse(#Id, name);
 
-set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm) {
+set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree _, TModel tm, Renamer _) {
     set[Define] overloads = {};
     for (d <- tm.defines
       && d.idRole in cursorDefs.idRole
