@@ -32,6 +32,7 @@ import analysis::typepal::FailMessage;
 import analysis::typepal::Messenger;
 import analysis::typepal::TModel;
 
+import util::Monitor;
 
 import IO;
 import List;
@@ -43,6 +44,10 @@ import Relation;
 import Set;
 
 alias RenameResult = tuple[list[DocumentEdit], set[Message]];
+
+private int WORKSPACE_WORK = 10;
+private int FILE_WORK = 5;
+private int DEF_WORK = 1;
 
 data Renamer
     = renamer(
@@ -184,52 +189,58 @@ RenameResult rename(
       , void(value at, str s) { registerMessage(error(at, s)); }
     );
 
-    printDebug("Renaming <cursor[0].src> to \'<newName>\'");
+    str jobLabel = "Renaming <cursor[0].src> to \'<newName>\'";
+    jobStart(jobLabel, totalWork = 2 * WORKSPACE_WORK);
 
-    printDebug("+ Finding definitions for cursor at <cursor[0].src>");
+    jobStep(jobLabel, "Finding definitions for cursor at <cursor[0].src>", work = WORKSPACE_WORK);
     defs = getCursorDefinitions(cursor, parseLocCached, getTModelCached, r);
 
     if (defs == {}) r.error(cursor[0].src, "No definitions found");
-    if (errorReported()) return <sortDocEdits(docEdits), getMessages()>;
-
-    printDebug("+ Finding occurrences of cursor");
-    <maybeDefFiles, maybeUseFiles> = findOccurrenceFiles(defs, cursor, parseLocCached, r);
-
-    if (maybeDefFiles != {}) {
-        printDebug("+ Finding additional definitions");
-        set[Define] additionalDefs = {};
-        for (loc f <- maybeDefFiles) {
-            printDebug("  - ... in <f>");
-            tr = parseLocCached(f);
-            tm = getTModelCached(tr);
-            fileAdditionalDefs = findAdditionalDefinitions(defs, tr, tm, r);
-            printDebug("    (found <size(fileAdditionalDefs)>)");
-            additionalDefs += fileAdditionalDefs;
-        }
-        defs += additionalDefs;
+    if (errorReported()) {
+        jobEnd(jobLabel, success=false);
+        return <sortDocEdits(docEdits), getMessages()>;
     }
 
-    defFiles = {d.defined.top | d <- defs};
+    jobStep(jobLabel, "Finding occurrences of cursor", work = WORKSPACE_WORK);
+    <maybeDefFiles, maybeUseFiles> = findOccurrenceFiles(defs, cursor, parseLocCached, r);
 
-    printDebug("+ Renaming definitions across <size(defFiles)> files");
+    jobTodo(jobLabel, work = (size(maybeDefFiles) + size(maybeUseFiles)) * FILE_WORK);
+
+    set[Define] additionalDefs = {};
+    for (loc f <- maybeDefFiles) {
+        jobStep(jobLabel, "Finding additional definitions in <f>", work = FILE_WORK);
+        tr = parseLocCached(f);
+        tm = getTModelCached(tr);
+        fileAdditionalDefs = findAdditionalDefinitions(defs, tr, tm, r);
+        additionalDefs += fileAdditionalDefs;
+        jobTodo(jobLabel, work = size(fileAdditionalDefs) * DEF_WORK);
+    }
+    defs += additionalDefs;
+
+    defFiles = {d.defined.top | d <- defs};
+    jobTodo(jobLabel, work = size(defFiles) * FILE_WORK);
+
     for (loc f <- defFiles) {
         fileDefs = {d | d <- defs, d.defined.top == f};
-        printDebug("  - ... <size(fileDefs)> in <f>");
-
+        jobStep(jobLabel, "Renaming <size(fileDefs)> definitions in <f>", work = FILE_WORK);
+        jobTodo(jobLabel, work = size(fileDefs));
         tr = parseLocCached(f);
         tm = getTModelCached(tr);
 
         map[Define, loc] defNames = defNameLocations(tr, fileDefs, r);
         for (d <- fileDefs) {
+            jobStep(jobLabel, "Renaming definition @ <d.defined>", work = DEF_WORK);
             renameDefinition(d, defNames[d] ? d.defined, newName, tm, r);
         }
     }
-    if (errorReported()) return <sortDocEdits(docEdits), getMessages()>;
 
-    printDebug("+ Renaming uses across <size(maybeUseFiles)> files");
+    if (errorReported()) {
+        jobEnd(jobLabel, success=false);
+        return <sortDocEdits(docEdits), getMessages()>;
+    }
+
     for (loc f <- maybeUseFiles) {
-        printDebug("  - ... in <f>");
-
+        jobStep(jobLabel, "Renaming uses in <f>", work = FILE_WORK);
         tr = parseLocCached(f);
         tm = getTModelCached(tr);
 
@@ -238,7 +249,6 @@ RenameResult rename(
 
     set[Message] convertedMessages = getMessages();
 
-    printDebug("+ Done!");
     if (config.debug) {
         println("\n\n=================\nRename statistics\n=================\n");
         int nDocs = size({f | de <- docEdits, f := (de has file ? de.file : de.from)});
@@ -262,6 +272,7 @@ RenameResult rename(
         }
     }
 
+    jobEnd(jobLabel, success = !errorReported());
     return <sortDocEdits(docEdits), convertedMessages>;
 }
 
