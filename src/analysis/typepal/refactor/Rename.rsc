@@ -45,9 +45,9 @@ import Set;
 
 alias RenameResult = tuple[list[DocumentEdit], set[Message]];
 
+// This leaves some room for more fine-grained steps should the user want to monitor that
 private int WORKSPACE_WORK = 10;
 private int FILE_WORK = 5;
-private int DEF_WORK = 1;
 
 data Renamer
     = renamer(
@@ -213,7 +213,6 @@ RenameResult rename(
         tm = getTModelCached(tr);
         fileAdditionalDefs = findAdditionalDefinitions(defs, tr, tm, r);
         additionalDefs += fileAdditionalDefs;
-        jobTodo(jobLabel, work = size(fileAdditionalDefs) * DEF_WORK);
     }
     defs += additionalDefs;
 
@@ -223,13 +222,11 @@ RenameResult rename(
     for (loc f <- defFiles) {
         fileDefs = {d | d <- defs, d.defined.top == f};
         jobStep(config.jobLabel, "Renaming <size(fileDefs)> definitions in <f>", work = FILE_WORK);
-        jobTodo(config.jobLabel, work = size(fileDefs));
         tr = parseLocCached(f);
         tm = getTModelCached(tr);
 
         map[Define, loc] defNames = defNameLocations(tr, fileDefs, r);
         for (d <- fileDefs) {
-            jobStep(jobLabel, "Renaming definition @ <d.defined>", work = DEF_WORK);
             renameDefinition(d, defNames[d] ? d.defined, newName, tm, r);
         }
     }
