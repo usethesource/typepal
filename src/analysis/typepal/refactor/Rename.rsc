@@ -297,12 +297,16 @@ default tuple[set[loc] defFiles, set[loc] useFiles, set[loc] newNameFiles] findO
         return <{}, {}, {}>;
     }
 
-    return <{f}, {f}, {f}>;
+    return <{f}, {f}, any(/Tree t := f, "<t>" == newName) ? {f} : {}>;
 }
 
 default set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm) = {};
 
-default void validateNewNameOccurrences(set[Define] cursorDefs, str newName, Tree _, Renamer r) {}
+default void validateNewNameOccurrences(set[Define] cursorDefs, str newName, Tree tr, Renamer r) {
+    for (Define d <- cursorDefs) {
+        r.error(d.defined, "Renaming this to \'<newName>\' would clash with use of \'<newName>\' in <tr.src.top>.");
+    }
+}
 
 default void renameDefinition(Define d, loc nameLoc, str newName, Tree _, TModel tm, Renamer r) {
     r.textEdit(replace(nameLoc, newName));
