@@ -64,6 +64,22 @@ data RenameConfig
       , bool debug = true
     );
 
+@synopsis{
+    Applying edits through @link{analysis::diff::edits::ExecuteTextEdits} should happen in a specific order.
+    Specifically, files should be created before they can be modified, and after renaming them, modifications/deletions should refer to the new name.
+    This functions sorts edits in the following order.
+        1. created
+        2. changed
+        3. renamed
+        4. removed
+}
+list[DocumentEdit] sortDocEdits(list[DocumentEdit] edits) = sort(edits, bool(DocumentEdit e1, DocumentEdit e2) {
+    if (e1 is created && !(e2 is created)) return true;
+    if (e1 is changed && !(e2 is changed)) return !(e2 is created);
+    if (e1 is renamed && !(e2 is renamed)) return (e2 is removed);
+    return false;
+});
+
 RenameResult rename(
         list[Tree] cursor
       , str newName
@@ -95,7 +111,7 @@ RenameResult rename(
 
     // Messages
     set[FailMessage] messages = {};
-    bool errorReported() = messages != {} && any(m <- messages, m is error);
+    bool errorReported() = messages != {} && any(m <- messages, m is fm_error);
     void registerMessage(FailMessage msg) { messages += msg; };
     AType getType(Tree t) {
         TModel tm = getTModelCached(parseLocCached(t.src.top));
@@ -174,7 +190,7 @@ RenameResult rename(
     defs = getCursorDefinitions(cursor, parseLocCached, getTModelCached, r);
 
     if (defs == {}) r.error(cursor[0].src, "No definitions found");
-    if (errorReported()) return <docEdits, getMessages()>;
+    if (errorReported()) return <sortDocEdits(docEdits), getMessages()>;
 
     printDebug("+ Finding occurrences of cursor");
     <maybeDefFiles, maybeUseFiles, newNameFiles> = findOccurrenceFiles(defs, cursor, newName, parseLocCached, r);
@@ -183,10 +199,11 @@ RenameResult rename(
         printDebug("+ Finding additional definitions");
         set[Define] additionalDefs = {};
         for (loc f <- maybeDefFiles) {
+            printDebug("  - ... in <f>");
             tr = parseLocCached(f);
             tm = getTModelCached(tr);
-            fileAdditionalDefs = findAdditionalDefinitions(defs, tr, tm);
-            printDebug("  - ... (<size(fileAdditionalDefs)>) in <f>");
+            fileAdditionalDefs = findAdditionalDefinitions(defs, tr, tm, r);
+            printDebug("    (found <size(fileAdditionalDefs)>)");
             additionalDefs += fileAdditionalDefs;
         }
         defs += additionalDefs;
@@ -212,10 +229,10 @@ RenameResult rename(
 
         map[Define, loc] defNames = defNameLocations(tr, fileDefs, r);
         for (d <- fileDefs) {
-            renameDefinition(d, defNames[d] ? d.defined, newName, tr, tm, r);
+            renameDefinition(d, defNames[d] ? d.defined, newName, tm, r);
         }
     }
-    if (errorReported()) return <docEdits, getMessages()>;
+    if (errorReported()) return <sortDocEdits(docEdits), getMessages()>;
 
     printDebug("+ Renaming uses across <size(maybeUseFiles)> files");
     for (loc f <- maybeUseFiles) {
@@ -224,7 +241,7 @@ RenameResult rename(
         tr = parseLocCached(f);
         tm = getTModelCached(tr);
 
-        renameUses(defs, newName, tr, tm, r);
+        renameUses(defs, newName, tm, r);
     }
 
     set[Message] convertedMessages = getMessages();
@@ -253,18 +270,31 @@ RenameResult rename(
         }
     }
 
-    return <docEdits, convertedMessages>;
+    return <sortDocEdits(docEdits), convertedMessages>;
 }
 
+// Workaround to be able to pattern match on the emulated `src` field
+data Tree (loc src = |unknown:///|(0,0,<0,0>,<0,0>));
+
+// TODO If performance bottleneck, rewrite to binary search
 private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer r) {
     map[loc, Define] definitions = (d.defined: d | d <- defs);
     set[loc] defsToDo = defs.defined;
 
+    // If we have a single definition, we can put the pattern matcher to work
+    if ({loc d} := defsToDo) {
+        def = definitions[d];
+        top-down visit (tr) {
+            case t:appl(_, _, src = d):
+                return (def: nameLocation(t, def));
+        }
+    }
+
     map[Define, loc] defNames = ();
-    for (/Tree t := tr, t@\loc?, t@\loc in defsToDo) {
-        d = definitions[t@\loc];
-        defNames[d] = nameLocation(t, d);
-        defsToDo -= t@\loc;
+    for (defsToDo != {}, /t:appl(_, _, src = loc d) := tr, d in defsToDo) {
+        def = definitions[d];
+        defNames[def] = nameLocation(t, def);
+        defsToDo -= d;
     }
 
     return defNames;
@@ -300,7 +330,7 @@ default tuple[set[loc] defFiles, set[loc] useFiles, set[loc] newNameFiles] findO
     return <{f}, {f}, any(/Tree t := f, "<t>" == newName) ? {f} : {}>;
 }
 
-default set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm) = {};
+default set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm, Renamer r) = {};
 
 default void validateNewNameOccurrences(set[Define] cursorDefs, str newName, Tree tr, Renamer r) {
     for (Define d <- cursorDefs) {
@@ -308,11 +338,11 @@ default void validateNewNameOccurrences(set[Define] cursorDefs, str newName, Tre
     }
 }
 
-default void renameDefinition(Define d, loc nameLoc, str newName, Tree _, TModel tm, Renamer r) {
+default void renameDefinition(Define d, loc nameLoc, str newName, TModel tm, Renamer r) {
     r.textEdit(replace(nameLoc, newName));
 }
 
-default void renameUses(set[Define] defs, str newName, Tree _, TModel tm, Renamer r) {
+default void renameUses(set[Define] defs, str newName, TModel tm, Renamer r) {
     for (loc u <- invert(tm.useDef)[defs.defined] - defs.defined) {
         r.textEdit(replace(u, newName));
     }
