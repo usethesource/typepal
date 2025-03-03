@@ -62,6 +62,7 @@ public tuple[list[DocumentEdit] edits, set[Message] msgs] renameModules(list[Tre
           Tree(loc l) { return parse(#start[Program], l); }
         , collectAndSolve
         , pcfg = pathConfig(srcs = [cursor[0].src.top.parent])
+        , jobLabel = "Renaming \'<cursor[0]>\' to \'<newName>\' at <cursor[0].src>"
       )
     );
 }

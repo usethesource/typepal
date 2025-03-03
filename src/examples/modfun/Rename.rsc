@@ -61,6 +61,7 @@ public tuple[list[DocumentEdit] edits, set[Message] msgs] renameModules(list[Tre
           Tree(loc l) { return parse(#start[ModFun], l); }
         , TModel(Tree pt) { return collectAndSolve(pt, config = tconfig(mayOverload = bool(set[loc] defs, map[loc, Define] defines) { return true; })); }
         , srcs = {cursor[0].src.top.parent}
+        , jobLabel = "Renaming \'<cursor[0]>\' to \'<newName>\' at <cursor[0].src>"
       )
     );
 }
