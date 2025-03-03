@@ -109,20 +109,27 @@ set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) getTree, TModel(Tr
     return {};
 }
 
-tuple[set[loc], set[loc]] findOccurrenceFiles(set[Define] defs, list[Tree] cursor, Tree(loc) getTree, Renamer r) {
+tuple[set[loc], set[loc], set[loc]] findOccurrenceFiles(set[Define] defs, list[Tree] cursor, str newName, Tree(loc) getTree, Renamer r) {
     set[loc] defFiles = {};
     set[loc] useFiles = {};
+    set[loc] newNameFiles = {};
 
     for (Define _:<_, name, _, idRole, _, _> <- defs) {
         for (loc f <- projectFiles(r.getConfig().pcfg)) {
             for (/Tree t := getTree(f)) {
-                if (just(<idRole, name>) := analyzeDef(t)) defFiles += f;
-                if (just(<idRole, name>) := analyzeUse(t)) useFiles += f;
+                if (just(<idRole, str n>) := analyzeDef(t)) {
+                    if (n == name) defFiles += f;
+                    else if (n == newName) newNameFiles += f;
+                }
+                if (just(<idRole, str n>) := analyzeUse(t)) {
+                    if (n == name) useFiles += f;
+                    else if (n == newName) newNameFiles += f;
+                }
             }
         }
     }
 
-    return <defFiles, useFiles>;
+    return <defFiles, useFiles, newNameFiles>;
 }
 
 void renameUses(set[Define] defs, str newName, TModel tm, Renamer r) {
