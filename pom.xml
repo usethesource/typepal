@@ -38,7 +38,6 @@
                 <filtering>false</filtering>
                 <includes>
                     <include>META-INF/RASCAL.MF</include>
-                    <include>plugin.xml</include>
                     <include>src/**/*.rsc</include>
                     <include>src/**/*.ttl</include>
                     <include>src/examples/**/*.*</include>
