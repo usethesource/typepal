@@ -34,6 +34,7 @@ import analysis::typepal::TModel;
 
 import util::Monitor;
 
+import Exception;
 import IO;
 import List;
 import Map;
