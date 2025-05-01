@@ -26,14 +26,14 @@ POSSIBILITY OF SUCH DAMAGE.
 }
 module analysis::typepal::refactor::Rename
 
-import analysis::typepal::refactor::TextEdits;
-
+import analysis::diff::edits::TextEdits;
 import analysis::typepal::FailMessage;
 import analysis::typepal::Messenger;
 import analysis::typepal::TModel;
 
 import util::Monitor;
 
+import Exception;
 import IO;
 import List;
 import Map;
@@ -66,6 +66,7 @@ data RenameConfig
     = rconfig(
         Tree(loc) parseLoc
       , TModel(Tree) tmodelForTree
+      , TModel(loc) tmodelForLoc = TModel(loc l) { return tmodelForTree(parseLoc(l)); }
       , bool debug = true
       , str jobLabel = "Renaming"
     );
@@ -91,6 +92,9 @@ RenameResult rename(
       , str newName
       , RenameConfig config) {
 
+    jobStart(config.jobLabel, totalWork = 2 * WORKSPACE_WORK + 1);
+    jobStep(config.jobLabel, "Initializing renaming");
+
     void printDebug(str s) {
         if (config.debug) {
             println(s);
@@ -107,6 +111,9 @@ RenameResult rename(
     }
 
     @memo{maximumSize(50)}
+    TModel getTModelForLocCached(loc l) = config.tmodelForLoc(l);
+
+    @memo{maximumSize(50)}
     Tree parseLocCached(loc l) {
         // We already have the parse tree of the module under cursor
         if (l == cursor[-1].src.top) {
@@ -116,13 +123,17 @@ RenameResult rename(
         try {
             return config.parseLoc(l);
         } catch ParseError(_): {
-            registerMessage(error(t.src.top, "Renaming failed, since an error occurred while parsing this file."));
+            registerMessage(error(l, "Renaming failed, since an error occurred while parsing this file."));
             return char(-1);
         }
     }
 
     // Make sure user uses cached functions
-    cachedConfig = config[parseLoc = parseLocCached][tmodelForTree = getTModelCached];
+    cachedConfig = config
+        [parseLoc = parseLocCached]
+        [tmodelForTree = getTModelCached]
+        [tmodelForLoc = getTModelForLocCached]
+        ;
 
     // Messages
     set[FailMessage] messages = {};
@@ -199,8 +210,6 @@ RenameResult rename(
       , void(value at, str s) { registerMessage(error(at, s)); }
     );
 
-    jobStart(config.jobLabel, totalWork = 2 * WORKSPACE_WORK);
-
     jobStep(config.jobLabel, "Resolving definitions of <cursor[0].src>", work = WORKSPACE_WORK);
     defs = getCursorDefinitions(cursor, parseLocCached, getTModelCached, r);
 
@@ -216,17 +225,19 @@ RenameResult rename(
     jobTodo(config.jobLabel, work = (size(maybeDefFiles) + size(maybeUseFiles) + size(newNameFiles)) * FILE_WORK);
 
     set[Define] additionalDefs = {};
-    for (loc f <- maybeDefFiles) {
-        jobStep(config.jobLabel, "Looking for additional definitions in <f>", work = FILE_WORK);
-        tr = parseLocCached(f);
-        tm = getTModelCached(tr);
-        fileAdditionalDefs = findAdditionalDefinitions(defs, tr, tm, r);
-        additionalDefs += fileAdditionalDefs;
+    solve (additionalDefs) {
+        for (loc f <- maybeDefFiles) {
+            jobStep(config.jobLabel, "Looking for additional definitions in <f>", work = 0);
+            tr = parseLocCached(f);
+            tm = getTModelCached(tr);
+            additionalDefs += findAdditionalDefinitions(defs, tr, tm, r);
+        }
+        defs += additionalDefs;
     }
-    defs += additionalDefs;
+    jobStep(config.jobLabel, "Done looking for additional definitions", work = FILE_WORK * size(maybeDefFiles));
 
     for (loc f <- newNameFiles) {
-    jobStep(config.jobLabel, "Validating occurrences of new name \'<newName>\' in <f>", work = FILE_WORK);
+        jobStep(config.jobLabel, "Validating occurrences of new name \'<newName>\' in <f>", work = FILE_WORK);
         tr = parseLocCached(f);
         validateNewNameOccurrences(defs, newName, tr, r);
     }
