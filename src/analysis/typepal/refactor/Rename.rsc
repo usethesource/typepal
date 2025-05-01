@@ -26,8 +26,7 @@ POSSIBILITY OF SUCH DAMAGE.
 }
 module analysis::typepal::refactor::Rename
 
-import analysis::typepal::refactor::TextEdits;
-
+import analysis::diff::edits::TextEdits;
 import analysis::typepal::FailMessage;
 import analysis::typepal::Messenger;
 import analysis::typepal::TModel;
