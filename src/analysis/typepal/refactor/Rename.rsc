@@ -66,6 +66,7 @@ data RenameConfig
     = rconfig(
         Tree(loc) parseLoc
       , TModel(Tree) tmodelForTree
+      , TModel(loc) tmodelForLoc = TModel(loc l) { return tmodelForTree(parseLoc(l)); }
       , bool debug = true
       , str jobLabel = "Renaming"
     );
@@ -107,6 +108,9 @@ RenameResult rename(
     }
 
     @memo{maximumSize(50)}
+    TModel getTModelForLocCached(loc l) = config.tmodelForLoc(l);
+
+    @memo{maximumSize(50)}
     Tree parseLocCached(loc l) {
         // We already have the parse tree of the module under cursor
         if (l == cursor[-1].src.top) {
@@ -116,13 +120,17 @@ RenameResult rename(
         try {
             return config.parseLoc(l);
         } catch ParseError(_): {
-            registerMessage(error(t.src.top, "Renaming failed, since an error occurred while parsing this file."));
+            registerMessage(error(l, "Renaming failed, since an error occurred while parsing this file."));
             return char(-1);
         }
     }
 
     // Make sure user uses cached functions
-    cachedConfig = config[parseLoc = parseLocCached][tmodelForTree = getTModelCached];
+    cachedConfig = config
+        [parseLoc = parseLocCached]
+        [tmodelForTree = getTModelCached]
+        [tmodelForLoc = getTModelForLocCached]
+        ;
 
     // Messages
     set[FailMessage] messages = {};
