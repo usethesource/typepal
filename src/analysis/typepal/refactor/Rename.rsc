@@ -92,6 +92,9 @@ RenameResult rename(
       , str newName
       , RenameConfig config) {
 
+    jobStart(config.jobLabel, totalWork = 2 * WORKSPACE_WORK + 1);
+    jobStep(config.jobLabel, "Initializing renaming");
+
     void printDebug(str s) {
         if (config.debug) {
             println(s);
@@ -206,8 +209,6 @@ RenameResult rename(
       , void(value at, str s) { registerMessage(warning(at, s)); }
       , void(value at, str s) { registerMessage(error(at, s)); }
     );
-
-    jobStart(config.jobLabel, totalWork = 2 * WORKSPACE_WORK);
 
     jobStep(config.jobLabel, "Resolving definitions of <cursor[0].src>", work = WORKSPACE_WORK);
     defs = getCursorDefinitions(cursor, parseLocCached, getTModelCached, r);
