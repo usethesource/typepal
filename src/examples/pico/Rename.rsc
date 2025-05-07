@@ -32,7 +32,7 @@ import examples::pico::Checker;
 import analysis::typepal::TModel;
 
 extend analysis::typepal::refactor::Rename;
-import analysis::typepal::refactor::TextEdits;
+import analysis::diff::edits::TextEdits;
 
 import Exception;
 import IO;

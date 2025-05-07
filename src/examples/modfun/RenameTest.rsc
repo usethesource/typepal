@@ -29,7 +29,7 @@ module examples::modfun::RenameTest
 import examples::modfun::Rename;
 import examples::modfun::Syntax;
 
-import analysis::typepal::refactor::TextEdits;
+import analysis::diff::edits::TextEdits;
 
 import util::LanguageServer; // computeFocusList
 

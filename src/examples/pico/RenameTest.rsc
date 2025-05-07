@@ -29,7 +29,7 @@ module examples::pico::RenameTest
 import examples::pico::Rename;
 import examples::pico::Syntax;
 
-import analysis::typepal::refactor::TextEdits;
+import analysis::diff::edits::TextEdits;
 
 import util::LanguageServer; // computeFocusList
 

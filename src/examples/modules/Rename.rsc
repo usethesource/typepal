@@ -31,7 +31,7 @@ import examples::modules::Checker;
 import examples::modules::Syntax;
 
 extend analysis::typepal::refactor::Rename;
-import analysis::typepal::refactor::TextEdits;
+import analysis::diff::edits::TextEdits;
 
 import Exception;
 import IO;
