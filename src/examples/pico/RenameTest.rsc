@@ -42,7 +42,7 @@ import String;
 import util::FileSystem;
 
 tuple[list[DocumentEdit] edits, set[Message] msgs] basicRename(str newName = "foo", int line = 2, int col = 17) {
-    prog = parse(#start[Program], |lib://typepal/src/examples/pico/fac.pico|);
+    prog = parse(#start[Program], |project://typepal/src/examples/pico/fac.pico|);
     cursor = computeFocusList(prog, line, col);
     return renamePico(cursor, newName);
 }

@@ -41,7 +41,7 @@ import String;
 import util::FileSystem;
 
 tuple[list[DocumentEdit] edits, set[Message] msgs] basicRename(str modName, int line, int col, str newName = "foo") {
-    prog = parse(#start[Program], |lib://typepal/src/examples/modules/<modName>.modules|);
+    prog = parse(#start[Program], |project://typepal/src/examples/modules/<modName>.modules|);
     cursor = computeFocusList(prog, line, col);
     return renameModules(cursor, newName);
 }

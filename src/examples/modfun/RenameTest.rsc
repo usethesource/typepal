@@ -40,7 +40,7 @@ import String;
 import util::FileSystem;
 
 tuple[list[DocumentEdit] edits, set[Message] msgs] basicRename(str modName, int line, int col, str newName = "foo") {
-    prog = parse(#start[ModFun], |project://rename-framework/src/main/rascal/examples/modfun/<modName>.mfun|);
+    prog = parse(#start[ModFun], |project://typepal/src/examples/modfun/<modName>.mfun|);
     cursor = computeFocusList(prog, line, col);
     return renameModules(cursor, newName);
 }
