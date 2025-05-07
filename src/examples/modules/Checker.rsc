@@ -52,14 +52,13 @@ PathConfig pathConfig(loc file) {
    return pathConfig(srcs = [ p + "src/examples/modules"]);
 }
 
-private str __MODULES_IMPORT_QUEUE = "__modulesImportQueue";
+private str MODULES_IMPORT_QUEUE = "__modulesImportQueue";
 
 str getFileName((ModuleId) `<{Id "::"}+ moduleName>`) = replaceAll("<moduleName>.modules", "::", "/");
 
 tuple[bool, loc] lookupModule(str name, PathConfig pcfg) {
     for (s <- pcfg.srcs + pcfg.libs) {
         result = (s + replaceAll(name, "::", "/"))[extension = "modules"];
-        println(result);
         if (exists(result)) {
         	return <true, result>;
         }
@@ -69,13 +68,13 @@ tuple[bool, loc] lookupModule(str name, PathConfig pcfg) {
 
 void collect(current:(Import) `import <ModuleId moduleName>`, Collector c) {
     c.addPathToDef(moduleName, {moduleId()}, importPath());
-    c.push(__MODULES_IMPORT_QUEUE, "<moduleName>");
+    c.push(MODULES_IMPORT_QUEUE, "<moduleName>");
 }
 
 void handleImports(Collector c, Tree root, PathConfig pcfg) {
     set[str] imported = {};
-    while (list[str] modulesToImport := c.getStack(__MODULES_IMPORT_QUEUE) && modulesToImport != []) {
-    	c.clearStack(__MODULES_IMPORT_QUEUE);
+    while (list[str] modulesToImport := c.getStack(MODULES_IMPORT_QUEUE) && modulesToImport != []) {
+        c.clearStack(MODULES_IMPORT_QUEUE);
         for (m <- modulesToImport, m notin imported) {
             if (<true, l> := lookupModule(m, pcfg)) {
                 collect(parse(#start[Program], l).top, c);
