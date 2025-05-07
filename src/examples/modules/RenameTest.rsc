@@ -61,7 +61,7 @@ test bool localStructName() {
 }
 
 test bool importedStructName() {
-    <edits, msgs> = basicRename("C", 8, 1);
+    <edits, msgs> = basicRename("C", 8, 6);
 
     checkNoErrors(msgs);
     return size(edits) == 2

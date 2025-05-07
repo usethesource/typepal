@@ -59,7 +59,7 @@ public tuple[list[DocumentEdit] edits, set[Message] msgs] renameModules(list[Tre
       , newName
       , rconfig(
           Tree(loc l) { return parse(#start[ModFun], l); }
-        , TModel(Tree pt) { return collectAndSolve(pt, config = tconfig(mayOverload = bool(set[loc] defs, map[loc, Define] defines) { return true; })); }
+        , TModel(Tree pt) { return modfunTModelFromTree(pt, tconfig(mayOverload = bool(set[loc] defs, map[loc, Define] defines) { return toRel(defines)[defs].idRole == {variableId()}; })); }
         , srcs = {cursor[0].src.top.parent}
         , jobLabel = "Renaming \'<cursor[0]>\' to \'<newName>\' at <cursor[0].src>"
       )
@@ -82,14 +82,11 @@ set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) getTree, TModel(Tr
         } else {
             str cursorName = "<c>";
             set[Define] defs = {};
-            for (referToDef(use(modId, _, _, _, {moduleId(), *_}), importPath()) <- tm.referPaths
-               , loc f := cursor[0].src.top.parent + "<modId>.mfun") {
-                Tree fTree = getTree(f);
-                for (/Tree t := fTree) {
-                    if (just(<idRole, cursorName>) := analyzeDef(t)) {
-                        tm = getModel(fTree);
-                        defs += {d | Define d:<_, cursorName, _, idRole, _, _> <- tm.defines};
-                    }
+            for (loc f <- (tm.paths<pathRole, to>)[importPath()]) {
+                Tree fTree = getTree(f.top);
+                for (/Tree t := fTree, just(<idRole, cursorName>) := analyzeDef(t)) {
+                    tm = getModel(fTree);
+                    defs += {d | Define d:<_, cursorName, _, idRole, _, _> <- tm.defines};
                 }
             }
             if (defs != {}) return defs;

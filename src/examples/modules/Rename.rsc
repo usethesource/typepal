@@ -60,7 +60,7 @@ public tuple[list[DocumentEdit] edits, set[Message] msgs] renameModules(list[Tre
       , newName
       , rconfig(
           Tree(loc l) { return parse(#start[Program], l); }
-        , collectAndSolve
+        , modulesTModelFromTree
         , pcfg = pathConfig(srcs = [cursor[0].src.top.parent])
         , jobLabel = "Renaming \'<cursor[0]>\' to \'<newName>\' at <cursor[0].src>"
       )
@@ -89,10 +89,8 @@ set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) getTree, TModel(Tr
             return {tm.definitions[c.src]};
         } else {
             str cursorName = "<c>";
-            pcfg = r.getConfig().pcfg;
             set[Define] defs = {};
-            for (referToDef(use(modId, _, _, _, {moduleId(), *_}), importPath()) <- tm.referPaths
-               , <true, f> := lookupModule(modId, pcfg)) {
+            for (loc f <- (tm.paths<pathRole, to>)[importPath()]) {
                 Tree fTree = getTree(f);
                 for (/Tree t := fTree) {
                     if (just(<idRole, cursorName>) := analyzeDef(t)) {

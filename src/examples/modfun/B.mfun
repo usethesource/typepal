@@ -1,4 +1,4 @@
 module B {
     import A;
-    def i : int = x(1);
+    def j : int = a(1);
 }
