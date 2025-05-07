@@ -31,8 +31,7 @@ import examples::modfun::Syntax;
 
 import analysis::diff::edits::TextEdits;
 
-import util::LanguageServer; // computeFocusList
-
+import examples::rename::Focus;
 import IO;
 import List;
 import ParseTree;
