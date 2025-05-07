@@ -67,7 +67,7 @@ data RenameConfig
         Tree(loc) parseLoc
       , TModel(Tree) tmodelForTree
       , TModel(loc) tmodelForLoc = TModel(loc l) { return tmodelForTree(parseLoc(l)); }
-      , bool debug = true
+      , bool debug = false
       , str jobLabel = "Renaming"
     );
 
