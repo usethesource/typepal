@@ -44,6 +44,7 @@ import Relation;
 import Set;
 
 alias RenameResult = tuple[list[DocumentEdit], set[Message]];
+alias Focus = list[Tree];
 
 // This leaves some room for more fine-grained steps should the user want to monitor that
 private int WORKSPACE_WORK = 10;
@@ -88,7 +89,7 @@ list[DocumentEdit] sortDocEdits(list[DocumentEdit] edits) = sort(edits, bool(Doc
 });
 
 RenameResult rename(
-        list[Tree] cursor
+        Focus cursor
       , str newName
       , RenameConfig config) {
 
@@ -330,7 +331,7 @@ private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer r) 
     return defNames;
 }
 
-default set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) _, TModel(Tree) getModel, Renamer r) {
+default set[Define] getCursorDefinitions(Focus cursor, Tree(loc) _, TModel(Tree) getModel, Renamer r) {
     loc cursorLoc = cursor[0].src;
     TModel tm = getModel(cursor[-1]);
     for (Tree c <- cursor) {
@@ -350,7 +351,7 @@ default set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) _, TModel(
     return {};
 }
 
-default tuple[set[loc] defFiles, set[loc] useFiles, set[loc] newNameFiles] findOccurrenceFiles(set[Define] cursorDefs, list[Tree] cursor, str newName, Tree(loc) _, Renamer r) {
+default tuple[set[loc] defFiles, set[loc] useFiles, set[loc] newNameFiles] findOccurrenceFiles(set[Define] cursorDefs, Focus cursor, str newName, Tree(loc) _, Renamer r) {
     loc f = cursor[0].src.top;
     if (any(d <- cursorDefs, f != d.defined.top)) {
         r.error(cursor[0].src, "Rename not implemented for cross-file definitions. Please overload `findOccurrenceFiles`.");
