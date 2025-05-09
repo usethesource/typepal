@@ -96,12 +96,6 @@ RenameResult rename(
     jobStart(config.jobLabel, totalWork = 2 * WORKSPACE_WORK + 1);
     jobStep(config.jobLabel, "Initializing renaming");
 
-    void printDebug(str s) {
-        if (config.debug) {
-            println(s);
-        }
-    }
-
     // Tree & TModel caching
 
     @memo{maximumSize(50)}
