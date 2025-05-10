@@ -1,4 +1,4 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+roject xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -58,7 +58,7 @@
             <plugin>
                 <groupId>org.rascalmpl</groupId>
                 <artifactId>rascal-maven-plugin</artifactId>
-                <version>0.28.9</version>
+                <version>0.30.0-RC24</version>
                 <configuration>
                     <bin>${project.build.outputDirectory}</bin>
                     <srcs>
@@ -67,8 +67,6 @@
                     <srcIgnores>
                         <srcIgnore>${project.basedir}/src/examples</srcIgnore>
                     </srcIgnores>
-                    <errorsAsWarnings>true</errorsAsWarnings>
-                    <enableStandardLibrary>false</enableStandardLibrary>
                 </configuration>
                 <executions>
                     <execution>
@@ -92,8 +90,6 @@
                             <goal>tutor</goal>
                         </goals>
                         <configuration>
-
-                            <errorsAsWarnings>false</errorsAsWarnings>
                             <bin>${project.build.outputDirectory}</bin>
                             <sources>|http://github.com/usethesource/typepal|</sources>
                             <releaseNotes>${project.basedir}/RELEASE-NOTES.md</releaseNotes>
@@ -185,7 +181,7 @@
         <dependency>
             <groupId>org.rascalmpl</groupId>
             <artifactId>rascal</artifactId>
-            <version>0.40.17</version>
+            <version>0.41.0-RC42</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
