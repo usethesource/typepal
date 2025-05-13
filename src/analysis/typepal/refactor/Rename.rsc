@@ -320,7 +320,7 @@ RenameResult rename(
 }
 
 // TODO If performance bottleneck, rewrite to binary search
-private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer r) {
+private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer _r) {
     map[loc, Define] definitions = (d.defined: d | d <- defs);
     set[loc] defsToDo = defs.defined;
 
@@ -346,7 +346,7 @@ private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer r) 
 }
 
 @synopsis{Computes ((Define))(s) for the name under the cursor.}
-default set[Define] getCursorDefinitions(Focus cursor, Tree(loc) _, TModel(Tree) getModel, Renamer r) {
+default set[Define] getCursorDefinitions(Focus cursor, Tree(loc) _r, TModel(Tree) getModel, Renamer r) {
     loc cursorLoc = cursor[0].src;
     TModel tm = getModel(cursor[-1]);
     for (Tree c <- cursor) {
@@ -367,7 +367,7 @@ default set[Define] getCursorDefinitions(Focus cursor, Tree(loc) _, TModel(Tree)
 }
 
 @synopsis{Computes in which files occurrences of `cursorDefs` and `newName` *might* occur (over-approximation). This is not supposed to call the type-checker on any file for performance reasons.}
-default tuple[set[loc] defFiles, set[loc] useFiles, set[loc] newNameFiles] findOccurrenceFiles(set[Define] cursorDefs, Focus cursor, str newName, Tree(loc) _, Renamer r) {
+default tuple[set[loc] defFiles, set[loc] useFiles, set[loc] newNameFiles] findOccurrenceFiles(set[Define] cursorDefs, Focus cursor, str newName, Tree(loc) _getTree, Renamer r) {
     loc f = cursor[0].src.top;
     if (any(d <- cursorDefs, f != d.defined.top)) {
         r.msg(error(cursor[0].src, "Rename not implemented for cross-file definitions. Please overload `findOccurrenceFiles`."));
@@ -378,7 +378,7 @@ default tuple[set[loc] defFiles, set[loc] useFiles, set[loc] newNameFiles] findO
 }
 
 @synopsis{Computes additional definitions (e.g. overloads of `cursorDefs`) in a single file.}
-default set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm, Renamer r) = {};
+default set[Define] findAdditionalDefinitions(set[Define] _cursorDefs, Tree _tr, TModel _tm, Renamer _r) = {};
 
 @synopsis{Validates for a single file with occurrences of `newName` that, when renaming all occurrences of `cursorDefs` to `newName`, no problems will be introduced.}
 @examples{This could be used to detect many kinds of problems, e.g. static errors and semantic changes due to shadowing or overloading.}
@@ -389,7 +389,7 @@ default void validateNewNameOccurrences(set[Define] cursorDefs, str newName, Tre
 }
 
 @synopsis{Renames a single ((Define)) with its name at `nameLoc`, by producing a corresponding ((DocumentEdit)).}
-default void renameDefinition(Define d, loc nameLoc, str newName, TModel tm, Renamer r) {
+default void renameDefinition(Define _d, loc nameLoc, str newName, TModel _tm, Renamer r) {
     r.textEdit(replace(nameLoc, newName));
 }
 
