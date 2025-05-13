@@ -103,7 +103,7 @@ set[Define] getCursorDefinitions(list[Tree] cursor, Tree(loc) getTree, TModel(Tr
         }
     }
 
-    r.error(cursor[0].src, "Could not find definition to rename.");
+    r.msg(error(cursor[0].src, "Could not find definition to rename."));
     return {};
 }
 
