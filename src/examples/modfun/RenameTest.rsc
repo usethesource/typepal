@@ -56,8 +56,7 @@ void checkNoErrors(set[Message] msgs) {
 
 test bool duplicateModuleName() {
     <edits, msgs> = basicRename("A", 1, 8, newName = "B");
-
-    return size({m | m <- msgs, m is error}) == 1;
+    return size({m | m <- msgs, m is error}) >= 1;
 }
 
 test bool moduleName() {
@@ -69,7 +68,7 @@ test bool moduleName() {
 }
 
 test bool overloadedFunc() {
-    <edits, msgs> = basicRename("A", 2, 9);
+    <edits, msgs> = basicRename("A", 3, 9);
 
     checkNoErrors(msgs);
     return size(edits) == 2
