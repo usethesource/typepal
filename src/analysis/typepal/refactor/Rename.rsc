@@ -327,9 +327,6 @@ RenameResult rename(
     return <sortDocEdits(docEdits), convertedMessages>;
 }
 
-// Workaround to be able to pattern match on the emulated `src` field
-data Tree (loc src = |unknown:///|(0,0,<0,0>,<0,0>));
-
 // TODO If performance bottleneck, rewrite to binary search
 private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer r) {
     map[loc, Define] definitions = (d.defined: d | d <- defs);
@@ -339,13 +336,15 @@ private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer r) 
     if ({loc d} := defsToDo) {
         def = definitions[d];
         top-down visit (tr) {
-            case t:appl(_, _, src = d):
-                return (def: nameLocation(t, def));
+            case t:appl(_, _):
+                if (t@\loc?, d := t@\loc) {
+                    return (def: nameLocation(t, def));
+                }
         }
     }
 
     map[Define, loc] defNames = ();
-    for (defsToDo != {}, /t:appl(_, _, src = loc d) := tr, d in defsToDo) {
+    for (defsToDo != {}, /t:appl(_, _) := tr, t@\loc?, loc d := t@\loc, d in defsToDo) {
         def = definitions[d];
         defNames[def] = nameLocation(t, def);
         defsToDo -= d;
