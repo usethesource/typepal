@@ -9,7 +9,7 @@
 
     <groupId>org.rascalmpl</groupId>
     <artifactId>typepal</artifactId>
-    <version>0.15.2-SNAPSHOT</version>
+    <version>0.15.2-RC2-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -58,7 +58,7 @@
             <plugin>
                 <groupId>org.rascalmpl</groupId>
                 <artifactId>rascal-maven-plugin</artifactId>
-                <version>0.28.9</version>
+                <version>0.30.0-RC24</version>
                 <configuration>
                     <bin>${project.build.outputDirectory}</bin>
                     <srcs>
@@ -67,8 +67,6 @@
                     <srcIgnores>
                         <srcIgnore>${project.basedir}/src/examples</srcIgnore>
                     </srcIgnores>
-                    <errorsAsWarnings>true</errorsAsWarnings>
-                    <enableStandardLibrary>false</enableStandardLibrary>
                 </configuration>
                 <executions>
                     <execution>
@@ -92,8 +90,6 @@
                             <goal>tutor</goal>
                         </goals>
                         <configuration>
-
-                            <errorsAsWarnings>false</errorsAsWarnings>
                             <bin>${project.build.outputDirectory}</bin>
                             <sources>|http://github.com/usethesource/typepal|</sources>
                             <releaseNotes>${project.basedir}/RELEASE-NOTES.md</releaseNotes>
@@ -185,7 +181,7 @@
         <dependency>
             <groupId>org.rascalmpl</groupId>
             <artifactId>rascal</artifactId>
-            <version>0.40.19</version>
+            <version>0.41.0-RC42</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
