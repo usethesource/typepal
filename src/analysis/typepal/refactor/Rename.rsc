@@ -61,8 +61,8 @@ data Renamer
 @synopsis{Language-specific configuration of identifier renaming.}
 @description{
 Configures the rename for a specific language, by giving the following mandatory arguments:
-* `Tree parseLoc(loc l)`, which parses a file and returns a ((ParseTree-Tree)). Typically this would be `parse(#StartSymbol, l)`.
-* `TModel tmodelForTree(Tree t)`, which type-checks a ((ParseTree-Tree)) and returns a ((TModel)). Typically, this would be ((collectAndSolve)).
+* `Tree parseLoc(loc l)`, which parses a file and returns a ((ParseTree::Tree)). Typically this would be `parse(#StartSymbol, l)`.
+* `TModel tmodelForTree(Tree t)`, which type-checks a ((ParseTree::Tree)) and returns a ((TModel)). Typically, this would be ((collectAndSolve)).
 The configuration also takes some optional arguments:
 * `TModel tmodelForLoc(loc l)`, which type-checks a file given its `loc` instead of its parse tree. This can be useful when the file does not have to be parsed to produce a ((TModel)), for example when it had already been type-checked just before starting the renaming. Defaults to `tmodelForTree(parseLoc(l))`.
 * `bool debug`, which indicates whether debug output should be printed during the renaming. Defaults to `false`.
@@ -82,10 +82,11 @@ data RenameConfig
 Applying edits through ((analysis::diff::edits::ExecuteTextEdits)) should happen in a specific order.
 Specifically, files should be created before they can be modified, and after renaming them, modifications/deletions should refer to the new name.
 This functions sorts edits in the following order.
-    1. created
-    2. ((changed))
-    3. ((renamed))
-    4. ((removed))
+
+1. ((analysis::diff::edits::TextEdits::created))
+2. ((analysis::diff::edits::TextEdits::changed))
+3. ((analysis::diff::edits::TextEdits::renamed))
+4. ((analysis::diff::edits::TextEdits::removed))
 }
 list[DocumentEdit] sortDocEdits(list[DocumentEdit] edits) = sort(edits, bool(DocumentEdit e1, DocumentEdit e2) {
     if (e1 is created && !(e2 is created)) return true;
@@ -94,22 +95,22 @@ list[DocumentEdit] sortDocEdits(list[DocumentEdit] edits) = sort(edits, bool(Doc
     return false;
 });
 
-@synopsis{Renames the identifier under the cursor to `newName` and returns the required ((analysis::diff::edits::TextEdits-DocumentEdit))s and ((Message-Message))s.}
+@synopsis{Renames the identifier under the cursor to `newName` and returns the required ((analysis::diff::edits::TextEdits::DocumentEdit))s and ((Message::Message))s.}
 @description{
-Renames the identifier under the cursor (represented as a ((Focus))) to `newName`, given a specific ((analysis::typepal::refactor::Rename-RenameConfig)).
+Renames the identifier under the cursor (represented as a ((Focus))) to `newName`, given a specific ((analysis::typepal::refactor::Rename::RenameConfig)).
 This renaming uses ((TModel))s produced by the type-checker.
 
 The rename framework provides a default implementation, which can be selectively extended for languages that require different rename behaviour than the default. These functions constitute the implementation of renaming:
-* ((analysis::typepal::refactor::Rename-getCursorDefinitions))
-* ((analysis::typepal::refactor::Rename-findOccurrenceFiles))
-* ((analysis::typepal::refactor::Rename-findAdditionalDefinitions))
-* ((analysis::typepal::refactor::Rename-validateNewNameOccurrences))
-* ((analysis::typepal::refactor::Rename-renameDefinition))
-* ((analysis::typepal::refactor::Rename-renameUses))
-* ((analysis::typepal::refactor::Rename-nameLocation))
+* ((analysis::typepal::refactor::Rename::getCursorDefinitions))
+* ((analysis::typepal::refactor::Rename::findOccurrenceFiles))
+* ((analysis::typepal::refactor::Rename::findAdditionalDefinitions))
+* ((analysis::typepal::refactor::Rename::validateNewNameOccurrences))
+* ((analysis::typepal::refactor::Rename::renameDefinition))
+* ((analysis::typepal::refactor::Rename::renameUses))
+* ((analysis::typepal::refactor::Rename::nameLocation))
 }
 @pitfalls{
-* Since the ((analysis::typepal::refactor::Rename-RenameConfig)) that this function passes to the various hooks contains state and caches, it should never escape the scope of a single invoation of ((rename)). Instead, it should always be accessed via ((renamer))'s `getConfig`.
+* Since the ((analysis::typepal::refactor::Rename::RenameConfig)) that this function passes to the various hooks contains state and caches, it should never escape the scope of a single invoation of ((rename)). Instead, it should always be accessed via ((renamer))'s `getConfig`.
 * The renaming highly depends on a type-check function `TModel(Tree)`. If such a function does not exist, this framework cannot function.
 }
 RenameResult rename(
@@ -400,7 +401,7 @@ default void renameUses(set[Define] defs, str newName, TModel tm, Renamer r) {
     }
 }
 
-@synopsis{Finds the location of the identifier within definition ((ParseTree-Tree)) `t` corresponding to ((Define)) `d`, where `t.src == d.defined`.}
+@synopsis{Finds the location of the identifier within definition ((ParseTree::Tree)) `t` corresponding to ((Define)) `d`, where `t.src == d.defined`.}
 default loc nameLocation(Tree t, Define d) {
     // Try to find the first sub-tree that matches the name of the definition
     for (/Tree tr := t, tr@\loc?, "<tr>" == d.id) {
