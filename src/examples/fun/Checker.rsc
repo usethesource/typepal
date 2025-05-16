@@ -96,7 +96,7 @@ void collect(current: (Expression) `<Expression exp1> (<Expression exp2>)`, Coll
                   s.requireEqual(exp2, tau1, error(exp2, "Incorrect type of actual parameter"));
                   return tau2;
                } else {
-                  s.report(error(exp1, "Function type expected, got <s.getType(exp1)>"));
+                  s.report(error(exp1, "Function type expected, got %t", s.getType(exp1)));
                   return intType();
                }
         });
