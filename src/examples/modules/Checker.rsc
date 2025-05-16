@@ -49,17 +49,16 @@ PathConfig pathConfig(loc file) {
 
    p = project(file);      
  
-   return pathConfig(srcs = [ p + "src/lang/modules"]);
+   return pathConfig(srcs = [ p + "src/examples/modules"]);
 }
 
-private str __MODULES_IMPORT_QUEUE = "__modulesImportQueue";
+private str MODULES_IMPORT_QUEUE = "__modulesImportQueue";
 
 str getFileName((ModuleId) `<{Id "::"}+ moduleName>`) = replaceAll("<moduleName>.modules", "::", "/");
 
 tuple[bool, loc] lookupModule(str name, PathConfig pcfg) {
     for (s <- pcfg.srcs + pcfg.libs) {
         result = (s + replaceAll(name, "::", "/"))[extension = "modules"];
-        println(result);
         if (exists(result)) {
         	return <true, result>;
         }
@@ -69,13 +68,13 @@ tuple[bool, loc] lookupModule(str name, PathConfig pcfg) {
 
 void collect(current:(Import) `import <ModuleId moduleName>`, Collector c) {
     c.addPathToDef(moduleName, {moduleId()}, importPath());
-    c.push(__MODULES_IMPORT_QUEUE, "<moduleName>");
+    c.push(MODULES_IMPORT_QUEUE, "<moduleName>");
 }
 
 void handleImports(Collector c, Tree root, PathConfig pcfg) {
     set[str] imported = {};
-    while (list[str] modulesToImport := c.getStack(__MODULES_IMPORT_QUEUE) && modulesToImport != []) {
-    	c.clearStack(__MODULES_IMPORT_QUEUE);
+    while (list[str] modulesToImport := c.getStack(MODULES_IMPORT_QUEUE) && modulesToImport != []) {
+        c.clearStack(MODULES_IMPORT_QUEUE);
         for (m <- modulesToImport, m notin imported) {
             if (<true, l> := lookupModule(m, pcfg)) {
                 collect(parse(#start[Program], l).top, c);
@@ -121,7 +120,7 @@ void collect(current: (Type) `<Id name>`, Collector c){
 // ----  Examples & Tests --------------------------------
 TModel modulesTModelFromTree(Tree pt){
     if (pt has top) pt = pt.top;
-    c = newCollector("modules", pt, config=getModulesConfig(debug = debug));
+    c = newCollector("modules", pt, getModulesConfig());
     collect(pt, c);
     handleImports(c, pt, pathConfig(pt@\loc));
     return newSolver(pt, c.run()).run();
@@ -143,13 +142,13 @@ public start[Program] sampleModules(str name) = parse(#start[Program], |project:
 
 list[Message] runModules(str name, bool debug = false) {
     Tree pt = sampleModules(name);
-    TModel tm = modulesTModelFromTree(pt, debug = debug);
+    TModel tm = modulesTModelFromTree(pt);
     return tm.messages;
 }
  
 bool testModules(int n, bool debug = false, set[str] runOnly = {}) {
     return runTests([|project://modules-core/src/lang/modules/modules<"<n>">.ttl|], #start[Program], TModel (Tree t) {
-        return modulesTModelFromTree(t, debug=debug);
+        return modulesTModelFromTree(t);
     }, runOnly = runOnly);
 }
 

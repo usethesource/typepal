@@ -88,11 +88,15 @@ void collect(current: (Expression) `<Id name>`,  Collector c){
 void collect(current: (Expression) `<Expression exp1> (<Expression exp2>)`, Collector c) { 
      c.calculate("application", current, [exp1, exp2],
          AType (Solver s) {  
-            if(functionType(tau1, tau2) := s.getType(exp1)){
+            tp = s.getType(exp1);
+            if(functionType(tau1, tau2) := tp){
+                  s.requireEqual(exp2, tau1, error(exp2, "Incorrect type of actual parameter"));
+                  return tau2;
+               } else if (overloadedAType(types) := tp, {<_, functionType(tau1, tau2)>} := types<1, 2>) {
                   s.requireEqual(exp2, tau1, error(exp2, "Incorrect type of actual parameter"));
                   return tau2;
                } else {
-                  s.report(error(exp1, "Function type expected"));
+                  s.report(error(exp1, "Function type expected, got %t", s.getType(exp1)));
                   return intType();
                }
         });
