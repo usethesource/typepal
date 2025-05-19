@@ -50,6 +50,15 @@ alias Focus = list[Tree];
 private int WORKSPACE_WORK = 10;
 private int FILE_WORK = 5;
 
+@synopsis{Tracks state of renaming and provides halper functions.}
+@description{
+Tracks the state of the renaming, as an argument to every function of the rename framework.
+
+* `msg` registers a ((FailMessage)). Registration of an ((error)) triggers premature termination of the renaming at the soonest possibility (typically before the next rename phase).
+* `documentEdit` registers a ((DocumentEdit)), which represents a change required for the renaming.
+* `textEdit` registers a ((TextEdit)), which represents a change required for the renaming. It is a convenience function that converts to a ((DocumentEdit)) internally, grouping ((TextEdit))s to the same file where possible.
+* `getConfig` retrieves the ((analysis::typepal::refactor::Rename::RenameConfig)).
+}
 data Renamer
     = renamer(
         void(FailMessage) msg
@@ -321,6 +330,7 @@ RenameResult rename(
 }
 
 // TODO If performance bottleneck, rewrite to binary search
+@synopsis{Compute locations of names of `defs` in `tr`.}
 private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer _r) {
     map[loc, Define] definitions = (d.defined: d | d <- defs);
     set[loc] defsToDo = defs.defined;
@@ -346,7 +356,7 @@ private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer _r)
     return defNames;
 }
 
-@synopsis{Computes ((Define))(s) for the name under the cursor.}
+@synopsis{Computes ((Define))(s) for the name under `cursor` in ((ParseTree::Tree)) `_r`.}
 default set[Define] getCursorDefinitions(Focus cursor, Tree(loc) _r, TModel(Tree) getModel, Renamer r) {
     loc cursorLoc = cursor[0].src;
     TModel tm = getModel(cursor[-1]);
@@ -368,6 +378,7 @@ default set[Define] getCursorDefinitions(Focus cursor, Tree(loc) _r, TModel(Tree
 }
 
 @synopsis{Computes in which files occurrences of `cursorDefs` and `newName` *might* occur (over-approximation). This is not supposed to call the type-checker on any file for performance reasons.}
+@pitfalls{For any file in `defFiles + useFiles`, the framework calls `RenameConfig::tmodelForLoc`. If type-cehcking is expensive and this function over-approximates by a large margin, the performance of the renaming might degrade.}
 default tuple[set[loc] defFiles, set[loc] useFiles, set[loc] newNameFiles] findOccurrenceFiles(set[Define] cursorDefs, Focus cursor, str newName, Tree(loc) _getTree, Renamer r) {
     loc f = cursor[0].src.top;
     if (any(d <- cursorDefs, f != d.defined.top)) {
@@ -389,12 +400,12 @@ default void validateNewNameOccurrences(set[Define] cursorDefs, str newName, Tre
     }
 }
 
-@synopsis{Renames a single ((Define)) with its name at `nameLoc`, by producing a corresponding ((DocumentEdit)).}
+@synopsis{Renames a single ((Define)) `_d `with its name at `nameLoc`, defined in ((TModel)) `_tm`, to `newName`, by producing corresponding ((DocumentEdit))s.}
 default void renameDefinition(Define _d, loc nameLoc, str newName, TModel _tm, Renamer r) {
     r.textEdit(replace(nameLoc, newName));
 }
 
-@synopsis{{Renames all uses of `defs` in a single file/((TModel)), by producing corresponding ((DocumentEdit))s.}}
+@synopsis{{Renames all uses of `defs` in a single file/((TModel)) `tm`, by producing corresponding ((DocumentEdit))s.}}
 default void renameUses(set[Define] defs, str newName, TModel tm, Renamer r) {
     for (loc u <- invert(tm.useDef)[defs.defined] - defs.defined) {
         r.textEdit(replace(u, newName));
