@@ -1,0 +1,5 @@
+module A {
+    import B;
+    def a : int -> int = fun i : int { 5 + i };
+    def a : int -> int = fun i : int { 6 + i };
+}

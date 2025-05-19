@@ -4,6 +4,6 @@ import A
 import B
 
 struct C1 {
-	A1
-	B1
+    A1
+    B1
 }

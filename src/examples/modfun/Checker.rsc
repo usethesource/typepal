@@ -17,6 +17,11 @@ module examples::modfun::Checker
 import examples::modfun::Syntax;
 extend examples::fun::Checker;
 
+import IO;
+import String;
+
+private str MODULES_IMPORT_QUEUE = "__modulesImportQueue";
+
 // ----  IdRoles, PathLabels and AType ---------------------------------------- 
      
 data AType
@@ -43,10 +48,60 @@ void collect(current: (ModuleDecl) `module <ModId mid> { <Decl* decls> }`, Colle
 
 void collect(current: (ImportDecl) `import <ModId mid> ;`, Collector c){
      c.addPathToDef(mid, {moduleId()}, importPath());
+     c.push(MODULES_IMPORT_QUEUE, "<mid>");
 }
 
 void collect(current: (VarDecl) `def <Id id> : <Type tp> = <Expression expression> ;`, Collector c)     {
      c.define("<id>", variableId(), id, defType(tp));
      c.requireEqual(tp, expression, error(current, "Expected initializing expression of type %t, found %t", expression, tp));
      collect(tp, expression, c);
+}
+
+TModel modfunTModelFromTree(Tree pt, TypePalConfig config) {
+    if (pt has top) pt = pt.top;
+    c = newCollector("modfun", pt, config);
+    collect(pt, c);
+    handleImports(c, pt, pathConfig(pt@\loc));
+    return newSolver(pt, c.run()).run();
+}
+
+void handleImports(Collector c, Tree root, PathConfig pcfg) {
+    set[str] imported = {};
+    while (list[str] modulesToImport := c.getStack(MODULES_IMPORT_QUEUE) && modulesToImport != []) {
+        c.clearStack(MODULES_IMPORT_QUEUE);
+        for (m <- modulesToImport, m notin imported) {
+            if (<true, l> := lookupModule(m, pcfg)) {
+                collect(parse(#start[ModFun], l).top, c);
+            }
+            else {
+                c.report(error(root, "Cannot find module %v in %v or %v", m, pcfg.srcs, pcfg.libs));
+            }
+            imported += m;
+        }
+    }
+}
+
+private loc project(loc file) {
+   assert file.scheme == "project";
+   return |project://<file.authority>|;
+}
+
+data PathConfig = pathConfig(list[loc] srcs = [], list[loc] libs = []);
+
+PathConfig pathConfig(loc file) {
+   assert file.scheme == "project";
+
+   p = project(file);
+
+   return pathConfig(srcs = [ p + "src/examples/modfun"]);
+}
+
+tuple[bool, loc] lookupModule(str name, PathConfig pcfg) {
+    for (s <- pcfg.srcs + pcfg.libs) {
+        result = (s + replaceAll(name, "::", "/"))[extension = "mfun"];
+        if (exists(result)) {
+            return <true, result>;
+        }
+    }
+    return <false, |invalid:///|>;
 }
