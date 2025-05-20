@@ -356,8 +356,8 @@ private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer _r)
     return defNames;
 }
 
-@synopsis{Computes ((Define))(s) for the name under `cursor` in ((ParseTree::Tree)) `_r`.}
-default set[Define] getCursorDefinitions(Focus cursor, Tree(loc) _r, TModel(Tree) getModel, Renamer r) {
+@synopsis{Computes ((Define))(s) for the name under `cursor`.}
+default set[Define] getCursorDefinitions(Focus cursor, Tree(loc) _getTree, TModel(Tree) getModel, Renamer r) {
     loc cursorLoc = cursor[0].src;
     TModel tm = getModel(cursor[-1]);
     for (Tree c <- cursor) {
