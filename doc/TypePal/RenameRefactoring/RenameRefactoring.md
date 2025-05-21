@@ -122,7 +122,7 @@ The default implementation only looks at the file where the cursor is. For multi
 
 ###### Find additional definitions
 
-For each files in `defFiles` from [the previous step](#find-relevant-files), find additional definitions to rename.
+For each files in `defFiles` from [`findOccurrenceFiles`](#find-relevant-files), find additional definitions to rename.
 
 ```rascal
 set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree tr, TModel tm, Renamer r);
@@ -163,7 +163,7 @@ The default implementation returns the location of the first sub-tree of which t
 
 ###### Rename definition
 
-Rename a single definition, with its name at `nameLoc` (determined by [the previous function](#find-name-location)) to `newName`. This is called for each definition collected by `getCursorDefinitions` and `findAdditionalDefinitions`.
+Rename a single definition, with its name at `nameLoc` (determined by [`nameLocation`](#find-name-location)) to `newName`. This is called for each definition collected by `getCursorDefinitions` and `findAdditionalDefinitions`.
 
 ```rascal
 void renameDefinition(Define d, loc nameLoc, str newName, TModel tm, Renamer r);
