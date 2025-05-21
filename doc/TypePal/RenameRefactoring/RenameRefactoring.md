@@ -151,6 +151,48 @@ void validateNewNameOccurrences(set[Define] cursorDefs, str newName, Tree tr, Re
 
 The default implementation raises an error when a occurrence of `newName` exists here.
 
+Example (simplified from the renaming implementaion for Rascal itself) that checks for shadowing, overloading and double declarations introduced by the rename.
+```rascal
+void validateNewNameOccurrences(set[Define] cursorDefs, str newName, Tree tr, Renamer r) {
+    tm = r.getConfig().tmodelForLoc(tr.src.top);
+
+    defUse = invert(tm.useDef);
+    reachable = rascalGetReflexiveModulePaths(tm).to;
+    newNameDefs = {nD | Define nD:<_, newName, _, _, _, _> <- tm.defines};
+    curAndNewDefinitions = (d.defined: d | d <- currentDefs + newNameDefs); // temporary map for overloading checks
+
+    for (<Define c, Define n> <- currentDefs * newNameDefs) {
+        set[loc] curUses = defUse[c.defined];
+        set[loc] newUses = defUse[n.defined];
+
+        // Will this rename hide a used definition of `oldName` behind an existing definition of `newName` (shadowing)?
+        for (loc cU <- curUses
+           , isContainedInScope(cU, n.scope, tm)
+           , isContainedInScope(n.scope, c.scope, tm)) {
+            r.error(cU, "Renaming this to \'<newName>\' would change the program semantics; its original definition would be shadowed by <n.defined>.");
+        }
+
+        // Will this rename hide a used definition of `newName` behind a definition of `oldName` (shadowing)?
+        for (isContainedInScope(c.scope, n.scope, tm)
+           , loc nU <- newUses
+           , isContainedInScope(nU, c.scope, tm)) {
+            r.error(c.defined, "Renaming this to \'<newName>\' would change the program semantics; it would shadow the declaration of <nU>.");
+        }
+
+        // Is `newName` already resolvable from a scope where `oldName` is currently declared?
+        if (tm.config.mayOverload({c.defined, n.defined}, curAndNewDefinitions)) {
+            // Overloading
+            if (c.scope in reachable || isContainedInScope(c.defined, n.scope, tm) || isContainedInScope(n.defined, c.scope, tm)) {
+                r.error(c.defined, "Renaming this to \'<newName>\' would overload an existing definition at <n.defined>.");
+            }
+        } else if (isContainedInScope(c.defined, n.scope, tm)) {
+            // Double declaration
+            r.error(c.defined, "Renaming this to \'<newName>\' would cause a double declaration (with <n.defined>).");
+        }
+    }
+}
+```
+
 ###### Find name location
 
 Finds the location of the name in a definitions parse tree.
@@ -159,7 +201,7 @@ Finds the location of the name in a definitions parse tree.
 loc nameLocation(Tree t, Define d);
 ```
 
-The default implementation returns the location of the first sub-tree of which the un-parsed representation matches the name of the definition. If no match is found, it returns the location of the parse tree.
+The default implementation returns the location of the first (left-most) sub-tree of which the un-parsed representation matches the name of the definition. If no match is found, it returns the location of the parse tree.
 
 ###### Rename definition
 
@@ -170,6 +212,28 @@ void renameDefinition(Define d, loc nameLoc, str newName, TModel tm, Renamer r);
 ```
 
 The default implementation registers an edit to replace the text at `nameLoc` with `newName`. Overriding this can be useful, e.g. if extra checks are required to confirm the rename is valid, or if the renaming requires additional edits, like moving a file.
+
+
+The following example override registers an edit for renaming a file when renaming a module.
+```rascal
+import Location;
+
+str makeFileName(str name) = ...;
+
+data RenamConfig(set[loc] srcDirs = {|file:///source1|, |file:///source2|});
+
+void renameDefinition(Define d:<_, currentName, _, moduleId(), _, _>, loc nameLoc, str newName, TModel _, Renamer r) {
+    loc moduleFile = d.defined.top;
+    if (loc srcDir <- r.getConfig().srcDirs, loc relModulePath := relativize(srcDir, moduleFile), relModulePath != moduleFile) {
+        // Change the module header
+        r.textEdit(replace(nameLoc, newName));
+        // Rename the file
+        r.documentEdit(renamed(moduleFile, srcDir + makeFileName(newName)));
+    } else {
+        r.error(moduleFile, "Cannot rename <currentName>, since it is not defined in this project.");
+    }
+}
+```
 
 ###### Rename uses
 
