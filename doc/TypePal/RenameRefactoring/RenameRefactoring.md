@@ -159,7 +159,7 @@ Finds the location of the name in a definitions parse tree.
 loc nameLocation(Tree t, Define d);
 ```
 
-The default implementation return the location of the first sub-tree of which the un-parsed representation matches the name of the definition. If no match is found, it returns the location of the parse tree.
+The default implementation returns the location of the first sub-tree of which the un-parsed representation matches the name of the definition. If no match is found, it returns the location of the parse tree.
 
 ###### Rename definition
 

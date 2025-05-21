@@ -8,7 +8,7 @@ A `Collector` collects constraints from source code and produces an initial `TMo
 
 #### Description
 
-A `Collector` is a statefull object that provides all the functions described below to access and change its internal state. The global services provided by a `Collector` are:
+A `Collector` is a stateful object that provides all the functions described below to access and change its internal state. The global services provided by a `Collector` are:
 
 * Register facts, calculators, and requirements as collected from the source program.
 * Maintain a global (key,value) store to store global information relevant for the collection process. Typical examples are:
