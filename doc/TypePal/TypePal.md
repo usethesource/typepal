@@ -10,6 +10,7 @@ details:
   - Solver
   - Configuration
   - Utilities
+  - RenameRefactoring
   - Examples
 ---
       
