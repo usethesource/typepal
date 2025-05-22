@@ -71,7 +71,7 @@ The framework goes through multiple stages, analysing files and looking for occu
 
 ###### Advanced configuration
 
-The `RenameConfig` exposes some additioanl properties through optional keyword arguments. For reference see [here](https://www.rascal-mpl.org/docs/Packages/Typepal/API/analysis/typepal/refactor/Rename/#analysis-typepal-refactor-Rename-RenameConfig).
+The `RenameConfig` exposes some additional properties through optional keyword arguments. For reference see [here](https://www.rascal-mpl.org/docs/Packages/Typepal/API/analysis/typepal/refactor/Rename/#analysis-typepal-refactor-Rename-RenameConfig).
 
 Additionally, one can extend the configuration with keyword arguments, for example to retain some state for a single rename. Example:
 
@@ -105,7 +105,7 @@ The default implementation only looks for definitions in the file where the curs
 
 ###### Find relevant files
 
-Find files in which the following might occur (over-approximation):
+Find files that might contain one of the following occurrences. This should be a fast over-approximation.
 
 * Definitions of the name under the cursor.
 * References to/uses of aforementioned definitions.
@@ -118,7 +118,7 @@ tuple[set[loc] defFiles, set[loc] useFiles, set[loc] newNameFiles] findOccurrenc
 The default implementation only looks at the file where the cursor is. For multi-file projects, this step should probably consider more files. If the number of files in projects can be large, it is wise to consider performance when overriding this function.
 
 1. The amount of work done per file should be reasonable.
-2. The files returned here will be the inputs to the next steps. Most of those steps will trigger the type-checker on the file first. If type-checking is expensive, try not to over-approximate too liberately here.
+2. The files returned here will be the inputs to the next steps. Most of those steps will trigger the type-checker on the file first. If type-checking is expensive, try not to over-approximate too liberally here.
 
 ###### Find additional definitions
 
