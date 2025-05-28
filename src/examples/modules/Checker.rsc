@@ -15,6 +15,7 @@ module examples::modules::Checker
 import examples::modules::Syntax;
 import IO;
 import String;
+import util::PathConfig;
 
 extend analysis::typepal::TypePal;
 extend analysis::typepal::TestFramework;
@@ -42,7 +43,6 @@ private loc project(loc file) {
    return |project://<file.authority>|;
 }
 
-data PathConfig = pathConfig(list[loc] srcs = [], list[loc] libs = []);
 
 PathConfig pathConfig(loc file) {
    assert file.scheme == "project";
