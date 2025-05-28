@@ -132,7 +132,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     //}
 
     void solver_push(str key, value val){
-        if(tm.store[key]? && list[value] old := tm.store[key]){
+        if(key in tm.store && list[value] old := tm.store[key]){
            tm.store[key] = val + old;
         } else {
            tm.store[key] = [val];
@@ -140,7 +140,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     value solver_pop(str key){
-        if(tm.store[key]? && list[value] old := tm.store[key], size(old) > 0){
+        if(key in tm.store && list[value] old := tm.store[key], size(old) > 0){
            pval = old[0];
            tm.store[key] = tail(old);
            return pval;
@@ -150,7 +150,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     value solver_top(str key){
-        if(tm.store[key]? && list[value] old := tm.store[key], size(old) > 0){
+        if(key in tm.store && list[value] old := tm.store[key], size(old) > 0){
            return old[0];
         } else {
            throw TypePalUsage("Cannot get top from empty stack for key `<key>`");
@@ -158,7 +158,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     list[value] solver_getStack(str key){
-        if(tm.store[key]? && list[value] old := tm.store[key]){
+        if(key in tm.store && list[value] old := tm.store[key]){
             return old;
         }
         return [];
@@ -322,11 +322,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
         for(Use u <- (def2uses[trigger] ? {})){
             foundDefs = definedBy[u.occ];
-            if({def} := foundDefs, facts[def]?){
+            if({def} := foundDefs, def in facts){
                 openUses -= u;
                 addFact(u.occ, facts[def]);
             } else {
-                if(all(def <- foundDefs, facts[def]?)){
+                if(all(def <- foundDefs, def in facts)){
                    openUses -= u;
                    addFact(u.occ, overloadedAType({<def, definitions[def].idRole, instantiate(facts[def])> | loc def <- foundDefs}));
                 }
@@ -369,7 +369,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             }
         } else if(Tree from := tp){
             fromLoc = getLoc(from);
-            if(facts[fromLoc]?){
+            if(fromLoc in facts){
                 facts[defined] = facts[fromLoc];
             } else {
                 calculators += calcLoc(defined, [fromLoc]);
@@ -411,7 +411,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     void scheduleCalc(Calculator calc, list[loc] dependsOn){
         if(calc in calculators && calc notin calculatorJobs /*&& calc notin solvedCalculatorJobs*/){
             nAvailable = 0;
-            for(dep <- dependsOn) { if(facts[dep]?) nAvailable += 1; }
+            for(dep <- dependsOn) { if(dep in facts) nAvailable += 1; }
             enabled = nAvailable == size(dependsOn);
             if(enabled) calculatorJobs += calc;
         }
@@ -526,7 +526,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     void scheduleReq(Requirement req){
         if(req in requirements && req notin requirementJobs /*&& req notin solvedRequirementJobs*/){
            nAvailable = 0;
-           for(dep <- req.dependsOn) { if(facts[dep]?) nAvailable += 1; }
+           for(dep <- req.dependsOn) { if(dep in facts) nAvailable += 1; }
 
            enabled = nAvailable == size(req.dependsOn);
            if(enabled) requirementJobs += req;
@@ -687,14 +687,14 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     void addUse(set[loc] defs, Use u){
         for(loc def <- defs){
-            if(definedBy[u.occ]?){  // TODO is this isContainedIn safe to use?
+            if(u.occ in definedBy){  // TODO is this isContainedIn safe to use?
                 if(!any(loc d <- definedBy[u.occ], isContainedIn(d, def))){
                      definedBy[u.occ] += {def};
                 }
             } else {
                 definedBy[u.occ] = {def};
             }
-            if(def2uses[def]?){
+            if(def in def2uses){
                 def2uses[def] += {u};
             } else {
                 def2uses[def] = {u};
@@ -1198,19 +1198,19 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     bool allDependenciesKnown(set[loc] deps, bool eager){
         if(isEmpty(deps)) return true;
-        if(eager) return all(dep <- deps, facts[dep]?);
-        return all(dep <- deps, facts[dep]?, solver_isFullyInstantiated(facts[dep]));
+        if(eager) return all(dep <- deps, dep in facts);
+        return all(dep <- deps, dep in facts, solver_isFullyInstantiated(facts[dep]));
     }
 
     bool allDependenciesKnown(list[loc] deps, bool eager){
         if(isEmpty(deps)) return true;
-        if(eager) return all(dep <- deps, facts[dep]?);
-        return all(dep <- deps, facts[dep]?, solver_isFullyInstantiated(facts[dep]));
+        if(eager) return all(dep <- deps, dep in facts);
+        return all(dep <- deps, dep in facts, solver_isFullyInstantiated(facts[dep]));
     }
 
     bool solver_isFullyInstantiated(AType atype){
         visit(atype){
-            case tvar(loc tname): { if(!facts[tname]?) return false;
+            case tvar(loc tname): { if(tname notin facts) return false;
                                     if(tvar(_) := facts[tname]) return false;
                                   }
             case lazyLub(list[AType] atypes):
@@ -1223,14 +1223,14 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     // Find a (possibly indirectly defined) type for src
     AType findType(loc src){
-        if(bindings[src]?){
+        if(src in bindings){
             v = bindings[src];
-            if(tvar(loc src1) := v && src1 != src && (bindings[src1]? || facts[src1]?)) return findType(src1);
+            if(tvar(loc src1) := v && src1 != src && (src1 in bindings || src1 in facts)) return findType(src1);
             return v;
         }
-        if(facts[src]?){
+        if(src in facts){
             v = facts[src];
-            if(tvar(loc src1) := v && src1 != src && (bindings[src1]? || facts[src1]?)) return findType(src1);
+            if(tvar(loc src1) := v && src1 != src && (src1 in bindings || src1 in facts)) return findType(src1);
             return v;
         }
        throw NoSuchKey(src);
@@ -1238,8 +1238,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     // Substitute a type variable first using bindings, then facts; return as is when there is no binding
     AType substitute(tv: tvar(loc src)){
-        if(bindings[src]?) { b = bindings[src]; return b == tv ? tv : substitute(b); }
-        if(facts[src]?) { b = facts[src]; return b == tv ? tv : substitute(b); }
+        if(src in bindings) { b = bindings[src]; return b == tv ? tv : substitute(b); }
+        if(src in facts) { b = facts[src]; return b == tv ? tv : substitute(b); }
         return tv;
     }
 
@@ -1322,7 +1322,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             orgId = udef.orgId;
             idRole = udef.idRole;
             defined = udef.defined;
-            if(logical2physical[defined]?) continue;
+            if(defined in logical2physical) continue;
 
             u = use(id, orgId, defined, scope, {idRole}); // turn each unused definition into a use and check for double declarations;
             try {
@@ -1427,11 +1427,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                       openUses += u;
                       notYetDefinedUses -= u;
 
-                      if({def} := foundDefs, facts[def]?){
+                      if({def} := foundDefs, def in facts){
                         openUses -= u;
                         addFact(u.occ, facts[def]);
                       } else {
-                        if(all(def <- foundDefs, facts[def]?)){
+                        if(all(def <- foundDefs, def in facts)){
                             openUses -= u;
                             addFact(u.occ, overloadedAType({<def, definitions[def].idRole, instantiate(facts[def])> | loc def <- foundDefs}));
                         }
@@ -1577,7 +1577,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         if(!realErrorsFound){
             for (Use u <- openUses) {
                 foundDefs = definedBy[u.occ];
-                for(_ <- foundDefs, !facts[u.occ]?, !alreadyReported(messages, u.occ)) {
+                for(_ <- foundDefs, u.occ notin facts, !alreadyReported(messages, u.occ)) {
                     messages += error("Unresolved type for `<u has id ? u.id : u.ids>`", u.occ);
                 }
             }
@@ -1586,9 +1586,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
             for(Calculator clc <- sort(calcNoLubs, bool(Calculator a, Calculator b){ return a.src.length < b.src.length; })){
                 src = clc.src;
-                if(!facts[src]?, !alreadyReported(messages, src)){
+                if(src notin facts, !alreadyReported(messages, src)){
                     set[loc] cdeps = toSet(dependsOn(clc));
-                    if(!facts[src]? && isEmpty(reportedLocations & cdeps)){
+                    if(src notin facts && isEmpty(reportedLocations & cdeps)){
                         messages += error("Unresolved type<clc has cname ? " for <clc.cname>" : "">", src);
                         reportedLocations += src;
                     }
@@ -1600,7 +1600,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 csrcs = srcs(clc);
                 set[loc] cdeps = toSet(dependsOn(clc));
                 for(loc src <- csrcs){
-                    if(!facts[src]? && isEmpty(reportedLocations & cdeps)){
+                    if(src notin facts && isEmpty(reportedLocations & cdeps)){
                         messages += error("Unresolved type<clc has cname ? " for <clc.cname>" : "">", src);
                         reportedLocations += src;
                     }
@@ -1624,7 +1624,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         for(loc u <- specializedFacts){
             orgtp = facts[u];
             spectp = specializedFacts[u];
-            if(definedBy[u]? && overloadedAType(org_overloads) := orgtp){
+            if(u in definedBy && overloadedAType(org_overloads) := orgtp){
                 if(overloadedAType(spec_overloads) := spectp){
                     definedBy[u] = { def | <def, _, otype> <- org_overloads, otype in spec_overloads<2>};
                 } else {
@@ -1641,14 +1641,14 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         ldefines = for(tup: <loc _, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
                         if(defInfo has tree){
                             l = getLoc(defInfo.tree);
-                            if(tm.facts[l]?){
+                            if(l in tm.facts){
                                    dt = defType(tm.facts[l]);
                                    tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo));
                             } else {
                                 continue;
                             }
                         } else {
-                            if(tm.facts[defined]?){
+                            if(defined in tm.facts){
                                 dt = defType(tm.facts[defined]);
                                 tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo));
                             } else {

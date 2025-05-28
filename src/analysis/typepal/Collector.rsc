@@ -674,7 +674,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
           srcLoc = getLoc(tree);
           if(AType atype := tp){
             if(isTypeVarFree(atype)) {
-                if(facts[srcLoc]? && !isValidReplacement(facts[srcLoc], atype)){
+                if(srcLoc in facts && !isValidReplacement(facts[srcLoc], atype)){
                     println("Double fact declaration for <srcLoc>: <facts[srcLoc]> != <atype>");
                 } else {
                     facts[srcLoc] = atype;
@@ -685,9 +685,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
           } else if(Tree tree2 := tp){
             fromLoc = getLoc(tree2);
             if(srcLoc != fromLoc){
-                if(facts[fromLoc]?){
+                if(fromLoc in facts){
                     fromType = facts[fromLoc];
-                    if(facts[srcLoc]? && !isValidReplacement(facts[srcLoc], fromType)){
+                    if(srcLoc in facts && !isValidReplacement(facts[srcLoc], fromType)){
                         println("Double fact declaration for <srcLoc>: <facts[srcLoc]> != <fromType>");
                     } else {
                         facts[srcLoc] = facts[fromLoc];
@@ -707,7 +707,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     AType collector_getType(Tree tree){
         if(building){
             srcLoc = getLoc(tree);
-            if(facts[srcLoc]?) return facts[srcLoc];
+            if(srcLoc in facts) return facts[srcLoc];
             throw TypeUnavailable();
         } else {
             throw TypePalUsage("Cannot call `getType` on Collector after `run`");
@@ -779,7 +779,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     }
 
     void collector_push(str key, value val){
-        if(storeVals[key]? && list[value] old := storeVals[key]){
+        if(key in storeVals && list[value] old := storeVals[key]){
            storeVals[key] = val + old;
         } else {
            storeVals[key] = [val];
@@ -787,7 +787,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     }
 
     value collector_pop(str key){
-        if(storeVals[key]? && list[value] old := storeVals[key], size(old) > 0){
+        if(key in storeVals && list[value] old := storeVals[key], size(old) > 0){
            pval = old[0];
            storeVals[key] = tail(old);
            return pval;
@@ -797,7 +797,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     }
 
     value collector_top(str key){
-        if(storeVals[key]? && list[value] old := storeVals[key], size(old) > 0){
+        if(key in storeVals && list[value] old := storeVals[key], size(old) > 0){
            return old[0];
         } else {
            throw TypePalUsage("Cannot get top from empty stack for key `<key>`");
@@ -805,7 +805,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     }
 
     list[value] collector_getStack(str key){
-        if(storeVals[key]? && list[value] old := storeVals[key]){
+        if(key in storeVals && list[value] old := storeVals[key]){
             return old;
         }
         return [];
@@ -870,7 +870,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
 
     bool existsFixedDefineInOuterScope(str id, loc lubScope){
         outer = lubScope;
-        while(scopes[outer]? && scopes[outer] != |global-scope:///|){
+        while(outer in scopes && scopes[outer] != |global-scope:///|){
             outer = scopes[outer];
             for(<loc _, id, _, idRole, loc _, DefInfo _> <- definesPerLubScope[outer] ? {}, config.isInferrable(idRole)){
                 return true;
@@ -1018,7 +1018,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         for(Define def <- defines){
             logicalLoc = my_physical2logical[def.defined] ? config.createLogicalLoc(def, modelName, config.typepalPathConfig);
             if(logicalLoc != def.defined){
-                if(my_logical2physical[logicalLoc]?){
+                if(logicalLoc in my_logical2physical){
                     if(my_logical2physical[logicalLoc] != def.defined){
                         messages += error("Remove code clone for <prettyRole(def.idRole)> `<def.id>` at <my_logical2physical[logicalLoc]> and <def.defined>", def.defined);
                     }
@@ -1063,7 +1063,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
            map[loc, map[str, rel[IdRole idRole, loc defined]]] definesMap = ();
            for(<loc scope, str id, str _orgId, IdRole idRole, loc defined, DefInfo _> <- defines){
                 map[str, rel[IdRole idRole, loc defined]] dm = ();
-                if(definesMap[scope]?) dm = definesMap[scope];
+                if(scope in definesMap) dm = definesMap[scope];
                 dm[id] =  (dm[id] ? {}) + {<idRole, defined>};
                 definesMap[scope] = dm;
            }
