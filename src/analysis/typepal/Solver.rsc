@@ -232,62 +232,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         return isEmpty(failMessages) ? false : any(fm <- failMessages, getName(fm) == "fm_error");
     }
 
-    // ---- validation
-
-    //void validateTriggers(){
-    //    int nissues = 0;
-    //    for(Calculator calc <- calculators){
-    //        deps = calcType(loc src, AType atype) := calc ? getDependencies(atype) : calc.dependsOn;
-    //
-    //        for(loc dep <- deps){
-    //            if(!(facts[dep]? || calc in (triggersCalculator[dep] ? {}))){
-    //                println("Not a fact or trigger for: <dep>");
-    //                print(calc, "\t", facts);
-    //                println("\t<calc>");
-    //                nissues += 1;
-    //            }
-    //        }
-    //    }
-    //
-    //    for(Requirement req <- requirements){
-    //        for(loc dep <- req.dependsOn){
-    //            if(!(facts[dep]? || req in (triggersRequirement[dep] ? {}))){
-    //                println("Not a fact or trigger for dependency on: <dep>");
-    //                print(req, "\t", facts);
-    //                println("\t<req>");
-    //                nissues += 1;
-    //            }
-    //        }
-    //    }
-    //    if(nissues > 0) throw "Found <nissues> incomplete triggers";
-    //}
-
-    void validateDependencies(){
-        availableCalcs = {};
-        map[loc,Calculator] calcMap = ();
-        dependencies = {};
-        for(Calculator calc <- calculators){
-            csrcs = calc has src ? [calc.src] : calc.srcs;
-            for(src <-  csrcs){
-                if(src in calcMap && calcMap[src] != calc){
-                   ;//println("Multiple calculators for the same location");
-                    //print(calcMap[src], "\t", facts, full=false);
-                    //print(calc, "\t", facts, full=false);
-                }
-                calcMap[src] = calc;
-            }
-            dependencies += toSet(dependsOn(calc) - csrcs);
-        }
-        uses = {u.occ | u <- tm.uses};
-        xx = tm.defines;
-        defs = (xx).defined;
-        dependencies += {*req.dependsOn | req <- requirements};
-        missing = dependencies - domain(calcMap) - domain(facts) - uses - defs;
-        if(!isEmpty(missing)){
-            for(loc m <- missing) messages += warning("Missing calculator", m);
-        }
-    }
-
     // ---- Register triggers
 
     void registerCalc(Calculator calc){
@@ -1278,8 +1222,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         bindings = ();
         messages = tm.messages;
         failMessages = [];
-
-        validateDependencies();
 
         resolvePaths();
 
