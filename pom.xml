@@ -175,7 +175,7 @@
         <dependency>
             <groupId>org.rascalmpl</groupId>
             <artifactId>rascal</artifactId>
-            <version>0.41.0-RC42</version>
+            <version>0.41.0-RC46</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
