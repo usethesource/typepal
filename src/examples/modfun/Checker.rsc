@@ -86,8 +86,6 @@ private loc project(loc file) {
    return |project://<file.authority>|;
 }
 
-data PathConfig = pathConfig(list[loc] srcs = [], list[loc] libs = []);
-
 PathConfig pathConfig(loc file) {
    assert file.scheme == "project";
 
