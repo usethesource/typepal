@@ -28,7 +28,7 @@
 * Reduce number of generated error messages
     
     "Reference to name ..." and "Reference to type ..." messages are
-    suppressed if there is alerady an error for the same location
+    suppressed if there is already an error for the same location
 
 ##  Release 0.10.0 
 
