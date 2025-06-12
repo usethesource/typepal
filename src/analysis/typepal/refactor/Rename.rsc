@@ -97,7 +97,7 @@ list[DocumentEdit] sortDocEdits(list[DocumentEdit] edits) = sort(edits, bool(Doc
 
 @synopsis{Renames the identifier under the cursor to `newName` and returns the required ((analysis::diff::edits::TextEdits::DocumentEdit))s and ((Message::Message))s.}
 @description{
-Renames the identifier under the cursor (represented as a ((Focus))) to `newName`, given a specific ((analysis::typepal::refactor::Rename::RenameConfig)).
+Renames the identifier under the cursor (represented as a Focus) to `newName`, given a specific ((analysis::typepal::refactor::Rename::RenameConfig)).
 This renaming uses ((TModel))s produced by the type-checker.
 
 The rename framework provides a default implementation, which can be selectively extended for languages that require different rename behaviour than the default. These functions constitute the implementation of renaming:
@@ -110,7 +110,7 @@ The rename framework provides a default implementation, which can be selectively
 * ((analysis::typepal::refactor::Rename::nameLocation))
 }
 @pitfalls{
-* Since the ((analysis::typepal::refactor::Rename::RenameConfig)) that this function passes to the various hooks contains state and caches, it should never escape the scope of a single invoation of ((rename)). Instead, it should always be accessed via ((renamer))'s `getConfig`.
+* Since the ((analysis::typepal::refactor::Rename::RenameConfig)) that this function passes to the various hooks contains state and caches, it should never escape the scope of a single invoation of rename. Instead, it should always be accessed via ((renamer))'s `getConfig`.
 * The renaming highly depends on a type-check function `TModel(Tree)`. If such a function does not exist, this framework cannot function.
 }
 RenameResult rename(
