@@ -129,6 +129,8 @@ str interpolate(str msg, TypeProvider getType, list[value] args){
                 //    result += "`<fmt1(args[a], getType)>`";
                 //   //throw TypePalUsage("%q format directive requires a Tree, AType or list/set of ATypes, found <args[a]>");
                 //}
+            case "s":
+                result += "<args[a]>";
             case "v":
                 result += "<fmt1(args[a], getType)>";
             case "%":
@@ -149,8 +151,8 @@ Message fmt(str severity, value subject, str msg, TypeProvider getType, list[val
     fmsg = "";
     try {
         fmsg = interpolate(msg, getType, args);
-    } catch value _: {
-        throw TypePalUsage("formatting the message: `<msg>` failed for `<subject>` with args: <args>");
+    } catch value e: {
+        throw TypePalUsage("formatting the message: `<msg>` failed for `<subject>` with args: <args>, reason: <e>");
     }
     loc sloc = |unknown:///|;
     if(loc l := subject) sloc = l;
