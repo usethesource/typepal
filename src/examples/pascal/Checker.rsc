@@ -29,7 +29,6 @@ data IdRole
     | recordId()
     | fieldId()
     | tagId()
-    | variableId()
     | formalId()
     | labelId()
     | functionId()
