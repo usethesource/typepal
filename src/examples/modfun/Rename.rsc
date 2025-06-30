@@ -133,18 +133,11 @@ bool tryParse(type[&T <: Tree] tp, str s) {
 bool isValidName(moduleId(), str name) = tryParse(#ModId, name);
 bool isValidName(variableId(), str name) = tryParse(#Id, name);
 
-set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree _, TModel tm, Renamer _) {
-    set[Define] overloads = {};
-    for (d <- tm.defines
-      && d.idRole in cursorDefs.idRole
-      && d.id in cursorDefs.id
-      && d.defined notin cursorDefs.defined) {
-        if (tm.config.mayOverload(cursorDefs.defined + d.defined, tm.definitions)) {
-            overloads += d;
-        }
-    }
-    return overloads;
-}
+set[Define] findAdditionalDefinitions(set[Define] cursorDefs, Tree _, TModel tm, Renamer _) =
+    { tm.definitions[d]
+    | loc d <- (tm.defines<idRole, id, defined>)[cursorDefs.idRole, cursorDefs.id] - cursorDefs.defined
+    , tm.config.mayOverload(cursorDefs.defined + d, tm.definitions)
+    };
 
 void renameUses(set[Define] defs, str newName, TModel tm, Renamer r) {
     // Somehow, tm.useDef is empty, so we need to use tm.uses
