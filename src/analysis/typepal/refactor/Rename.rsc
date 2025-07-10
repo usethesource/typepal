@@ -54,7 +54,7 @@ private int FILE_WORK = 5;
 @description{
 Tracks the state of the renaming, as an argument to every function of the rename framework.
 
-* `msg` registers a ((FailMessage)). Registration of an ((error)) triggers premature termination of the renaming at the soonest possibility (typically before the next rename phase).
+* `msg` registers a ((FailMessage)). Registration of an ((analysis::typepal::FailMessage-error)) triggers premature termination of the renaming at the soonest possibility (typically before the next rename phase).
 * `documentEdit` registers a ((DocumentEdit)), which represents a change required for the renaming.
 * `textEdit` registers a ((TextEdit)), which represents a change required for the renaming. It is a convenience function that converts to a ((DocumentEdit)) internally, grouping ((TextEdit))s to the same file where possible.
 * `getConfig` retrieves the ((analysis::typepal::refactor::Rename::RenameConfig)).
