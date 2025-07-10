@@ -8,23 +8,23 @@ A `Collector` collects constraints from source code and produces an initial `TMo
 
 #### Description
 
-A `Collector` is a statefull object that provides all the functions described below to access and change its internal state. The global services provided by a `Collector` are:
+A `Collector` is a stateful object that provides all the functions described below to access and change its internal state. The global services provided by a `Collector` are:
 
 * Register facts, calculators, and requirements as collected from the source program.
 * Maintain a global (key,value) store to store global information relevant for the collection process. Typical examples are:
-  ** Configuration information.
-  ** The files that have been imported.
+  - Configuration information.
+  - The files that have been imported.
 * Manage scopes.
 * Maintain a single value per scope. This enables decoupling the collection of information from separate but related language constructs.
   Typical examples are:
-  ** While collecting information from a function declaration: 
+  - While collecting information from a function declaration:
      create a new function scope and associate the required return type with it so that return statements in the function body can check that
-     (a) they occur inside a function; 
-     (b) that the type of their returned value is compatible with the required return type.
-  ** While collecting information from an optionally labelled loop statement: 
+    1. they occur inside a function;
+    2. that the type of their returned value is compatible with the required return type.
+  - While collecting information from an optionally labelled loop statement:
      create a new loop scope and associate the label with it so that break/continue statements can check that:
-     (a) they occur inside a loop statement; 
-     (b) which loop statement they should (dis)continue.
+     1. they occur inside a loop statement;
+     2. which loop statement they should (dis)continue.
 * Reporting.
 
 The functions provided by a `Collector` are summarized below:
@@ -191,7 +191,7 @@ void collect(current:(Statement) `break <Target target>;`, Collector c){
 <1> Introduces a data type to represent loop information.
 <2> When handling a while statement, the current scope is marked as `loopScope` and `loopInfo` is associated with it.
 <3> When handling a `break` statement, we get all available ScopeInfo for loopScopes (innermost first) and check the associated loopInfo.
-    
+
 
 ##### Nested Info
 

@@ -29,15 +29,9 @@ module examples::pico::Rename
 import examples::pico::Syntax;
 import examples::pico::Checker;
 
-import analysis::typepal::TModel;
-
 extend analysis::typepal::refactor::Rename;
-import analysis::diff::edits::TextEdits;
 
 import Exception;
-import IO;
-import Relation;
-import util::FileSystem;
 
 public tuple[list[DocumentEdit] edits, set[Message] msgs] renamePico(list[Tree] cursor, str newName) {
     if (!isValidName(newName)) {
