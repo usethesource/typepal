@@ -50,7 +50,7 @@ alias Focus = list[Tree];
 private int WORKSPACE_WORK = 10;
 private int FILE_WORK = 5;
 
-@synopsis{Tracks state of renaming and provides halper functions.}
+@synopsis{Tracks state of renaming and provides helper functions.}
 @description{
 Tracks the state of the renaming, as an argument to every function of the rename framework.
 

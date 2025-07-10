@@ -8,10 +8,10 @@ TypePal offers a framework for rename refactoring. A `Renamer` collects document
 
 #### Description
 
-The rename refactoring is one of the most commonly used refactorings; it renames all corresponding definitions and references to a new name. TypePal includes a framework that enables efficient implementation of rename refactoring for a language by removing boilerplate and generic default behaviour.
+A rename refactoring is one of the most commonly used refactorings; it renames all corresponding definitions and references to a new name. TypePal includes a framework that enables efficient implementation of rename refactoring for a language by removing boilerplate and generic default behaviour.
 
 ::: Prerequisite
-The language uses a TypePal-based type-checker.
+The language uses a TypePal-based typechecker.
 :::
 
 ##### Basic usage
@@ -151,7 +151,7 @@ void validateNewNameOccurrences(set[Define] cursorDefs, str newName, Tree tr, Re
 
 The default implementation raises an error when a occurrence of `newName` exists here.
 
-Example (simplified from the renaming implementaion for Rascal itself) that checks for shadowing, overloading and double declarations introduced by the rename.
+Example (simplified from the renaming implementation for Rascal itself) that checks for shadowing, overloading and double declarations introduced by the rename.
 ```rascal
 void validateNewNameOccurrences(set[Define] cursorDefs, str newName, Tree tr, Renamer r) {
     tm = r.getConfig().tmodelForLoc(tr.src.top);
@@ -201,7 +201,7 @@ Finds the location of the name in a definitions parse tree.
 loc nameLocation(Tree t, Define d);
 ```
 
-The default implementation returns the location of the first (left-most) sub-tree of which the un-parsed representation matches the name of the definition. If no match is found, it returns the location of the parse tree.
+The default implementation returns the location of the first (left-most) subtree of which the un-parsed representation matches the name of the definition. If no match is found, it returns the location of the parse tree.
 
 ###### Rename definition
 
