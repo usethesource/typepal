@@ -662,7 +662,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                   catch NoBinding(): ; // do nothing and try next overload
             }
             if(isEmpty(valid_overloads)){
-                solver_report(error(selector, "getTypeInType: Cannot access fields on type %t", containerType));
+                solver_report(error(selector, "Cannot access field on overloaded type %t", containerType));
             } else if({<loc key, IdRole _, AType tp>} := valid_overloads){
                 addUse({key}, selectorUse);
                 addFact(selectorLoc, tp);
@@ -827,6 +827,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 ;/* ignore until end */
              }
         }
+        newPaths = { tup | tup:<loc u, PathRole r, loc d> <- newPaths, u != d };
         tm.paths += newPaths;
         tm.referPaths = referPaths;
         return !isEmpty(newPaths);
