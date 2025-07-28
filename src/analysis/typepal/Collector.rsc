@@ -391,7 +391,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             return true;
         }
 
-        for(def <- defines, def.id == id, isContainedIn(useOrDefLoc, def.scope)){
+        for(def <- defines, def.id == id){
             return true;
         }
         return false;
