@@ -390,12 +390,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         if(!isEmpty(lubdefs) && any(def <- lubdefs, isContainedIn(useOrDefLoc, def.scope))){
             return true;
         }
-        // is there a fixed declaration in an outer scope?
-        if(existsFixedDefineInOuterScope(id, currentLubScope)){
-                return true;
-        }
-        // is there a declaration in another scope (outside current scope stack)?
-        for(def <- defines, def.id == id , useOrDefLoc.path != def.scope.path){
+        
+        // is there a top-level declaration in another scope (outside current scope stack)?
+        for(def <- defines, def.id == id, def.scope in scopes, scopes[def.scope] == |global-scope:///|){
             return true;
         }
 
