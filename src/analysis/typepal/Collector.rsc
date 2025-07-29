@@ -382,18 +382,23 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     }
 
     bool collector_isAlreadyDefined(str id,  Tree useOrDef){
-
+        useOrDefLoc = getLoc(useOrDef);
         lubdefs = { def | def <- definesPerLubScope[currentLubScope], def.id == id } +
                   { def | def <- lubDefinesPerLubScope[currentLubScope], def.id == id };
-        useOrDefLoc = getLoc(useOrDef);
-
+        
+        // is there an inferred declaration?
         if(!isEmpty(lubdefs) && any(def <- lubdefs, isContainedIn(useOrDefLoc, def.scope))){
             return true;
         }
-
-        for(def <- defines, def.id == id){
+        // is there a fixed declaration in an outer scope?
+        if(existsFixedDefineInOuterScope(id, currentLubScope)){
+                return true;
+        }
+        // is there a declaration in another scope (outside current scope stack)?
+        for(def <- defines, def.id == id , useOrDefLoc.path != def.scope.path){
             return true;
         }
+
         return false;
     }
 
