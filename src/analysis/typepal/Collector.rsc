@@ -391,8 +391,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             return true;
         }
         
-        // is there a top-level declaration in another scope (outside current scope stack)?
-        for(def <- defines, def.id == id, def.scope in scopes, scopes[def.scope] == |global-scope:///|){
+        // is there a top-level declaration?
+       
+        for(def <- defines, def.id == id, /*def.scope.path != currentScope.path,*/ config.isInferrable(def.idRole), def.scope in scopes, scopes[def.scope] == |global-scope:///|){
             return true;
         }
 
