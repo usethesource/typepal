@@ -553,7 +553,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 case Tree tree:   return instantiate(findType(tree@\loc));
                 case tvar(loc l): return facts[l];
                 case AType atype: return instantiate(atype);
-                case loc l:       return facts[l];
+                case loc l:       return l in specializedFacts ? specializedFacts[l] : facts[l];
                 case defType(value v) : if(AType atype := v) return atype; else if(Tree tree := v) return instantiate(findType(tree@\loc));
                 case Define def:  return solver_getType(def.defInfo);
                 case defTypeCall(list[loc] _, AType(Solver s) getAType):
@@ -1174,7 +1174,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             return v;
         }
         if(src in facts){
-            v = facts[src];
+            v = src in specializedFacts ? specializedFacts[src] : facts[src];
             if(tvar(loc src1) := v && src1 != src && (src1 in bindings || src1 in facts)) return findType(src1);
             return v;
         }
