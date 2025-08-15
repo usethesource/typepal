@@ -388,15 +388,18 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         
         // is there an inferred declaration?
         if(!isEmpty(lubdefs) && any(def <- lubdefs, isContainedIn(useOrDefLoc, def.scope))){
+            //println("isAlreadyDefined <id>, <useOrDef>: true");
             return true;
         }
         
         // is there a top-level declaration?
        
-        for(def <- defines, def.id == id, /*def.scope.path != currentScope.path,*/ config.isInferrable(def.idRole), def.scope in scopes, scopes[def.scope] == |global-scope:///|){
+        for(def <- defines, def.id == id, config.isInferrable(def.idRole), def.scope in scopes, 
+            (isContainedIn(useOrDefLoc, def.scope) || scopes[def.scope] == |global-scope:///|)){
+             //println("isAlreadyDefined <id>, <useOrDef>: true");
             return true;
         }
-
+        //println("isAlreadyDefined <id>, <useOrDef>: false");
         return false;
     }
 
