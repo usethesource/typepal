@@ -3,7 +3,7 @@
 
     <groupId>org.rascalmpl</groupId>
     <artifactId>typepal</artifactId>
-    <version>0.15.2-RC3-SNAPSHOT</version>
+    <version>0.15.2-RC3</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -14,7 +14,7 @@
 
     <scm>
         <developerConnection>scm:git:ssh://git@github.com/usethesource/typepal.git</developerConnection>
-        <tag>v0.15.1</tag>
+        <tag>v0.15.2-RC3</tag>
   </scm>
 
     <build>
