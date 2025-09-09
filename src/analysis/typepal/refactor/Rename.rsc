@@ -126,7 +126,28 @@ RenameResult rename(
         Focus cursor
       , str newName
       , RenameConfig config) {
+    // get raw results
+    result = _rename(cursor, newName, config);
+    messages = result<1>;
+    if (messages != {} && any(m <- messages, m is error)) {
+        // in the case of an error, we make sure to clear the edits, since there is no guarantee what edits a partial rename computes
+        return <[], messages>;
+    }
+    return <sortDocEdits(result<0>), messages>;
+}
 
+private RenameResult _rename(
+        Focus cursor
+      , str newName
+      , RenameConfig config) {
+
+    /* Initially, we expect at least the following work
+      - 1 unit of work to initialize the renaming
+      - 1 unit of 'workspace work' to resolve definitions
+      - 1 unit of 'workspace work' to find all files with occurrences
+
+      Any additional work will be added based on the results of above steps.
+    */
     jobStart(config.jobLabel, totalWork = 2 * WORKSPACE_WORK + 1);
     jobStep(config.jobLabel, "Initializing renaming");
 
@@ -219,10 +240,7 @@ RenameResult rename(
 
         loc f = e.range.top;
         if ([*pre, c:changed(f, _)] := docEdits) {
-            // If possible, merge with latest document edit
-            // TODO Just assign to docEdits[-1], once this issue has been solved:
-            // https://github.com/usethesource/rascal/issues/2123
-            docEdits = [*pre, c[edits = c.edits + e]];
+            docEdits[-1] = c[edits = c.edits + e];
         } else {
             // Else, create new document edit
             docEdits += changed(f, [e]);
@@ -242,7 +260,7 @@ RenameResult rename(
     if (defs == {}) r.msg(error(cursor[0].src, "No definitions found"));
     if (errorReported()) {
         jobEnd(config.jobLabel, success=false);
-        return <sortDocEdits(docEdits), getMessages()>;
+        return <docEdits, getMessages()>;
     }
 
     jobStep(config.jobLabel, "Looking for files with occurrences of name under cursor", work = WORKSPACE_WORK);
@@ -269,7 +287,7 @@ RenameResult rename(
     }
     if (errorReported()) {
         jobEnd(config.jobLabel, success = false);
-        return <sortDocEdits(docEdits), getMessages()>;
+        return <docEdits, getMessages()>;
     }
 
     defFiles = {d.defined.top | d <- defs};
@@ -289,7 +307,7 @@ RenameResult rename(
 
     if (errorReported()) {
         jobEnd(config.jobLabel, success=false);
-        return <sortDocEdits(docEdits), getMessages()>;
+        return <docEdits, getMessages()>;
     }
 
     for (loc f <- maybeUseFiles) {
@@ -326,7 +344,7 @@ RenameResult rename(
     }
 
     jobEnd(config.jobLabel, success = !errorReported());
-    return <sortDocEdits(docEdits), convertedMessages>;
+    return <docEdits, convertedMessages>;
 }
 
 // TODO If performance bottleneck, rewrite to binary search
