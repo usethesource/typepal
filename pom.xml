@@ -52,15 +52,15 @@
             <plugin>
                 <groupId>org.rascalmpl</groupId>
                 <artifactId>rascal-maven-plugin</artifactId>
-                <version>0.30.0-RC24</version>
+                <version>0.30.0-RC29</version>
                 <configuration>
                     <bin>${project.build.outputDirectory}</bin>
                     <srcs>
                         <src>${project.basedir}/src</src>
                     </srcs>
-                    <srcIgnores>
-                        <srcIgnore>${project.basedir}/src/examples</srcIgnore>
-                    </srcIgnores>
+                    <ignores>
+                        <ignore>${project.basedir}/src/examples</ignore>
+                    </ignores>
                 </configuration>
                 <executions>
                     <execution>
@@ -175,7 +175,7 @@
         <dependency>
             <groupId>org.rascalmpl</groupId>
             <artifactId>rascal</artifactId>
-            <version>0.41.0-RC54</version>
+            <version>0.41.0-RC61</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
