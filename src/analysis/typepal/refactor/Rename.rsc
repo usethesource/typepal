@@ -43,7 +43,7 @@ import ParseTree;
 import Relation;
 import Set;
 
-alias RenameResult = tuple[list[DocumentEdit], set[Message]];
+alias RenameResult = tuple[list[FileSystemChange], set[Message]];
 alias Focus = list[Tree];
 
 // This leaves some room for more fine-grained steps should the user want to monitor that
@@ -55,14 +55,14 @@ private int FILE_WORK = 5;
 Tracks the state of the renaming, as an argument to every function of the rename framework.
 
 * `msg` registers a ((FailMessage)). Registration of an ((analysis::typepal::FailMessage-error)) triggers premature termination of the renaming at the soonest possibility (typically before the next rename phase).
-* `documentEdit` registers a ((DocumentEdit)), which represents a change required for the renaming.
-* `textEdit` registers a ((TextEdit)), which represents a change required for the renaming. It is a convenience function that converts to a ((DocumentEdit)) internally, grouping ((TextEdit))s to the same file where possible.
+* `documentEdit` registers a ((TextEdits-FileSystemChange)), which represents a change required for the renaming.
+* `textEdit` registers a ((TextEdit)), which represents a change required for the renaming. It is a convenience function that converts to a ((TextEdits-FileSystemChange)) internally, grouping ((TextEdit))s to the same file where possible.
 * `getConfig` retrieves the ((analysis::typepal::refactor::Rename::RenameConfig)).
 }
 data Renamer
     = renamer(
         void(FailMessage) msg
-      , void(DocumentEdit) documentEdit
+      , void(FileSystemChange) documentEdit
       , void(TextEdit) textEdit
       , RenameConfig() getConfig
     );
@@ -86,25 +86,25 @@ data RenameConfig
       , str jobLabel = "Renaming"
     );
 
-@synopsis{Sorts ((analysis::diff::edits::TextEdits::DocumentEdit))s.}
+@synopsis{Sorts ((analysis::diff::edits::TextEdits::FileSystemChange))s.}
 @description{
 Applying edits through ((analysis::diff::edits::ExecuteTextEdits)) should happen in a specific order.
 Specifically, files should be created before they can be modified, and after renaming them, modifications/deletions should refer to the new name.
 This functions sorts edits in the following order.
 
-1. ((analysis::diff::edits::TextEdits::created))
-2. ((analysis::diff::edits::TextEdits::changed))
-3. ((analysis::diff::edits::TextEdits::renamed))
-4. ((analysis::diff::edits::TextEdits::removed))
+1. ((analysis::diff::edits::FileSystemChanges::created))
+2. ((analysis::diff::edits::FileSystemChanges::changed))
+3. ((analysis::diff::edits::FileSystemChanges::renamed))
+4. ((analysis::diff::edits::FileSystemChanges::removed))
 }
-list[DocumentEdit] sortDocEdits(list[DocumentEdit] edits) = sort(edits, bool(DocumentEdit e1, DocumentEdit e2) {
+list[FileSystemChange] sortDocEdits(list[FileSystemChange] edits) = sort(edits, bool(FileSystemChange e1, FileSystemChange e2) {
     if (e1 is created && !(e2 is created)) return true;
     if (e1 is changed && !(e2 is changed)) return !(e2 is created);
     if (e1 is renamed && !(e2 is renamed)) return (e2 is removed);
     return false;
 });
 
-@synopsis{Renames the identifier under the cursor to `newName` and returns the required ((analysis::diff::edits::TextEdits::DocumentEdit))s and ((Message::Message))s.}
+@synopsis{Renames the identifier under the cursor to `newName` and returns the required ((analysis::diff::edits::TextEdits::FileSystemChange))s and ((Message::Message))s.}
 @description{
 Renames the identifier under the cursor (represented as a Focus) to `newName`, given a specific ((analysis::typepal::refactor::Rename::RenameConfig)).
 This renaming uses ((TModel))s produced by the type-checker.
@@ -201,7 +201,7 @@ private RenameResult _rename(
 
     // Edits
     set[loc] editsSeen = {};
-    list[DocumentEdit] docEdits = [];
+    list[FileSystemChange] docEdits = [];
 
     void checkEdit(replace(loc range, _)) {
         if (range in editsSeen) {
@@ -210,10 +210,10 @@ private RenameResult _rename(
         editsSeen += range;
     }
 
-    void checkEdit(DocumentEdit e) {
+    void checkEdit(FileSystemChange e) {
         loc file = e has file ? e.file : e.from;
         if (changed(f, tes) := e) {
-            // Check contents of DocumentEdit
+            // Check contents of FileSystemChange
             for (te:replace(range, _) <- tes) {
                 // Check integrity
                 if (range.top != f) {
@@ -230,7 +230,7 @@ private RenameResult _rename(
         editsSeen += file;
     }
 
-    void registerDocumentEdit(DocumentEdit e) {
+    void registerFileSystemChange(FileSystemChange e) {
         checkEdit(e);
         docEdits += e;
     };
@@ -249,7 +249,7 @@ private RenameResult _rename(
 
     Renamer r = renamer(
         registerMessage
-      , registerDocumentEdit
+      , registerFileSystemChange
       , registerTextEdit
       , RenameConfig() { return cachedConfig; }
     );
@@ -418,12 +418,12 @@ default void validateNewNameOccurrences(set[Define] cursorDefs, str newName, Tre
     }
 }
 
-@synopsis{Renames a single ((Define)) `_d `with its name at `nameLoc`, defined in ((TModel)) `_tm`, to `newName`, by producing corresponding ((DocumentEdit))s.}
+@synopsis{Renames a single ((Define)) `_d `with its name at `nameLoc`, defined in ((TModel)) `_tm`, to `newName`, by producing corresponding ((FileSystemChange))s.}
 default void renameDefinition(Define _d, loc nameLoc, str newName, TModel _tm, Renamer r) {
     r.textEdit(replace(nameLoc, newName));
 }
 
-@synopsis{{Renames all uses of `defs` in a single file/((TModel)) `tm`, by producing corresponding ((DocumentEdit))s.}}
+@synopsis{{Renames all uses of `defs` in a single file/((TModel)) `tm`, by producing corresponding ((FileSystemChange))s.}}
 default void renameUses(set[Define] defs, str newName, TModel tm, Renamer r) {
     for (loc u <- invert(tm.useDef)[defs.defined] - defs.defined) {
         r.textEdit(replace(u, newName));
