@@ -20,24 +20,24 @@ import Message;
 import String;
 import util::IDEServices;
 
-data FailMessage(list[CodeAction] fixes = [])
+data FailMessage(list[CodeAction] fixes = [], list[Message] causes=[])
     = fm_error(value src, str msg, list[value] args)
     | fm_warning(value src, str msg, list[value] args)
     | fm_info(value src, str msg, list[value] args)
     ;
 
-FailMessage error(value src, str msg, value args..., list[CodeAction] fixes=[])
-    = fixes? ? fm_error(src, msg, args, fixes=fixes): fm_error(src, msg, args);
-FailMessage warning(value src, str msg, value args..., list[CodeAction] fixes=[])
-    = fixes? ? fm_warning(src, msg, args, fixes=fixes) : fm_warning(src, msg, args);
-FailMessage info(value src, str msg, value args..., list[CodeAction] fixes=[])
-    = fixes? ?  fm_info(src, msg, args, fixes=fixes) : fm_info(src, msg, args);
+FailMessage error(value src, str msg, value args..., list[CodeAction] fixes=[], list[Message] causes=[])
+    = fm_error(src, msg, args, fixes=fixes,causes=causes);
+FailMessage warning(value src, str msg, value args..., list[CodeAction] fixes=[], list[Message] causes=[])
+    = fm_warning(src, msg, args, fixes=fixes, causes=causes);
+FailMessage info(value src, str msg, value args..., list[CodeAction] fixes=[], list[Message] causes=[])
+    = fm_info(src, msg, args, fixes=fixes, causes=causes);
 
 str escapePercent(str s) = replaceAll(s, "%", "%%");
 
 FailMessage convert(m: error(str msg, loc at))
-    = m.fixes? ? fm_error(at, escapePercent(msg), [], fixes=m.fixes) : fm_error(at, escapePercent(msg), []);
+    = fm_error(at, escapePercent(msg), [], fixes=m.fixes, causes=m.causes);
 FailMessage convert(m: warning(str msg, loc at))
-    = m.fixes? ? fm_warning(at, escapePercent(msg), [], fixes=m.fixes) : fm_warning(at,  escapePercent(msg), []);
+    = fm_warning(at, escapePercent(msg), [], fixes=m.fixes, causes=m.causes);
 FailMessage convert(m:info(str msg, loc at))
-    = m.fixes? ? fm_info(at, escapePercent(msg), [], fixes=m.fixes) : fm_info(at, escapePercent(msg), []);
+    = fm_info(at, escapePercent(msg), [], fixes=m.fixes, causes=m.causes);

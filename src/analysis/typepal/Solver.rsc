@@ -580,7 +580,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             return overloadedAType(overloads);
           } else {
               doubleDefs += foundDefs;
-              solver_reports([error(d, "Double declaration of %q in %s", name, itemizeLocs(foundDefs - d)) | d <- foundDefs]);
+              causes = [info("Other declaration of  `<getOrgId(definitions[d])>`", d) | d <- foundDefs, definitions[d].scope != scope ];
+              msgs = [error(d, "Double declaration of `<getOrgId(definitions[d])>`", causes=causes) | d <- foundDefs, definitions[d].scope == scope ];
+              solver_reports(msgs);
           }
         }
         throw TypeUnavailable();
@@ -615,7 +617,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                  throw TypeUnavailable();
           } else {
              doubleDefs += foundDefs;
-             solver_reports([error(d, "Double declaration of %q in %s", id, itemizeLocs(foundDefs - d)) | d <- foundDefs]);
+             causes = [info("Other declaration of  `<orgId>`", d) | d <- foundDefs, definitions[d].scope != scope ];
+             msgs = [error(getLoc(occ), "Double declaration of `<orgId>`", causes=causes) ];
+ 
+             solver_reports(msgs);
           }
         }
         throw TypeUnavailable();
@@ -745,7 +750,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 return results;
              } catch AmbiguousDefinition(set[loc] foundDefs): {
                 doubleDefs += foundDefs;
-                messages += [error("Double declaration of `<definitions[d].orgId> at <itemizeLocs(foundDefs - d)>", d) | d  <- foundDefs];
+                causes = [info("Other declaration of  `<getOrgId(definitions[d])>`", d) | d <- foundDefs, definitions[d].scope != scope ];
+                messages += [error("Double declaration of `<getOrgId(definitions[d])>`", d, causes=causes) | d <- foundDefs, definitions[d].scope == scope ];
                 return results;
              }
          } else {
@@ -793,7 +799,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                        definedBy[u.occ] = foundDefs;
                        newPaths += {<u.scope, rp.pathRole, def>};
                     } else {
-                        messages += error("Name `<u.id>` is ambiguous <foundDefs>", u.occ);
+                        causes = [ info("Definition of `<u.id>`", d) | d <- foundDefs ];
+                        messages += error("Name `<u.id>` is ambiguous <foundDefs>", u.occ, causes=causes);
                     }
                     referPaths -= {rp};
                 } else {
@@ -1243,7 +1250,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                   openUses += u;
                 } else {
                       doubleDefs += foundDefs;
-                      messages += [error("Double declaration of `<getOrgId(definitions[d])>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs];
+                      causes = [info("Other declaration of  `<getOrgId(definitions[d])>`", d) | d <- foundDefs, definitions[d].scope != u.scope ];
+                      messages += [error("Double declaration of `<getOrgId(definitions[d])>`", d, causes=causes) | d <- foundDefs, definitions[d].scope == u.scope ];
                 }
             }
             catch NoBinding(): {
@@ -1278,7 +1286,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                  ;
                 } else {
                     doubleDefs += foundDefs;
-                    messages += [error("Double declaration of `<getOrgId(definitions[d])>` at <itemizeLocs(foundDefs - d)>", d) | d <- foundDefs];
+                    causes = [info("Other declaration of  `<getOrgId(definitions[d])>`", d) | d <- foundDefs, definitions[d].scope != scope ];
+                    messages += [error("Double declaration of `<getOrgId(definitions[defined])>`", defined, causes=causes) ];
                 }
             }
             catch NoBinding(): {
@@ -1380,11 +1389,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         }
                       }
                     } else {
-                        defs = "\n<for(d <- foundDefs){>- <d>
-                             '<}>
-                             ";
-                        messages += [error("Double declaration of `<getOrgId(definitions[d])>` at <defs>", d) | d <- foundDefs];
-                     }
+                        causes = [info("Other declaration of  `<getOrgId(definitions[d])>`", d) | d <- foundDefs, definitions[d].scope != u.scope ];
+                        messages += [error("Double declaration of `<getOrgId(definitions[d])>`", d, causes=causes) | d <- foundDefs, definitions[d].scope == u.scope ];
+                    }
                 } catch NoBinding(): {
                     ; //ignore until end
                 } catch TypeUnavailable() : {

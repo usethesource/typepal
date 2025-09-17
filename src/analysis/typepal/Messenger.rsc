@@ -147,7 +147,7 @@ str interpolate(str msg, TypeProvider getType, list[value] args){
     return result;
 }
     
-Message fmt(str severity, value subject, str msg, TypeProvider getType, list[value] args, list[CodeAction] fixes = []){
+Message fmt(str severity, value subject, str msg, TypeProvider getType, list[value] args, list[CodeAction] fixes = [], list[Message] causes = []){
     fmsg = "";
     try {
         fmsg = interpolate(msg, getType, args);
@@ -160,19 +160,19 @@ Message fmt(str severity, value subject, str msg, TypeProvider getType, list[val
     else throw TypePalUsage("Subject in error should be have type `Tree` or `loc`, found <typeOf(subject)>");
 
     switch(severity){
-        case "error": return error(fmsg, sloc, fixes=fixes);
-        case "warning": return warning(fmsg, sloc, fixes=fixes);
-        case "info": return info(fmsg, sloc, fixes=fixes);
+        case "error": return error(fmsg, sloc, fixes=fixes, causes=causes);
+        case "warning": return warning(fmsg, sloc, fixes=fixes, causes=causes);
+        case "info": return info(fmsg, sloc, fixes=fixes, causes=causes);
         default: throw TypePalInternalError("Unknown severity <severity>");
     }
 }
     
-Message toMessage(fm_error(value src, str msg, list[value] args, fixes=list[CodeAction] fixes), TypeProvider getType) 
-    = fmt("error", src, msg, getType, args, fixes=fixes);
+Message toMessage(fm_error(value src, str msg, list[value] args, fixes=list[CodeAction] fixes, causes=list[Message] causes), TypeProvider getType) 
+    = fmt("error", src, msg, getType, args, fixes=fixes, causes=causes);
 
-Message toMessage(fm_warning(value src, str msg, list[value] args, fixes=list[CodeAction] fixes), TypeProvider getType) 
-    = fmt("warning", src, msg, getType, args, fixes=fixes);
+Message toMessage(fm_warning(value src, str msg, list[value] args, fixes=list[CodeAction] fixes, causes=list[Message] causes), TypeProvider getType) 
+    = fmt("warning", src, msg, getType, args, fixes=fixes, causes=causes);
     
-Message toMessage(fm_info(value src, str msg, list[value] args, fixes=list[CodeAction] fixes), TypeProvider getType) 
-    = fmt("info", src, msg, getType, args, fixes=fixes);
+Message toMessage(fm_info(value src, str msg, list[value] args, fixes=list[CodeAction] fixes, causes=list[Message] causes), TypeProvider getType) 
+    = fmt("info", src, msg, getType, args, fixes=fixes, causes=causes);
     
