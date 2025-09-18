@@ -753,9 +753,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 return results;
              } catch AmbiguousDefinition(set[loc] foundDefs): {
                 doubleDefs += foundDefs;
-                messages += [error("Double declaration of `<getOrgId(definitions[dq])>`", d1, 
+                messages += [error("Double declaration of `<getOrgId(definitions[d1])>`", d1, 
                                        causes=[info("Other declaration of `<getOrgId(definitions[d2])>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
-                            | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope)
+                            | d1 <- foundDefs
                             ];
                 return results;
              }
