@@ -579,9 +579,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             overloads = {<d, idRole, instantiate(facts[d])> | loc d <- foundDefs, IdRole idRole := definitions[d].idRole, idRole in idRoles};
             return overloadedAType(overloads);
           } else {
-              doubleDefs += foundDefs;
-              causes = [info("Other declaration of  `<getOrgId(definitions[d])>`", d) | d <- foundDefs, definitions[d].scope != scope ];
-              msgs = [error(d, "Double declaration of `<getOrgId(definitions[d])>`", causes=causes) | d <- foundDefs, definitions[d].scope == scope ];
+              doubleDefs += foundDefs;             
+              msgs = [error(d1, "Double declaration of `<u.orgId>`",
+                            causes=[info("Other declaration of `<u.orgId>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
+                     | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope)
+                     ];
               solver_reports(msgs);
           }
         }
@@ -617,9 +619,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                  throw TypeUnavailable();
           } else {
              doubleDefs += foundDefs;
-             causes = [info("Other declaration of  `<orgId>`", d) | d <- foundDefs, definitions[d].scope != scope ];
-             msgs = [error(getLoc(occ), "Double declaration of `<orgId>`", causes=causes) ];
- 
+             msgs = [error(d1, "Double declaration of `<u.orgId>`", 
+                            causes=[info("Other declaration of `<u.orgId>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
+                     | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope)
+                     ];
              solver_reports(msgs);
           }
         }
@@ -750,8 +753,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 return results;
              } catch AmbiguousDefinition(set[loc] foundDefs): {
                 doubleDefs += foundDefs;
-                causes = [info("Other declaration of  `<getOrgId(definitions[d])>`", d) | d <- foundDefs, definitions[d].scope != scope ];
-                messages += [error("Double declaration of `<getOrgId(definitions[d])>`", d, causes=causes) | d <- foundDefs, definitions[d].scope == scope ];
+                messages += [error("Double declaration of `<getOrgId(definitions[dq])>`", d1, 
+                                       causes=[info("Other declaration of `<getOrgId(definitions[d2])>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
+                            | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope)
+                            ];
                 return results;
              }
          } else {
@@ -1249,9 +1254,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                   for(def <- foundDefs) def2uses[def] = (def2uses[def] ? {}) + u;
                   openUses += u;
                 } else {
-                      doubleDefs += foundDefs;
-                      causes = [info("Other declaration of  `<getOrgId(definitions[d])>`", d) | d <- foundDefs, definitions[d].scope != u.scope ];
-                      messages += [error("Double declaration of `<getOrgId(definitions[d])>`", d, causes=causes) | d <- foundDefs, definitions[d].scope == u.scope ];
+                    doubleDefs += foundDefs;
+                    messages += [error("Double declaration of `<u.orgId>`", d1, 
+                                       causes=[info("Other declaration of `<u.orgId>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
+                                | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope)
+                                ];
                 }
             }
             catch NoBinding(): {
@@ -1286,8 +1293,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                  ;
                 } else {
                     doubleDefs += foundDefs;
-                    causes = [info("Other declaration of  `<getOrgId(definitions[d])>`", d) | d <- foundDefs, definitions[d].scope != scope ];
-                    messages += [error("Double declaration of `<getOrgId(definitions[defined])>`", defined, causes=causes) ];
+                    messages += [error("Double declaration of `<u.orgId>`", d1, 
+                                       causes=[info("Other declaration of `<u.orgId>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
+                                | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope)
+                                ];
                 }
             }
             catch NoBinding(): {
@@ -1389,8 +1398,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         }
                       }
                     } else {
-                        causes = [info("Other declaration of  `<getOrgId(definitions[d])>`", d) | d <- foundDefs, definitions[d].scope != u.scope ];
-                        messages += [error("Double declaration of `<getOrgId(definitions[d])>`", d, causes=causes) | d <- foundDefs, definitions[d].scope == u.scope ];
+                        messages += [error("Double declaration of `<u.orgId>`", d1, 
+                                           causes=[info("Other declaration of `<u.orgId>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
+                                    | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope)
+                                    ];
                     }
                 } catch NoBinding(): {
                     ; //ignore until end
