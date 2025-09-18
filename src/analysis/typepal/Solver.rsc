@@ -582,7 +582,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
               doubleDefs += foundDefs;             
               msgs = [error(d1, "Double declaration of `<u.orgId>`",
                             causes=[info("Other declaration of `<u.orgId>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
-                     | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope)
+                     | d1 <- foundDefs
                      ];
               solver_reports(msgs);
           }
@@ -619,9 +619,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                  throw TypeUnavailable();
           } else {
              doubleDefs += foundDefs;
-             msgs = [error(d1, "Double declaration of `<u.orgId>`", 
-                            causes=[info("Other declaration of `<u.orgId>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
-                     | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope)
+             msgs = [error( getLoc(occ), "Double declaration of `<u.orgId>` is applicable here", 
+                            causes=[info("Declaration of `<u.orgId>`", d2) | d2 <- foundDefs ]) 
                      ];
              solver_reports(msgs);
           }
@@ -805,7 +804,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                        newPaths += {<u.scope, rp.pathRole, def>};
                     } else {
                         causes = [ info("Definition of `<u.id>`", d) | d <- foundDefs ];
-                        messages += error("Name `<u.id>` is ambiguous <foundDefs>", u.occ, causes=causes);
+                        messages += error("Name `<u.id>` is ambiguous", u.occ, causes=causes);
                     }
                     referPaths -= {rp};
                 } else {
@@ -1255,9 +1254,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                   openUses += u;
                 } else {
                     doubleDefs += foundDefs;
-                    messages += [error("Double declaration of `<u.orgId>`", d1, 
-                                       causes=[info("Other declaration of `<u.orgId>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
-                                | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope)
+                    messages += [error("Multiple declarations of `<u.orgId>` are applicable here", u.occ, 
+                                       causes=[info("Declaration of `<u.orgId>`", d2) | d2 <- foundDefs]) 
                                 ];
                 }
             }
@@ -1398,9 +1396,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         }
                       }
                     } else {
-                        messages += [error("Double declaration of `<u.orgId>`", d1, 
-                                           causes=[info("Other declaration of `<u.orgId>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
-                                    | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope)
+                        messages += [error("Multiple declarations of `<u.orgId>` apply here", u.occ, 
+                                           causes=[info("Declaration of `<u.orgId>`", d2) | d2 <- foundDefs]) 
                                     ];
                     }
                 } catch NoBinding(): {
