@@ -36,7 +36,7 @@ expect{ "Condition should be boolean, found `integer`" }
 test Var1 [[ form F { "abc" x : integer = 1 "def" y : integer = x } ]]
 test Var2 [[ form F { "abc" x : integer = y "def" y : integer = 1 } ]]
 test Var3 [[ form F { "abc" x : integer = 1 "def" y : integer = z } ]] expect { "Undefined variable `z`" }
-test Var4 [[ form F { "abc" x : integer = 1 "def" x : integer = x } ]] expect { "Double declaration of `x`" }
+test Var4 [[ form F { "abc" x : integer = 1 "def" x : integer = x } ]] expect { "Multiple declarations of `x`" }
 
 test Mul1 [[ form F { "abc" x : integer = 1 * 2 } ]]
 test Mul2 [[ form F { "abc" x : integer = true * 2 } ]]
