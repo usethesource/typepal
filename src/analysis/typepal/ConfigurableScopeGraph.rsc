@@ -25,7 +25,7 @@ extend analysis::typepal::ISolver;
 import IO;
 import Set;
 import Map;
-import util::Reflective;
+import util::PathConfig;
 import String;
 extend ParseTree;
 import analysis::typepal::StringSimilarity;
