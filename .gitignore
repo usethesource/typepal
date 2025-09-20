@@ -2,3 +2,8 @@ bin
 target/
 pom.xml.releaseBackup
 release.properties
+
+# old eclipse files that should not be added to the repo
+/.project
+/.classpath
+/build.properties
