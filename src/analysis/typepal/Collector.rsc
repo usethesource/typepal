@@ -1026,7 +1026,10 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             if(logicalLoc != def.defined){
                 if(logicalLoc in my_logical2physical){
                     if(my_logical2physical[logicalLoc] != def.defined){
-                        messages += error("Remove code clone for <prettyRole(def.idRole)> `<def.id>` at <my_logical2physical[logicalLoc]> and <def.defined>", def.defined);
+                        causes = [ info("Clone of `<def.id>`", my_logical2physical[logicalLoc]),
+                                    info("Clone of `<def.id>`", def.defined) 
+                                 ];
+                        messages += error("Remove code clone for <prettyRole(def.idRole)> `<def.id>`", def.defined, causes=causes);
                     }
                 }
                 my_logical2physical[logicalLoc] = def.defined;

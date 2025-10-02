@@ -1260,6 +1260,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 }
             }
             catch NoBinding(): {
+                //println("NoBinding: <u>");
                 notYetDefinedUses += u;
             }
             catch TypeUnavailable(): {
@@ -1283,8 +1284,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             u = use(id, orgId, defined, scope, {idRole}); // turn each unused definition into a use and check for double declarations;
             try {
                foundDefs = scopeGraph.lookup(u);
-               foundDefs = { fd | fd <- foundDefs, definitions[fd].idRole in u.idRoles };
-               if(isEmpty(foundDefs)){
+                if(isEmpty(foundDefs)){
                     ;//throw TypePalInternalError("No binding found while checking for double definitions");
                } else
                if(size(foundDefs) == 1 || mayOverloadFun(foundDefs, definitions)){
@@ -1376,8 +1376,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             for(u <- notYetDefinedUses){
                 try {
                    foundDefs = scopeGraph.lookup(u);
-                   foundDefs = { fd | fd <- foundDefs, definitions[fd].idRole in u.idRoles };
-                   if(isEmpty(foundDefs)){
+                    if(isEmpty(foundDefs)){
                         throw NoBinding();
                    } else
                    if(size(foundDefs) == 1 || mayOverloadFun(foundDefs, definitions)){
