@@ -17,7 +17,7 @@ import IO;
 import Location;
 import Set;
 import String;
-import analysis::typepal::TModel;
+//import analysis::typepal::TModel;
 import analysis::typepal::ConfigurableScopeGraph;
 
 @synopsis{Tryadic minimum function on integers}
