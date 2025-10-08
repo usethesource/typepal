@@ -513,7 +513,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
                         qscopes = lookupNestWide(scope, use(id, "<u.occ>", u.occ, scope, u.qualifierRoles));
                         for(loc qscope <- qscopes){
                             if(qscope notin allScopes){
-                                throw TypePalUsage("Definition of qualifier `<id>` is unknown as scope, check its definition", [qscope]);
+                                throw TypePalUsage("Scope <qscope> unknown while searching for definition of qualifier `<id>` in <intercalate("::", u.ids)> at <u.occ>", [qscope]);
                             }
                         }
                      }
