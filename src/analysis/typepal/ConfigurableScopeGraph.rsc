@@ -401,7 +401,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         seenParents = {};
         solve(res, scope) {
         next_path:
-            for(<scope, pathRole, loc parent> <- paths, parent notin seenParents){
+            for(loc parent <- ((pathsCache[pathRole] ? {})[scope] - seenParents)){
                 seenParents += parent;
                 //if(wdebug) println("\tlookupPathsWide: scope: <scope>, trying semantic path to: <parent>");
 
@@ -473,6 +473,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         current_paths =  the_solver.getPaths(); //tm.paths;
         if(current_paths != paths){
             paths = current_paths;
+            updatePathCache();
             pathRoles = paths.pathRole;
         }
 
@@ -524,7 +525,16 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
          throw NoBinding();
     }
 
+    private void updatePathCache() {
+        rel[loc, loc] empty_rel = {};
+        pathsCache = ();
+        for (<loc from, PathRole pr, loc to> <- paths) {
+            pathsCache[pr] ? empty_rel += {<from, to>};
+        }
+    }
+
     Paths paths = {};
+    map[PathRole, rel[loc,loc]] pathsCache = ();
     set[PathRole] pathRoles = {};
 
     Solver the_solver = dummySolver();
@@ -532,6 +542,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
     void do_setSolver(Solver s){
         the_solver = s;
         paths = the_solver.getPaths();
+        updatePathCache();
         pathRoles = paths.pathRole;
     }
 
