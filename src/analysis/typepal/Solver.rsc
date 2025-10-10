@@ -1260,7 +1260,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 }
             }
             catch NoBinding(): {
-                println("<tm.modelName>: NoBinding: <u>");
+                //println("<tm.modelName>: NoBinding: <u>");
                 notYetDefinedUses += u;
             }
             catch TypeUnavailable(): {
