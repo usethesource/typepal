@@ -620,7 +620,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
           } else {
              doubleDefs += foundDefs;
              msgs = [error( getLoc(occ), "Double declaration of `<u.orgId>` is applicable here", 
-                            causes=[info("Declaration of `<u.orgId>`", d2) | d2 <- foundDefs ]) 
+                            causes=[info("Applicable declaration of `<u.orgId>`", d2) | d2 <- foundDefs ]) 
                      ];
              solver_reports(msgs);
           }
