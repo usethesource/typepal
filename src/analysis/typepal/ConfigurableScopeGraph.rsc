@@ -174,14 +174,14 @@ data Accept
 // isAcceptableSimple
 
 Accept defaultIsAcceptableSimple(loc candidate, Use use, Solver _) {
-    if(wdebug) println("default isAcceptableSimple: <use.id> candidate: <candidate>");
+    //if(wdebug) println("default isAcceptableSimple: <use.id> candidate: <candidate>");
     return acceptBinding();
 }
 
 // isAcceptablePath
 
 Accept defaultIsAcceptablePath(loc defScope, loc def, Use use, PathRole _, Solver _) {
-    if(wdebug) println("default isAcceptablePath: <use.id>, defScope: <defScope>, def <def>");
+    //if(wdebug) println("default isAcceptablePath: <use.id>, defScope: <defScope>, def <def>");
     return acceptBinding();
 }
 
@@ -486,8 +486,6 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
            if(isEmpty(defs)) throw NoBinding(); else return defs;
         } else {
            startScope = scope;
-           btrue = true;    // TODO: hack to keep Java compiler happy
-           while(btrue){
                qscopes = {};
                for(str id <- u.ids[0..-1]){
                    //if(wdebug) println("lookup, search for <id>");
@@ -504,23 +502,6 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
                     //if(wdebug) println("lookupWide: <u> returns:\n<for(d <- defs){>\t==\> <d><}>");
                     return defs;
                 }
-
-                if(tm.scopes[startScope]?){
-                     startScope = tm.scopes[startScope];
-                     //if(wdebug) println("^^^^ lookup move to scope <startScope>");
-                } else {
-                     allScopes = domain(tm.scopes) + range(tm.scopes);
-                     for(str id <- u.ids[0..-1]){
-                        qscopes = lookupNestWide(scope, use(id, "<u.occ>", u.occ, scope, u.qualifierRoles));
-                        for(loc qscope <- qscopes){
-                            if(qscope notin allScopes){
-                                throw TypePalUsage("Scope <qscope> unknown while searching for definition of qualifier `<id>` in <intercalate("::", u.ids)> at <u.occ>", [qscope]);
-                            }
-                        }
-                     }
-                     throw NoBinding();
-                }
-            }
          }
          throw NoBinding();
     }
