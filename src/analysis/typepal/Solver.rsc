@@ -810,6 +810,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                             for(d <- defs){
                                 if(d.defInfo.timestamp?){
                                     if(latestDef.defInfo.timestamp?){
+                                        if(d.defInfo.timestamp == latestDef.defInfo.timestamp){
+                                            causes = [ info("Definition of `<u.id>`", d) | d <- foundDefs ];
+                                            messages += error("Name `<u.id>` is ambiguous", u.occ, causes=causes);
+                                        } else 
                                         if(d.defInfo.timestamp > latestDef.defInfo.timestamp){
                                             latestDef = d;
                                         }
@@ -1302,7 +1306,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             orgId = udef.orgId;
             idRole = udef.idRole;
             defined = udef.defined;
-            if(defined in logical2physical) continue;
 
             u = use(id, orgId, defined, scope, {idRole}); // turn each unused definition into a use and check for double declarations;
             try {
