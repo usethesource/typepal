@@ -289,7 +289,7 @@ TModel convertTModel2LogicalLocs(TModel tm, map[str,TModel] tmodels){
     return tm;
 }
 
-Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config){
+Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config, datetime timestamp = now()){
 
     str normalizeName(str input) {
             return config.normalizeName(input);
@@ -320,7 +320,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     loc currentScope = globalScope;
     loc rootScope = globalScope;
 
-    for(nm <- namedTrees) scopes[getLoc(namedTrees[nm])] = globalScope;
+    //for(nm <- namedTrees) scopes[getLoc(namedTrees[nm]).top] = globalScope;
     lrel[loc scope, bool lubScope, map[ScopeRole, value] scopeInfo] scopeStack = [<globalScope, false, (anonymousScope(): false)>];
     list[loc] lubScopeStack = [];
     loc currentLubScope = globalScope;
@@ -335,6 +335,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             else if(loc ldef := def) l = ldef;
             else throw TypePalUsage("Argument `def` of `define` should be `Tree` or `loc`, found <typeOf(def)>");
 
+            info.timestamp = timestamp;
             def_tup = <orgId, idRole>;
             nname = normalizeName(orgId);
 
@@ -414,7 +415,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             if(Tree tdef := def) l = getLoc(tdef);
             else if(loc ldef := def) l = ldef;
             else throw TypePalUsage("Argument `def` of `defineInScope` should be `Tree` or `loc`, found <typeOf(def)>");
-
+            info.timestamp = timestamp;
             nname = normalizeName(orgId);
             if(info is defTypeLub){
                 throw TypePalUsage("`defLub` cannot be used in combination with `defineInScope`");
@@ -1005,10 +1006,10 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         logical2physical += tm.logical2physical;
         messages += tm.messages;
 
-        scopes += tm.scopes;
+        scopes = tm.scopes + scopes;
         defines += tm.defines;
-        facts += tm.facts;
-        paths += tm.paths;
+        facts = tm.facts + facts;
+        paths = tm.paths + paths;
     }
 
     map[loc,loc] buildLogical2physical(Defines defines){
@@ -1023,17 +1024,17 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
         for(Define def <- defines){
             logicalLoc = my_physical2logical[def.defined] ? config.createLogicalLoc(def, modelName, config.typepalPathConfig);
-            if(logicalLoc != def.defined){
-                if(logicalLoc in my_logical2physical){
-                    if(my_logical2physical[logicalLoc] != def.defined){
-                        causes = [ info("Clone of `<def.id>`", my_logical2physical[logicalLoc]),
-                                    info("Clone of `<def.id>`", def.defined) 
-                                 ];
-                        messages += error("Remove code clone for <prettyRole(def.idRole)> `<def.id>`", def.defined, causes=causes);
-                    }
-                }
+            // if(logicalLoc != def.defined){
+            //     if(logicalLoc in my_logical2physical){
+            //         if(my_logical2physical[logicalLoc] != def.defined){
+            //             causes = [ info("Clone of `<def.id>`", my_logical2physical[logicalLoc]),
+            //                         info("Clone of `<def.id>`", def.defined) 
+            //                      ];
+            //             messages += error("Remove code clone for <prettyRole(def.idRole)> `<def.id>`", def.defined, causes=causes);
+            //         }
+                // }
                 my_logical2physical[logicalLoc] = def.defined;
-            }
+            // }
         }
         return my_logical2physical;
     }
