@@ -810,7 +810,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                             for(d <- defs){
                                 if(d.defInfo.timestamp?){
                                     if(latestDef.defInfo.timestamp?){
-                                        if(d.defInfo.timestamp > latestDef.defInfo.timeStamp){
+                                        if(d.defInfo.timestamp > latestDef.defInfo.timestamp){
                                             latestDef = d;
                                         }
                                     } else {
@@ -818,8 +818,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                                     }
                                 }
                             }
-                            definedBy[u.occ] = {latestDef};
-                            newPaths += {<u.scope, rp.pathRole, latestDef>};
+                            definedBy[u.occ] = {latestDef.defined};
+                            newPaths += {<u.scope, rp.pathRole, latestDef.defined>};
                         } else {
                             println("Ambiguous <u.id>"); iprintln(foundDefs);
                             for(d <- foundDefs){
