@@ -16,6 +16,7 @@ module analysis::typepal::Collector
     Implementation of the ICollector interface; this is the API of TypePal's fact and constraint collector
 */
 
+import DateTime;
 import Node;
 import Map;
 import ParseTree;
