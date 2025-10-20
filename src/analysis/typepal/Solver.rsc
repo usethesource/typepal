@@ -803,8 +803,31 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                        definedBy[u.occ] = foundDefs;
                        newPaths += {<u.scope, rp.pathRole, def>};
                     } else {
-                        causes = [ info("Definition of `<u.id>`", d) | d <- foundDefs ];
-                        messages += error("Name `<u.id>` is ambiguous", u.occ, causes=causes);
+                        set[Define] defs = { definitions[d] | d <- foundDefs };
+                        set[str] md5s = { d.defInfo.md5 | d <- defs };
+                        if(size(md5s) == 1){
+                            latestDef = getOneFrom(defs);
+                            for(d <- defs){
+                                if(d.defInfo.timestamp?){
+                                    if(latestDef.defInfo.timestamp?){
+                                        if(d.defInfo.timestamp > latestDef.defInfo.timeStamp){
+                                            latestDef = d;
+                                        }
+                                    } else {
+                                        latestDef = d;
+                                    }
+                                }
+                            }
+                            definedBy[u.occ] = {latestDef};
+                            newPaths += {<u.scope, rp.pathRole, latestDef>};
+                        } else {
+                            println("Ambiguous <u.id>"); iprintln(foundDefs);
+                            for(d <- foundDefs){
+                                println("<definitions[d]>, <definitions[d].defInfo.md5>");
+                            }
+                            causes = [ info("Definition of `<u.id>`", d) | d <- foundDefs ];
+                            messages += error("Name `<u.id>` is ambiguous", u.occ, causes=causes);
+                        }
                     }
                     referPaths -= {rp};
                 } else {
