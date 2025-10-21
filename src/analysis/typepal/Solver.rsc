@@ -80,8 +80,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     bool(loc def, TModel tm) reportUnused = defaultReportUnused;
 
-    map[loc,loc] logical2physical = tm.logical2physical;
-
     void configTypePal(TypePalConfig tc){
 
         normalizeName = tc.normalizeName;
