@@ -76,8 +76,7 @@ alias ReferPaths = set[ReferPath];
 
 // Language-specific auxiliary associated with a name definition
 // Extended in a language-specific module
-
-data DefInfo
+data DefInfo(str md5 = "", datetime timestamp = $0000-01-01T00:00:00.000+00:00$)
     = noDefInfo()
     ;
 
