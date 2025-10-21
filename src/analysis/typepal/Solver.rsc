@@ -811,7 +811,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                                 if(d.defInfo.timestamp?){
                                     if(latestDef.defInfo.timestamp?){
                                         if(d.defInfo.timestamp == latestDef.defInfo.timestamp){
-                                            causes = [ info("Definition of `<u.id>`", d) | d <- foundDefs ];
+                                            causes = [ info("Definition of `<u.id>`", fd) | loc fd <- foundDefs ];
                                             messages += error("Name `<u.id>` is ambiguous", u.occ, causes=causes);
                                         } else 
                                         if(d.defInfo.timestamp > latestDef.defInfo.timestamp){
