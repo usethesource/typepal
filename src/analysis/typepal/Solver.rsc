@@ -807,7 +807,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         set[str] md5s = { d.defInfo.md5 | d <- defs };
                         if(size(md5s) == 1){
                             latestDef = getOneFrom(defs);
-                            for(d <- defs){
+                            for(Define d <- defs){
                                 if(d.defInfo.timestamp?){
                                     if(latestDef.defInfo.timestamp?){
                                         if(d.defInfo.timestamp == latestDef.defInfo.timestamp){
