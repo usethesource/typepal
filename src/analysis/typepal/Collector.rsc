@@ -290,11 +290,14 @@ TModel convertTModel2LogicalLocs(TModel tm, map[str,TModel] tmodels){
     return tm;
 }
 
-Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config, datetime timestamp = now()){
+Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config, datetime timestamp = $0000-01-01T00:00:00.000+00:00$){
 
     str normalizeName(str input) {
             return config.normalizeName(input);
          }
+    if(!timestamp?){
+        timestamp = now();
+    }
     loc globalScope = |global-scope:///|;
     Defines defines = {};
 
@@ -321,7 +324,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     loc currentScope = globalScope;
     loc rootScope = globalScope;
 
-    //for(nm <- namedTrees) scopes[getLoc(namedTrees[nm]).top] = globalScope;
     lrel[loc scope, bool lubScope, map[ScopeRole, value] scopeInfo] scopeStack = [<globalScope, false, (anonymousScope(): false)>];
     list[loc] lubScopeStack = [];
     loc currentLubScope = globalScope;
@@ -1025,17 +1027,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
         for(Define def <- defines){
             logicalLoc = my_physical2logical[def.defined] ? config.createLogicalLoc(def, modelName, config.typepalPathConfig);
-            // if(logicalLoc != def.defined){
-            //     if(logicalLoc in my_logical2physical){
-            //         if(my_logical2physical[logicalLoc] != def.defined){
-            //             causes = [ info("Clone of `<def.id>`", my_logical2physical[logicalLoc]),
-            //                         info("Clone of `<def.id>`", def.defined) 
-            //                      ];
-            //             messages += error("Remove code clone for <prettyRole(def.idRole)> `<def.id>`", def.defined, causes=causes);
-            //         }
-                // }
-                my_logical2physical[logicalLoc] = def.defined;
-            // }
+            my_logical2physical[logicalLoc] = def.defined;
         }
         return my_logical2physical;
     }
