@@ -1026,8 +1026,22 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             return ();
         }
         for(Define def <- defines){
-            logicalLoc = my_physical2logical[def.defined] ? config.createLogicalLoc(def, modelName, config.typepalPathConfig);
-            my_logical2physical[logicalLoc] = def.defined;
+            if(my_physical2logical[def.defined]?){
+                logicalLoc = my_physical2logical[def.defined];
+                my_logical2physical[logicalLoc] = def.defined;
+            } else {
+                <found, logicalLoc> = config.createLogicalLoc(def, modelName, config.typepalPathConfig);
+                if(found){
+                    if(logicalLoc in my_logical2physical, my_logical2physical[logicalLoc] != def.defined, my_logical2physical[logicalLoc].top == def.defined.top){
+                        causes = [ info("Clone of `<def.id>`", my_logical2physical[logicalLoc]),
+                                    info("Clone of `<def.id>`", def.defined) 
+                                 ];
+                        messages += error("Remove code clone for <prettyRole(def.idRole)> `<def.id>`", def.defined, causes=causes);
+                    } else {
+                        my_logical2physical[logicalLoc] = def.defined;
+                    }
+                }
+            }
         }
         return my_logical2physical;
     }
