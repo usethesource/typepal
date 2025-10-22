@@ -1022,22 +1022,26 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             my_physical2logical = invertUnique(logical2physical);
         } catch MultipleKey(value key, value _first, value _second):{
             where = loc l := key ? l : |unknown:///|;
-            messages += error("Mapping from physical to logical locations is not unique; remove outdated information and try again", where);
+            messages += error("Mapping from physical to logical locations is not unique; remove outdated information (e.g. `mvn clean`) and try again", where);
             return ();
         }
         for(Define def <- defines){
             if(my_physical2logical[def.defined]?){
+                // logical loc already created for same physical loc
                 logicalLoc = my_physical2logical[def.defined];
                 my_logical2physical[logicalLoc] = def.defined;
             } else {
+                // create a new logical loc, if possible
                 <found, logicalLoc> = config.createLogicalLoc(def, modelName, config.typepalPathConfig);
                 if(found){
                     if(logicalLoc in my_logical2physical, my_logical2physical[logicalLoc] != def.defined, my_logical2physical[logicalLoc].top == def.defined.top){
+                        // report different physical locs in the same file with same logical loc as clone
                         causes = [ info("Clone of `<def.id>`", my_logical2physical[logicalLoc]),
                                     info("Clone of `<def.id>`", def.defined) 
                                  ];
                         messages += error("Remove code clone for <prettyRole(def.idRole)> `<def.id>`", def.defined, causes=causes);
                     } else {
+                        // add a new logical/physical loc mapping
                         my_logical2physical[logicalLoc] = def.defined;
                     }
                 }
