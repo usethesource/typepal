@@ -139,17 +139,9 @@ RenameResult rename(
 private RenameResult _rename(
         Focus cursor
       , str newName
-      , RenameConfig config) {
+      , RenameConfig config) = job(config.jobLabel, RenameResult(void(str, int) jobStep) {
 
-    /* Initially, we expect at least the following work
-      - 1 unit of work to initialize the renaming
-      - 1 unit of 'workspace work' to resolve definitions
-      - 1 unit of 'workspace work' to find all files with occurrences
-
-      Any additional work will be added based on the results of above steps.
-    */
-    jobStart(config.jobLabel, totalWork = 2 * WORKSPACE_WORK + 1);
-    jobStep(config.jobLabel, "Initializing renaming");
+    jobStep("Initializing renaming", 1);
 
     // Tree & TModel caching
 
@@ -254,7 +246,7 @@ private RenameResult _rename(
       , RenameConfig() { return cachedConfig; }
     );
 
-    jobStep(config.jobLabel, "Resolving definitions of <cursor[0].src>", work = WORKSPACE_WORK);
+    jobStep("Resolving definitions of <cursor[0].src>", WORKSPACE_WORK);
     defs = getCursorDefinitions(cursor, parseLocCached, getTModelCached, r);
 
     if (defs == {}) r.msg(error(cursor[0].src, "No definitions found"));
@@ -263,7 +255,7 @@ private RenameResult _rename(
         return <docEdits, getMessages()>;
     }
 
-    jobStep(config.jobLabel, "Looking for files with occurrences of name under cursor", work = WORKSPACE_WORK);
+    jobStep("Looking for files with occurrences of name under cursor", WORKSPACE_WORK);
     <maybeDefFiles, maybeUseFiles, newNameFiles> = findOccurrenceFiles(defs, cursor, newName, parseLocCached, r);
 
     jobTodo(config.jobLabel, work = (size(maybeDefFiles) + size(maybeUseFiles) + size(newNameFiles)) * FILE_WORK);
@@ -271,17 +263,17 @@ private RenameResult _rename(
     set[Define] additionalDefs = {};
     solve (additionalDefs) {
         for (loc f <- maybeDefFiles) {
-            jobStep(config.jobLabel, "Looking for additional definitions in <f>", work = 0);
+            jobStep("Looking for additional definitions in <f>", 0);
             tr = parseLocCached(f);
             tm = getTModelCached(tr);
             additionalDefs += findAdditionalDefinitions(defs, tr, tm, r);
         }
         defs += additionalDefs;
     }
-    jobStep(config.jobLabel, "Done looking for additional definitions", work = FILE_WORK * size(maybeDefFiles));
+    jobStep("Done looking for additional definitions", FILE_WORK * size(maybeDefFiles));
 
     for (loc f <- newNameFiles) {
-        jobStep(config.jobLabel, "Validating occurrences of new name \'<newName>\' in <f>", work = FILE_WORK);
+        jobStep("Validating occurrences of new name \'<newName>\' in <f>", FILE_WORK);
         tr = parseLocCached(f);
         validateNewNameOccurrences(defs, newName, tr, r);
     }
@@ -295,7 +287,7 @@ private RenameResult _rename(
 
     for (loc f <- defFiles) {
         fileDefs = {d | d <- defs, d.defined.top == f};
-        jobStep(config.jobLabel, "Renaming <size(fileDefs)> definitions in <f>", work = FILE_WORK);
+        jobStep("Renaming <size(fileDefs)> definitions in <f>", FILE_WORK);
         tr = parseLocCached(f);
         tm = getTModelCached(tr);
 
@@ -311,7 +303,7 @@ private RenameResult _rename(
     }
 
     for (loc f <- maybeUseFiles) {
-        jobStep(config.jobLabel, "Renaming uses in <f>", work = FILE_WORK);
+        jobStep("Renaming uses in <f>", FILE_WORK);
         tr = parseLocCached(f);
         tm = getTModelCached(tr);
 
@@ -343,9 +335,14 @@ private RenameResult _rename(
         }
     }
 
-    jobEnd(config.jobLabel, success = !errorReported());
     return <docEdits, convertedMessages>;
-}
+}, /* Initially, we expect at least the following work
+      - 1 unit of work to initialize the renaming
+      - 1 unit of 'workspace work' to resolve definitions
+      - 1 unit of 'workspace work' to find all files with occurrences
+
+      Any additional work will be added based on the results of above steps.
+    */ totalWork = 2 * WORKSPACE_WORK + 1);
 
 // TODO If performance bottleneck, rewrite to binary search
 @synopsis{Compute locations of names of `defs` in `tr`.}
