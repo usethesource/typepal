@@ -27,9 +27,9 @@ str prettyAType(strType()) = "str";
 // ----  Collect definitions, uses and requirements -----------------------
 
 void collect(current: (Program) `begin <Declarations decls> <{Statement  ";"}* body> end`, Collector c){
-    c.enterScope(current);
+    c.scope(current, () {
         collect(decls, body, c);
-    c.leaveScope(current);
+    });
 }
 
 void collect(current: (Declarations) `declare <{Declaration ","}* decls> ;`, Collector c){
@@ -71,15 +71,18 @@ void collect(current: (Statement) `while <Expression cond> do <{Statement ";"}* 
 
 void collect(current: (Expression) `<Expression lhs> + <Expression rhs>`, Collector c){
      c.calculate("addition", current, [lhs, rhs], 
-        AType (Solver s) { switch([s.getType(lhs), s.getType(rhs)]){
-                   case [intType(), intType()]: return intType();
-                   case [strType(), strType()]: return strType();
-                   default: {
+        AType (Solver s) { 
+            switch(<s.getType(lhs), s.getType(rhs)>){
+                case <intType(), intType()>: 
+                    return intType();
+                case <strType(), strType()>: 
+                    return strType();
+                default: {
                        s.report(error(current, "Operator `+` cannot be applied to %t and %t", lhs, rhs));
                        return intType();
-                     }
-                   }
-                 });
+            }
+        }
+    });
      collect(lhs, rhs, c);
 }
 
