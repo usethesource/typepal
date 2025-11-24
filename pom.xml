@@ -3,7 +3,7 @@
 
     <groupId>org.rascalmpl</groupId>
     <artifactId>typepal</artifactId>
-    <version>0.15.2-RC17-SNAPSHOT</version>
+    <version>0.15.2-RC21-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <properties>
