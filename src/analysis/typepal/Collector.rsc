@@ -16,6 +16,7 @@ module analysis::typepal::Collector
     Implementation of the ICollector interface; this is the API of TypePal's fact and constraint collector
 */
 
+import DateTime;
 import Node;
 import Map;
 import ParseTree;
@@ -289,11 +290,14 @@ TModel convertTModel2LogicalLocs(TModel tm, map[str,TModel] tmodels){
     return tm;
 }
 
-Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config){
+Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config, datetime timestamp = $0000-01-01T00:00:00.000+00:00$){
 
     str normalizeName(str input) {
             return config.normalizeName(input);
          }
+    if(!timestamp?){
+        timestamp = now();
+    }
     loc globalScope = |global-scope:///|;
     Defines defines = {};
 
@@ -320,7 +324,6 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     loc currentScope = globalScope;
     loc rootScope = globalScope;
 
-    for(nm <- namedTrees) scopes[getLoc(namedTrees[nm])] = globalScope;
     lrel[loc scope, bool lubScope, map[ScopeRole, value] scopeInfo] scopeStack = [<globalScope, false, (anonymousScope(): false)>];
     list[loc] lubScopeStack = [];
     loc currentLubScope = globalScope;
@@ -335,6 +338,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             else if(loc ldef := def) l = ldef;
             else throw TypePalUsage("Argument `def` of `define` should be `Tree` or `loc`, found <typeOf(def)>");
 
+            info.timestamp = timestamp;
             def_tup = <orgId, idRole>;
             nname = normalizeName(orgId);
 
@@ -414,7 +418,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             if(Tree tdef := def) l = getLoc(tdef);
             else if(loc ldef := def) l = ldef;
             else throw TypePalUsage("Argument `def` of `defineInScope` should be `Tree` or `loc`, found <typeOf(def)>");
-
+            info.timestamp = timestamp;
             nname = normalizeName(orgId);
             if(info is defTypeLub){
                 throw TypePalUsage("`defLub` cannot be used in combination with `defineInScope`");
@@ -1005,10 +1009,10 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         logical2physical += tm.logical2physical;
         messages += tm.messages;
 
-        scopes += tm.scopes;
+        scopes = tm.scopes + scopes;
         defines += tm.defines;
-        facts += tm.facts;
-        paths += tm.paths;
+        facts = tm.facts + facts;
+        paths = tm.paths + paths;
     }
 
     map[loc,loc] buildLogical2physical(Defines defines){
@@ -1018,21 +1022,29 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             my_physical2logical = invertUnique(logical2physical);
         } catch MultipleKey(value key, value _first, value _second):{
             where = loc l := key ? l : |unknown:///|;
-            messages += error("Mapping from physical to logical locations is not unique; remove outdated information and try again", where);
+            messages += error("Mapping from physical to logical locations is not unique; remove outdated information (e.g. `mvn clean`) and try again", where);
             return ();
         }
         for(Define def <- defines){
-            logicalLoc = my_physical2logical[def.defined] ? config.createLogicalLoc(def, modelName, config.typepalPathConfig);
-            if(logicalLoc != def.defined){
-                if(logicalLoc in my_logical2physical){
-                    if(my_logical2physical[logicalLoc] != def.defined){
+            if(my_physical2logical[def.defined]?){
+                // logical loc already created for same physical loc
+                logicalLoc = my_physical2logical[def.defined];
+                my_logical2physical[logicalLoc] = def.defined;
+            } else {
+                // create a new logical loc, if possible
+                <found, logicalLoc> = config.createLogicalLoc(def, modelName, config.typepalPathConfig);
+                if(found){
+                    if(logicalLoc in my_logical2physical, my_logical2physical[logicalLoc] != def.defined, my_logical2physical[logicalLoc].top == def.defined.top){
+                        // report different physical locs in the same file with same logical loc as clone
                         causes = [ info("Clone of `<def.id>`", my_logical2physical[logicalLoc]),
                                     info("Clone of `<def.id>`", def.defined) 
                                  ];
                         messages += error("Remove code clone for <prettyRole(def.idRole)> `<def.id>`", def.defined, causes=causes);
+                    } else {
+                        // add a new logical/physical loc mapping
+                        my_logical2physical[logicalLoc] = def.defined;
                     }
                 }
-                my_logical2physical[logicalLoc] = def.defined;
             }
         }
         return my_logical2physical;

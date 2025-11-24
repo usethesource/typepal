@@ -21,6 +21,7 @@ module analysis::typepal::ConfigurableScopeGraph
 */
 extend analysis::typepal::Exception;
 extend analysis::typepal::ISolver;
+extend analysis::typepal::TModel;
 
 import IO;
 import Set;
@@ -89,8 +90,8 @@ str reduceToURIChars(str s){
     return res;
 }
 
-loc defaultLogicalLoc(Define def, str _modelName, PathConfig _pcfg){
-   return def.defined; // return original and don't create logical location
+tuple[bool, loc] defaultLogicalLoc(Define def, str _modelName, PathConfig _pcfg){
+   return <true, def.defined>; // return original and don't create logical location
 }
 
 list[str] defaultSimilarNames(Use u, TModel tm) = similarNames(u, tm);
@@ -153,7 +154,7 @@ data TypePalConfig(
 
         bool(loc def, TModel tm) reportUnused = defaultReportUnused,
 
-        loc (Define def, str modelName, PathConfig pcfg) createLogicalLoc = defaultLogicalLoc,
+        tuple[bool, loc] (Define def, str modelName, PathConfig pcfg) createLogicalLoc = defaultLogicalLoc,
 
         list[str] (Use u, TModel tm) similarNames = defaultSimilarNames,
 
