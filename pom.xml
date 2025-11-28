@@ -12,6 +12,14 @@
         <scm-plugin-version>2.1.0</scm-plugin-version>
     </properties>
 
+    <licenses>
+        <license>
+            <name>BSD-2-Clause</name>
+            <url>https://opensource.org/license/BSD-2-Clause</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <scm>
         <developerConnection>scm:git:ssh://git@github.com/usethesource/typepal.git</developerConnection>
         <tag>v0.15.1</tag>
