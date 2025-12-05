@@ -1011,6 +1011,17 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         paths += tm.paths;
     }
 
+    loc limitLocToFirstLine(loc l){
+        try {
+            str txt = readFile(l);
+            int k = findFirst(txt, "\n");
+            if(k >= 0){
+                return l[length=k][end=<l.begin.line+1,0>];
+            }
+        } catch _:;
+        return l;
+    }
+
     map[loc,loc] buildLogical2physical(Defines defines){
         map[loc,loc] my_logical2physical = logical2physical;
         map[loc,loc] my_physical2logical = ();
@@ -1030,7 +1041,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                                    info("Clone of `<def.id>`", def.defined) 
                                  ];
                         // restrict clone location to first line for readability
-                        messages += error("Remove code clone for <prettyRole(def.idRole)> `<def.id>`", def.defined[end=<def.defined.begin.line+1,0>], causes=causes);
+                        messages += error("Remove code clone for <prettyRole(def.idRole)> `<def.id>`", limitLocToFirstLine(def.defined), causes=causes);
                     }
                 }
                 my_logical2physical[logicalLoc] = def.defined;
