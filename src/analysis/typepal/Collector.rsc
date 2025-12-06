@@ -1013,9 +1013,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
 
     loc limitLocToFirstLine(loc l){
         try {
-            str txt = readFile(l);
-            int k = findFirst(txt, "\n");
-            if(k >= 0){
+            list[str] lines = readFileLines(l);
+            if(!isEmpty(lines)){
+                int k = size(lines[0]);
                 return l[length=k][end=<l.begin.line,k>];
             }
         } catch _:;
