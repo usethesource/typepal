@@ -1016,7 +1016,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             str txt = readFile(l);
             int k = findFirst(txt, "\n");
             if(k >= 0){
-                return l[length=k][end=<l.begin.line+1,0>];
+                return l[length=k][end=<l.begin.line,k>];
             }
         } catch _:;
         return l;
