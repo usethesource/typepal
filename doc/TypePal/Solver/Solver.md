@@ -155,7 +155,7 @@ The workhorse of TypePal is the function `getType` that determines  the type of 
 ```
 `src` may either be a `Tree` (i.e., a parse tree fragment) or a `loc` (the source location of a parse tree fragment).
 
-Here is how `getType` is used in [the Pico example]((examples::pico)) to check the addition operator:
+Here is how `getType` is used in [the Pico example]((Examples)) to check the addition operator:
 
 * two integer arguments give an integer result;
 * two string arguments give a string result;

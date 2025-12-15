@@ -112,7 +112,7 @@ Scope management amounts to entering a new scope, leave the current scope and re
 ```
 In order to check consistency, `leaveScope` has the inner scope that it is supposed to be leaving as argument.
 
-Here is a simple example how the `let` expression in [the Fun language]((examples::fun)) handles subscopes:
+Here is a simple example how the `let` expression in [the Fun language]((Examples)) handles subscopes:
 
 ```rascal
 void collect(current: (Expression) `let <Id name> : <Type tp> = <Expression exp1> in <Expression exp2> end`, Collector c) {  
@@ -248,7 +248,7 @@ TypePal is based on nested scopes and path between scopes. The former represent 
 
 `addPathToDef` is typically used to create an _import_ or _extend_ path between program parts. `occ` is an occurence of a name that should be defined elsewhere in one of the given roles. The effect is to add a `pathRole` path between the current scope and the definition.
 
-Here is an example taken from [the language ModFun]((examples::modfun)):
+Here is an example taken from [the language ModFun]((Examples)):
 ```rascal
 void collect(current: (ImportDecl) `import <ModId mid> ;`, Collector c){
      c.addPathToDef(mid, {moduleId()}, importPath());
@@ -266,7 +266,7 @@ Similar to `addPathToDef` for the occurrence of a qualified names rather than a 
 ```
 `occ` is a parse tree with has a certain type. The effect is to add a `pathRole` path between the current scope and the definition of that type.
 
-A prime example is type checking of [Pascal]((examples::pascal))'s `with` statement which _opens_ the definition of a record type and makes all defined fields available in the body of the `with` statement. Here we create a `withPath` between the scope of the with statement and all definitions of the record types of the given record variables:
+A prime example is type checking of [Pascal]((Examples))'s `with` statement which _opens_ the definition of a record type and makes all defined fields available in the body of the `with` statement. Here we create a `withPath` between the scope of the with statement and all definitions of the record types of the given record variables:
 
 ```rascal
 void collect(current: (WithStatement) `with <{RecordVariable ","}+ recordVars> do <Statement withStat>`, Collector c){
@@ -323,7 +323,7 @@ There are three functions to describe the occurrence of a name in a parse tree a
 ```
 The parse tree `occ` is a use to be resolved in the current scope in one of the given roles `idRoles`. The use of a variable in an expression is typically modelled with this use function.
 
-Here is an example from [the Calc language]((examples::calc)):
+Here is an example from [the Calc language]((Examples)):
 ```rascal
 void collect(current: (Exp) `<Id name>`, Collector c){
     c.use(name, {variableId()});
@@ -352,7 +352,7 @@ where
 * `selector`: is the name to be selected from that named type.
 * `idRolesSel`:  are the IdRoles allowed for the selector.
 
-Here is an example of field selection from a record in [the Struct language]((examples::struct)):
+Here is an example of field selection from a record in [the Struct language]((Examples)):
 
 ```rascal
 void collect(current:(Expression)`<Expression lhs> . <Id fieldName>`, Collector c) {
@@ -383,7 +383,7 @@ ATypes may contain type variables and new type variables can be created using `n
 
 Type variables can be bound via unification.
 
-Here is an example of a call expression taken from [the UntypedFun language]((examples::untypedFun)):
+Here is an example of a call expression taken from [the UntypedFun language]((Examples)):
 
 ```rascal
 void collect(current: (Expression) `<Expression exp1>(<Expression exp2>)`, Collector c) { 
@@ -415,7 +415,7 @@ The function `fact` registers known type information for a program fragment `src
 ```
 where `atype` can be either an `AType` or a `Tree`. In the latter case the type of that Tree is used when available.
 
-Here are two examples from [the Calc language]((examples::calc)):
+Here are two examples from [the Calc language]((Examples)):
 ```rascal
 void collect(current: (Exp) `<Integer integer>`, Collector c){
     c.fact(current, intType()); //<1>

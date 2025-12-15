@@ -55,7 +55,7 @@ To get you started more quickly, we give below a list of complete TypePal-based 
 ##### ModFun
 
 
-| *What*        | Extension of [Fun]((examples::fun)) with modules |
+| *What*        | Extension of [Fun](#fun) with modules |
 | --- | --- |
 | *Illustrates* | PathRole, addPathToDef |
 | *Source*      | https://github.com/cwi-swat/typepal/tree/master/src/examples/modfun |

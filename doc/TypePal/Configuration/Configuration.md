@@ -104,7 +104,7 @@ Accept myIsAcceptablePath(TModel tm, loc def, Use use, PathRole pathRole) {
 `mayOverload` determines whether a set of definitions (`defs`) are allowed to be overloaded,
 given their definitions (`defines`).
 
-For example, [Featherweight Java]((examples::fwjava::Checker)) the only allowed overloading is between class names and constructor names.
+For example, [Featherweight Java]((Examples)) the only allowed overloading is between class names and constructor names.
 ```rascal
 bool fwjMayOverload (set[loc] defs, map[loc, Define] defines) {
     roles = {defines[def].idRole | def <- defs};  //<1>
@@ -158,7 +158,7 @@ The function `instantiateTypeParameters` defines instantiation of *language-spec
 `instantiateTypeParameters` will match `def` with `ins` and the resulting bindings will be used to instantiate `act`.
 The instantiated version of `act` is returned.
 
-In the [StructParameters demo]((examples::structParameters::Checker)) parameterized structs (records) are defined. 
+In the [StructParameters demo]((Examples)) parameterized structs (records) are defined. 
 The formal type of such a struct is ``structDef(str name, list[str] formals)``, 
 i.e., a struct has a name and a list of named formal type parameters.
 The actual type of a struct is ``structType(str name, list[AType] actuals)``, 
@@ -191,7 +191,7 @@ of indirect type computations such as `useViaType` and `getTypeInType`. When `at
   In more sophisticated cases the list may contain a list of named types to be considered.
 * A list of roles in which the type name can be bound.
 
-Here are the definitions for the [Struct demo]((examples::struct::Checker)):
+Here are the definitions for the [Struct demo]((Examples)):
 ```rascal
 tuple[list[str] typeNames, set[IdRole] idRoles] structGetTypeNamesAndRole(structType(str name)){
     return <[name], {structId()}>; //<1>
@@ -226,7 +226,7 @@ In the Rascal type checker common keyword parameters of data declarations are ha
 `getTypeInNamelessType` describes field selection on built-types that have not been explicitly declared with a name.
 A case in point is a `length` field on a built-in string type.
 
-In [the StaticFields demo]((examples::staticFields::Checker)))) this is done as follows:
+In [the StaticFields demo]((Examples)))) this is done as follows:
 ```rascal
 AType staticFieldsGetTypeInNamelessType(AType containerType, Tree selector, loc scope, Solver s){
     if(containerType ### strType() && "<selector>" ### "length") return intType();
