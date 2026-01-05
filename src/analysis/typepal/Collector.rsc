@@ -23,7 +23,7 @@ import Set;
 import Relation;
 import IO;
 import Type;
-import Location;
+import LogicalLocation;
 import String;
 
 import analysis::typepal::Version;
@@ -194,101 +194,6 @@ Collector newCollector(str modelName, Tree pt, TypePalConfig config){
     return newCollector(modelName, (modelName : pt), config);
 }
 
-// The following function can be written with a single (expensive) visit
-// This version avoids visits as much as possible
-private TModel convertLocs(TModel tm, map[loc,loc] locMap){
-    defines = {};
-    definitions = ();
-    for(d:<loc scope, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
-        defi = visit(defInfo){ case loc l => locMap[l] when l in locMap };
-        d1 = d[scope=(scope in locMap ? locMap[scope] : scope)]
-               [defined=(defined in locMap ? locMap[defined] : defined)]
-               [defInfo=defi];
-        defines += d1;
-        definitions[d1.defined] = d1;
-    }
-    tm.defines = defines;
-    tm.definitions = definitions;
-
-    tm.scopes = ( (outer in locMap ? locMap[outer] : outer) : (inner in locMap ? locMap[inner] : inner) 
-                | loc outer <- tm.scopes, loc inner := tm.scopes[outer] 
-                );
-    tm.paths = { <(from in locMap ? locMap[from] : from), 
-                  pathRole, 
-                  (to in locMap ? locMap[to] : to)> 
-               | <loc from, PathRole pathRole, loc to> <- tm.paths 
-               };
-
-    tm.referPaths =  visit(tm.referPaths){ case loc l => locMap[l] when l in locMap };
-    tm.uses = visit(tm.uses){ case loc l => locMap[l] when l in locMap };
-    tm.definesMap = visit(tm.definesMap){ case loc l => locMap[l] when l in locMap };
-    tm.moduleLocs = ( key : (l in locMap ? locMap[l] : l) 
-                    | key <- tm.moduleLocs, l := tm.moduleLocs[key] 
-                    );
-    facts = tm.facts;
-    tm.facts = ((l in locMap ? locMap[l] : l) 
-               : ( (overloadedAType(rel[loc, IdRole, AType] overloads) := atype)
-                   ? overloadedAType({ <(l in locMap ? locMap[l] : l), idr, at> | <l, idr, at> <- overloads })
-                   : atype)
-               | l <- facts, atype := facts[l]
-               );
-    //tm.facts = visit(tm.facts){ case loc l => locMap[l] ? l };
-    tm.specializedFacts =
-        ((l in locMap ? locMap[l] : l)
-         : ( (overloadedAType(rel[loc, IdRole, AType] overloads) := atype)
-             ? overloadedAType({ <(l in locMap ? locMap[l] : l), idr, at> | <l, idr, at> <- overloads })
-             : atype)
-        | l <- tm.specializedFacts, atype := tm.specializedFacts[l]
-        );
-    //tm.specializedFacts = visit(tm.specializedFacts){ case loc l => locMap[l] ? l };
-    tm.useDef = { < (f in locMap ? locMap[f] : f), 
-                    (t in locMap ? locMap[t] : t) > 
-                | <f, t> <- tm.useDef };
-    // Exlude messages from conversion: otherwise users would see logical locations
-    //tm.messages =  visit(tm.messages){ case loc l => locMap[l] ? l };
-    tm.store =  visit(tm.store){ case loc l => locMap[l] when l in locMap};
-    tm.config = visit(tm.config){ case loc l => locMap[l] when l in locMap};
-    return tm;
-}
-
-TModel convertTModel2PhysicalLocs(TModel tm){
-    if(!tm.usesPhysicalLocs){
-        logical2physical = tm.logical2physical;
-        tm.logical2physical = ();
-        tm = convertLocs(tm, logical2physical);
-        tm.logical2physical = logical2physical;
-        tm.usesPhysicalLocs = true;
-    }
-    return tm;
-}
-
-TModel convertTModel2LogicalLocs(TModel tm, map[str,TModel] tmodels){
-    if(tm.usesPhysicalLocs){
-        tmodels[tm.modelName] = tm;
-        physical2logical = ();
-        try {
-            physical2logical = invertUnique((() | it + tm1.logical2physical | tm1 <- range(tmodels)));
-        } catch MultipleKey(value physLoc, value _, value _):{
-            where = loc l := physLoc ? l : |unknown:///|;
-            // find the offending modules
-            mnames = {};
-            for(mname <- domain(tmodels)){
-                if(physLoc in range(tmodels[mname].logical2physical)){
-                    mnames += mname;
-                }
-            }
-            tm.messages += [error("Please recheck modules <intercalateAnd(sort(mnames))>; their mapping from physical to logical locations is outdated", where)];
-            return tm;
-        }
-        logical2physical = tm.logical2physical;
-        tm.logical2physical = ();
-        tm = convertLocs(tm, physical2logical);
-        tm.logical2physical = logical2physical;
-        tm.usesPhysicalLocs = false;
-    }
-    return tm;
-}
-
 Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config){
 
     str normalizeName(str input) {
@@ -296,8 +201,18 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
          }
     loc globalScope = |global-scope:///|;
     Defines defines = {};
+    Defines addedDefines = {};
 
     map[loc,loc] logical2physical = ();
+
+    map[loc,loc] physical2logical = ();
+
+    loc getLogicalLoc(loc l)
+        = l in physical2logical ? physical2logical[l] : l;
+
+    loc getLogicalLoc(Tree t)
+        = getLogicalLoc(getLoc(t));
+
     map[loc, set[Define]] definesPerLubScope = (globalScope: {});
     map[loc, set[Define]] lubDefinesPerLubScope = (globalScope: {});
     map[loc, rel[str id, str orgId, loc idScope, set[IdRole] idRoles, loc occ]] lubUsesPerLubScope = (globalScope: {});
@@ -305,18 +220,24 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
 
     Scopes scopes = ();
     map[loc, set[loc]] scopesStar = (globalScope: {});
+    Scopes addedScopes = ();
 
     Paths paths = {};
+    Paths addedPaths = {};
+
     set[ReferPath] referPaths = {};
     Uses uses = [];
     map[str,value] storeVals = ();
 
     map[loc,AType] facts = ();
+    map[loc,AType] addedFacts = ();
+
     set[Calculator] calculators = {};
     set[Requirement] requirements = {};
     int ntypevar = 0;
     list[Message] messages = [];
-
+    list[Message] addedMessages = [];
+    
     loc currentScope = globalScope;
     loc rootScope = globalScope;
 
@@ -334,10 +255,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             if(Tree tdef := def) l = getLoc(tdef);
             else if(loc ldef := def) l = ldef;
             else throw TypePalUsage("Argument `def` of `define` should be `Tree` or `loc`, found <typeOf(def)>");
-
-            def_tup = <orgId, idRole>;
             nname = normalizeName(orgId);
-
+            Define newDef = <currentScope, nname, orgId, idRole, l, info>;
+            logL = buildLogical2physical(newDef);
             if(info is defTypeLub){
                 // Look for an outer variable declaration of id that overrules the defTypeLub
                 for(Define def <- defines + definesPerLubScope[currentLubScope]){
@@ -348,9 +268,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                         }
                     }
                 }
-                lubDefinesPerLubScope[currentLubScope] += <currentScope, nname, orgId, idRole, l, info>;
+                lubDefinesPerLubScope[currentLubScope] += newDef;
             } else {
-                definesPerLubScope[currentLubScope] += <currentScope, nname, orgId, idRole, l, info>;
+                definesPerLubScope[currentLubScope] += newDef;
             }
         } else {
             throw TypePalUsage("Cannot call `define` on Collector after `run`");
@@ -387,15 +307,14 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                   { def | def <- lubDefinesPerLubScope[currentLubScope], def.id == id };
         
         // is there an inferred declaration?
-        if(!isEmpty(lubdefs) && any(def <- lubdefs, isContainedIn(useOrDefLoc, def.scope))){
+        if(!isEmpty(lubdefs) && any(def <- lubdefs, isContainedIn(useOrDefLoc, def.scope, logical2physical))){
             //println("isAlreadyDefined <id>, <useOrDef>: true");
             return true;
         }
         
         // is there a top-level declaration?
-       
-        for(def <- defines, def.id == id, config.isInferrable(def.idRole), def.scope in scopes, 
-            (isContainedIn(useOrDefLoc, def.scope) || scopes[def.scope] == |global-scope:///|)){
+        for(def <- defines, def.id == id, def.scope in scopes, config.isInferrable(def.idRole), 
+            (isContainedIn(useOrDefLoc, def.scope, logical2physical) || scopes[def.scope] == |global-scope:///|)){
              //println("isAlreadyDefined <id>, <useOrDef>: true");
             return true;
         }
@@ -416,10 +335,12 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             else throw TypePalUsage("Argument `def` of `defineInScope` should be `Tree` or `loc`, found <typeOf(def)>");
 
             nname = normalizeName(orgId);
+            Define newDef = <definingScope, nname, orgId, idRole, l, info>;
+            logL = buildLogical2physical(newDef);
             if(info is defTypeLub){
                 throw TypePalUsage("`defLub` cannot be used in combination with `defineInScope`");
             } else {
-                defines += <definingScope, nname, orgId, idRole, /*uid,*/ l, info>;
+                defines += newDef;
             }
         } else {
             throw TypePalUsage("Cannot call `defineInScope` on Collector after `run`");
@@ -565,7 +486,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 }
               }
            } else {
-              throw TypePalUsage("Cannot call `leaveScope` with scope that is not the current scope", [innerLoc]);
+              throw TypePalUsage("Cannot call `leaveScope` with scope that is not the current scope", [innerLoc, currentScope]);
            }
         } else {
           throw TypePalUsage("Cannot call `leaveScope` on Collector after `run`");
@@ -744,8 +665,8 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             if(loc l := fm.src) sloc = l;
             else if(Tree t := fm.src) sloc = getLoc(t);
             else throw TypePalUsage("Subject in error should be have type `Tree` or `loc`, found <typeOf(fm.src)>");
-          requirements += reqError(sloc, [], fm);
-          return true;
+            requirements += reqError(sloc, [], fm);
+            return true;
        } else {
             throw TypePalUsage("Cannot call `report` on Collector after `run`");
        }
@@ -758,8 +679,8 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             if(loc l := fm.src) sloc = l;
             else if(Tree t := fm.src) sloc = getLoc(t);
             else throw TypePalUsage("Subject in error should be have type `Tree` or `loc`, found <typeOf(fm.src)>");
-          requirements += reqErrors(sloc, [], fms);
-          return true;
+            requirements += reqErrors(sloc, [], fms);
+            return true;
        } else {
             throw TypePalUsage("Cannot call `reports` on Collector after `run`");
        }
@@ -835,7 +756,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
 
     tuple[list[loc] deps, list[loc] defs] computeDepsAndDefs(set[loc] deps, set[loc] defs, set[Use] uses, loc lubDefScope, rel[loc,loc] enclosedScopes){
         if(isEmpty(uses)) return <toList(deps - defs), toList(defs)>;
-        depsWithNestedUse = { d | d <- deps, u <- uses, isContainedIn(u.occ, d) };
+        depsWithNestedUse = { d | d <- deps, u <- uses, isContainedIn(u.occ, d, logical2physical) };
         scopesEnclosedByLubDef = enclosedScopes[lubDefScope];
         return <toList(deps - defs - depsWithNestedUse), toList(defs + depsWithNestedUse + { u.occ | u <- uses, u.scope in scopesEnclosedByLubDef })>;
     }
@@ -1000,14 +921,19 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         if(!isValidTplVersion(tm.version)){
             throw wrongTplVersion("TModel for <tm.modelName> uses TPL version <tm.version>, but <getCurrentTplVersion()> is required");
         }
-        tm = convertTModel2PhysicalLocs(tm);
 
         logical2physical += tm.logical2physical;
-        messages += tm.messages;
+        addedMessages += tm.messages;
 
+        addedScopes += tm.scopes;
         scopes += tm.scopes;
+
+        addedDefines += tm.defines;
         defines += tm.defines;
+
+        addedFacts += tm.facts;
         facts += tm.facts;
+        addedPaths += tm.paths;
         paths += tm.paths;
     }
 
@@ -1022,32 +948,30 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         return l;
     }
 
-    map[loc,loc] buildLogical2physical(Defines defines){
-        map[loc,loc] my_logical2physical = logical2physical;
-        map[loc,loc] my_physical2logical = ();
-        try {
-            my_physical2logical = invertUnique(logical2physical);
-        } catch MultipleKey(value key, value _first, value _second):{
-            where = loc l := key ? l : |unknown:///|;
-            messages += error("Mapping from physical to logical locations is not unique; remove outdated information and try again", where);
-            return ();
-        }
-        for(Define def <- defines){
-            logicalLoc = my_physical2logical[def.defined] ? config.createLogicalLoc(def, modelName, config.typepalPathConfig);
-            if(logicalLoc != def.defined){
-                if(logicalLoc in my_logical2physical){
-                    if(my_logical2physical[logicalLoc] != def.defined){
-                        causes = [ info("Clone of `<def.id>`", my_logical2physical[logicalLoc]),
-                                   info("Clone of `<def.id>`", def.defined) 
-                                 ];
-                        // restrict clone location to first line for readability
-                        messages += error("Remove code clone for <prettyRole(def.idRole)> `<def.id>`", limitLocToFirstLine(def.defined), causes=causes);
-                    }
+    loc buildLogical2physical(Define def){
+        if(def.defined in logical2physical) return logical2physical[def.defined];
+        loc logicalLoc = physical2logical[def.defined] ? config.createLogicalLoc(def, modelName, config.typepalPathConfig);
+        if(logicalLoc != def.defined){
+            if(logicalLoc in logical2physical){
+                if(logical2physical[logicalLoc] != def.defined){
+                    causes = [ info("Clone of `<def.id>`", logical2physical[logicalLoc]),
+                                info("Clone of `<def.id>`", def.defined) 
+                            ];
+                    // restrict clone location to first line for readability
+                    messages += error("Remove code clone for <prettyRole(def.idRole)> `<def.id>`", limitLocToFirstLine(def.defined), causes=causes);
                 }
-                my_logical2physical[logicalLoc] = def.defined;
             }
+            logical2physical[logicalLoc] = def.defined;  
+            physical2logical[def.defined] = logicalLoc;
         }
-        return my_logical2physical;
+        return logicalLoc;
+    }
+
+    &T toLogicalLocs(&T v){
+        return visit(v){ case loc l => physical2logical[l] when l in physical2logical };
+    }
+    &T toPhysicalLocs(&T v){
+        return visit(v){ case loc l => logical2physical[l] when l in logical2physical };
     }
 
     TModel collector_run(){
@@ -1063,36 +987,39 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 throw TypePalUsage("Missing `leaveScope`(s): unclosed scopes <unclosed>");
            }
 
-           tm = tmodel()[usesPhysicalLocs=true];
+           tm = tmodel();
            tm.modelName = modelName;
+           tm.logical2physical = logical2physical;
 
-           tm.moduleLocs = (nm : getLoc(namedTrees[nm]) | nm <- namedTrees);
+           tm.moduleLocs = (nm : getLogicalLoc(namedTrees[nm]) | nm <- namedTrees);
 
-           tm.facts = facts; facts = ();
+           tm.facts = toLogicalLocs(facts - addedFacts) + addedFacts; facts = addedFacts = ();
            tm.config = config;
-           defines = finalizeDefines();
-           tm.defines = defines;
-           tm.scopes = scopes;  scopes = ();
-           tm.paths = paths;
-           tm.referPaths = referPaths;
-           tm.uses = uses;      uses = [];
 
-           tm.calculators = calculators; calculators = {};
-           tm.requirements = requirements;  requirements = {};
-           tm.store = storeVals;        storeVals = ();
-           tm.definitions = ( def.defined : def | Define def <- defines);
+           defines = finalizeDefines();
+
+           tm.defines =  toLogicalLocs(defines - addedDefines) + addedDefines; 
+           tm.definitions = ( def.defined : def | Define def <- tm.defines);
            map[loc, map[str, rel[IdRole idRole, loc defined]]] definesMap = ();
-           for(<loc scope, str id, str _orgId, IdRole idRole, loc defined, DefInfo _> <- defines){
+           for(<loc scope, str id, str _orgId, IdRole idRole, loc defined, DefInfo _> <- tm.defines){
                 map[str, rel[IdRole idRole, loc defined]] dm = ();
                 if(scope in definesMap) dm = definesMap[scope];
-                dm[id] =  (dm[id] ? {}) + {<idRole, defined>};
+                dm[id] =  (id in dm ? dm[id] : {}) + {<idRole, defined>};
                 definesMap[scope] = dm;
            }
            tm.definesMap = definesMap;
+           definesMap = (); defines = addedDefines = {};
 
-           tm.logical2physical = buildLogical2physical(defines);
-           defines = {};
-           tm.messages = messages;
+           tm.scopes = toLogicalLocs(scopes - addedScopes) + addedScopes; scopes = addedScopes = ();
+           tm.paths = toLogicalLocs(paths - addedPaths) + addedPaths; paths = addedPaths = {};
+           tm.referPaths = toLogicalLocs(referPaths); referPaths = {};
+           tm.uses = toLogicalLocs(uses); uses = [];
+
+           tm.calculators = toLogicalLocs(calculators); calculators = {};
+           tm.requirements = toLogicalLocs(requirements); requirements = {};
+           tm.store = toLogicalLocs(storeVals); storeVals = ();
+           tm.messages = toPhysicalLocs(messages) + addedMessages; messages = addedMessages = [];
+           physical2logical = logical2physical = ();
 
            return tm;
         } else {
@@ -1305,9 +1232,9 @@ default void collect(Tree currentTree, Collector c){
     if(currentTree has prod){
         switch(getName(currentTree.prod.def)){
         case "label":
-            { p = currentTree.prod; collect(appl(prod(p.def.symbol, p.symbols, p.attributes/*, src=getLoc(currentTree)*/), currentTree.args), c); }
+            { p = currentTree.prod; collect(appl(prod(p.def.symbol, p.symbols, p.attributes/*, src=getLogicalLoc(currentTree)*/), currentTree.args), c); }
         case "start":
-            { p = currentTree.prod; collect(appl(prod(p.def.symbol, p.symbols, p.attributes/*, src=getLoc(currentTree)*/), currentTree.args), c); }
+            { p = currentTree.prod; collect(appl(prod(p.def.symbol, p.symbols, p.attributes/*, src=getLogicalLoc(currentTree)*/), currentTree.args), c); }
         case "sort":
             { args = currentTree.args;
               nargs = size(args);
@@ -1315,7 +1242,7 @@ default void collect(Tree currentTree, Collector c){
               else if(nargs > 0) {
                   c.report(info(currentTree, "Missing `collect` for %q", treeAsMessage(currentTree)));
                   collectArgs2(args, c);
-                 //was: throw TypePalUsage("Missing `collect` for <currentTree.prod>", [getLoc(currentTree)]);
+                 //was: throw TypePalUsage("Missing `collect` for <currentTree.prod>", [getLogicalLoc(currentTree)]);
               }
             }
         case "parameterized-sort":
@@ -1326,7 +1253,7 @@ default void collect(Tree currentTree, Collector c){
               else if(nargs > 0) {
                 c.report(info(currentTree, "Missing `collect` for %q", treeAsMessage(currentTree)));
                 collectArgs2(args, c);
-                //was: throw TypePalUsage("Missing `collect` for <currentTree.prod>", [getLoc(currentTree)]);
+                //was: throw TypePalUsage("Missing `collect` for <currentTree.prod>", [getLogicalLoc(currentTree)]);
               }
             }
        case "lex":
@@ -1350,7 +1277,7 @@ default void collect(Tree currentTree, Collector c){
                 else if(nargs > 0) {
                      c.report(info(currentTree, "Missing `collect` for %q", treeAsMessage(currentTree)));
                     collectArgs2(args, c);
-                    // was throw TypePalUsage("Missing `collect` for <currentTree.prod>", [getLoc(currentTree)]);
+                    // was throw TypePalUsage("Missing `collect` for <currentTree.prod>", [getLogicalLoc(currentTree)]);
                 }
               }
             }
