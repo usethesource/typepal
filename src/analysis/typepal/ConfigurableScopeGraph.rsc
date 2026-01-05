@@ -215,9 +215,33 @@ data ScopeGraph
         void (Solver s) setSolver
     );
 
-bool wdebug = false;
+
 
 ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
+
+// Debug support: prints nicely indented traces of calls.
+// It is commented out since it is rather expensive for these
+// high-frequency functions
+
+    // bool wdebug = false;
+    // str dbg_indent = "";
+
+    // void incr(){ dbg_indent += "    "; }
+    // void decr() { dbg_indent = dbg_indent[..-4]; }
+
+    // void dbgEnter(str s) { if(wdebug) { incr(); println("<dbg_indent><s>"); } }
+    // void dbg(str s) { if(wdebug) println("<dbg_indent><s>"); }
+    // void dbgLeave(str s) { if(wdebug){ println("<dbg_indent><s>"); decr(); } }
+
+    // void dbgPaths(){
+    //     incr();
+    //     for(p <- tm.paths){ 
+    //         dbg("path: <p.from>");
+    //         dbg("      <p.pathRole>");
+    //         dbg("      <p.to>");
+    //     }
+    //     decr();
+    // }       
 
     /*************************************************************************/
     /* At the moment we support "classic" scopes from the Kastens & Waite    */
@@ -379,32 +403,37 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
     //@memo
     // Retrieve all bindings for use in given syntactic scope
     private set[loc] bindWide(loc scope, str id, set[IdRole] idRoles){
-        preDefs = (tm.definesMap[scope] ? ())[id] ? {};
-
-        if(isEmpty(preDefs) || isEmpty(preDefs<0> & idRoles)) return {};
-        return preDefs<1>;
+        idMap = scope in tm.definesMap ? tm.definesMap[scope] : ();
+        preDefs = id in idMap ? idMap[id] : {};
+        res = {};
+        if(isEmpty(preDefs) || isEmpty(preDefs<0> & idRoles)){
+            res = {};
+        } else {
+            res = preDefs<1>;
+        }
+        // dbg("bindWide: <scope>, <id> =\> <res>");
+        return res;
     }
 
     // Lookup use in the given syntactic scope
     private set[loc] lookupScopeWide(loc scope, Use use){
-        //if(wdebug) println("\tlookupScopeWide: <use.id> in scope <scope>");
-
-        return {def | def <-  bindWide(scope, use.id, use.idRoles), isAcceptableSimpleFun(def, use, the_solver) == acceptBinding()};
+        // dbgEnter("lookupScopeWide: <use.id> in scope <scope>");
+        res = {def | def <-  bindWide(scope, use.id, use.idRoles), isAcceptableSimpleFun(def, use, the_solver) == acceptBinding()};
+        // dbgLeave("lookupScopeWide: <use.id> in scope <scope> =\> <res>");
+        return res;
     }
 
     //@memo
     // Find all (semantics induced, one-level) bindings for use in given syntactic scope via PathRole
     private set[loc] lookupPathsWide(loc scope, Use use, PathRole pathRole){
-        //if(wdebug) println("\tlookupPathsWide: <use.id> in scope <scope>, role <pathRole>\n<for(p <- tm.paths){>\t---- <p>\n<}>");
+        // dbgEnter("lookupPathsWide: <use.id> in scope <scope>, role <pathRole>");;
         res = {};
 
         seenParents = {};
         solve(res, scope) {
         next_path:
-            for(loc parent <- ((pathsCache[pathRole] ? {})[scope] - seenParents)){
+            for(<scope, pathRole, loc parent> <- paths, parent notin seenParents){
                 seenParents += parent;
-                //if(wdebug) println("\tlookupPathsWide: scope: <scope>, trying semantic path to: <parent>");
-
                 for(loc def <- lookupScopeWide(parent, use)){
                     switch(isAcceptablePathFun(parent, def, use, pathRole, the_solver)){
                     case acceptBinding():
@@ -417,22 +446,20 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
                 }
             }
         }
-        //if(wdebug) println("\tlookupPathsWide: <use.id> in scope <scope>, <pathRole> ==\> <res>");
+        // dbgLeave("lookupPathsWide: <use.id> in scope <scope>, <pathRole> ==\> <res>");
         return res;
     }
 
     // Lookup use in given syntactic scope and via all semantic paths
     private set[loc] lookupQualWide(loc scope, Use u){
-        //if(wdebug) println("\tlookupQualWide: <u.id> in scope <scope>");
+        // dbgEnter("lookupQualWide: <u.id> in scope <scope>");
 
         res = lookupScopeWide(scope, u);
-        //if(wdebug) println("\tlookupQualWide: <u.id> in scope <scope>, after lookupScopeWide:\n<for(r <- res){>\t--\> <r><}>");
-
-        //if(wdebug) println("\tlookupQualWide: <res>, loop over <pathRoles(tm)>");
+ 
         nextPath:
         for(PathRole pathRole <- pathRoles){
            candidates = lookupPathsWide(scope, u, pathRole);
-           //if(wdebug) println("\tlookupQualWide: candidates: <candidates>");
+        //    dbg("lookupQualWide: candidates: <candidates>");
            for(loc candidate <- candidates){
                switch(isAcceptableSimpleFun(candidate, u, the_solver)){
                case acceptBinding():
@@ -444,26 +471,31 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
                }
             }
         }
-
+        // dbgLeave("lookupQualWide: <u.id> in scope <scope> =\> <res>");
         return res;
     }
 
     // Lookup use in syntactic scope and via all semantic paths,
     // recur to syntactic parent until found
     private set[loc] lookupNestWide(loc scope, Use u){
-        //if(wdebug) println("\tlookupNestWide: <u.id> in scope <scope>");
+        // dbgEnter("lookupNestWide: <u.id> in scope <scope>");
 
         res = lookupQualWide(scope, u);
-        //if(wdebug) println("\tlookupNestWide: <u.id> in scope <scope> found:\n<for(r <- res){>\t==\> <r><}>");
-        if(!isEmpty(res)) return res; // <<<
 
-        if(tm.scopes[scope] ?){
-          if(scope == tm.scopes[scope]) { println("Identical scope in lookupNestWide: <scope>"); return res; }
-           parent = tm.scopes[scope];
-           //if(wdebug) println("\tlookupNestWide: <u.id> in scope <scope> move up to <parent>");
-           res += lookupNestWide(parent, u);
+        if(!isEmpty(res)) {
+            // dbgLeave("lookupNestWide: <u.id> in scope <scope> =\> <res>");
+            return res; // <<<
         }
 
+        if(scope in tm.scopes){
+          if(scope == tm.scopes[scope]) { 
+                // dbg("Identical scope in lookupNestWide: <scope>"); 
+                return res; 
+           }
+           parent = tm.scopes[scope];
+           res += lookupNestWide(parent, u);
+        }
+        // dbgLeave("lookupNestWide: <u.id> in scope <scope> =\> <res>");
         return res;
     }
 
@@ -479,16 +511,17 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
 
         scope = u.scope;
 
-        //if(wdebug) println("lookupWide: <u>");
+        // dbg("\nlookupWide: <u>\n");
+        // dbgPaths();
         if(!(u has qualifierRoles)){
            defs = {def | loc def <- lookupNestWide(scope, u), isAcceptableSimpleFun(def, u, the_solver) == acceptBinding()};
-           //if(wdebug) println("lookupWide: <u> returns:\n<for(d <- defs){>\t==\> <d><}>");
+        //    dbg("lookupWide: <u> =\> <defs>");
            if(isEmpty(defs)) throw NoBinding(); else return defs;
         } else {
            startScope = scope;
                qscopes = {};
                for(str id <- u.ids[0..-1]){
-                   //if(wdebug) println("lookup, search for <id>");
+                //    dbg("lookup, search for <id>");
                    qscopes = lookupNestWide(scope, use(id, "<u.occ>", u.occ, scope, u.qualifierRoles));
                    if(isEmpty(qscopes)) throw NoBinding();
                 }
@@ -499,23 +532,15 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
                     defs += { def | def <- scopeLookups, isAcceptableQualifiedFun(def, u, the_solver) == acceptBinding()};
                 }
                 if(!isEmpty(defs)){
-                    //if(wdebug) println("lookupWide: <u> returns:\n<for(d <- defs){>\t==\> <d><}>");
+                    // dbg("lookupWide: <u> returns:\n<for(d <- defs){>\t==\> <d><}>");
                     return defs;
                 }
          }
          throw NoBinding();
     }
 
-    private void updatePathCache() {
-        rel[loc, loc] empty_rel = {};
-        pathsCache = ();
-        for (<loc from, PathRole pr, loc to> <- paths) {
-            pathsCache[pr] ? empty_rel += {<from, to>};
-        }
-    }
 
     Paths paths = {};
-    map[PathRole, rel[loc,loc]] pathsCache = ();
     set[PathRole] pathRoles = {};
 
     Solver the_solver = dummySolver();
