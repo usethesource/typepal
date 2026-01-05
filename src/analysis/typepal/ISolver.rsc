@@ -63,6 +63,8 @@ data Solver
                         set[Define] () getAllDefines,
                         Define(loc) getDefine,
                         rel[loc,loc] () getUseDef,
+                        bool(loc,loc) isContainedIn,
+                        bool(loc,loc) isBefore,
                         
     /* Nested Info */   void(str key, value val) push,
                         value (str key) pop,
