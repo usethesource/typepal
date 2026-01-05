@@ -505,7 +505,6 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         current_paths =  the_solver.getPaths(); //tm.paths;
         if(current_paths != paths){
             paths = current_paths;
-            updatePathCache();
             pathRoles = paths.pathRole;
         }
 
@@ -548,7 +547,6 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
     void do_setSolver(Solver s){
         the_solver = s;
         paths = the_solver.getPaths();
-        updatePathCache();
         pathRoles = paths.pathRole;
     }
 
