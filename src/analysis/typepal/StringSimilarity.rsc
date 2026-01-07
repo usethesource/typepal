@@ -12,9 +12,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 }
 module analysis::typepal::StringSimilarity
 
-import List;
-import IO;
-import LogicalLocation;
+import Location;
 import Set;
 import String;
 import analysis::typepal::TModel;
@@ -68,6 +66,11 @@ alias WordSim = tuple[str word, int sim];
 list[str] similarWords(str w, set[str] vocabulary, int maxDistance)
 = sort({ <v, d> | str v <- vocabulary, d := lev(w, v), d <= maxDistance }, 
                   bool (WordSim x, WordSim y){ return x.sim < y.sim;}).word;
+
+// TODO: remove this temporary copy of isContainedIn (needed to break deployment cycle)
+// should reside in Location.rsc
+private bool isContainedIn(loc inner, loc outer, map[loc,loc] m)
+    = isContainedIn(inner in m ? m[inner] : inner, outer in m ? m[outer] : outer);
 
 @synopsis{Find in TModel tm, names similar to Use u. Max edit distance comes from TypePal Configuration.}
 list[str] similarNames(Use u, TModel tm){

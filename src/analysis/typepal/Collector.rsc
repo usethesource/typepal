@@ -23,7 +23,7 @@ import Set;
 import Relation;
 import IO;
 import Type;
-import LogicalLocation;
+import Location;
 import String;
 
 import analysis::typepal::Version;
@@ -31,6 +31,13 @@ import analysis::typepal::Messenger;
 
 extend analysis::typepal::ConfigurableScopeGraph;
 extend analysis::typepal::ICollector;
+
+// TODO: remove these temporary copies of isContainedIn and isBefore
+// (needed to break deployment cycle). They should reside in Location.rsc
+private bool isContainedIn(loc inner, loc outer, map[loc,loc] m)
+    = isContainedIn(inner in m ? m[inner] : inner, outer in m ? m[outer] : outer);
+bool isBefore(loc inner, loc outer, map[loc,loc] m)
+    = isBefore(inner in m ? m[inner] : inner, outer in m ? m[outer] : outer);
 
 // Extract (nested) tree locations and type variables from a list of dependencies
 list[loc] dependenciesAslocList(list[value] dependencies){

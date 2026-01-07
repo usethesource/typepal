@@ -21,7 +21,7 @@ extend analysis::typepal::Messenger;
 import Exception;
 import IO;
 import List;
-import LogicalLocation;
+import Location;
 import Map;
 import Message;
 import Node;
