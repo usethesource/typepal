@@ -1649,7 +1649,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 messages += warning("Unused <prettyRole(def.idRole)> `<def.id>`", defdefined);
             }
         }
-
+        messages =  visit(messages) { case loc l => solver_toPhysicalLoc(l) };
         tm.messages = sortMostPrecise(toList(toSet(messages)));
 
         checkAllTypesAvailable(tm);
