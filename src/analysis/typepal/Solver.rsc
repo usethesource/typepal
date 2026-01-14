@@ -82,6 +82,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     map[loc,loc] logical2physical = tm.logical2physical;
 
+    map[PathRole, rel[loc,loc]] pathsByPathRole = ();
+    for(<loc f, PathRole r, loc t> <- tm.paths){
+        pathsByPathRole[r] ? {} += {<f, t>};
+    }
+
     void configTypePal(TypePalConfig tc){
 
         normalizeName = tc.normalizeName;
@@ -120,6 +125,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     map[loc, AType] solver_getFacts() = facts;
 
     Paths solver_getPaths() = tm.paths;
+
+    map[PathRole,rel[loc,loc]] solver_getPathsByPathRole() = pathsByPathRole;
 
      loc getLogicalLoc(Tree t){
         l = getLoc(t);
@@ -859,9 +866,17 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
              }
         }
         newPaths = { tup | tup:<loc u, PathRole r, loc d> <- newPaths, u != d };
-        tm.paths += newPaths;
         tm.referPaths = referPaths;
-        return !isEmpty(newPaths);
+        pathsFound = !isEmpty(newPaths);
+        if(pathsFound){
+            tm.paths += newPaths;
+            pathsByPathRole = ();
+            for(<loc u, PathRole r, loc d> <- tm.paths){
+                pathsByPathRole[r] ? {} += {<u, d>};
+            }
+        }
+        
+        return pathsFound;
     }
 
     // ---- "equal" and "requireEqual" ----------------------------------------
@@ -1693,7 +1708,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
            /* Global Info */    solver_getConfig,
                                 solver_getFacts,
                                 solver_getPaths,
-
+                                solver_getPathsByPathRole,
                                 solver_getDefinitions,
                                 solver_getAllDefines,
                                 solver_getDefine,

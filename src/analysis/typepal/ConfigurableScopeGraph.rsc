@@ -24,6 +24,7 @@ extend analysis::typepal::ISolver;
 
 import IO;
 import Set;
+import Relation;
 import Map;
 import util::PathConfig;
 import String;
@@ -399,20 +400,14 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
     /* lookupWide returns all definitions in the current syntactic scope (or its        */
     /* parents) and definitions that can be reached in a single step via semantic links */
     /************************************************************************************/
-
+ 
     //@memo
     // Retrieve all bindings for use in given syntactic scope
     private set[loc] bindWide(loc scope, str id, set[IdRole] idRoles){
-        idMap = scope in tm.definesMap ? tm.definesMap[scope] : ();
-        preDefs = id in idMap ? idMap[id] : {};
-        res = {};
-        if(isEmpty(preDefs) || isEmpty(preDefs<0> & idRoles)){
-            res = {};
-        } else {
-            res = preDefs<1>;
-        }
-        // dbg("bindWide: <scope>, <id> =\> <res>");
-        return res;
+        idsInScope = (scope in tm.definesMap) ? tm.definesMap[scope] : ();
+        foundDefs = id in idsInScope ? domainR(idsInScope[id], idRoles)<1> : {};
+        // dbg("bindWide: <scope>, <id> =\> <foundDefs>");
+        return foundDefs;
     }
 
     // Lookup use in the given syntactic scope
@@ -432,7 +427,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         seenParents = {};
         solve(res, scope) {
         next_path:
-            for(<scope, pathRole, loc parent> <- paths, parent notin seenParents){
+            for(<scope, loc parent> <- pathsByPathRole[pathRole] ? {}, parent notin seenParents){
                 seenParents += parent;
                 for(loc def <- lookupScopeWide(parent, use)){
                     switch(isAcceptablePathFun(parent, def, use, pathRole, the_solver)){
@@ -502,10 +497,10 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
     public set[loc] lookupWide(Use u){
 
         // Update current paths and pathRoles
-        current_paths =  the_solver.getPaths(); //tm.paths;
-        if(current_paths != paths){
-            paths = current_paths;
-            pathRoles = paths.pathRole;
+        current_pathsByPathRole =  the_solver.getPathsByPathRole();
+        if(current_pathsByPathRole != pathsByPathRole){
+            pathsByPathRole = current_pathsByPathRole;
+            pathRoles = domain(pathsByPathRole);
         }
 
         scope = u.scope;
@@ -539,15 +534,18 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
     }
 
 
-    Paths paths = {};
+    // Paths paths = {};
     set[PathRole] pathRoles = {};
+    map[PathRole,rel[loc,loc]] pathsByPathRole = ();
 
     Solver the_solver = dummySolver();
 
     void do_setSolver(Solver s){
         the_solver = s;
-        paths = the_solver.getPaths();
-        pathRoles = paths.pathRole;
+        pathsByPathRole = the_solver.getPathsByPathRole();
+        pathRoles = domain(pathsByPathRole);
+        // paths = the_solver.getPaths();
+        // pathRoles = paths.pathRole;
     }
 
     // Initialize the ScopeGraph context
