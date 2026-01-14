@@ -865,7 +865,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 ;/* ignore until end */
              }
         }
-        newPaths = { tup | tup:<loc u, PathRole r, loc d> <- newPaths, u != d };
+        newPaths = { tup | tup:<loc u, PathRole _, loc d> <- newPaths, u != d };
         tm.referPaths = referPaths;
         pathsFound = !isEmpty(newPaths);
         if(pathsFound){
