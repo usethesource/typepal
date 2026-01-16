@@ -83,9 +83,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     map[loc,loc] logical2physical = tm.logical2physical;
 
     map[PathRole, rel[loc,loc]] pathsByPathRole = ();
-    for(<loc f, PathRole r, loc t> <- tm.paths){
-        pathsByPathRole[r] ? {} += {<f, t>};
-    }
 
     void configTypePal(TypePalConfig tc){
 
@@ -867,8 +864,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         }
         newPaths = { tup | tup:<loc u, PathRole _, loc d> <- newPaths, u != d };
         tm.referPaths = referPaths;
-        pathsFound = !isEmpty(newPaths);
-        if(pathsFound){
+        newPathFound = !isEmpty(newPaths);
+        if(   newPathFound                                      // we found new paths
+           || (!isEmpty(tm.paths) && isEmpty(pathsByPathRole))  // pathsByPathRole not yet initialized
+           ){
             tm.paths += newPaths;
             pathsByPathRole = ();
             for(<loc u, PathRole r, loc d> <- tm.paths){
@@ -876,7 +875,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             }
         }
         
-        return pathsFound;
+        return newPathFound;
     }
 
     // ---- "equal" and "requireEqual" ----------------------------------------
