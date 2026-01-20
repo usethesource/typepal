@@ -1025,7 +1025,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
            tm.calculators = toLogicalLocs(calculators); calculators = {};
            tm.requirements = toLogicalLocs(requirements); requirements = {};
            tm.store = toLogicalLocs(storeVals); storeVals = ();
-           tm.messages = toPhysicalLocs(messages) + addedMessages; messages = addedMessages = [];
+           tm.messages = toList(toSet(toPhysicalLocs(messages) + addedMessages)); messages = addedMessages = [];
            physical2logical = logical2physical = ();
 
            return tm;
