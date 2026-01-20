@@ -82,6 +82,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     map[loc,loc] logical2physical = tm.logical2physical;
 
+    map[PathRole, rel[loc,loc]] pathsByPathRole = ();
+
     void configTypePal(TypePalConfig tc){
 
         normalizeName = tc.normalizeName;
@@ -119,9 +121,17 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     map[loc, AType] solver_getFacts() = facts;
 
-    Paths solver_getPaths() {
-        res = tm.paths;
-        return res;
+    Paths solver_getPaths() = tm.paths;
+
+    map[PathRole,rel[loc,loc]] solver_getPathsByPathRole() = pathsByPathRole;
+
+     loc getLogicalLoc(Tree t){
+        l = getLoc(t);
+        return l in physical2logical ? physical2logical[l] : l;
+     }
+
+     loc getLogicalLoc(loc l){
+        return l in physical2logical ? physical2logical[l] : l;
      }
 
     //value _getStore(str key) = tm.store[key];
@@ -197,9 +207,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     list[Message] messages = [];
     list[FailMessage] failMessages = [];
 
+    map[loc,loc] physical2logical = invertUnique(tm.logical2physical);
+
     set[ReferPath] referPaths = tm.referPaths;
-
-
 
      // Error reporting
 
@@ -312,7 +322,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 calculators += calcType(defined, atype);
             }
         } else if(Tree from := tp){
-            fromLoc = getLoc(from);
+            fromLoc = getLogicalLoc(from);
             if(fromLoc in facts){
                 facts[defined] = facts[fromLoc];
             } else {
@@ -550,11 +560,14 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     AType solver_getType(value v){
         try {
             switch(v){
-                case Tree tree:   return instantiate(findType(tree@\loc));
-                case tvar(loc l): return facts[l];
+                case Tree tree:   return instantiate(findType(getLogicalLoc(tree)));
+                case tvar(loc l): return facts[getLogicalLoc(l)];
                 case AType atype: return instantiate(atype);
-                case loc l:       return l in specializedFacts ? specializedFacts[l] : facts[l];
-                case defType(value v) : if(AType atype := v) return atype; else if(Tree tree := v) return instantiate(findType(tree@\loc));
+                case loc l: {
+                        l = getLogicalLoc(l);
+                        return l in specializedFacts ? specializedFacts[l] : facts[l];
+                }
+                case defType(value v) : if(AType atype := v) return atype; else if(Tree tree := v) return instantiate(findType(getLogicalLoc(tree)));
                 case Define def:  return solver_getType(def.defInfo);
                 case defTypeCall(list[loc] _, AType(Solver s) getAType):
                     return getAType(thisSolver);
@@ -593,7 +606,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     //@memo
     AType solver_getTypeInScopeFromName(str name, loc scope, set[IdRole] idRoles){
         try {
-            return getTypeInScopeFromName0(name, scope, idRoles);
+            return getTypeInScopeFromName0(name, getLogicalLoc(scope), idRoles);
         } catch NoSuchKey(value _):
                 throw TypeUnavailable();
     }
@@ -631,7 +644,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     //@memo
     AType solver_getTypeInScope(Tree occ, loc scope, set[IdRole] idRoles){
         try {
-            return getTypeInScope0(occ, scope, idRoles);
+            return getTypeInScope0(occ, getLogicalLoc(scope), idRoles);
         } catch NoSuchKey(_):
             throw TypeUnavailable();
     }
@@ -654,7 +667,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     AType solver_getTypeInType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope){
-        selectorLoc = getLoc(selector);
+        selectorLoc = getLogicalLoc(getLoc(selector));
+        scope = getLogicalLoc(scope);
         selectorOrgName = "<selector>";
         selectorName = normalizeName(selectorOrgName);
 
@@ -741,6 +755,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     rel[str id, AType atype] solver_getAllDefinedInType(AType containerType, loc scope, set[IdRole] idRoles){
+        scope = getLogicalLoc(scope);
         <containerNames, containerRoles> = getTypeNamesAndRole(containerType);
         if(!isEmpty(containerNames)){
             containerName = containerNames[0];
@@ -764,6 +779,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     set[Define] solver_getDefinitions(str id, loc scope, set[IdRole] idRoles){
+        scope = getLogicalLoc(scope);
         try {
             foundDefs = scopeGraph.lookup(use(id, id, anonymousOccurrence, scope, idRoles));
             if({def} := foundDefs){
@@ -784,10 +800,19 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     set[Define] solver_getAllDefines() = tm.defines;
 
-    Define solver_getDefine(loc l) = definitions[l];
+    Define solver_getDefine(loc l) = definitions[getLogicalLoc(l)];
 
     rel[loc,loc] solver_getUseDef()
         = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
+
+    bool solver_isContainedIn(loc inner, loc outer)
+        = isContainedIn(inner, outer, logical2physical);
+
+    bool solver_isBefore(loc l, loc r)
+        = isBefore(l, r, logical2physical);
+
+    loc solver_toPhysicalLoc(loc l)
+        = l in logical2physical ? logical2physical[l] : l;
 
     // ---- resolvePath -------------------------------------------------------
 
@@ -796,8 +821,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         referPaths = tm.referPaths;
         for(ReferPath rp <- referPaths){
             try {
-                if(referToDef(Use _, PathRole _) := rp){
-                    u = rp.use;
+                if(referToDef(Use u, PathRole _) := rp){
                     foundDefs = scopeGraph.lookup(u);
                     if({loc def} := foundDefs){
                        definedBy[u.occ] = foundDefs;
@@ -838,10 +862,20 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 ;/* ignore until end */
              }
         }
-        newPaths = { tup | tup:<loc u, PathRole r, loc d> <- newPaths, u != d };
-        tm.paths += newPaths;
+        newPaths = { tup | tup:<loc u, PathRole _, loc d> <- newPaths, u != d };
         tm.referPaths = referPaths;
-        return !isEmpty(newPaths);
+        newPathFound = !isEmpty(newPaths);
+        if(   newPathFound                                      // we found new paths
+           || (!isEmpty(tm.paths) && isEmpty(pathsByPathRole))  // pathsByPathRole not yet initialized
+           ){
+            tm.paths += newPaths;
+            pathsByPathRole = ();
+            for(<loc u, PathRole r, loc d> <- tm.paths){
+                pathsByPathRole[r] ? {} += {<u, d>};
+            }
+        }
+        
+        return newPathFound;
     }
 
     // ---- "equal" and "requireEqual" ----------------------------------------
@@ -1134,9 +1168,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     void fact(value v, AType atype){
         if(Tree t := v) {
-            addFact(getLoc(t), atype);
+            addFact(getLogicalLoc(t), atype);
          } else if(loc l := v){
-            addFact(l, atype);
+            addFact(getLogicalLoc(l), atype);
          } else {
             throw TypePalUsage("First argument of `fact` should be `Tree` or `loc`, found `<typeOf(v)>`");
          }
@@ -1144,9 +1178,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     void solver_specializedFact(value v, AType atype){
         if(Tree t := v) {
-            specializedFacts[getLoc(t)] = atype;
+            specializedFacts[getLogicalLoc(t)] = atype;
          } else if(loc l := v){
-            specializedFacts[l] = atype;
+            specializedFacts[getLogicalLoc(l)] = atype;
          } else {
             throw TypePalUsage("First argument of `specializedFact` should be `Tree` or `loc`, found `<typeOf(v)>`");
          }
@@ -1155,18 +1189,23 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     bool allDependenciesKnown(set[loc] deps, bool eager){
         if(isEmpty(deps)) return true;
         if(eager) return all(dep <- deps, dep in facts);
-        return all(dep <- deps, dep in facts, solver_isFullyInstantiated(facts[dep]));
+        return all(dep <- deps, 
+                   dep in facts,
+                   solver_isFullyInstantiated(facts[dep]));
     }
 
     bool allDependenciesKnown(list[loc] deps, bool eager){
         if(isEmpty(deps)) return true;
         if(eager) return all(dep <- deps, dep in facts);
-        return all(dep <- deps, dep in facts, solver_isFullyInstantiated(facts[dep]));
+        return all(dep <- deps, 
+                   dep in facts, 
+                   solver_isFullyInstantiated(facts[dep]));
     }
 
     bool solver_isFullyInstantiated(AType atype){
         visit(atype){
-            case tvar(loc tname): { if(tname notin facts) return false;
+            case tvar(loc tname): { tname = getLogicalLoc(tname);
+                                    if(tname notin facts) return false;
                                     if(tvar(_) := facts[tname]) return false;
                                   }
             case lazyLub(list[AType] atypes):
@@ -1279,7 +1318,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             orgId = udef.orgId;
             idRole = udef.idRole;
             defined = udef.defined;
-            if(defined in logical2physical) continue;
+            //if(defined in logical2physical) defined = logical2physical[defined];
 
             u = use(id, orgId, defined, scope, {idRole}); // turn each unused definition into a use and check for double declarations;
             try {
@@ -1293,7 +1332,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     doubleDefs += foundDefs;
                     messages += [error("Double declaration of `<u.orgId>`", d1, 
                                        causes=[info("Other declaration of `<u.orgId>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
-                                | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope)
+                                | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope, logical2physical)
                                 ];
                 }
             }
@@ -1541,7 +1580,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
             calcNoLubs = [calc | calc <- calculators, !(calc is calcLub)];
 
-            for(Calculator clc <- sort(calcNoLubs, bool(Calculator a, Calculator b){ return a.src.length < b.src.length; })){
+            for(Calculator clc <- sort(calcNoLubs, bool(Calculator a, Calculator b){ 
+                return (a.src in logical2physical ? logical2physical[a.src] : a.src).length 
+                         < (b.src in logical2physical ? logical2physical[b.src] : b.src).length; })){
                 src = clc.src;
                 if(src notin facts, !alreadyReported(messages, src)){
                     set[loc] cdeps = toSet(dependsOn(clc));
@@ -1597,7 +1638,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
         ldefines = for(tup: <loc _, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
                         if(defInfo has tree){
-                            l = getLoc(defInfo.tree);
+                            l = getLogicalLoc(defInfo.tree);
                             if(l in tm.facts){
                                    dt = defType(tm.facts[l]);
                                    tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo));
@@ -1617,11 +1658,12 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         tm.defines = toSet(ldefines);
 
         for(Define def <- tm.defines){
-            if(def.defined notin def2uses && def.defined notin doubleDefs && reportUnused(def.defined, tm)){
-                messages += warning("Unused <prettyRole(def.idRole)> `<def.id>`", def.defined);
+            defdefined = solver_toPhysicalLoc(def.defined);
+            if(defdefined notin def2uses && defdefined notin doubleDefs && reportUnused(defdefined, tm)){
+                messages += warning("Unused <prettyRole(def.idRole)> `<def.id>`", defdefined);
             }
         }
-
+        messages =  visit(messages) { case loc l => solver_toPhysicalLoc(l) };
         tm.messages = sortMostPrecise(toList(toSet(messages)));
 
         checkAllTypesAvailable(tm);
@@ -1665,11 +1707,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
            /* Global Info */    solver_getConfig,
                                 solver_getFacts,
                                 solver_getPaths,
-
+                                solver_getPathsByPathRole,
                                 solver_getDefinitions,
                                 solver_getAllDefines,
                                 solver_getDefine,
                                 solver_getUseDef,
+                                solver_isContainedIn,
+                                solver_isBefore,
 
           /* Nested Info */     solver_push,
                                 solver_pop,

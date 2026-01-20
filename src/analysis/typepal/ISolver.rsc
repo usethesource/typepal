@@ -59,10 +59,13 @@ data Solver
     /* Global Info */   TypePalConfig () getConfig,
                         map[loc, AType]() getFacts,
                         Paths() getPaths,
+                        map[PathRole,rel[loc,loc]]() getPathsByPathRole,
                         set[Define] (str id, loc scope, set[IdRole] idRoles) getDefinitions,    // deprecated
                         set[Define] () getAllDefines,
                         Define(loc) getDefine,
                         rel[loc,loc] () getUseDef,
+                        bool(loc,loc) isContainedIn,
+                        bool(loc,loc) isBefore,
                         
     /* Nested Info */   void(str key, value val) push,
                         value (str key) pop,
