@@ -31,8 +31,6 @@ str prettyAType(setType(AType tp)) = "Set\<<prettyAType(tp)>\>";
 str prettyAType(entityType(str name)) = name;
 str prettyAType(fieldType(str name)) = name;
 
-str prettyAType(functionType(AType from, AType to)) = "fun <prettyAType(from)> -\> <prettyAType(to)>";
-
 data IdRole
     = entityId()
     | fieldId()
