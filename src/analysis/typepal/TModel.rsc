@@ -22,6 +22,7 @@ import Node;
 import IO;
 
 import analysis::typepal::Version;
+import analysis::typepal::AType;
 
 data AType;
 
