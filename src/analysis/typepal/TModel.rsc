@@ -17,6 +17,7 @@ module analysis::typepal::TModel
     It can be extended to suit the needs of a specific type checker.
 */
 import String;
+import Location;
 import Message;
 import Node;
 import IO;
@@ -186,6 +187,14 @@ value convert2PhysicalLocs(value v, TModel tm){
     locMap = tm.logical2physical;
     return visit(v) { case loc l => locMap[l] when l in locMap};
 }
+
+// Generalized versions of isContainedIn and isBefore that take
+// a logical -> physical mapping into account.
+bool isContainedIn(loc inner, loc outer, map[loc,loc] m)
+    = isContainedIn(inner in m ? m[inner] : inner, outer in m ? m[outer] : outer);
+
+bool isBefore(loc inner, loc outer, map[loc,loc] m)
+    = isBefore(inner in m ? m[inner] : inner, outer in m ? m[outer] : outer);
 
 void printTModel(TModel tm){
     println("TModel(");
