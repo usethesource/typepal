@@ -183,7 +183,7 @@
         <dependency>
             <groupId>org.rascalmpl</groupId>
             <artifactId>rascal</artifactId>
-            <version>0.41.3-RC4</version>
+            <version>0.41.3-RC6-BOOT</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
