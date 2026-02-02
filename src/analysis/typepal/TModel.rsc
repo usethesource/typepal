@@ -17,6 +17,7 @@ module analysis::typepal::TModel
     It can be extended to suit the needs of a specific type checker.
 */
 import String;
+import Location;
 import Message;
 import Node;
 import IO;
@@ -116,6 +117,7 @@ data TModel (
     bool usesPhysicalLocs = false, // Are locations in physical format?
     TypePalConfig config = tconfig()
 )   = tmodel();
+
 
 void printTModel(TModel tm){
     println("TModel(");
