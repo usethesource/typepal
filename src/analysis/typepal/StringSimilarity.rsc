@@ -15,7 +15,7 @@ module analysis::typepal::StringSimilarity
 import Location;
 import Set;
 import String;
-import analysis::typepal::TModel;
+import analysis::typepal::LocationChecks;
 import analysis::typepal::ConfigurableScopeGraph;
 
 @synopsis{Tryadic minimum function on integers}

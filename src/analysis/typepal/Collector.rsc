@@ -28,6 +28,7 @@ import String;
 
 import analysis::typepal::Version;
 import analysis::typepal::Messenger;
+import analysis::typepal::LocationChecks;
 
 extend analysis::typepal::ConfigurableScopeGraph;
 extend analysis::typepal::ICollector;

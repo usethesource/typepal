@@ -19,7 +19,7 @@ module analysis::typepal::AType
 import List;
 
 extend analysis::typepal::GetLoc;
-import analysis::typepal::TModel;
+extend analysis::typepal::TModel;
 
 data AType
     = tvar(loc tname)                                      // type variable, used for type inference
