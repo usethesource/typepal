@@ -684,13 +684,15 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             }
             if(isEmpty(valid_overloads)){
                 solver_report(error(selector, "Cannot access field on overloaded type %t", containerType));
-            } else if({<loc key, IdRole _, AType tp>} := valid_overloads){
-                addUse({key}, selectorUse);
+            } else if({<loc key, IdRole idr, AType tp>} := valid_overloads){
+                if(idr in idRolesSel) addUse({key}, selectorUse);
                 addFact(selectorLoc, tp);
                 return tp;
             } else {
+                for(<loc key, IdRole idr, AType _> <- valid_overloads){
+                    if(idr in idRolesSel)  addUse({key}, selectorUse);
+                }
                 tp2 = overloadedAType(valid_overloads);
-                addUse(valid_overloads<0>, selectorUse);
                 addFact(selectorLoc, tp2);
 
                 return tp2;
@@ -731,13 +733,16 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         else
                             solver_report(error(selector, "No definition for type %t is available here", containerType));
                      }
-                  } else if({<loc key, IdRole _, AType tp>} := valid_overloads){
-                    addUse({key}, selectorUse);
+                  } else if({<loc key, IdRole idr, AType tp>} := valid_overloads){
+                    if(idr in idRolesSel) addUse({key}, selectorUse);
                     addFact(selectorLoc, tp);
                     return tp;
                  } else {
+                    for(<loc key, IdRole idr, AType tp> <- valid_overloads){
+                        if(idr in idRolesSel)  addUse({key}, selectorUse);
+                    }
                     tp2 = overloadedAType(valid_overloads);
-                    addUse(valid_overloads<0>, selectorUse);
+                    // addUse(valid_overloads<0>, selectorUse);
                     addFact(selectorLoc, tp2);
                     return tp2;
                  }
