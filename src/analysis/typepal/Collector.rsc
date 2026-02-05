@@ -378,7 +378,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
 
     AType(Solver) makeGetTypeInType(Tree container, Tree selector, set[IdRole] idRolesSel, loc scope){
         return AType(Solver s) {
-            return s.getTypeInType(s.getType(container), selector, idRolesSel, scope);
+            container1 = getLogicalLoc(container);
+            scope1 = toLogicalLocs(scope);
+            return s.getTypeInType(s.getType(container1), selector, idRolesSel, scope1);
          };
     }
 
