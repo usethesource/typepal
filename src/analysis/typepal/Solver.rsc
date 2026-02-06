@@ -668,7 +668,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     AType solver_getTypeInType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope){
         selectorLoc = getLogicalLoc(getLoc(selector));
-        scope = getLogicalLoc(scope);
         selectorOrgName = "<selector>";
         selectorName = normalizeName(selectorOrgName);
 
