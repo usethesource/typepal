@@ -741,7 +741,6 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                         if(idr in idRolesSel)  addUse({key}, selectorUse);
                     }
                     tp2 = overloadedAType(valid_overloads);
-                    // addUse(valid_overloads<0>, selectorUse);
                     addFact(selectorLoc, tp2);
                     return tp2;
                  }
