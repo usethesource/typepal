@@ -667,9 +667,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     AType solver_getTypeInType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope){
-        selectorLoc = getLogicalLoc(getLoc(selector));
+        selectorLoc = getLogicalLoc(selector);
         selectorOrgName = "<selector>";
         selectorName = normalizeName(selectorOrgName);
+        scope = getLogicalLoc(scope);
 
         selectorUse = use(selectorName, selectorOrgName, selectorLoc, scope, idRolesSel);
         if(overloadedAType(rel[loc, IdRole, AType] overloads) := containerType){
