@@ -385,9 +385,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     void collector_useViaType(Tree container, Tree selector, set[IdRole] idRolesSel){
         if(building){
             name = normalizeName("<selector>");
-            selectorLoc = getLogicalLoc(selector);
-            containerLoc = getLogicalLoc(container);
-            calculators += calc("useViaType `<name>` in <containerLoc>", selectorLoc,  [containerLoc],  makeGetTypeInType(containerLoc, selector, idRolesSel, toLogicalLocs(currentScope)));
+            selectorLoc = getLoc(selector);
+            containerLoc = getLoc(container);
+            calculators += calc("useViaType `<name>` in <containerLoc>", selectorLoc,  [containerLoc],  makeGetTypeInType(containerLoc, selector, idRolesSel, currentScope));
         } else {
             throw TypePalUsage("Cannot call `useViaType` on Collector after `run`");
         }
