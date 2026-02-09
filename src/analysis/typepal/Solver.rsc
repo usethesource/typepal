@@ -667,6 +667,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     AType solver_getTypeInType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope){
+        if(!solver_isFullyInstantiated(containerType)){
+            throw TypeUnavailable();
+        }
         selectorLoc = getLogicalLoc(selector);
         selectorOrgName = "<selector>";
         selectorName = normalizeName(selectorOrgName);
