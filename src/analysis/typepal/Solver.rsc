@@ -1693,7 +1693,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             /* Types */         solver_getType,
                                 solver_getTypeInScope,
                                 solver_getTypeInScopeFromName,
-                                solver_getTypeInType,
+                                solver_getTypeInType + getTypeInType,
                                 solver_getAllDefinedInType,
            /*Fact */            fact,
                                 solver_specializedFact,
