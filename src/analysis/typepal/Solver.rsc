@@ -666,7 +666,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         }
     }
 
-    AType solver_getTypeInType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope){
+    AType solver_getTypeInType(Tree container, Tree selector, set[IdRole] idRolesSel, loc scope){
+            return getTypeInType(solver_getType(getLogicalLoc(container)), selector, idRolesSel, scope);
+    }
+
+    AType getTypeInType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope){
         if(!solver_isFullyInstantiated(containerType)){
             throw TypeUnavailable();
         }
@@ -680,7 +684,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             rel[loc, IdRole, AType]  valid_overloads = {};
             for(<key, role, tp> <- overloads){
                 try {
-                    selectorType = solver_getTypeInType(tp, selector, idRolesSel, scope);
+                    selectorType = getTypeInType(tp, selector, idRolesSel, scope);
                     valid_overloads += <key, role, selectorType>;
                 } catch checkFailed(list[FailMessage] _): ; // do nothing and try next overload
                   catch NoBinding(): ; // do nothing and try next overload
@@ -1595,6 +1599,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     set[loc] cdeps = toSet(dependsOn(clc));
                     if(src notin facts && isEmpty(reportedLocations & cdeps)){
                         messages += error("Unresolved type<clc has cname ? " for <clc.cname>" : "">", src);
+                        println("*** Unresolved type calculator:"); iprintln(clc);
                         reportedLocations += src;
                     }
                 }

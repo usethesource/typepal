@@ -376,9 +376,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
 
-    AType(Solver) makeGetTypeInType(loc containerLoc, Tree selector, set[IdRole] idRolesSel, loc scope){
+    AType(Solver) makeGetTypeInType(Tree container, Tree selector, set[IdRole] idRolesSel, loc scope){
         return AType(Solver s) {
-            return s.getTypeInType(s.getType(containerLoc), selector, idRolesSel, scope);
+            return s.getTypeInType(container, selector, idRolesSel, scope);
          };
     }
 
@@ -387,7 +387,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             name = normalizeName("<selector>");
             selectorLoc = getLoc(selector);
             containerLoc = getLoc(container);
-            calculators += calc("useViaType `<name>` in <containerLoc>", selectorLoc,  [containerLoc],  makeGetTypeInType(containerLoc, selector, idRolesSel, currentScope));
+            calculators += calc("useViaType `<name>` in <containerLoc>", selectorLoc,  [containerLoc],  makeGetTypeInType(container, selector, idRolesSel, currentScope));
         } else {
             throw TypePalUsage("Cannot call `useViaType` on Collector after `run`");
         }
