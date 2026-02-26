@@ -674,6 +674,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         if(!solver_isFullyInstantiated(containerType)){
             throw TypeUnavailable();
         }
+        containerType = instantiate(containerType);
         selectorLoc = getLogicalLoc(selector);
         selectorOrgName = "<selector>";
         selectorName = normalizeName(selectorOrgName);
