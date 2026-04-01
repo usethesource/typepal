@@ -956,11 +956,11 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         if(logicalLoc != def.defined){
             if(logicalLoc in logical2physical){
                 if(logical2physical[logicalLoc] != def.defined){
-                    causes = [ info("Clone of `<def.id>`", logical2physical[logicalLoc]),
-                                info("Clone of `<def.id>`", def.defined) 
+                    causes = [ info("First declaration of <prettyRole(def.idRole)> `<def.id>`", logical2physical[logicalLoc]),
+                               info("Second declaration of <prettyRole(def.idRole)> `<def.id>`", def.defined) 
                             ];
                     // restrict clone location to first line for readability
-                    messages += error("Remove code clone for <prettyRole(def.idRole)> `<def.id>`", limitLocToFirstLine(def.defined), causes=causes);
+                    messages += error("Duplicate declaration of <prettyRole(def.idRole)> `<def.id>`", limitLocToFirstLine(def.defined), causes=causes);
                 }
             }
             logical2physical[logicalLoc] = def.defined;  
