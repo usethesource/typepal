@@ -145,11 +145,10 @@ bool pascalIsSubType(AType atype, functionType(_, atype)) = true;  // for assign
 
 default bool pascalIsSubType(AType atype1, AType atype2) = false;
 
- 
-data Tree(loc src = |unknown:///|);
+anno loc Tree@src;
 
 void pascalPreCollectInitialization(Tree t, Collector c){
-    container = t.src;
+    container = t@src;
     
     c.predefine("true",    constantId(),   container, defType(booleanType()));
     c.predefine("false",   constantId(),   container, defType(booleanType()));

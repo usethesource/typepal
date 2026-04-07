@@ -122,7 +122,7 @@ TModel modulesTModelFromTree(Tree pt){
     if (pt has top) pt = pt.top;
     c = newCollector("modules", pt, getModulesConfig());
     collect(pt, c);
-    handleImports(c, pt, pathConfig(pt.src));
+    handleImports(c, pt, pathConfig(pt@\loc));
     return newSolver(pt, c.run()).run();
 }
 

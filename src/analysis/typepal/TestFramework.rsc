@@ -115,9 +115,9 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
               if(!result) failedTests[<"<ti.name>", suite>] = messages; 
               //if(!result) iprintln(model);  
            } catch ParseError(loc l): {
-                failedTests[<"<ti.name>", suite>]  = [error("Parse error", relocate(l, ti.tokens.src))];
+                failedTests[<"<ti.name>", suite>]  = [error("Parse error", relocate(l, ti.tokens@\loc))];
            } catch Ambiguity(loc l, nt, inp): {
-                failedTests[<"<ti.name>", suite>]  = [error("Ambiguity (<nt> on `<inp>`)", (l.offset?) ? relocate(l, ti.tokens.src) : l)];
+                failedTests[<"<ti.name>", suite>]  = [error("Ambiguity (<nt> on `<inp>`)", (l.offset?) ? relocate(l, ti.tokens@\loc) : l)];
            } 
 
         }
@@ -159,7 +159,7 @@ lrel[&T<:Tree, set[str]] extractTests(list[loc] suites, type[&T<:Tree] begin) {
         
         for(TTL_TestItem ti <- ttlProgram.items){
             t = parse(begin, "<ti.tokens>");
-            result += <relocate(t, ti.tokens.src), ti.expect is none ? {} : {deescape("<s>"[1..-1]) | TTL_String s <- ti.expect.messages}>;
+            result += <relocate(t, ti.tokens@\loc), ti.expect is none ? {} : {deescape("<s>"[1..-1]) | TTL_String s <- ti.expect.messages}>;
         }
     }
     return result;
@@ -167,7 +167,7 @@ lrel[&T<:Tree, set[str]] extractTests(list[loc] suites, type[&T<:Tree] begin) {
 
 &T<:Tree relocate(&T<:Tree t, loc container) {
     return visit (t) {
-        case Tree tt => tt[src=relocate(tt.src, container)]
+        case Tree tt => tt[@\loc = relocate(tt@\loc, container)]
             when tt has \loc
     };
 }

@@ -355,14 +355,14 @@ private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer _r)
         def = definitions[d];
         top-down visit (tr) {
             case t:appl(_, _):
-                if (t.src?, d := t.src) {
+                if (t@\loc?, d := t@\loc) {
                     return (def: nameLocation(t, def));
                 }
         }
     }
 
     map[Define, loc] defNames = ();
-    for (defsToDo != {}, /t:appl(_, _) := tr, t.src?, loc d := t.src, d in defsToDo) {
+    for (defsToDo != {}, /t:appl(_, _) := tr, t@\loc?, loc d := t@\loc, d in defsToDo) {
         def = definitions[d];
         defNames[def] = nameLocation(t, def);
         defsToDo -= d;
@@ -430,8 +430,8 @@ default void renameUses(set[Define] defs, str newName, TModel tm, Renamer r) {
 @synopsis{Finds the location of the identifier within definition ((ParseTree::Tree)) `t` corresponding to ((Define)) `d`, where `t.src == d.defined`.}
 default loc nameLocation(Tree t, Define d) {
     // Try to find the first sub-tree that matches the name of the definition
-    for (/Tree tr := t, tr.src?, "<tr>" == d.id) {
-        return tr.src;
+    for (/Tree tr := t, tr@\loc?, "<tr>" == d.id) {
+        return tr@\loc;
     }
-    return t.src;
+    return t@\loc;
 }
