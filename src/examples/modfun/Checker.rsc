@@ -61,7 +61,7 @@ TModel modfunTModelFromTree(Tree pt, TypePalConfig config) {
     if (pt has top) pt = pt.top;
     c = newCollector("modfun", pt, config);
     collect(pt, c);
-    handleImports(c, pt, pathConfig(pt@\loc));
+    handleImports(c, pt, pathConfig(pt.src));
     return newSolver(pt, c.run()).run();
 }
 

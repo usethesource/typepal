@@ -21,12 +21,12 @@ import IO;
 
 loc getFirstLoc(Tree t) {
     for (a <- t.args) {
-        if (a@\loc?) {
-            return a@\loc;
+        if (a.src?) {
+            return a.src;
         }
     }
-    if(t@\loc?){
-        return t@\loc;
+    if(t.src?){
+        return t.src;
     }
     println("PANIC: getFirstLoc");
     println("Source text: <t>");
@@ -36,18 +36,18 @@ loc getFirstLoc(Tree t) {
 
 loc getLastLoc(Tree t) {
     for (i <- [size(t.args)-1..-1]) {
-        if (t.args[i]@\loc?) {
-            return  t.args[i]@\loc;
+        if (t.args[i].src?) {
+            return  t.args[i].src;
         }
     }
-    if(t@\loc?){
-        return t@\loc;
+    if(t.src?){
+        return t.src;
     }
     throw "Cannot find loc on tree";
 }
 
 loc getLoc(Tree t)
-    = t@\loc ? { fst = getFirstLoc(t); 
+    = t.src ? { fst = getFirstLoc(t); 
                  lst = getLastLoc(t);
                  n = fst[length=lst.offset - fst.offset + lst.length]; 
                  (n.end? && lst.end?) ? n[end=lst.end] : n;
