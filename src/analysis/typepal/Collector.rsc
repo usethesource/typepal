@@ -1236,7 +1236,7 @@ default void collect(Tree currentTree, Collector c){
         case "label":
             { p = currentTree.prod; collect(appl(prod(p.def.symbol, p.symbols, p.attributes/*, src=getLogicalLoc(currentTree)*/), currentTree.args), c); }
         case "start":
-            { p = currentTree.prod; collect(appl(prod(p.def.symbol, p.symbols, p.attributes/*, src=getLogicalLoc(currentTree)*/), currentTree.args), c); }
+            collect(currentTree.args[1], c); 
         case "sort":
             { args = currentTree.args;
               nargs = size(args);
