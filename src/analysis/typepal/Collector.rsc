@@ -208,6 +208,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
 
     map[loc,loc] physical2logical = ();
 
+    bool debugDependencies = true;
+    rel[loc, loc] debugDependencyGraph = {};
+
     loc getLogicalLoc(loc l)
         = l in physical2logical ? physical2logical[l] : l;
 
@@ -647,6 +650,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         if(building){
            srcLoc = getLoc(src);
            calculators += calc(name, srcLoc, dependenciesAslocList(dependencies) - srcLoc, calculator);
+           if (debugDependencies) {
+              debugDependencyGraph += {src} * {d | d <- dependencies, d@\loc?, d@\loc};
+           }
         } else {
             throw TypePalUsage("Cannot call `calculate` on Collector after `run`");
         }
@@ -656,6 +662,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         if(building){
            srcLoc = getLoc(src);
            calculators += calc(name, srcLoc, dependenciesAslocList(dependencies) - srcLoc, calculator, eager=true);
+           if (debugDependencies) {
+              debugDependencyGraph += {src} * {d | d <- dependencies, d@\loc?, d@\loc};
+           }
         } else {
             throw TypePalUsage("Cannot call `calculateEager` on Collector after `run`");
         }
@@ -1022,7 +1031,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
            tm.store = toLogicalLocs(storeVals); storeVals = ();
            tm.messages = toList(toSet(toPhysicalLocs(messages) + addedMessages)); messages = addedMessages = [];
            physical2logical = logical2physical = ();
-
+           if (debugDependencies) {
+              tm.debugDependencyGraph = debugDependencyGraph;
+           }
            return tm;
         } else {
            throw TypePalUsage("Cannot call `run` on Collector after `run`");

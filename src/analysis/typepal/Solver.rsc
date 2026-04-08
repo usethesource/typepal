@@ -123,6 +123,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     Paths solver_getPaths() = tm.paths;
 
+    rel[loc,loc] debugDependencyGraph = tm.debugDependencyGraph+; // notice the transitive closure
+
     map[PathRole,rel[loc,loc]] solver_getPathsByPathRole() = pathsByPathRole;
 
      loc getLogicalLoc(Tree t){
@@ -415,6 +417,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     bool evalCalc(calc:calc(str cname, loc src, list[loc] dependsOn,  AType(Solver tm) getAType)){
         if(allDependenciesKnown(dependsOn, calc.eager)){
             try {
+                currentSolve = src;
                 facts[src] = instantiate(getAType(thisSolver));
                 bindings2facts(bindings);
                 fireTrigger(src);
@@ -560,7 +563,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     AType solver_getType(value v){
         try {
             switch(v){
-                case Tree tree:   return instantiate(findType(getLogicalLoc(tree)));
+                case Tree tree: {
+                    if (debugDependencies, tree@\loc notin debugDependencyGraph[currentSolve]) {
+                        throw "WARNING there is no explicit (transitive) dependency on position <v> via the currently solved position <currentSolve>";
+                    }
+
+                    return instantiate(findType(getLogicalLoc(tree)));
+                }
                 case tvar(loc l): return facts[getLogicalLoc(l)];
                 case AType atype: return instantiate(atype);
                 case loc l: {

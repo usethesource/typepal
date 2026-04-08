@@ -114,6 +114,7 @@ data TModel (
     map[str,value] store = (),
     map[loc, Define] definitions = (),
     map[loc,loc] logical2physical = (),
+    rel[loc,loc] debugDependencyGraph = {},
     bool usesPhysicalLocs = false, // Are locations in physical format?
     TypePalConfig config = tconfig()
 )   = tmodel();
