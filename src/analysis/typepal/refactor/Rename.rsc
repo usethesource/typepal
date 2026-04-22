@@ -378,7 +378,7 @@ default set[Define] getCursorDefinitions(Focus cursor, Tree(loc) _getTree, TMode
     for (Tree c <- cursor) {
         if (tm.definitions[c.src]?) {
             return {tm.definitions[c.src]};
-        } else if (defs: {_, *_} := tm.useDef[c.src]) {
+        } else if (rel[loc,loc] defs: {_, *_} := tm.useDef[c.src]) {
             if (any(d <- defs, d.top != cursorLoc.top)) {
                 r.msg(error(cursorLoc, "Rename not implemented for cross-file definitions. Please overload `getCursorDefinitions`."));
                 return {};
