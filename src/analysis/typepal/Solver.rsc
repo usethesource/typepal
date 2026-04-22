@@ -57,7 +57,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     //bool logTime = tm.config.logTime;
 
     //int solverStarted = cpuTime();
-
+// println("newSolver: <size(tm.facts)> facts"); iprintln(tm.facts, lineLimit=10000); iprintln(tm.specializedFacts);
+// println("newSolver: <size(tm.calculators)> calculators"); iprintln(tm.calculators, lineLimit=10000);
     str(str) normalizeName  = defaultNormalizeName;
     bool(AType,AType) isSubTypeFun = defaultIsSubType;
 
@@ -293,17 +294,20 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     void solvedCalc(Calculator calc){
         calculators -= calc;
         calculatorJobs -= calc;
+        // println("solvedCalc: <calc>"); iprintln(facts);iprintln(specializedFacts);
     }
 
     void solvedReq(Requirement req){
         requirements -= req;
         requirementJobs -= req;
+        // println("solvedReq: <req>"); iprintln(facts);iprintln(specializedFacts);
     }
 
     // ---- Add a fact --------------------------------------------------------
 
     bool addFact(loc l, AType atype){
         iatype = instantiate(atype);
+        if(l in facts) specializedFacts[l] = iatype; else facts[l] = iatype;
         facts[l] = iatype;
         fireTrigger(l);
         return true;
@@ -1390,6 +1394,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             try {
             	clearActiveTriggers();
                 evalOrScheduleCalc(calc);
+                // println("calc <calc>:"); iprintln(facts);
             } catch checkFailed(list[FailMessage] fms): {
                 failMessages += fms;
             }
@@ -1401,6 +1406,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             try {
                 clearActiveTriggers(); // ? needed
                 evalOrScheduleReq(req);
+                // println("req <req>:"); iprintln(facts);
             } catch checkFailed(list[FailMessage] fms): {
                 failMessages += fms;
              }
@@ -1419,7 +1425,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
         solve(nreferPaths, ncalculators, nrequirements, nfacts, nopenUses){
             iterations += 1;
-
+// println("solve #<iterations>, ncalc=<ncalculators>, nreq=<nrequirements>, nfacts=<nfacts>"); iprintln(facts, lineLimit=10000);
             // ---- referPaths
 
             resolvePaths();
