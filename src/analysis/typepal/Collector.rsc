@@ -197,7 +197,7 @@ void print(calcLub(str cname, list[loc] srcs, list[loc] dependsOn, list[AType(So
 
 void print(tuple[loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo] def, str indent, map[loc, AType] facts, bool full=true){
     println("<indent>def: `<def.id>` as <def.idRole> at <def.defined>");
-    if(full) printDeps(getInfoDependencies(def.defInfo), indent, facts);
+    if(full) printDeps(getDefInfoDependencies(def.defInfo), indent, facts);
 }
 
 Collector defaultCollector(Tree t) = newCollector("defaultModel", t, tconfig());
