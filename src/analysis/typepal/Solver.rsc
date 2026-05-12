@@ -57,7 +57,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     //bool logTime = tm.config.logTime;
 
     //int solverStarted = cpuTime();
-
+// println("newSolver: <size(tm.facts)> facts"); iprintln(tm.facts, lineLimit=10000); iprintln(tm.specializedFacts);
+// println("newSolver: <size(tm.calculators)> calculators"); iprintln(tm.calculators, lineLimit=10000);
+   
     str(str) normalizeName  = defaultNormalizeName;
     bool(AType,AType) isSubTypeFun = defaultIsSubType;
 
@@ -132,6 +134,16 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
      loc getLogicalLoc(loc l){
         return l in physical2logical ? physical2logical[l] : l;
+     }
+
+     loc getPhysicalLoc(loc l){
+        return l in logical2physical ? logical2physical[l] : l;
+     }
+
+     default  &T getPhysicalLoc(&T v){
+        return visit(v){
+            case loc l => getPhysicalLoc(l)
+        }
      }
 
     //value _getStore(str key) = tm.store[key];
@@ -210,6 +222,52 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     map[loc,loc] physical2logical = invertUnique(tm.logical2physical);
 
     set[ReferPath] referPaths = tm.referPaths;
+
+    // Debugging
+    bool checkDependencies = false;
+    value currentAction  = 0;
+    rel[loc,loc] calcDeps = {};
+    rel[loc,loc] reqDeps = {};
+    rel[loc,loc] alreadyReportedDeps = {};
+    if(checkDependencies){
+        calcDeps = {*{<def.defined, d> | loc d <- getDefInfoDependencies(def.defInfo)} | Define def <- tm.defines }
+                   + getCalculatorDependencies(calculators);
+        calcDeps = getPhysicalLoc(calcDeps)+;
+        println("calcDeps:"); iprintln(calcDeps);
+        reqDeps =  getPhysicalLoc(getRequirementDependencies(requirements))+;
+        println("reqDeps:"); iprintln(reqDeps);
+    }
+    void checkDeps(list[loc] ls){
+         if(checkDependencies){
+            for(loc l <- ls) checkDep(l);
+         }
+    }
+
+    void checkDep(loc l){
+        if(checkDependencies){
+            if(Calculator calc := currentAction, !(calc is calcLub)){
+                for(loc s <-  getCalcSrcs(calc)){
+                    s = getPhysicalLoc(s);
+                    if(<s, l> notin calcDeps && <s, l> notin alreadyReportedDeps){
+                        alreadyReportedDeps += <s,l>;
+                        println("*** undeclared dependency
+                                '    from <s> 
+                                '    to <l>:
+                                '    <calc>");
+                    }
+                }
+            } else if(Requirement req := currentAction){
+                s = getPhysicalLoc(getReqSrc(req));
+                if(<s, l> notin reqDeps && <s, l> notin alreadyReportedDeps){
+                        alreadyReportedDeps += <s,l>;
+                        println("*** undeclared dependency
+                                '    from <s> 
+                                '    to <l>:
+                                '    <req>");
+                    }
+            }
+        }
+    }
 
      // Error reporting
 
@@ -293,17 +351,20 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     void solvedCalc(Calculator calc){
         calculators -= calc;
         calculatorJobs -= calc;
+        // println("solvedCalc: <calc>"); iprintln(facts);iprintln(specializedFacts);
     }
 
     void solvedReq(Requirement req){
         requirements -= req;
         requirementJobs -= req;
+        // println("solvedReq: <req>"); iprintln(facts);iprintln(specializedFacts);
     }
 
     // ---- Add a fact --------------------------------------------------------
 
     bool addFact(loc l, AType atype){
         iatype = instantiate(atype);
+        //if(l in facts) specializedFacts[l] = iatype; else facts[l] = iatype;
         facts[l] = iatype;
         fireTrigger(l);
         return true;
@@ -391,6 +452,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     //map[Calculator, int] calculatorAttempts = ();
 
     bool evalCalc(calc: calcType(loc src, AType atype)){
+        currentAction = calc;
         try {
             iatype = instantiate(atype);
             facts[src] = iatype;
@@ -404,6 +466,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     bool evalCalc(calc: calcLoc(loc src, [loc from])){
+        currentAction = calc;
         try {
             facts[src] = solver_getType(from);
             fireTrigger(src);
@@ -413,6 +476,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     bool evalCalc(calc:calc(str cname, loc src, list[loc] dependsOn,  AType(Solver tm) getAType)){
+        currentAction = calc;
         if(allDependenciesKnown(dependsOn, calc.eager)){
             try {
                 facts[src] = instantiate(getAType(thisSolver));
@@ -425,6 +489,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     bool evalCalc(calc: calcLub(str cname, list[loc] defines, list[loc] dependsOn, list[AType(Solver tm)] getATypes)){
+        currentAction = calc;
         try {
             known = for(getAType <- getATypes){
                         try {
@@ -490,6 +555,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     //map[Requirement, int] requirementAttempts = ();
 
     bool evalReq(req:reqEqual(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)){
+        currentAction = req;
         try {
             if(!solver_equal(solver_getType(l), solver_getType(r))) { failMessages += fm; }
             return true;
@@ -497,6 +563,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     bool evalReq(req:reqComparable(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)){
+        currentAction = req;
         try {
             if(!solver_comparable(solver_getType(l), solver_getType(r))) { failMessages += fm; }
             return true;
@@ -504,6 +571,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     bool evalReq(req:reqSubtype(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)){
+        currentAction = req;
         try {
             if(!solver_subtype(solver_getType(l), solver_getType(r))) { failMessages += fm; }
             return true;
@@ -511,6 +579,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     bool evalReq(req:reqUnify(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)){
+        currentAction = req;
         try {
             if(!solver_unify(solver_getType(l), solver_getType(r))) { failMessages += fm; }
             return true;
@@ -518,16 +587,19 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     bool evalReq(req:reqError(loc src, list[loc] dependsOn, FailMessage fm)){
+        currentAction = req;
         failMessages += fm;
         return true;
     }
 
     bool evalReq(req:reqErrors(loc src, list[loc] dependsOn, list[FailMessage] fms)){
+        currentAction = req;
         failMessages += fms;
         return true;
     }
 
     bool evalReq(req:req(str rname, loc src,  list[loc] dependsOn, void(Solver s) preds)){
+        currentAction = req;
         try {
             preds(thisSolver);
             bindings2facts(bindings);
@@ -560,19 +632,31 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     AType solver_getType(value v){
         try {
             switch(v){
-                case Tree tree:   return instantiate(findType(getLogicalLoc(tree)));
+                case Tree tree:   {
+                    loc l = getLogicalLoc(tree);
+                    checkDep(l);
+                    return instantiate(findType(l));
+                }
                 case tvar(loc l): return facts[getLogicalLoc(l)];
                 case AType atype: return instantiate(atype);
                 case loc l: {
                         l = getLogicalLoc(l);
+                        checkDep(l);
                         return l in specializedFacts ? specializedFacts[l] : facts[l];
                 }
                 case defType(value v) : if(AType atype := v) return atype; else if(Tree tree := v) return instantiate(findType(getLogicalLoc(tree)));
-                case Define def:  return solver_getType(def.defInfo);
-                case defTypeCall(list[loc] _, AType(Solver s) getAType):
+                case Define def:  {
+                    checkDeps(getDefInfoDependencies(def.defInfo));
+                    return solver_getType(def.defInfo);
+                }
+                case defTypeCall(list[loc] deps, AType(Solver s) getAType): {
+                    checkDeps(deps);
                     return getAType(thisSolver);
-                case defTypeLub(list[loc] _, list[loc] _, list[AType(Solver s)] getATypes):
+                }
+                case defTypeLub(list[loc] dependsOn, list[loc] _, list[AType(Solver s)] getATypes):{
+                    checkDeps(dependsOn);
                     return solver_lubList([getAType(thisSolver) | AType(Solver s) getAType <- getATypes]); //throw "Cannot yet handle defTypeLub in getType";
+                }
                 default:
                     throw "getType cannot handle <v>";
             }
@@ -1390,6 +1474,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             try {
             	clearActiveTriggers();
                 evalOrScheduleCalc(calc);
+                // println("calc <calc>:"); iprintln(facts);
             } catch checkFailed(list[FailMessage] fms): {
                 failMessages += fms;
             }
@@ -1401,6 +1486,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             try {
                 clearActiveTriggers(); // ? needed
                 evalOrScheduleReq(req);
+                // println("req <req>:"); iprintln(facts);
             } catch checkFailed(list[FailMessage] fms): {
                 failMessages += fms;
              }
@@ -1419,7 +1505,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
         solve(nreferPaths, ncalculators, nrequirements, nfacts, nopenUses){
             iterations += 1;
-
+// println("solve #<iterations>, ncalc=<ncalculators>, nreq=<nrequirements>, nfacts=<nfacts>"); iprintln(facts, lineLimit=10000);
             // ---- referPaths
 
             resolvePaths();
@@ -1600,7 +1686,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     set[loc] cdeps = toSet(dependsOn(clc));
                     if(src notin facts && isEmpty(reportedLocations & cdeps)){
                         messages += error("Unresolved type<clc has cname ? " for <clc.cname>" : "">", src);
-                        println("*** Unresolved type calculator:"); iprintln(clc);
+                        //println("*** Unresolved type calculator:"); iprintln(clc);
                         reportedLocations += src;
                     }
                 }
@@ -1608,7 +1694,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
             calcLubs = [calc | calc <- calculators, calc is calcLub];
             for(Calculator clc <- calcLubs){
-                csrcs = srcs(clc);
+                csrcs = getCalcSrcs(clc);
                 set[loc] cdeps = toSet(dependsOn(clc));
                 for(loc src <- csrcs){
                     if(src notin facts && isEmpty(reportedLocations & cdeps)){

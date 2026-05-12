@@ -70,13 +70,13 @@ DefInfo defType(list[Tree] dependsOn, AType(Solver s) getAType){
     return defTypeCall(dependenciesAslocList(dependsOn), getAType);
 }
 
-list[loc] getDependencies(defType(loc src))
+list[loc] getDefInfoDependencies(defType(loc src))
     = [src];
-list[loc] getDependencies(defType(Tree tree))
+list[loc] getDefInfoDependencies(defType(Tree tree))
     = [getLoc(tree)];
-list[loc] getDependencies(defType(AType atype))
+list[loc] getDefInfoDependencies(defType(AType atype))
     = [];
-default list[loc] getDependencies(DefInfo di)
+default list[loc] getDefInfoDependencies(DefInfo di)
     =  di.dependsOn; //di has defines ? di.dependsOn - di.defines : di.dependsOn;
 
 DefInfo defLub(list[Tree] dependsOn, AType(Solver s) getAType)
@@ -109,6 +109,13 @@ data Requirement(bool eager = false)
 loc getReqSrc(Requirement req){
     if(req has src) return req.src;
     return req.dependsOn[0];
+}
+
+list[loc] dependeOn(Requirement req)
+    = req.dependsOn;
+
+rel[loc,loc] getRequirementDependencies(set[Requirement] reqs){
+    return {*{<s, d> | d <- req.dependsOn} | req <- reqs, s := getReqSrc(req)};
 }
 
 void print(req(str rname, loc src,  list[loc] dependsOn, void(Solver s) preds), str indent, map[loc,AType] facts, bool full=true){
@@ -162,9 +169,13 @@ list[loc] dependsOn(Calculator calc){
     return calc has dependsOn ? calc.dependsOn : [];
 }
 
-list[loc] srcs(Calculator calc){
+list[loc] getCalcSrcs(Calculator calc){
     return calc has src ? [calc.src] : calc.srcs;
 }
+
+rel[loc,loc] getCalculatorDependencies(set[Calculator] calcs)
+    = {*{<s, d> | s <- getCalcSrcs(calc), d <- dependsOn(calc)} | calc <- calcs };
+
 
 void print(calcType(loc src, AType atype), str indent, map[loc,AType] facts, bool full=true){
     println("<indent>calc <src> as <atype>");
@@ -186,7 +197,7 @@ void print(calcLub(str cname, list[loc] srcs, list[loc] dependsOn, list[AType(So
 
 void print(tuple[loc scope, str id, IdRole idRole, loc defined, DefInfo defInfo] def, str indent, map[loc, AType] facts, bool full=true){
     println("<indent>def: `<def.id>` as <def.idRole> at <def.defined>");
-    if(full) printDeps(getDependencies(def.defInfo), indent, facts);
+    if(full) printDeps(getDefInfoDependencies(def.defInfo), indent, facts);
 }
 
 Collector defaultCollector(Tree t) = newCollector("defaultModel", t, tconfig());
