@@ -384,6 +384,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
 
     void collector_useViaType(Tree container, Tree selector, set[IdRole] idRolesSel){
         if(building){
+            collector_use(selector, idRolesSel);
             name = normalizeName("<selector>");
             selectorLoc = getLoc(selector);
             containerLoc = getLoc(container);
