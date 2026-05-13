@@ -41,4 +41,28 @@ test bool fwjTests() {
                      runName = "FwJava");
 }
 
+test bool fwjUseDefTests1() = checkUseDefsOf("cpt");
+test bool fwjUseDefTests2() = checkUseDefsOf("pair");
+test bool fwjUseDefTests3() = checkUseDefsOf("tmp");
+
+private bool checkUseDefsOf(str name) {
+    tm = fwjTModelFromName(name, false);
+    assert size(tm.useDef) > 0 : "Expected: \>0 use-defs. Actual: <size(tm.useDef)>.";
+
+    for (<lUse, lDef> <- tm.useDef) {
+        uses = [u | u: use(_, _, lUse, _, _) <- tm.uses];
+        assert [] != uses : "Expected: Use at <lUse>. Actual: No use.";
+
+        defs = [d | d: <_, _, _, _, lDef, _> <- tm.defines];
+        assert [] != defs : "Expected: Def at <lDef>. Actual: No def."; 
+
+        for (u <- uses, d <- defs) {
+            assert u.id == d.id : "Expected: Equal `id`. Actual: `<u.id>` (use) vs. `<d.id>` (def)";
+            assert u.orgId == d.orgId : "Expected: Equal `orgId`. Actual: `<u.id>` (use) vs. `<d.id>` (def)";
+        }
+    }
+
+    return true;
+}
+
 value main() = fwjTests();
