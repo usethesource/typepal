@@ -62,8 +62,6 @@
                 <artifactId>rascal-maven-plugin</artifactId>
                 <version>0.30.7</version>
                 <configuration>
-                    <!-- BOOTSTRAP SETTING -->
-                    <errorsAsWarnings>true</errorsAsWarnings>
                     <bin>${project.build.outputDirectory}</bin>
                     <srcs>
                         <src>${project.basedir}/src</src>
