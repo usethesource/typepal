@@ -819,7 +819,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     Define solver_getDefine(loc l) = definitions[getLogicalLoc(l)];
 
     rel[loc,loc] solver_getUseDef()
-        = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
+        = { *{<u, d in tm.define2id ? tm.define2id[d] : d> | loc d <- definedBy[u]} | loc u <- definedBy };
 
     bool solver_isContainedIn(loc inner, loc outer)
         = isContainedIn(inner, outer, logical2physical);
@@ -1653,7 +1653,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         tm.specializedFacts = specializedFacts;
 
         //println("definedBy;"); iprintln(definedBy);
-        tm.useDef = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
+        tm.useDef = solver_getUseDef();
 
         ldefines = for(tup: <loc _, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
                         if(defInfo has tree){

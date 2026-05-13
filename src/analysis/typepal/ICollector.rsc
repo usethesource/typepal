@@ -47,8 +47,8 @@ data Collector
      /* Reporting */     bool (FailMessage msg) report,
                          bool (list[FailMessage] msgs) reports,
 
-     /* Define */        void (str id, IdRole idRole, value def, DefInfo info) define,
-                         void (value scope, str id, IdRole idRole, value def, DefInfo info) defineInScope,
+     /* Define */        void (value id, IdRole idRole, value def, DefInfo info) define,
+                         void (value scope, value id, IdRole idRole, value def, DefInfo info) defineInScope,
                          Tree (str id, IdRole idRole, value def, DefInfo info) predefine,
                          Tree (value scope, str id, IdRole idRole, DefInfo info) predefineInScope,
                          bool (str id, Tree useOrDef) isAlreadyDefined,
