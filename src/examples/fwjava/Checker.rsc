@@ -102,7 +102,7 @@ TypePalConfig fwjConfig() =
 // ----  Collect --------------------------------------------------------------
 
 void collect(current: (ClassDecl) `class <ClassId cid> extends <ClassId ecid> { <FieldDecl* fieldDecls> <ConstructorDecl constructorDecl> <MethodDecl* methodDecls> }`, Collector c) {
-    c.define("<cid>", classId(), current, defType(classType("<cid>")));
+    c.define(cid, classId(), current, defType(classType("<cid>")));
     c.enterScope(current);
         c.push(key_extendsRelation, <"<cid>", "<ecid>">);
         scope = c.getScope();
@@ -131,22 +131,22 @@ void collect(current: (ConstructorDecl ) `<ClassId cid> <Formals formals> { <Sup
         c.report(error(current, "Expected constructor name %q, found %q", "<cid1>", "<cid>"));
     c.enterScope(current);
         tp = methodType(classType("<cid1>"), atypeList([classType("<f.cid>") | Formal f <- formals.formals]));
-        c.defineInScope(scope, "<cid>", constructorId(), current, defType(tp));
+        c.defineInScope(scope, cid, constructorId(), current, defType(tp));
         collect(formals, superCall, fieldAssignments, c);
     c.leaveScope(current);            
 }
 
 void collect(current: (Formal) `<ClassId cid> <Id id>`, Collector c){
-     c.define("<id>", formalId(), current, defType(classType("<cid>")));   
+     c.define(id, formalId(), current, defType(classType("<cid>")));   
 }
 
 void collect(fd: (FieldDecl) `<ClassId cid> <Id id> ;`, Collector c){
-     c.define("<id>", fieldId(), id, defType(classType("<cid>")));
+     c.define(id, fieldId(), id, defType(classType("<cid>")));
 }
 
 void collect(current: (MethodDecl) `<ClassId cid> <Id mid> <Formals formals> { return <Expression exp> ; }`,  Collector c){   
      formal_list =  [formal | formal <- formals.formals];
-     c.define("<mid>", methodId(), current, defType(formal_list + exp, AType(Solver s) { return methodType(s.getType(exp), atypeList([s.getType(formal) | formal <- formal_list])); }));
+     c.define(mid, methodId(), current, defType(formal_list + exp, AType(Solver s) { return methodType(s.getType(exp), atypeList([s.getType(formal) | formal <- formal_list])); }));
      c.enterScope(current);
          c.requireSubType(exp, classType("<cid>"), error(current,  "Actual return type %t should be subtype of declared return type %t", exp, cid));
          collect(formals, exp, c);
