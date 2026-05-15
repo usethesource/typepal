@@ -60,6 +60,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 // println("newSolver: <size(tm.facts)> facts"); iprintln(tm.facts, lineLimit=10000); iprintln(tm.specializedFacts);
 // println("newSolver: <size(tm.calculators)> calculators"); iprintln(tm.calculators, lineLimit=10000);
    
+    Use use(str id, str orgId, loc occ, loc scope, set[IdRole] idRoles) = useValidated(id, orgId, occ, scope, idRoles, config = tm.config);
+    Use useq(list[str] ids, str orgId, loc occ, loc scope, set[IdRole] idRoles, set[IdRole] qualifierRoles) = useqValidated(ids, orgId, occ, scope, idRoles, qualifierRoles, config = tm.config);
+
     str(str) normalizeName  = defaultNormalizeName;
     bool(AType,AType) isSubTypeFun = defaultIsSubType;
 

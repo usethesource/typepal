@@ -108,6 +108,8 @@ data TypePalConfig(
         );
 
 data TypePalConfig(
+        bool validateUses = false,
+
         bool verbose               = false,
 
         PathConfig typepalPathConfig = pathConfig(),
