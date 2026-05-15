@@ -21,7 +21,7 @@ import ParseTree;                           // In order to parse tests
 // ---- Testing ---------------------------------------------------------------
 
 TModel calcTModelForTree(Tree pt){
-    return collectAndSolve(pt, modelName = "calc");
+    return collectAndSolve(pt, config = tconfig(validateUses = true), modelName = "calc");
 }
 
 TModel calcTModelFromStr(str text){

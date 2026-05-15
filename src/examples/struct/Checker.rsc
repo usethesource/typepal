@@ -42,7 +42,8 @@ default tuple[list[str] typeNames, set[IdRole] idRoles] structGetTypeNamesAndRol
 }
 
 TypePalConfig structConfig() =
-    tconfig(getTypeNamesAndRole = structGetTypeNamesAndRole);
+    tconfig(validateUses        = true,
+            getTypeNamesAndRole = structGetTypeNamesAndRole);
 
 // ---- Collect facts and constraints -----------------------------------------
 

@@ -42,7 +42,8 @@ default tuple[list[str] typeNames, set[IdRole] idRoles] aliasesGetTypeNamesAndRo
 }
 
 TypePalConfig aliasesConfig() =
-    tconfig(getTypeNamesAndRole = aliasesGetTypeNamesAndRole);
+    tconfig(validateUses        = true, 
+            getTypeNamesAndRole = aliasesGetTypeNamesAndRole);
 
  
 // ---- Collect facts and constraints -----------------------------------------

@@ -65,8 +65,9 @@ AType structParametersGetTypeInNamelessType(AType containerType, Tree selector, 
 }
 
 TypePalConfig structParametersConfig() =
-    tconfig(getTypeNamesAndRole = structParametersGetTypeNamesAndRole,
-            getTypeInNamelessType = structParametersGetTypeInNamelessType,
+    tconfig(validateUses              = true,
+            getTypeNamesAndRole       = structParametersGetTypeNamesAndRole,
+            getTypeInNamelessType     = structParametersGetTypeInNamelessType,
             instantiateTypeParameters = structParametersInstantiateTypeParameters);
 
 // ---- Collect facts and constraints -----------------------------------------

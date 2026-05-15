@@ -42,7 +42,8 @@ default tuple[list[str] typeNames, set[IdRole] idRoles] fixedMembersGetTypeNames
 }
 
 TypePalConfig fixedMembersConfig() =
-    tconfig(getTypeNamesAndRole = fixedMembersGetTypeNamesAndRole);
+    tconfig(validateUses        = true,
+            getTypeNamesAndRole = fixedMembersGetTypeNamesAndRole);
 
  
 // ---- Collect facts and constraints -----------------------------------------

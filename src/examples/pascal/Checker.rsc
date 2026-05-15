@@ -199,7 +199,8 @@ default tuple[list[str] typeNames, set[IdRole] idRoles] pascalGetTypeNamesAndRol
 // Configure TypePal, after the above preparations
 
 TypePalConfig pascalConfig() =
-    tconfig(isSubType           = pascalIsSubType,
+    tconfig(validateUses        = true,
+            isSubType           = pascalIsSubType,
             getTypeNamesAndRole = pascalGetTypeNamesAndRole
            );
 

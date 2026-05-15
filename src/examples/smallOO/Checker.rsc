@@ -46,7 +46,8 @@ default tuple[list[str] typeNames, set[IdRole] idRoles] smallGetTypeNamesAndRole
 }
 
 TypePalConfig smallConfig() =
-    tconfig(getTypeNamesAndRole = smallGetTypeNamesAndRole);
+    tconfig(validateUses        = true,
+            getTypeNamesAndRole = smallGetTypeNamesAndRole);
 
 // ---- collect ---------------------------------------------------------------
 

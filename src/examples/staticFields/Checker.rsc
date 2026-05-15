@@ -50,7 +50,8 @@ AType staticFieldsGetTypeInNamelessType(AType containerType, Tree selector, loc 
 }
 
 TypePalConfig staticFieldsConfig() =
-    tconfig(getTypeNamesAndRole = staticFieldsGetTypeNamesAndRole,
+    tconfig(validateUses          = true,
+            getTypeNamesAndRole   = staticFieldsGetTypeNamesAndRole,
             getTypeInNamelessType = staticFieldsGetTypeInNamelessType);
 
 

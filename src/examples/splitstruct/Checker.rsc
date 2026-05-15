@@ -53,6 +53,7 @@ bool splitRecordMayOverload(set[loc] defs, map[loc, Define] defines){
 
 TypePalConfig splitstructConfig() =
     tconfig(
+        validateUses        = true,
         getTypeNamesAndRole = structGetTypeNamesAndRole,
         mayOverload         = splitRecordMayOverload,
         isSubType           = subtype

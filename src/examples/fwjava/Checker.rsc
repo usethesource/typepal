@@ -94,7 +94,8 @@ TModel fwjPreSolver(map[str,Tree] _, TModel tm) {
 // Configure TypePal, after the above preparations
 
 TypePalConfig fwjConfig() =
-    tconfig(mayOverload         = fwjMayOverload,
+    tconfig(validateUses        = true,
+            mayOverload         = fwjMayOverload,
             getTypeNamesAndRole = fwjGetTypeNamesAndRole,
             preSolver           = fwjPreSolver);
  

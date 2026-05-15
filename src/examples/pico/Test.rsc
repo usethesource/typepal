@@ -26,7 +26,7 @@ TModel picoTModelFromName(str name) {
 }
 
 TModel picoTModelForTree(Tree pt) {
-    return collectAndSolve(pt, modelName="pico");
+    return collectAndSolve(pt, config=tconfig(validateUses = true), modelName="pico");
 }
 
 test bool picoTests() {

@@ -45,7 +45,8 @@ default tuple[list[str] typeNames, set[IdRole] idRoles] dmGetTypeNamesAndRole(AT
 }
 
 TypePalConfig dmConfig() =
-    tconfig(getTypeNamesAndRole = dmGetTypeNamesAndRole);
+    tconfig(validateUses        = true,
+            getTypeNamesAndRole = dmGetTypeNamesAndRole);
 
 // Collect functions
 
