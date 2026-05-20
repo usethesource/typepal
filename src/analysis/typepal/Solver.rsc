@@ -698,11 +698,19 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 throw TypeUnavailable();
     }
 
-    AType getTypeInScope0(Tree occ, loc scope, set[IdRole] idRoles){
+    AType getTypeInScope0(Tree occ, loc scope, set[IdRole] idRoles, loc occScope){
         orgId = "<occ>";
         id = normalizeName(orgId);
-        u = use(id, orgId, getLoc(occ), scope, idRoles);
+        
+        // Create temporary `Use` value for `occ`, only to be able to lookup the
+        // corresponding `Define` values in the provided scope. That scope may,
+        // **but not must**, be the same scope as the one in which `occ` occurs.
+        u = use(id, orgId, |unknown:///| /* Irrelevant for lookups */, scope, idRoles);
         foundDefs = scopeGraph.lookup(u);
+
+        // Create permanent `Use` value for `occ` to be stored in the model
+        u = use(id, orgId, getLoc(occ), occScope, idRoles);
+
         if({loc def} := foundDefs){
             addUse({def}, u);
             try {
@@ -731,7 +739,17 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     //@memo
     AType solver_getTypeInScope(Tree occ, loc scope, set[IdRole] idRoles){
         try {
-            return getTypeInScope0(occ, getLogicalLoc(scope), idRoles);
+            // Function `getTypeInScope0`, called below, requires as arguments
+            // **both** the scope in which to lookup the def **and** the scope
+            // in which the use occurs. The former scope is argument `scope` of
+            // this function; the latter scope isn't an argument yet (unlike
+            // function `getTypeInType`). Thus, find the latter scope first.
+            occScopes = [s | s <- tm.scopes, isContainedIn(occ.src, s)];
+            if ([occScope] := occScopes) {
+                return getTypeInScope0(occ, getLogicalLoc(scope), idRoles, occScope);
+            } else {
+                throw TypePalUsage("Expected: Containment of `occ` in exactly one leaf scope. Actual: Containment in <size(occScopes)> leaf scope(s).");
+            }
         } catch NoSuchKey(_):
             throw TypeUnavailable();
     }
@@ -807,7 +825,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 some_accessible_def = some_accessible_def || !isEmpty(all_definitions);
                 for(containerDef <- all_definitions){
                     try {
-                        selectorType = getTypeInScope0(selector, containerDef.defined, idRolesSel);
+                        selectorType = getTypeInScope0(selector, containerDef.defined, idRolesSel, scope);
                         valid_overloads += <containerDef.defined, containerDef.idRole, instantiateTypeParameters(selector, solver_getType(containerDef.defInfo), containerType, selectorType, thisSolver)>;
                      }
                        catch NoSuchKey(_):
