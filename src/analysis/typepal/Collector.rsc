@@ -269,6 +269,8 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     loc currentScope = globalScope;
     loc rootScope = globalScope;
 
+    bool isContainedInCurrentScope(loc l) = currentScope == globalScope || isContainedIn(l, currentScope);
+
     for(nm <- namedTrees) scopes[getLoc(namedTrees[nm])] = globalScope;
     lrel[loc scope, bool lubScope, map[ScopeRole, value] scopeInfo] scopeStack = [<globalScope, false, (anonymousScope(): false)>];
     list[loc] lubScopeStack = [];
@@ -291,6 +293,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                 for(Define def <- defines + definesPerLubScope[currentLubScope]){
                     if(def.id == nname && config.isInferrable(def.idRole)){
                         if(def.scope in scopeStack<0>) {
+                            if(!isContainedInCurrentScope(l)) throw TypePalUsage("Cannot call `define` on Collector with `def` (<l>) outside current scope (<currentScope>)");
                             uses += use(nname, orgId, l, currentScope, {def.idRole});
                             return;
                         }
@@ -378,7 +381,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     void collector_use(Tree occ, set[IdRole] idRoles) {
         if(building){
            orgId = "<occ>";
-           uses += use(normalizeName(orgId), orgId, getLoc(occ), currentScope, idRoles);
+           l = getLoc(occ);
+           if(!isContainedInCurrentScope(l)) throw TypePalUsage("Cannot call `use` on Collector with `occ` (<l>) outside current scope (<currentScope>)");
+           uses += use(normalizeName(orgId), orgId, l, currentScope, idRoles);
         } else {
             throw TypePalUsage("Cannot call `use` on Collector after `run`");
         }
@@ -395,11 +400,13 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     void collector_addPathToDef(Tree occ, set[IdRole] idRoles, PathRole pathRole) {
         if(building){
             orgId = "<occ>";
-            u = use(normalizeName(orgId), orgId, getLoc(occ), currentScope, idRoles);
+            l = getLoc(occ);
+            if(!isContainedInCurrentScope(l)) throw TypePalUsage("Cannot call `addPathToDef` on Collector with `occ` (<l>) outside current scope (<currentScope>)");
+            u = use(normalizeName(orgId), orgId, l, currentScope, idRoles);
             uses += u;
             referPaths += referToDef(u, pathRole);
         } else {
-            throw TypePalUsage("Cannot call `collector_addPathToDef` on Collector after `run`");
+            throw TypePalUsage("Cannot call `addPathToDef` on Collector after `run`");
         }
     }
 
@@ -414,6 +421,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             name = normalizeName("<selector>");
             selectorLoc = getLoc(selector);
             containerLoc = getLoc(container);
+            if(!isContainedInCurrentScope(selectorLoc)) throw TypePalUsage("Cannot call `useViaType` on Collector with `selector` (<selectorLoc>) outside current scope (<currentScope>)");
             calculators += calc("useViaType `<name>` in <containerLoc>", selectorLoc,  [containerLoc],  makeGetTypeInType(container, selector, idRolesSel, currentScope));
         } else {
             throw TypePalUsage("Cannot call `useViaType` on Collector after `run`");
