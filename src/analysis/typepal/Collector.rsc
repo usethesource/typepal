@@ -206,31 +206,28 @@ Collector newCollector(str modelName, Tree pt, TypePalConfig config){
     return newCollector(modelName, (modelName : pt), config);
 }
 
-loc globalScope = |global-scope:///|;
+Use useValidated(str id, str orgId, loc occ, loc scope, set[IdRole] idRoles, TypePalConfig config)
+    = validateUse(use(id, orgId, occ, scope, idRoles), config);
 
-Use useValidated(str id, str orgId, loc occ, loc scope, set[IdRole] idRoles, TypePalConfig config = tconfig()) {
-    if (config.validateUses && !isContainedIn(occ, scope) && anonymousOccurrence != occ && globalScope != scope) {
-        throw TypePalInternalError("Invalid use: `occ` (<occ>) should be contained in `scope` (<scope>)."); 
-    }
-    return Use::use(id, orgId, occ, scope, idRoles);
-}
+Use useqValidated(list[str] ids, str orgId, loc occ, loc scope, set[IdRole] idRoles, set[IdRole] qualifierRoles, TypePalConfig config) 
+    = validateUse(useq(ids, orgId, occ, scope, idRoles, qualifierRoles), config);
 
-Use useqValidated(list[str] ids, str orgId, loc occ, loc scope, set[IdRole] idRoles, set[IdRole] qualifierRoles, TypePalConfig config = tconfig()) {
-    if (config.validateUses && !isContainedIn(occ, scope) && anonymousOccurrence != occ && globalScope != scope) {
-        throw TypePalInternalError("Invalid use: `occ` (<occ>) should be contained in `scope` (<scope>)."); 
+private Use validateUse(Use u, TypePalConfig config) {
+    if (config.validateUses && "project" == u.occ.scheme && "project" == u.scope.scheme && !isContainedIn(u.occ, u.scope)) {
+        throw TypePalInternalError("Invalid use: `occ` (<u.occ>) should be contained in `scope` (<u.scope>).");
     }
-    return Use::useq(ids, orgId, occ, scope, idRoles, qualifierRoles);
+    return u;
 }
 
 Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config){
 
-    Use use(str id, str orgId, loc occ, loc scope, set[IdRole] idRoles) = useValidated(id, orgId, occ, scope, idRoles, config = config);
-    Use useq(list[str] ids, str orgId, loc occ, loc scope, set[IdRole] idRoles, set[IdRole] qualifierRoles) = useqValidated(ids, orgId, occ, scope, idRoles, qualifierRoles, config = config);
+    Use use(str id, str orgId, loc occ, loc scope, set[IdRole] idRoles) = useValidated(id, orgId, occ, scope, idRoles, config);
+    Use useq(list[str] ids, str orgId, loc occ, loc scope, set[IdRole] idRoles, set[IdRole] qualifierRoles) = useqValidated(ids, orgId, occ, scope, idRoles, qualifierRoles, config);
 
     str normalizeName(str input) {
             return config.normalizeName(input);
          }
-
+    loc globalScope = |global-scope:///|;
     Defines defines = {};
     Defines addedDefines = {};
 
