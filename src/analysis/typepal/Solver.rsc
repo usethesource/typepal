@@ -705,7 +705,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         // Create temporary `Use` value for `occ`, only to be able to lookup the
         // corresponding `Define` values in the provided scope. That scope may,
         // **but not must**, be the same scope as the one in which `occ` occurs.
-        u = use(id, orgId, |unknown:///| /* Irrelevant for lookups */, scope, idRoles);
+        u = use(id, orgId, anonymousOccurrence, scope, idRoles);
         foundDefs = scopeGraph.lookup(u);
 
         // Create permanent `Use` value for `occ` to be stored in the model

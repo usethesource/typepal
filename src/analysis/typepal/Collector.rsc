@@ -212,8 +212,10 @@ Use useValidated(str id, str orgId, loc occ, loc scope, set[IdRole] idRoles, map
 Use useqValidated(list[str] ids, str orgId, loc occ, loc scope, set[IdRole] idRoles, set[IdRole] qualifierRoles, map[loc,loc] logical2physical, TypePalConfig config) 
     = validateUse(useq(ids, orgId, occ, scope, idRoles, qualifierRoles), logical2physical, config);
 
-private Use validateUse(Use u, TypePalConfig config) {
-    if (config.validateUses && "project" == u.occ.scheme && "project" == u.scope.scheme && !isContainedIn(u.occ, u.scope, logical2physical)) {
+loc globalScope = |global-scope:///|;
+
+private Use validateUse(Use u, map[loc,loc] logical2physical, TypePalConfig config) {
+    if (config.validateUses && anonymousOccurrence != u.occ && globalScope != u.scope && !isContainedIn(u.occ, u.scope, logical2physical)) {
         throw TypePalInternalError("Invalid use: `occ` (<u.occ>) should be contained in `scope` (<u.scope>).");
     }
     return u;
@@ -227,7 +229,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     str normalizeName(str input) {
             return config.normalizeName(input);
          }
-    loc globalScope = |global-scope:///|;
+
     Defines defines = {};
     Defines addedDefines = {};
 
