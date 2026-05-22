@@ -206,14 +206,14 @@ Collector newCollector(str modelName, Tree pt, TypePalConfig config){
     return newCollector(modelName, (modelName : pt), config);
 }
 
-Use useValidated(str id, str orgId, loc occ, loc scope, set[IdRole] idRoles, TypePalConfig config)
-    = validateUse(use(id, orgId, occ, scope, idRoles), config);
+Use useValidated(str id, str orgId, loc occ, loc scope, set[IdRole] idRoles, map[loc,loc] logical2physical, TypePalConfig config)
+    = validateUse(use(id, orgId, occ, scope, idRoles), logical2physical, config);
 
-Use useqValidated(list[str] ids, str orgId, loc occ, loc scope, set[IdRole] idRoles, set[IdRole] qualifierRoles, TypePalConfig config) 
-    = validateUse(useq(ids, orgId, occ, scope, idRoles, qualifierRoles), config);
+Use useqValidated(list[str] ids, str orgId, loc occ, loc scope, set[IdRole] idRoles, set[IdRole] qualifierRoles, map[loc,loc] logical2physical, TypePalConfig config) 
+    = validateUse(useq(ids, orgId, occ, scope, idRoles, qualifierRoles), logical2physical, config);
 
 private Use validateUse(Use u, TypePalConfig config) {
-    if (config.validateUses && "project" == u.occ.scheme && "project" == u.scope.scheme && !isContainedIn(u.occ, u.scope)) {
+    if (config.validateUses && "project" == u.occ.scheme && "project" == u.scope.scheme && !isContainedIn(u.occ, u.scope, logical2physical)) {
         throw TypePalInternalError("Invalid use: `occ` (<u.occ>) should be contained in `scope` (<u.scope>).");
     }
     return u;
@@ -221,8 +221,8 @@ private Use validateUse(Use u, TypePalConfig config) {
 
 Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig config){
 
-    Use use(str id, str orgId, loc occ, loc scope, set[IdRole] idRoles) = useValidated(id, orgId, occ, scope, idRoles, config);
-    Use useq(list[str] ids, str orgId, loc occ, loc scope, set[IdRole] idRoles, set[IdRole] qualifierRoles) = useqValidated(ids, orgId, occ, scope, idRoles, qualifierRoles, config);
+    Use use(str id, str orgId, loc occ, loc scope, set[IdRole] idRoles) = useValidated(id, orgId, occ, scope, idRoles, logical2physical, config);
+    Use useq(list[str] ids, str orgId, loc occ, loc scope, set[IdRole] idRoles, set[IdRole] qualifierRoles) = useqValidated(ids, orgId, occ, scope, idRoles, qualifierRoles, logical2physical, config);
 
     str normalizeName(str input) {
             return config.normalizeName(input);
@@ -269,7 +269,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     loc currentScope = globalScope;
     loc rootScope = globalScope;
 
-    bool isContainedInCurrentScope(loc l) = currentScope == globalScope || isContainedIn(l, currentScope);
+    bool isContainedInCurrentScope(loc l) = currentScope == globalScope || isContainedIn(l, currentScope, logical2physical);
 
     for(nm <- namedTrees) scopes[getLoc(namedTrees[nm])] = globalScope;
     lrel[loc scope, bool lubScope, map[ScopeRole, value] scopeInfo] scopeStack = [<globalScope, false, (anonymousScope(): false)>];
