@@ -936,7 +936,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
 
         logical2physical += tm.logical2physical;
-        addedMessages += tm.messages;
+        //addedMessages += tm.messages;
 
         addedScopes += tm.scopes;
         scopes += tm.scopes;
