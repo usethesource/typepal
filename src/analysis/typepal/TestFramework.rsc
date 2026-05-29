@@ -145,7 +145,6 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
                 }
             }
         }
-        ok = false;
     }
     println("Parse time: <parseTime/1000000> msec; Test time: <testTime/1000000> msec");
     return ok && isEmpty(failedTests);
