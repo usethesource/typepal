@@ -32,11 +32,17 @@ import Type;
 import analysis::typepal::StringSimilarity;
 import util::IDEServices;
 
-void checkAllTypesAvailable(TModel tm){
-    for(tup: <loc _, str _, str _, IdRole _, loc _, DefInfo defInfo> <- tm.defines){
-        if(!(defInfo has atype)){
-            throw "checkTypesAvailable: <tm.modelName>, <tup>";
-        }
+void assertValidDefines(TModel tm){
+    if (!tm.config.assertValidDefines) return;
+    for(d <- tm.defines){
+
+        assert isContainedIn(d.defined, d.scope) || "global-scope" == d.scope.scheme : 
+            "Expected: For each `d` in `tm.defines`, `d.defined` is contained in `d.scope`. " +
+            "Actual: For `<d>` in TModel `<tm.modelName>`, `<d.defined>` (`d.defined`) isn\'t contained in `<d.scope>` (`d.scope`).";
+
+        assert d.defInfo has atype : 
+            "Expected: For each `d` in `tm.defines`, field `d.defInfo` has field `atype`. " +
+            "Actual: For `<d>` in TModel `<tm.modelName>`, `<d.defInfo>` (`d.defInfo`) doesn\'t have that field.";
     }
 }
 
@@ -1765,7 +1771,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         messages =  visit(messages) { case loc l => solver_toPhysicalLoc(l) };
         tm.messages = sortMostPrecise(toList(toSet(messages)));
 
-        checkAllTypesAvailable(tm);
+        assertValidDefines(tm);
         return tm;
     }
 
