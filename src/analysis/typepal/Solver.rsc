@@ -1784,6 +1784,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         //println("definedBy;"); iprintln(definedBy);
         tm.useDef = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
 
+        // Update `uses` with all uses resolved by the solver
+        tm.uses = [*({*tm.uses} + {*def2uses[d] | d <- def2uses})];
+
         ldefines = for(tup: <loc _, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
                         if(defInfo has tree){
                             l = getLogicalLoc(defInfo.tree);
