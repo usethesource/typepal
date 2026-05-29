@@ -22,7 +22,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel splitstructTModelForTree(Tree pt){
-    return collectAndSolve(pt, config = splitstructConfig(), modelName="splitstruct");
+    return collectAndSolve(pt, config = splitstructConfig()[assertValidUseDef = true], modelName = "splitstruct");
 }
 
 TModel splitstructTModelFromName(str mname){

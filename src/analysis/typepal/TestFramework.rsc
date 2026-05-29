@@ -100,11 +100,13 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
                 continue;
             }
             ntests += 1;
+            newTreeSrc = |unknown:///|;
             try {
               newTree = visit(parse(begin, "<ti.tokens>")) {
                 case Tree t => t[src = relocate(t.src, ti.tokens.src)]
                     when t has src
               };
+              newTreeSrc = newTree.src;
               model = getModel(newTree);
               list[Message] messages = model.messages;
               if(verbose) println("runTests: <messages>");
@@ -118,7 +120,9 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
                 failedTests[<"<ti.name>", suite>]  = [error("Parse error", relocate(l, ti.tokens.src))];
            } catch Ambiguity(loc l, nt, inp): {
                 failedTests[<"<ti.name>", suite>]  = [error("Ambiguity (<nt> on `<inp>`)", (l.offset?) ? relocate(l, ti.tokens.src) : l)];
-           } 
+           } catch AssertionFailed(str s): {
+                failedTests[<"<ti.name>", suite>]  = [error("Assertion failed: <s>", newTreeSrc)];
+           }
 
         }
         testTime += (cpuTime() - startTests);
@@ -141,9 +145,10 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
                 }
             }
         }
+        ok = false;
     }
     println("Parse time: <parseTime/1000000> msec; Test time: <testTime/1000000> msec");
-    return ok;
+    return ok && isEmpty(failedTests);
 }
 
 lrel[&T<:Tree, set[str]] extractTests(list[loc] suites, type[&T<:Tree] begin) {

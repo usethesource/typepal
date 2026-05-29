@@ -22,11 +22,11 @@ import ParseTree;
 
 TModel qlTModelForName(str name) {
     Tree pt = parse(#start[Form], |project://typepal/src/examples/ql/examples/<name>.ql|);
-    return collectAndSolve(pt, modelName = "ql");
+    return collectAndSolve(pt, modelName = "ql", config = tconfig()[assertValidUseDef = true]);
 }
 
 TModel qlTModelForTree(Tree pt) {
-    return collectAndSolve(pt, modelName = "ql");
+    return collectAndSolve(pt, modelName = "ql", config = tconfig()[assertValidUseDef = true]);
 }
 
 test bool qlTests() {
@@ -34,6 +34,11 @@ test bool qlTests() {
                      TModel (Tree t) { return qlTModelForTree(t); },
                      runName = "QL");
 }
+
+test bool qlTModelTestAddition() = [] := qlTModelForName("addition").messages;
+test bool qlTModelTestAvg() = [] := qlTModelForName("avg").messages;
+test bool qlTModelTestTax() = [] := qlTModelForName("tax").messages;
+test bool qlTModelTestTax2() = [] := qlTModelForName("tax2").messages;
 
 value main()
     = qlTests();

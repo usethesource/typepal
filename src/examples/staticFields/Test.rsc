@@ -22,7 +22,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel staticFieldsTModelForTree(Tree pt){
-    return collectAndSolve(pt, config=staticFieldsConfig(), modelName="staticfields");
+    return collectAndSolve(pt, config=staticFieldsConfig()[assertValidUseDef=true], modelName="staticfields");
 }
 
 TModel staticFieldsTModelFromName(str mname){

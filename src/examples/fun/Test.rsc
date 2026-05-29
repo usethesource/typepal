@@ -27,7 +27,7 @@ TModel funTModel(str name){
 }
 
 TModel funTModelForTree(Tree pt){
-    return collectAndSolve(pt, modelName = "fun");
+    return collectAndSolve(pt, modelName = "fun", config = tconfig()[assertValidUseDef = true]);
 }
 
 TModel funTModelFromStr(str text){
@@ -42,5 +42,8 @@ list[Message] funCheck(str name) {
 
 test bool funTests() 
     =  runTests([|project://typepal/src/examples/fun/tests.ttl|], #Fun, funTModelForTree, runName="Fun");
+
+test bool funTModelTestBig() = [] := funTModel("big").messages;
+test bool funTModelTestTmp() = [] := funTModel("tmp").messages;
 
 value main() = funTests();

@@ -28,7 +28,7 @@ TModel modfunTModel(str name){
 }
 
 TModel modfunTModelForTree(Tree pt){
-    return collectAndSolve(pt, modelName="modfun");
+    return collectAndSolve(pt, modelName="modfun", config=tconfig()[assertValidUseDef=true]);
 }
 
 TModel modfunTModelFromStr(str text){
@@ -46,6 +46,10 @@ test bool modfunTests()
                #ModFun,
                modfunTModelForTree,
                runName = "ModFun");
+
+test bool modfunTModelTestA() = [_, _, _] := modfunTModel("A").messages; // Three errors expected
+test bool modfunTModelTestB() = [_, _] := modfunTModel("B").messages; // Two errors expected
+test bool modfunTModelTestTmp() = [] := modfunTModel("tmp").messages;
 
 value main() 
     =  modfunTests();

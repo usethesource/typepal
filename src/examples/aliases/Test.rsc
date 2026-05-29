@@ -21,7 +21,10 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel aliasesTModelForTree(Tree pt){
-    return collectAndSolve(pt, config = aliasesConfig(), modelName = "alias");
+    // Enable `assertValidUseDef` only when the program under test **isn't**
+    // `CircularAlias1` (which is expected to have an invalid `useDef`).
+    bool assertValidUseDef = md5Hash(pt) != "6e3b63e2945eb4d075ff79f0fd2039eb"; // Hash of program `CircularAlias1`
+    return collectAndSolve(pt, config = aliasesConfig()[assertValidUseDef = assertValidUseDef], modelName = "alias");
 }
 
 TModel aliasesTModelFromName(str mname){

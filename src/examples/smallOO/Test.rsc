@@ -21,7 +21,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
                
 TModel smallOOTModelForTree(Tree pt){
-    return collectAndSolve(pt, config=smallConfig(), modelName="smalloo");
+    return collectAndSolve(pt, config=smallConfig()[assertValidUseDef=true], modelName="smalloo");
 }
 
 TModel smallOOTModelFromName(str mname){
@@ -39,6 +39,9 @@ test bool smallOOTests() {
                     TModel (Tree t) { return smallOOTModelForTree(t); },
                     runName = "SmallOO");
 }
+
+test bool smallOOTModelTestM1() = [_] := smallOOTModelFromName("M1").messages;  // One error expected
+test bool smallOOTModelTestM2() = [] := smallOOTModelFromName("M2").messages;
 
 value main()
     = smallOOTests();

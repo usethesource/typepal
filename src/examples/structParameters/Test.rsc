@@ -22,7 +22,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel structParametersTModelForTree(Tree pt){
-    return collectAndSolve(pt, config = structParametersConfig(), modelName="struct-parameters");
+    return collectAndSolve(pt, config = structParametersConfig()[assertValidUseDef = true], modelName = "struct-parameters");
 }
 
 TModel structParametersTModelFromName(str mname){
@@ -36,6 +36,8 @@ test bool structParametersTests() {
                      TModel (Tree t) { return structParametersTModelForTree(t); },
                      runName = "StructParameters");
 }
+
+test bool structParametersTModelTestTmp() = [] := structParametersTModelFromName("Tmp").messages;
 
 value main()
     = structParametersTests();
