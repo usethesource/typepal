@@ -46,6 +46,49 @@ void assertValidDefines(TModel tm){
     }
 }
 
+void assertValidUseDef(TModel tm, Solver solver) {
+    if (!tm.config.assertValidUseDef) return;
+    scopeGraph = newScopeGraph(tm, tm.config);
+    scopeGraph.setSolver(solver);
+
+    useLocs = sort([u.occ | u <- tm.uses], isLexicallyLess);
+    defLocs = sort([d.defined | d <- tm.defines], isLexicallyLess);
+    for (pair: <useLoc, defLoc> <- tm.useDef) {
+
+        assert useLoc in useLocs :
+            "Expected: For each `\<useLoc, defLoc\>` in `tm.useDef`, a corresponding `Use` exists in `tm.uses` for `useLoc`. " +
+            "Actual: For `<pair>` in TModel `<tm.modelName>`, a corresponding `Use` value doesn\'t exist for `<useLoc>` (`useLoc`), but it does for `<useLocs>`.";
+
+        assert defLoc in defLocs :
+            "Expected: For each `\<useLoc, defLoc\>` in `tm.useDef`, a corresponding `Define` exists in `tm.defines` for `defLoc`. " +
+            "Actual: For `<pair>` in TModel `<tm.modelName>`, a corresponding `Define` value doesn\'t exist for `<defLoc>` (`defLoc`), but it does for `<defLocs>`.";
+
+        usesAtUseLoc = [u | u <- tm.uses, useLoc == u.occ];
+        defsAtDefLoc = [d | d <- tm.defines, defLoc == d.defined];
+        reachable = (u: scopeGraph.lookup(u) | u <- usesAtUseLoc);
+        if (u <- usesAtUseLoc, d <- defsAtDefLoc, d.defined in reachable[u]) {
+
+            assert u.id == d.id :
+                "Expected: For each pair in `tm.useDef`, the corresponding `Use` `u` and `Define` `d` have equal `id` fields. " +
+                "Actual: For `<pair>` in TModel `<tm.modelName>`, `<u.id>` (`u.id`) isn\'t equal to `<d.id>` (`d.id`).";
+
+            assert u.orgId == d.orgId :
+                "Expected: For each pair in `tm.useDef`, the corresponding `Use` `u` and `Define` `d` have equal `orgId` fields. " +
+                "Actual: For `<pair>` in TModel `<tm.modelName>`, `<u.orgId>` (`u.orgId`) isn\'t equal to `<d.orgId>` (`d.orgId`).";
+
+            assert d.idRole in u.idRoles :
+                "Expected: For each pair in `tm.useDef`, the corresponding `Use` `u` and `Define` `d` have compatible roles. " +
+                "Actual: For `<pair>` in TModel `<tm.modelName>`, `<u.idRoles>` (`u.idRoles`) doesn\'t contain `<d.idRole>` (`d.idRole`).";
+
+        } else {
+
+            assert false : 
+                "Expected: For each `\<useLoc, defLoc\>` in `tm.useDef`, `defLoc` is reachable from `useLoc` in the scope graph. " +
+                "Actual: For `<pair>` in TModel `<tm.modelName>`, `<defLoc>` (`defLoc`) isn\'t reachable from `<useLoc>` (`useLoc`), but `<reachable>` are.";
+        }
+    }
+}
+
 // Implementation of the Solver data type: a collection of call backs
 
 Solver newSolver(Tree pt, TModel tm){
@@ -1772,6 +1815,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         tm.messages = sortMostPrecise(toList(toSet(messages)));
 
         assertValidDefines(tm);
+        assertValidUseDef(tm, thisSolver);
         return tm;
     }
 
