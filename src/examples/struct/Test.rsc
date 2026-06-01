@@ -22,7 +22,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel structTModelForTree(Tree pt){
-    return collectAndSolve(pt, config = structConfig()[assertValidUseDef = true], modelName = "struct");
+    return collectAndSolve(pt, config = structConfig()[assertValidDefines = true][assertValidUseDef = true], modelName = "struct");
 }
 
 TModel structTModelFromName(str mname){

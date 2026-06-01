@@ -22,11 +22,11 @@ import ParseTree;
 
 TModel picoTModelFromName(str name) {
     Tree pt = parse(#start[Program], |project://typepal/src/examples/pico/<name>.pico|);
-    return collectAndSolve(pt, modelName="pico", config=tconfig()[assertValidUseDef=true]);
+    return collectAndSolve(pt, modelName="pico", config=tconfig()[assertValidDefines=true][assertValidUseDef=true]);
 }
 
 TModel picoTModelForTree(Tree pt) {
-    return collectAndSolve(pt, modelName="pico", config=tconfig()[assertValidUseDef=true]);
+    return collectAndSolve(pt, modelName="pico", config=tconfig()[assertValidDefines=true][assertValidUseDef=true]);
 }
 
 test bool picoTests() {

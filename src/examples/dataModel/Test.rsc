@@ -17,7 +17,7 @@ extend examples::dataModel::Checker;
 extend analysis::typepal::TestFramework;
 
 TModel dmTModelForTree(Tree pt){
-    return collectAndSolve(pt, config = dmConfig()[assertValidUseDef = true]);
+    return collectAndSolve(pt, config = dmConfig()[assertValidDefines = true][assertValidUseDef = true]);
 }
 
 TModel dmTModelFromName(str mname){

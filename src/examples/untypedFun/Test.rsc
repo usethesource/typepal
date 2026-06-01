@@ -26,7 +26,7 @@ list[Message] untypedFunCheck(str name){
 }
 
 TModel untypedFunTModelForTree(Tree pt)
-    = collectAndSolve(pt, modelName="ufun", config=tconfig()[assertValidUseDef=true]);
+    = collectAndSolve(pt, modelName="ufun", config=tconfig()[assertValidDefines=true][assertValidUseDef=true]);
 
 test bool untypedFunTests()
     = runTests([|project://typepal/src/examples/untypedFun/tests.ttl|],

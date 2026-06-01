@@ -28,7 +28,7 @@ TModel modfunTModel(str name){
 }
 
 TModel modfunTModelForTree(Tree pt){
-    return collectAndSolve(pt, modelName="modfun", config=tconfig()[assertValidUseDef=true]);
+    return collectAndSolve(pt, modelName="modfun", config=tconfig()[assertValidDefines=true][assertValidUseDef=true]);
 }
 
 TModel modfunTModelFromStr(str text){

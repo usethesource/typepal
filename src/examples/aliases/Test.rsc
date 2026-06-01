@@ -21,7 +21,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel aliasesTModelForTree(Tree pt, bool assertValidUseDef = true){
-    return collectAndSolve(pt, config = aliasesConfig()[assertValidUseDef = assertValidUseDef], modelName = "alias");
+    return collectAndSolve(pt, config = aliasesConfig()[assertValidDefines = true][assertValidUseDef = assertValidUseDef], modelName = "alias");
 }
 
 TModel aliasesTModelFromName(str mname){

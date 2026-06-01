@@ -108,7 +108,7 @@ data TypePalConfig(
         );
 
 data TypePalConfig(
-        bool assertValidDefines = true,
+        bool assertValidDefines = false,
         bool assertValidUseDef  = false,
 
         bool verbose               = false,

@@ -22,11 +22,11 @@ import ParseTree;
 
 TModel qlTModelForName(str name) {
     Tree pt = parse(#start[Form], |project://typepal/src/examples/ql/examples/<name>.ql|);
-    return collectAndSolve(pt, modelName = "ql", config = tconfig()[assertValidUseDef = true]);
+    return collectAndSolve(pt, modelName = "ql", config = tconfig()[assertValidDefines = true][assertValidUseDef = true]);
 }
 
 TModel qlTModelForTree(Tree pt) {
-    return collectAndSolve(pt, modelName = "ql", config = tconfig()[assertValidUseDef = true]);
+    return collectAndSolve(pt, modelName = "ql", config = tconfig()[assertValidDefines = true][assertValidUseDef = true]);
 }
 
 test bool qlTests() {

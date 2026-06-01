@@ -23,7 +23,7 @@ import ParseTree;                           // In order to parse tests
 
 TModel evenOddTModelForTree(Tree pt){
     if(pt has top) pt = pt.top;
-    c = newCollector("even-odd", pt, tconfig()[assertValidUseDef = true]);
+    c = newCollector("even-odd", pt, tconfig()[assertValidDefines = true][assertValidUseDef = true]);
     collect(pt, c);
     return newSolver(pt, c.run()).run();
 }

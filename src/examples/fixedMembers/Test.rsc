@@ -22,7 +22,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel fixedMembersTModelForTree(Tree pt){
-    return collectAndSolve(pt, config = fixedMembersConfig()[assertValidUseDef = true], modelName = "fixed-members");
+    return collectAndSolve(pt, config = fixedMembersConfig()[assertValidDefines = true][assertValidUseDef = true], modelName = "fixed-members");
 }
 
 TModel fixedMembersTModelFromName(str mname){

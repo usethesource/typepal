@@ -21,7 +21,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
                
 TModel smallOOTModelForTree(Tree pt){
-    return collectAndSolve(pt, config=smallConfig()[assertValidUseDef=true], modelName="smalloo");
+    return collectAndSolve(pt, config=smallConfig()[assertValidDefines=true][assertValidUseDef=true], modelName="smalloo");
 }
 
 TModel smallOOTModelFromName(str mname){
