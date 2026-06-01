@@ -20,10 +20,7 @@ import ParseTree;
 
 // ---- Testing ---------------------------------------------------------------
 
-TModel aliasesTModelForTree(Tree pt){
-    // Enable `assertValidUseDef` only when the program under test **isn't**
-    // `CircularAlias1` (which is expected to have an invalid `useDef`).
-    bool assertValidUseDef = md5Hash(pt) != "6e3b63e2945eb4d075ff79f0fd2039eb"; // Hash of program `CircularAlias1`
+TModel aliasesTModelForTree(Tree pt, bool assertValidUseDef = true){
     return collectAndSolve(pt, config = aliasesConfig()[assertValidUseDef = assertValidUseDef], modelName = "alias");
 }
 
@@ -35,7 +32,10 @@ TModel aliasesTModelFromName(str mname){
 test bool aliasesTests() {
     return runTests([|project://typepal/src/examples/aliases/aliases.ttl|], 
                     #start[Program], 
-                    TModel (Tree t, str _name) { return aliasesTModelForTree(t); },
+                    // Enable `assertValidUseDef` only when the program under
+                    // test **isn't** `CircularAlias1` (which is expected to
+                    // have an invalid `useDef`).
+                    TModel (Tree t, str name) { return aliasesTModelForTree(t, assertValidUseDef = name != "CircularAlias1"); },
                     runName = "Aliases");
 }
 
