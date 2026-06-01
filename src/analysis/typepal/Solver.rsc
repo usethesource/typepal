@@ -32,6 +32,14 @@ import Type;
 import analysis::typepal::StringSimilarity;
 import util::IDEServices;
 
+void checkAllTypesAvailable(TModel tm){
+    for(tup: <loc _, str _, str _, IdRole _, loc _, DefInfo defInfo> <- tm.defines){
+        if(!(defInfo has atype)){
+            throw "checkTypesAvailable: <tm.modelName>, <tup>";
+        }
+    }
+}
+
 void assertValidDefines(TModel tm){
     if (!tm.config.assertValidDefines) return;
     for(d <- tm.defines){
