@@ -36,7 +36,7 @@ TModel evenOddTModelFromStr(str text){
 test bool evenOddTests() {
      return runTests([|project://typepal/src/examples/evenOdd/tests.ttl|], 
                      #EvenOdd, 
-                     evenOddTModelForTree, 
+                     TModel (Tree t, str _name) { return evenOddTModelForTree(t); },
                      runName="EvenOdd");
 }
 

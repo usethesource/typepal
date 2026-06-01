@@ -41,7 +41,10 @@ list[Message] funCheck(str name) {
 }
 
 test bool funTests() 
-    =  runTests([|project://typepal/src/examples/fun/tests.ttl|], #Fun, funTModelForTree, runName="Fun");
+    =  runTests([|project://typepal/src/examples/fun/tests.ttl|],
+                #Fun,
+                TModel (Tree t, str _name) { return funTModelForTree(t); },
+                runName="Fun");
 
 test bool funTModelTestBig() = [] := funTModel("big").messages;
 test bool funTModelTestTmp() = [] := funTModel("tmp").messages;

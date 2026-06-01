@@ -37,7 +37,7 @@ TModel fwjTModelFromName(str mname, bool _){
 test bool fwjTests() {
     return runTests([|project://typepal/src/examples/fwjava/tests.ttl|], 
                      #start[FWJProgram], 
-                     TModel (Tree t) { return fwjTModelForTree(t); },
+                     TModel (Tree t, str _name) { return fwjTModelForTree(t); },
                      runName = "FwJava");
 }
 

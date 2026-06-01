@@ -33,7 +33,7 @@ TModel structTModelFromName(str mname){
 test bool structTests() {
     return runTests([|project://typepal/src/examples/struct/tests.ttl|], 
                     #start[Program],
-                    TModel (Tree t) { return structTModelForTree(t); },
+                    TModel (Tree t, str _name) { return structTModelForTree(t); },
                     runName = "Struct");
 }
 

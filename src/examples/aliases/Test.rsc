@@ -35,7 +35,7 @@ TModel aliasesTModelFromName(str mname){
 test bool aliasesTests() {
     return runTests([|project://typepal/src/examples/aliases/aliases.ttl|], 
                     #start[Program], 
-                    TModel (Tree t) { return aliasesTModelForTree(t); },
+                    TModel (Tree t, str _name) { return aliasesTModelForTree(t); },
                     runName = "Aliases");
 }
 

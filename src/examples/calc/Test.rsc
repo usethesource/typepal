@@ -32,7 +32,7 @@ TModel calcTModelFromStr(str text){
 test bool calcTests() {
      return runTests([|project://typepal/src/examples/calc/tests.ttl|], 
                      #Calc, 
-                     calcTModelForTree, 
+                     TModel (Tree t, str _name) { return calcTModelForTree(t); },
                      runName="Calc");
 }
 

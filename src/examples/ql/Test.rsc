@@ -31,7 +31,7 @@ TModel qlTModelForTree(Tree pt) {
 
 test bool qlTests() {
     return runTests([|project://typepal/src/examples/ql/tests.ttl|], #start[Form], 
-                     TModel (Tree t) { return qlTModelForTree(t); },
+                     TModel (Tree t, str _name) { return qlTModelForTree(t); },
                      runName = "QL");
 }
 

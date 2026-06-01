@@ -57,7 +57,7 @@ test bool pascalTests() {
     //return true;
     bool ok = runTests([|project://typepal/src/examples/pascal/expression-tests.ttl|,
                         |project://typepal/src/examples/pascal/statement-tests.ttl|
-                       ], #start[Program], TModel (Tree t) { return pascalTModelForTree(t, false); },
+                       ], #start[Program], TModel (Tree t, str _name) { return pascalTModelForTree(t, false); },
                        runName = "Pascal");
     println("Executing Pascal examples\r");
     int n = 0;

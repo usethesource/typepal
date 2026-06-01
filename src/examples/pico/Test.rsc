@@ -32,7 +32,7 @@ TModel picoTModelForTree(Tree pt) {
 test bool picoTests() {
     return runTests([|project://typepal/src/examples/pico/tests.ttl|], 
                     #start[Program], 
-                    TModel (Tree t) { return picoTModelForTree(t); },
+                    TModel (Tree t, str _name) { return picoTModelForTree(t); },
                     runName = "Pico");
 }
 

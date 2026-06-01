@@ -73,7 +73,7 @@ bool matches(str subject, str pat){
 str spinChar(int n)
     = n < 0 ? "|" : (0: "|", 1: "/", 2: "-", 3: "\\")[n%4];
 
-bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, bool verbose = false, set[str] runOnly = {}, str runName = ""){
+bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t, str name) getModel, bool verbose = false, set[str] runOnly = {}, str runName = ""){
     TTL ttlProgram = [TTL] "";
     
     map[tuple[str, loc], list[Message]]failedTests = ();
@@ -107,7 +107,7 @@ bool runTests(list[loc] suites, type[&T<:Tree] begin, TModel(Tree t) getModel, b
                     when t has src
               };
               newTreeSrc = newTree.src;
-              model = getModel(newTree);
+              model = getModel(newTree, "<ti.name>");
               list[Message] messages = model.messages;
               if(verbose) println("runTests: <messages>");
               expected = ti.expect is none ? {} : {deescape("<s>"[1..-1]) | TTL_String s <- ti.expect.messages};

@@ -44,7 +44,7 @@ list[Message] modfunCheck(str name) {
 test bool modfunTests()
     = runTests([|project://typepal/src/examples/modfun/tests.ttl|], 
                #ModFun,
-               modfunTModelForTree,
+               TModel (Tree t, str _name) { return modfunTModelForTree(t); },
                runName = "ModFun");
 
 test bool modfunTModelTestA() = [_, _, _] := modfunTModel("A").messages; // Three errors expected

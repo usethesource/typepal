@@ -33,7 +33,7 @@ TModel fixedMembersTModelFromName(str mname){
 test bool fixedMembersTests() {
     return runTests([|project://typepal/src/examples/fixedMembers/fixedMembers.ttl|], 
                     #start[Program], 
-                    TModel (Tree t) { return fixedMembersTModelForTree(t); },
+                    TModel (Tree t, str _name) { return fixedMembersTModelForTree(t); },
                     runName = "fixedMembers");
 }
 
