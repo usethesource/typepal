@@ -36,7 +36,7 @@ void assertValidDefines(TModel tm){
     if (!tm.config.assertValidDefines) return;
     for(d <- tm.defines){
 
-        assert isContainedIn(d.defined, d.scope) || "global-scope" == d.scope.scheme : 
+        assert isContainedIn(d.defined, d.scope, tm.logical2physical) || "global-scope" == d.scope.scheme : 
             "Expected: For each `d` in `tm.defines`, `d.defined` is contained in `d.scope`. " +
             "Actual: For `<d>` in TModel `<tm.modelName>`, `<d.defined>` (`d.defined`) isn\'t contained in `<d.scope>` (`d.scope`).";
 
