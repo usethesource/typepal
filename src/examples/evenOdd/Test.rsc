@@ -23,7 +23,7 @@ import ParseTree;                           // In order to parse tests
 
 TModel evenOddTModelForTree(Tree pt){
     if(pt has top) pt = pt.top;
-    c = newCollector("even-odd", pt,  tconfig());
+    c = newCollector("even-odd", pt, tconfig()[assertValidDefines = true][assertValidUseDef = true]);
     collect(pt, c);
     return newSolver(pt, c.run()).run();
 }
@@ -36,7 +36,7 @@ TModel evenOddTModelFromStr(str text){
 test bool evenOddTests() {
      return runTests([|project://typepal/src/examples/evenOdd/tests.ttl|], 
                      #EvenOdd, 
-                     evenOddTModelForTree, 
+                     TModel (Tree t, str _name) { return evenOddTModelForTree(t); },
                      runName="EvenOdd");
 }
 

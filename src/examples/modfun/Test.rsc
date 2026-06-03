@@ -28,7 +28,7 @@ TModel modfunTModel(str name){
 }
 
 TModel modfunTModelForTree(Tree pt){
-    return collectAndSolve(pt, modelName="modfun");
+    return collectAndSolve(pt, modelName="modfun", config=tconfig()[assertValidDefines=true][assertValidUseDef=true]);
 }
 
 TModel modfunTModelFromStr(str text){
@@ -43,9 +43,13 @@ list[Message] modfunCheck(str name) {
 
 test bool modfunTests()
     = runTests([|project://typepal/src/examples/modfun/tests.ttl|], 
-               #ModFun,
-               modfunTModelForTree,
-               runName = "ModFun");
+                #ModFun,
+                TModel (Tree t, str _name) { return modfunTModelForTree(t); },
+                runName = "ModFun");
+
+test bool modfunTModelTestA() = [_, _, _] := modfunTModel("A").messages; // Three errors expected
+test bool modfunTModelTestB() = [_, _] := modfunTModel("B").messages; // Two errors expected
+test bool modfunTModelTestTmp() = [] := modfunTModel("tmp").messages;
 
 value main() 
     =  modfunTests();

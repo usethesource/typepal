@@ -20,8 +20,8 @@ import ParseTree;
 
 // ---- Testing ---------------------------------------------------------------
 
-TModel aliasesTModelForTree(Tree pt){
-    return collectAndSolve(pt, config = aliasesConfig(), modelName = "alias");
+TModel aliasesTModelForTree(Tree pt, bool assertValidUseDef = true){
+    return collectAndSolve(pt, config = aliasesConfig()[assertValidDefines = true][assertValidUseDef = assertValidUseDef], modelName = "alias");
 }
 
 TModel aliasesTModelFromName(str mname){
@@ -32,7 +32,10 @@ TModel aliasesTModelFromName(str mname){
 test bool aliasesTests() {
     return runTests([|project://typepal/src/examples/aliases/aliases.ttl|], 
                     #start[Program], 
-                    TModel (Tree t) { return aliasesTModelForTree(t); },
+                    // Enable `assertValidUseDef` only when the program under
+                    // test **isn't** `CircularAlias1` (which is expected to
+                    // have an invalid `useDef`).
+                    TModel (Tree t, str name) { return aliasesTModelForTree(t, assertValidUseDef = name != "CircularAlias1"); },
                     runName = "Aliases");
 }
 

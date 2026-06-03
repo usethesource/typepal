@@ -40,6 +40,63 @@ void checkAllTypesAvailable(TModel tm){
     }
 }
 
+void assertValidDefines(TModel tm){
+    if (!tm.config.assertValidDefines) return;
+    for(d <- tm.defines){
+
+        assert isContainedIn(d.defined, d.scope, tm.logical2physical) || "global-scope" == d.scope.scheme : 
+            "Expected: For each `d` in `tm.defines`, `d.defined` is contained in `d.scope`. " +
+            "Actual: For `<d>` in TModel `<tm.modelName>`, `<d.defined>` (`d.defined`) isn\'t contained in `<d.scope>` (`d.scope`).";
+
+        assert d.defInfo has atype : 
+            "Expected: For each `d` in `tm.defines`, field `d.defInfo` has field `atype`. " +
+            "Actual: For `<d>` in TModel `<tm.modelName>`, `<d.defInfo>` (`d.defInfo`) doesn\'t have that field.";
+    }
+}
+
+void assertValidUseDef(TModel tm, Solver solver) {
+    if (!tm.config.assertValidUseDef) return;
+    scopeGraph = newScopeGraph(tm, tm.config);
+    scopeGraph.setSolver(solver);
+
+    useLocs = sort([u.occ | u <- tm.uses], isLexicallyLess);
+    defLocs = sort([d.defined | d <- tm.defines], isLexicallyLess);
+    for (pair: <useLoc, defLoc> <- tm.useDef) {
+
+        assert useLoc in useLocs :
+            "Expected: For each `\<useLoc, defLoc\>` in `tm.useDef`, a corresponding `Use` exists in `tm.uses` for `useLoc`. " +
+            "Actual: For `<pair>` in TModel `<tm.modelName>`, a corresponding `Use` value doesn\'t exist for `<useLoc>` (`useLoc`), but it does for `<useLocs>`.";
+
+        assert defLoc in defLocs :
+            "Expected: For each `\<useLoc, defLoc\>` in `tm.useDef`, a corresponding `Define` exists in `tm.defines` for `defLoc`. " +
+            "Actual: For `<pair>` in TModel `<tm.modelName>`, a corresponding `Define` value doesn\'t exist for `<defLoc>` (`defLoc`), but it does for `<defLocs>`.";
+
+        usesAtUseLoc = [u | u <- tm.uses, useLoc == u.occ];
+        defsAtDefLoc = [d | d <- tm.defines, defLoc == d.defined];
+        reachable = (u: scopeGraph.lookup(u) | u <- usesAtUseLoc);
+        if (u <- usesAtUseLoc, d <- defsAtDefLoc, d.defined in reachable[u]) {
+
+            assert u.id == d.id :
+                "Expected: For each pair in `tm.useDef`, the corresponding `Use` `u` and `Define` `d` have equal `id` fields. " +
+                "Actual: For `<pair>` in TModel `<tm.modelName>`, `<u.id>` (`u.id`) isn\'t equal to `<d.id>` (`d.id`).";
+
+            assert u.orgId == d.orgId :
+                "Expected: For each pair in `tm.useDef`, the corresponding `Use` `u` and `Define` `d` have equal `orgId` fields. " +
+                "Actual: For `<pair>` in TModel `<tm.modelName>`, `<u.orgId>` (`u.orgId`) isn\'t equal to `<d.orgId>` (`d.orgId`).";
+
+            assert d.idRole in u.idRoles :
+                "Expected: For each pair in `tm.useDef`, the corresponding `Use` `u` and `Define` `d` have compatible roles. " +
+                "Actual: For `<pair>` in TModel `<tm.modelName>`, `<u.idRoles>` (`u.idRoles`) doesn\'t contain `<d.idRole>` (`d.idRole`).";
+
+        } else {
+
+            assert false : 
+                "Expected: For each `\<useLoc, defLoc\>` in `tm.useDef`, `defLoc` is reachable from `useLoc` in the scope graph. " +
+                "Actual: For `<pair>` in TModel `<tm.modelName>`, `<defLoc>` (`defLoc`) isn\'t reachable from `<useLoc>` (`useLoc`), but `<reachable>` are.";
+        }
+    }
+}
+
 // Implementation of the Solver data type: a collection of call backs
 
 Solver newSolver(Tree pt, TModel tm){
@@ -1735,6 +1792,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         //println("definedBy;"); iprintln(definedBy);
         tm.useDef = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
 
+        // Update `uses` with all uses resolved by the solver
+        tm.uses = [*({*tm.uses} + {*def2uses[d] | d <- def2uses})];
+
         ldefines = for(tup: <loc _, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
                         if(defInfo has tree){
                             l = getLogicalLoc(defInfo.tree);
@@ -1765,7 +1825,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         messages =  visit(messages) { case loc l => solver_toPhysicalLoc(l) };
         tm.messages = sortMostPrecise(toList(toSet(messages)));
 
-        checkAllTypesAvailable(tm);
+        assertValidDefines(tm);
+        assertValidUseDef(tm, thisSolver);
         return tm;
     }
 

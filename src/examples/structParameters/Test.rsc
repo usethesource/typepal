@@ -22,7 +22,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel structParametersTModelForTree(Tree pt){
-    return collectAndSolve(pt, config = structParametersConfig(), modelName="struct-parameters");
+    return collectAndSolve(pt, config = structParametersConfig()[assertValidDefines = true][assertValidUseDef = true], modelName = "struct-parameters");
 }
 
 TModel structParametersTModelFromName(str mname){
@@ -33,9 +33,11 @@ TModel structParametersTModelFromName(str mname){
 test bool structParametersTests() {
     return runTests([|project://typepal/src/examples/structParameters/tests.ttl|], 
                      #start[Program], 
-                     TModel (Tree t) { return structParametersTModelForTree(t); },
+                     TModel (Tree t, str _name) { return structParametersTModelForTree(t); },
                      runName = "StructParameters");
 }
+
+test bool structParametersTModelTestTmp() = [] := structParametersTModelFromName("Tmp").messages;
 
 value main()
     = structParametersTests();

@@ -21,7 +21,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
                
 TModel smallOOTModelForTree(Tree pt){
-    return collectAndSolve(pt, config=smallConfig(), modelName="smalloo");
+    return collectAndSolve(pt, config=smallConfig()[assertValidDefines=true][assertValidUseDef=true], modelName="smalloo");
 }
 
 TModel smallOOTModelFromName(str mname){
@@ -36,9 +36,12 @@ list[Message] checkSmallOO(str mname) {
 test bool smallOOTests() {
     return runTests([|project://typepal/src/examples/smallOO/tests.ttl|], 
                     #start[Module], 
-                    TModel (Tree t) { return smallOOTModelForTree(t); },
+                    TModel (Tree t, str _name) { return smallOOTModelForTree(t); },
                     runName = "SmallOO");
 }
+
+test bool smallOOTModelTestM1() = [_] := smallOOTModelFromName("M1").messages;  // One error expected
+test bool smallOOTModelTestM2() = [] := smallOOTModelFromName("M2").messages;
 
 value main()
     = smallOOTests();
