@@ -960,7 +960,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     Define solver_getDefine(loc l) = definitions[getLogicalLoc(l)];
 
     rel[loc,loc] solver_getUseDef()
-        = { *{<u, tm.define2id[d] ? d> | loc d <- definedBy[u]} | loc u <- definedBy };
+        = { *{<u, resolveDef(d)> | loc d <- definedBy[u]} | loc u <- definedBy };
+
+    loc resolveDef(loc def)
+        =  tm.define2id[tm.logical2physical[def] ? def] ? def;
 
     bool solver_isContainedIn(loc inner, loc outer)
         = isContainedIn(inner, outer, logical2physical);
