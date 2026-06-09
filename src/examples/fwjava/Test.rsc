@@ -45,9 +45,18 @@ test bool fwjTModelTestCpt() = [] := fwjTModelFromName("cpt", false).messages;
 test bool fwjTModelTestPair() = [] := fwjTModelFromName("pair", false).messages;
 test bool fwjTModelTestTmp() = [_, _] := fwjTModelFromName("tmp", false).messages; // Two errors expected
 
-test bool fwjUseDefTestCpt() {
-    tm = fwjTModelFromName("cpt", false);
-    iprintln(tm.useDef);
+test bool fwjUseDefTestCpt() = fwjUseDefTest("cpt");
+test bool fwjUseDefTestPair() = fwjUseDefTest("pair");
+test bool fwjUseDefTestTmp() = fwjUseDefTest("tmp");
+
+private bool fwjUseDefTest(str name) {
+    tm = fwjTModelFromName(name, false);
+    for (<u, d> <- tm.useDef, u.length?, d.length?) {
+        // The following assertion is an indirect, but automatic/simple,
+        // approximation to check if `d` is the location of the identifier of a
+        // definition (instead of the whole definition).
+        assert u.length == d.length;
+    }
     return true;
 }
 
