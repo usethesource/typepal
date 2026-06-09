@@ -22,7 +22,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel fixedMembersTModelForTree(Tree pt){
-    return collectAndSolve(pt, config = fixedMembersConfig(), modelName="fixed-members");
+    return collectAndSolve(pt, config = fixedMembersConfig()[assertValidDefines = true][assertValidUseDef = true], modelName = "fixed-members");
 }
 
 TModel fixedMembersTModelFromName(str mname){
@@ -33,7 +33,7 @@ TModel fixedMembersTModelFromName(str mname){
 test bool fixedMembersTests() {
     return runTests([|project://typepal/src/examples/fixedMembers/fixedMembers.ttl|], 
                     #start[Program], 
-                    TModel (Tree t) { return fixedMembersTModelForTree(t); },
+                    TModel (Tree t, str _name) { return fixedMembersTModelForTree(t); },
                     runName = "fixedMembers");
 }
 
