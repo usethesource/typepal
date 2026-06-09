@@ -108,6 +108,9 @@ data TypePalConfig(
         );
 
 data TypePalConfig(
+        bool assertValidDefines = false,
+        bool assertValidUseDef  = false,
+
         bool verbose               = false,
 
         PathConfig typepalPathConfig = pathConfig(),

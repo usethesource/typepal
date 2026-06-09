@@ -147,7 +147,7 @@ list[Message] runModules(str name, bool debug = false) {
 }
  
 bool testModules(int n, bool debug = false, set[str] runOnly = {}) {
-    return runTests([|project://modules-core/src/lang/modules/modules<"<n>">.ttl|], #start[Program], TModel (Tree t) {
+    return runTests([|project://modules-core/src/lang/modules/modules<"<n>">.ttl|], #start[Program], TModel (Tree t, str _name) {
         return modulesTModelFromTree(t);
     }, runOnly = runOnly);
 }

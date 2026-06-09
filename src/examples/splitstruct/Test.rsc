@@ -22,7 +22,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel splitstructTModelForTree(Tree pt){
-    return collectAndSolve(pt, config = splitstructConfig(), modelName="splitstruct");
+    return collectAndSolve(pt, config = splitstructConfig()[assertValidDefines = true][assertValidUseDef = true], modelName = "splitstruct");
 }
 
 TModel splitstructTModelFromName(str mname){
@@ -33,7 +33,7 @@ TModel splitstructTModelFromName(str mname){
 test bool splitstructTests() {
     return runTests([|project://typepal/src/examples/splitstruct/tests.ttl|], 
                     #start[Program],
-                    TModel (Tree t) { return splitstructTModelForTree(t); },
+                    TModel (Tree t, str _name) { return splitstructTModelForTree(t); },
                     runName = "SplitStruct");
 }
 

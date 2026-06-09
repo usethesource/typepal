@@ -22,7 +22,7 @@ import ParseTree;
 // ---- Testing ---------------------------------------------------------------
 
 TModel staticFieldsTModelForTree(Tree pt){
-    return collectAndSolve(pt, config=staticFieldsConfig(), modelName="staticfields");
+    return collectAndSolve(pt, config=staticFieldsConfig()[assertValidDefines=true][assertValidUseDef=true], modelName="staticfields");
 }
 
 TModel staticFieldsTModelFromName(str mname){
@@ -33,7 +33,7 @@ TModel staticFieldsTModelFromName(str mname){
 test bool staticFieldsTests() {
     return runTests([|project://typepal/src/examples/staticFields/tests.ttl|], 
                     #start[Program], 
-                    TModel (Tree t) { return staticFieldsTModelForTree(t); },
+                    TModel (Tree t, str _name) { return staticFieldsTModelForTree(t); },
                     runName = "StaticFields");
 }
 

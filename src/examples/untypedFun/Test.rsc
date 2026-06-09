@@ -26,9 +26,15 @@ list[Message] untypedFunCheck(str name){
 }
 
 TModel untypedFunTModelForTree(Tree pt)
-    = collectAndSolve(pt, modelName="ufun");
+    = collectAndSolve(pt, modelName="ufun", config=tconfig()[assertValidDefines=true][assertValidUseDef=true]);
 
 test bool untypedFunTests()
-    = runTests([|project://typepal/src/examples/untypedFun/tests.ttl|], #Expression, untypedFunTModelForTree, runName="UntypedFun");
+    = runTests([|project://typepal/src/examples/untypedFun/tests.ttl|],
+                #Expression,
+                TModel (Tree t, str _name) { return untypedFunTModelForTree(t); },
+                runName="UntypedFun");
+
+test bool untypedFunTModelTestBig() = [] := untypedFunTModelForTree(sample("big")).messages;
+test bool untypedFunTModelTestTmp() = [_] := untypedFunTModelForTree(sample("tmp")).messages; // One error expected
 
 value main() = untypedFunTests();

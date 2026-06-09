@@ -23,7 +23,7 @@ import ParseTree;
 TModel fwjTModelForTree(Tree pt){
     if(pt has top) pt = pt.top;
     
-    c = newCollector("fwj", pt, fwjConfig());
+    c = newCollector("fwj", pt, fwjConfig()[assertValidDefines = true][assertValidUseDef = true]);
     fwjPreCollectInitialization(pt, c);
     collect(pt, c);
     return newSolver(pt, c.run()).run();
@@ -37,8 +37,18 @@ TModel fwjTModelFromName(str mname, bool _){
 test bool fwjTests() {
     return runTests([|project://typepal/src/examples/fwjava/tests.ttl|], 
                      #start[FWJProgram], 
-                     TModel (Tree t) { return fwjTModelForTree(t); },
+                     TModel (Tree t, str _name) { return fwjTModelForTree(t); },
                      runName = "FwJava");
+}
+
+test bool fwjTModelTestCpt() = [] := fwjTModelFromName("cpt", false).messages;
+test bool fwjTModelTestPair() = [] := fwjTModelFromName("pair", false).messages;
+test bool fwjTModelTestTmp() = [_, _] := fwjTModelFromName("tmp", false).messages; // Two errors expected
+
+test bool fwjUseDefTestCpt() {
+    tm = fwjTModelFromName("cpt", false);
+    iprintln(tm.useDef);
+    return true;
 }
 
 value main() = fwjTests();
