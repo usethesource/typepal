@@ -77,5 +77,51 @@ data Collector
                          void (value l, value r, FailMessage fm) requireEqual,
                          void (value l, value r, FailMessage fm) requireComparable,
                          void (value l, value r, FailMessage fm) requireSubType,
-                         void (value l, value r, FailMessage fm) requireUnify
+                         void (value l, value r, FailMessage fm) requireUnify,
+
+    /* blocked short-hands for scope stack and info stack management (default kwparams) */
+
+    /* enter/leave */   void (Tree id, void () block) scope = (Tree id, void() block) {
+                            enterScope(id);
+                            try
+                                block();
+                            catch 22: ;
+                            finally
+                                leaveScope(id);
+                        },
+    /* lub ent/leave */ void (Tree id, void () block) lubScope = (Tree id, void() block) {
+                            enterLubScope(id);
+                            try
+                                block();
+                            catch 22: ;
+                            finally
+                                leaveScope(id);
+                        },
+    /* comp lub */      void (list[Tree] ids, void () block) compositeLubScope = (list[Tree] ids, void () block) {
+                            enterCompositeLubScope(ids);
+                            try 
+                                block();
+                            catch 22: ;
+                            finally 
+                                leaveCompositeScope(ids);
+                        },
+    /* comp ent/leave*/ void (list[Tree] ids, void () block) compositeScope = (list[Tree] ids, void () block) {
+                            enterCompositeScope(ids);
+                            try 
+                                block();
+                            catch 22: ;
+                            finally 
+                                leaveCompositeScope(ids);
+                            
+                        },
+    /* push/pop info*/  void (str key, value val, void () block) nestInfo = (str key, value val, void () block) {
+                            push(key, val);
+                            try {
+                                block();
+                            }
+                            catch 22: ;
+                            finally {
+                                pop(key);
+                            }
+                        }
       ); 
