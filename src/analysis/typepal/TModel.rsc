@@ -115,6 +115,7 @@ data TModel (
     map[loc, Define] definitions = (),
     map[loc,loc] logical2physical = (),
     bool usesPhysicalLocs = false, // Are locations in physical format?
+    map[loc,loc] define2id = (),
     TypePalConfig config = tconfig()
 )   = tmodel();
 

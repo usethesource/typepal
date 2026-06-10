@@ -62,6 +62,10 @@ void assertValidUseDef(TModel tm, Solver solver) {
     useLocs = sort([u.occ | u <- tm.uses], isLexicallyLess);
     defLocs = sort([d.defined | d <- tm.defines], isLexicallyLess);
     for (pair: <useLoc, defLoc> <- tm.useDef) {
+        // Invert `define2id` when needed
+        if (/Define d := tm.defines, defLoc == (tm.define2id[d.defined] ? |unknown:///|)) {
+            defLoc = d.defined;
+        }
 
         assert useLoc in useLocs :
             "Expected: For each `\<useLoc, defLoc\>` in `tm.useDef`, a corresponding `Use` exists in `tm.uses` for `useLoc`. " +
@@ -956,7 +960,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     Define solver_getDefine(loc l) = definitions[getLogicalLoc(l)];
 
     rel[loc,loc] solver_getUseDef()
-        = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
+        = { *{<u, resolveDef(d)> | loc d <- definedBy[u]} | loc u <- definedBy };
+
+    loc resolveDef(loc def)
+        =  tm.define2id[tm.logical2physical[def] ? def] ? def;
 
     bool solver_isContainedIn(loc inner, loc outer)
         = isContainedIn(inner, outer, logical2physical);
@@ -1790,7 +1797,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         tm.specializedFacts = specializedFacts;
 
         //println("definedBy;"); iprintln(definedBy);
-        tm.useDef = { *{<u, d> | loc d <- definedBy[u]} | loc u <- definedBy };
+        tm.useDef = solver_getUseDef();
 
         // Update `uses` with all uses resolved by the solver
         tm.uses = [*({*tm.uses} + {*def2uses[d] | d <- def2uses})];
