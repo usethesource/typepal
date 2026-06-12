@@ -26,6 +26,7 @@ import util::IDEServices;
 
 extend analysis::typepal::AType;
 extend analysis::typepal::Exception;
+import analysis::typepal::GetLoc;
 
 // ---- Message utilities -----------------------------------------------------
 
