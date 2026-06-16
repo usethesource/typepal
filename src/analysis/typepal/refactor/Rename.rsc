@@ -344,31 +344,44 @@ private RenameResult _rename(
       Any additional work will be added based on the results of above steps.
     */ totalWork = 2 * WORKSPACE_WORK + 1);
 
-// TODO If performance bottleneck, rewrite to binary search
 @synopsis{Compute locations of names of `defs` in `tr`.}
-private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer _r) {
+private map[Define, loc] defNameLocations(Tree tr, set[Define] defs, Renamer r) {
+    TModel tm = r.getConfig().tmodelForTree(tr);
     map[loc, Define] definitions = (d.defined: d | d <- defs);
-    set[loc] defsToDo = defs.defined;
 
-    // If we have a single definition, we can put the pattern matcher to work
-    if ({loc d} := defsToDo) {
-        def = definitions[d];
-        top-down visit (tr) {
-            case t:appl(_, _):
-                if (t.src?, d := t.src) {
-                    return (def: nameLocation(t, def));
-                }
+    // Prepare lookup result management
+    map[Define, loc] done = ();
+    set[loc] todo = defs.defined;
+
+    bool putThenIsDone(Define k, loc v) {
+        done[k] = v;
+        todo -= k.defined;
+        return {} == todo;
+    }
+
+    // Special case (fast): Lookup name locations in the TModel (might not be
+    // available)
+    for (loc d <- todo, d in tm.define2id) {
+        Define def = definitions[d];
+        if (putThenIsDone(def, tm.define2id[d])) {
+            return done;
         }
     }
 
-    map[Define, loc] defNames = ();
-    for (defsToDo != {}, /t:appl(_, _) := tr, t.src?, loc d := t.src, d in defsToDo) {
-        def = definitions[d];
-        defNames[def] = nameLocation(t, def);
-        defsToDo -= d;
+    // General case (slow): Lookup remaining name locations in the tree. Code is
+    // intentionally organized to require one visit (instead of iterating over
+    // `todo`, which would require `size(todo)` visits).
+    top-down visit (tr) {
+        case t: appl(_, _):
+            if (t.src? && t.src in todo) {
+                Define def = definitions[t.src];
+                if (putThenIsDone(def, nameLocation(t, def))) {
+                    return done;
+                }
+            }
     }
 
-    return defNames;
+    throw TypePalInternalError("Cannot find names inside the following definitions: `<todo>`");
 }
 
 @synopsis{Computes ((Define))(s) for the name under `cursor`.}
