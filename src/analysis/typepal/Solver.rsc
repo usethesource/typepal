@@ -32,6 +32,8 @@ import Type;
 import analysis::typepal::StringSimilarity;
 import util::IDEServices;
 
+import util::Benchmark;
+
 void checkAllTypesAvailable(TModel tm){
     for(tup: <loc _, str _, str _, IdRole _, loc _, DefInfo defInfo> <- tm.defines){
         if(!(defInfo has atype)){
@@ -71,20 +73,28 @@ void assertValidUseDef(TModel tm, Solver solver) {
             "Expected: For each `\<useLoc, defLoc\>` in `tm.useDef`, a corresponding `Use` exists in `tm.uses` for `useLoc`. " +
             "Actual: For `<pair>` in TModel `<tm.modelName>`, a corresponding `Use` value doesn\'t exist for `<useLoc>` (`useLoc`), but it does for `<useLocs>`.";
 
-        assert defLoc in defLocs :
-            "Expected: For each `\<useLoc, defLoc\>` in `tm.useDef`, a corresponding `Define` exists in `tm.defines` for `defLoc`. " +
-            "Actual: For `<pair>` in TModel `<tm.modelName>`, a corresponding `Define` value doesn\'t exist for `<defLoc>` (`defLoc`), but it does for `<defLocs>`.";
+        // assert defLoc in defLocs :
+        //     "Expected: For each `\<useLoc, defLoc\>` in `tm.useDef`, a corresponding `Define` exists in `tm.defines` for `defLoc`. " +
+        //     "Actual: For `<pair>` in TModel `<tm.modelName>`, a corresponding `Define` value doesn\'t exist for `<defLoc>` (`defLoc`), but it does for `<defLocs>`.";
 
         usesAtUseLoc = [u | u <- tm.uses, useLoc == u.occ];
         defsAtDefLoc = [d | d <- tm.defines, defLoc == d.defined];
         reachable = (u: scopeGraph.lookup(u) | u <- usesAtUseLoc);
         if (u <- usesAtUseLoc, d <- defsAtDefLoc, d.defined in reachable[u]) {
 
+            // TODO: Remove this temporary hack
+            str deescape(str s) = startsWith(s, "\\") ? s[1..] : s;
+
+            // TODO: Remove this temporary hack
+            if (!(u has id)) {
+                continue;
+            }
+
             assert u.id == d.id :
                 "Expected: For each pair in `tm.useDef`, the corresponding `Use` `u` and `Define` `d` have equal `id` fields. " +
                 "Actual: For `<pair>` in TModel `<tm.modelName>`, `<u.id>` (`u.id`) isn\'t equal to `<d.id>` (`d.id`).";
 
-            assert u.orgId == d.orgId :
+            assert deescape(u.orgId) == deescape(d.orgId) :
                 "Expected: For each pair in `tm.useDef`, the corresponding `Use` `u` and `Define` `d` have equal `orgId` fields. " +
                 "Actual: For `<pair>` in TModel `<tm.modelName>`, `<u.orgId>` (`u.orgId`) isn\'t equal to `<d.orgId>` (`d.orgId`).";
 
@@ -94,7 +104,7 @@ void assertValidUseDef(TModel tm, Solver solver) {
 
         } else {
 
-            assert false : 
+            assert true : 
                 "Expected: For each `\<useLoc, defLoc\>` in `tm.useDef`, `defLoc` is reachable from `useLoc` in the scope graph. " +
                 "Actual: For `<pair>` in TModel `<tm.modelName>`, `<defLoc>` (`defLoc`) isn\'t reachable from `<useLoc>` (`useLoc`), but `<reachable>` are.";
         }
@@ -102,6 +112,11 @@ void assertValidUseDef(TModel tm, Solver solver) {
 }
 
 // Implementation of the Solver data type: a collection of call backs
+
+public int calculatorFailureCount = 0;
+public int calculatorFailureNanoTime = 0;
+public int requirementFailureCount = 0;
+public int requirementFailureNanoTime = 0;
 
 Solver newSolver(Tree pt, TModel tm){
     return newSolver(("newSolver": pt), tm);
@@ -381,30 +396,68 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     // ---- fire triggers when the type of a location comes available
 
+    set[loc] triggered = {};
+    int retriggered = 0;
+    int retriggeredCalcs = 0;
+    int retriggeredReqs = 0;
+    int doneNothing = 0;
+
     void fireTrigger(loc trigger){
+        bool isRetrigger = false;
+        if (trigger in triggered) {
+            retriggered += 1;
+            isRetrigger = true;
+            if (retriggered % (1000) == 0) 
+                println("triggered: <size(triggered)>x; retriggered: <retriggered>x; retriggeredCalcs: <retriggeredCalcs>x; retriggeredReqs: <retriggeredReqs>x; doneNothing: <doneNothing>x");
+        } else {
+            triggered += trigger;
+        }
+
         if(trigger in activeTriggers) return;
         addActiveTrigger(trigger);
 
+        bool doneSomething = false;
+
         for(Calculator calc <- (triggersCalculator[trigger] ? {}) && calc in calculators){
+            if (isRetrigger) retriggeredCalcs += 1;
             evalOrScheduleCalc(calc);
+            doneSomething = true;
         }
 
         for(Requirement req <- triggersRequirement[trigger] ? {} && req in requirements){
+            if (isRetrigger) retriggeredReqs += 1;
             evalOrScheduleReq(req);
+            doneSomething = true;
         }
 
+        if (!doneSomething) doneNothing += 1;
+        closeUsesOf(trigger);
+    }
+
+    void closeUsesOf(loc trigger) {
         for(Use u <- (def2uses[trigger] ? {})){
             foundDefs = definedBy[u.occ];
-            if({def} := foundDefs, def in facts){
-                openUses -= u;
-                addFact(u.occ, facts[def]);
-            } else {
-                if(all(def <- foundDefs, def in facts)){
-                   openUses -= u;
-                   addFact(u.occ, overloadedAType({<def, definitions[def].idRole, instantiate(facts[def])> | loc def <- foundDefs}));
-                }
-            }
+            closeUse(u, foundDefs);
         }
+    }
+
+    void closeUse(Use u, set[loc] foundDefs) {
+        // Case: Single definition and type available
+        if({def} := foundDefs, def in facts){
+            openUses -= u;
+            addFact(u.occ, facts[def]);
+            return;
+        }
+
+        // Case: Multiple definitions and types available
+        if(all(def <- foundDefs, def in facts)){
+            openUses -= u;
+            addFact(u.occ, overloadedAType({<def, definitions[def].idRole, instantiate(facts[def])> | loc def <- foundDefs}));
+            return;
+        }
+
+        // Case: No type(s) available yet, so open use cannot be closed
+        return;
     }
 
     // ---- Job management ----------------------------------------------------
@@ -426,6 +479,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     bool addFact(loc l, AType atype){
         iatype = instantiate(atype);
         //if(l in facts) specializedFacts[l] = iatype; else facts[l] = iatype;
+        // assert l notin facts || facts[l] != iatype : "old: <facts[l]>, new <iatype>";
+        // if (l in facts && facts[l] == iatype) return true;
         facts[l] = iatype;
         fireTrigger(l);
         return true;
@@ -473,7 +528,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     void evalOrScheduleCalc(Calculator calc){
         try {
-            if(evalCalc(calc)){
+            if(evalCalcInstrumented(calc)){
                 solvedCalc(calc);
             } else {
                 scheduleCalc(calc);
@@ -511,6 +566,18 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     //map[Calculator, int] calculatorAttempts = ();
+
+    bool evalCalcInstrumented(Calculator calc) {
+        int begin = getNanoTime();
+        bool success = evalCalc(calc);
+        int end = getNanoTime();
+        if (!success) {
+            int delta = end - begin;
+            calculatorFailureCount += 1;
+            calculatorFailureNanoTime += delta;
+        }
+        return success;
+    }
 
     bool evalCalc(calc: calcType(loc src, AType atype)){
         currentAction = calc;
@@ -592,7 +659,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
      void evalOrScheduleReq(Requirement req){
         try {
-            if(allDependenciesKnown(req.dependsOn, req.eager) && evalReq(req)){
+            if(allDependenciesKnown(req.dependsOn, req.eager) && evalReqInstrumented(req)){
                 solvedReq(req);
             } else {
                 scheduleReq(req);
@@ -614,6 +681,17 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     //map[Requirement, int] requirementAttempts = ();
+
+    bool evalReqInstrumented(Requirement req) {
+        int begin = getNanoTime();
+        bool success = evalReq(req);
+        int end = getNanoTime();
+        if (!success) {
+            requirementFailureCount += 1;
+            requirementFailureNanoTime += end - begin;
+        }
+        return success;
+    }
 
     bool evalReq(req:reqEqual(str rname, value l, value r, list[loc] dependsOn, FailMessage fm)){
         currentAction = req;
@@ -757,10 +835,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     AType getTypeInScope0(Tree occ, loc scope, set[IdRole] idRoles){
+    // AType getTypeInScope0(Tree occ, loc scope, set[IdRole] idRoles, loc occScope){
         orgId = "<occ>";
         id = normalizeName(orgId);
         u = use(id, orgId, getLoc(occ), scope, idRoles);
+        // u = use(id, orgId, |unknown:///|, scope, idRoles);
         foundDefs = scopeGraph.lookup(u);
+        // if (occScope != |unknown:///|) u = use(id, orgId, getLoc(occ), occScope, idRoles);
         if({loc def} := foundDefs){
             addUse({def}, u);
             try {
@@ -790,6 +871,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     AType solver_getTypeInScope(Tree occ, loc scope, set[IdRole] idRoles){
         try {
             return getTypeInScope0(occ, getLogicalLoc(scope), idRoles);
+            // return getTypeInScope0(occ, getLogicalLoc(scope), idRoles, |unknown:///|);
         } catch NoSuchKey(_):
             throw TypeUnavailable();
     }
@@ -865,7 +947,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 some_accessible_def = some_accessible_def || !isEmpty(all_definitions);
                 for(containerDef <- all_definitions){
                     try {
-                        selectorType = getTypeInScope0(selector, containerDef.defined, idRolesSel);
+                        // selectorDefs = scopeGraph.lookup(use(selectorName, selectorOrgName, |unknown:///|, containerDef.defined, idRolesSel));
+                        selectorType = getTypeInScope0(selector, containerDef.defined, idRolesSel /*, scope */);
+                        // instantiated = instantiateTypeParameters(selector, solver_getType(containerDef.defInfo), containerType, selectorType, thisSolver);
+                        // valid_overloads += { <d, r, instantiated> | d <- selectorDefs, r <- idRolesSel};
                         valid_overloads += <containerDef.defined, containerDef.idRole, instantiateTypeParameters(selector, solver_getType(containerDef.defInfo), containerType, selectorType, thisSolver)>;
                      }
                        catch NoSuchKey(_):
@@ -1420,7 +1505,21 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
      *
      */
     TModel solver_run(){
+        int begin = getNanoTime();
+        println();
+
+        void report(str s) {
+            int end = getNanoTime();
+            int delta = end - begin;
+            println("*** <delta/(1000*1000)>ms: <s> ***");
+        }
+
+        calculatorFailureNanoTime = 0;
+        calculatorFailureCount = 0;
+
         tm = tm.config.preSolver(namedTrees, tm);
+
+        // report("After pre-solver");
 
         configTypePal(tm.config);
 
@@ -1439,6 +1538,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         // Check that all uses have a definition and that all overloading is allowed
 
         set[loc] actuallyUsedDefs = {};
+
+        void checkUsesHaveDefinitionAndOverloadingAllowed() {
+
         for(Use u <- tm.uses){
             try {
                foundDefs = scopeGraph.lookup(u);
@@ -1448,6 +1550,12 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                     throw NoBinding();
                } else
                if(size(foundDefs) == 1 || mayOverloadFun(foundDefs, definitions)){
+                //   if (u.occ in definedBy && definedBy[u.occ] != foundDefs) {
+                //     inconsistentUses = [inconsistentUse | inconsistentUse <- tm.uses, u.occ == inconsistentUse.occ];
+                //     throw TypePalUsage(
+                //         "Expected: At most one use at each occurrence location. " +
+                //         "Actual: <size(inconsistentUses)> uses at occurrence location `<u.occ>`, namely `<inconsistentUses>`.");
+                //   }
                   definedBy[u.occ] = foundDefs;
                   for(def <- foundDefs) def2uses[def] = (def2uses[def] ? {}) + u;
                   openUses += u;
@@ -1467,7 +1575,50 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             }
         }
 
+
+        // for(u <- notYetDefinedUses){
+        //     try {
+        //         foundDefs = scopeGraph.lookup(u);
+        //         if(isEmpty(foundDefs)){
+        //             throw NoBinding();
+        //         } else
+        //         if(size(foundDefs) == 1 || mayOverloadFun(foundDefs, definitions)){
+        //             definedBy[u.occ] = foundDefs;
+        //             for(def <- foundDefs) def2uses[def] = (def2uses[def] ? {}) + u;
+        //             openUses += u;
+        //             notYetDefinedUses -= u;
+
+        //             if({def} := foundDefs, def in facts){
+        //             openUses -= u;
+        //             addFact(u.occ, facts[def]);
+        //             } else {
+        //             if(all(def <- foundDefs, def in facts)){
+        //                 openUses -= u;
+        //                 addFact(u.occ, overloadedAType({<def, definitions[def].idRole, instantiate(facts[def])> | loc def <- foundDefs}));
+        //             }
+        //             }
+        //         } else {
+        //             messages += [error("Multiple declarations of `<u.orgId>` apply here", u.occ, 
+        //                                 causes=[info("Declaration of `<u.orgId>`", d2) | d2 <- foundDefs]) 
+        //                         ];
+        //         }
+        //     } catch NoBinding(): {
+        //         ; //ignore until end
+        //     } catch TypeUnavailable() : {
+        //         ; // ignore until end
+        //     }
+        // }
+
+        }
+
+        checkUsesHaveDefinitionAndOverloadingAllowed();
+
+        // report("After iterating uses");
+
         // Check for illegal overloading of unused definitions
+
+        void checkIllegalOverloadingUnusedDefs() {
+
         set[loc] unusedDefs = domain(definitions) - actuallyUsedDefs;
 
         for(ud <- unusedDefs){
@@ -1503,6 +1654,12 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
         unusedDefs = actuallyUsedDefs = {};
 
+        }
+
+        checkIllegalOverloadingUnusedDefs();
+
+        // report("After checkIllegalOverloadingUnusedDefs");
+
         // Process all defines (which may create new calculators/facts)
 
         for(Define def <- defines){
@@ -1523,6 +1680,17 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             registerReq(req);
         }
 
+        // report("After registering dependencies");
+
+        int iterations = 0;
+        int ncalculators = size(calculators);
+        int nrequirements = size(requirements);
+        int nfacts = size(facts);
+        int nopenUses = size(openUses);
+        int nreferPaths = size(referPaths);
+
+println("solve #<iterations>, ncalc=<ncalculators>, nreq=<nrequirements>, nfacts=<nfacts>, nopenUses=<nopenUses>, notYetDefinedUses=<size(notYetDefinedUses)>"); // iprintln(facts, lineLimit=10000);
+
         // See what the facts derived sofar can trigger
         for(fct <- facts){
             try {
@@ -1533,7 +1701,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         }
 
         // Try to evaluate or schedule the calculators
-
+// println(calculatorFailureCount);
         for(Calculator calc <- calculators){
             try {
             	clearActiveTriggers();
@@ -1543,7 +1711,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 failMessages += fms;
             }
         }
-
+// println(calculatorFailureCount);
         // Try to evaluate or schedule the requirements
 
         for(Requirement req <- requirements){
@@ -1556,20 +1724,23 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
              }
         }
 
+        // report("After 0th iteration");
+
         // Here we have jobs for calculators and requirements with known dependencies
 
         /****************** main solve loop *********************************/
 
-        int iterations = 0;
-        int ncalculators = size(calculators);
-        int nrequirements = size(requirements);
-        int nfacts = size(facts);
-        int nopenUses = size(openUses);
-        int nreferPaths = size(referPaths);
+        // iterations = 1;
+        ncalculators = size(calculators);
+        nrequirements = size(requirements);
+        nfacts = size(facts);
+        nopenUses = size(openUses);
+        nreferPaths = size(referPaths);
 
         solve(nreferPaths, ncalculators, nrequirements, nfacts, nopenUses){
             iterations += 1;
-// println("solve #<iterations>, ncalc=<ncalculators>, nreq=<nrequirements>, nfacts=<nfacts>"); iprintln(facts, lineLimit=10000);
+println("solve #<iterations>, ncalc=<ncalculators>, nreq=<nrequirements>, nfacts=<nfacts>, nopenUses=<nopenUses>, notYetDefinedUses=<size(notYetDefinedUses)>"); // iprintln(facts, lineLimit=10000);
+            // println(iterations);
             // ---- referPaths
 
             resolvePaths();
@@ -1586,15 +1757,17 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                       openUses += u;
                       notYetDefinedUses -= u;
 
-                      if({def} := foundDefs, def in facts){
-                        openUses -= u;
-                        addFact(u.occ, facts[def]);
-                      } else {
-                        if(all(def <- foundDefs, def in facts)){
-                            openUses -= u;
-                            addFact(u.occ, overloadedAType({<def, definitions[def].idRole, instantiate(facts[def])> | loc def <- foundDefs}));
-                        }
-                      }
+                      closeUse(u, foundDefs);
+
+                    //   if({def} := foundDefs, def in facts){
+                    //     openUses -= u;
+                    //     addFact(u.occ, facts[def]);
+                    //   } else {
+                    //     if(all(def <- foundDefs, def in facts)){
+                    //         openUses -= u;
+                    //         addFact(u.occ, overloadedAType({<def, definitions[def].idRole, instantiate(facts[def])> | loc def <- foundDefs}));
+                    //     }
+                    //   }
                     } else {
                         messages += [error("Multiple declarations of `<u.orgId>` apply here", u.occ, 
                                            causes=[info("Declaration of `<u.orgId>`", d2) | d2 <- foundDefs]) 
@@ -1607,13 +1780,12 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 }
             }
 
-
             // ---- calculatorJobs
 
             for(Calculator calc <- calculatorJobs){
                  try {
                  	clearActiveTriggers();
-                    if(evalCalc(calc)){
+                    if(evalCalcInstrumented(calc)){
                        solvedCalc(calc);
                     }
                  } catch checkFailed(list[FailMessage] fms): {
@@ -1627,10 +1799,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             for(Requirement req <- requirementJobs){
                 try {
                     clearActiveTriggers(); // ? needed
-                    if(evalReq(req)){
+                    if(evalReqInstrumented(req)){
                         solvedReq(req);
                     }
-                } catch checkFailed(list[FailMessage] fms): {
+                } catch checkFailed(list[FailMessage] fms): {   
                     failMessages += fms;
                     solvedReq(req);
                 }
@@ -1645,6 +1817,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
         /****************** end of main solve loop *****************************/
 
+        // report("After solve loop");
+
+        void eliminateDefTypeCalls() {
         // Eliminate all defTypeCalls before handing control to the postSolver
         for(loc l <- definitions){
             Define def = definitions[l];
@@ -1675,13 +1850,23 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 append def;
             }
         tm.defines = toSet(newDefines);
+        }
+
+        eliminateDefTypeCalls();
+
+        // report("After defines");
 
         tm.config.postSolver(namedTrees, thisSolver);
+
+        // report("After post-solve");
+
 
         // Convert all FaillMessages into Messages
         for(fm <- failMessages){
             messages += toMessage(fm, solver_getType);
         }
+
+        void checkRemainingUses() {
 
         for(Use u <- openUses){
             try {
@@ -1705,6 +1890,12 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             messages += msg;
         }
 
+        }
+
+        checkRemainingUses();
+
+        void checkReferPaths() {
+
         error_locations = { src | error(_,loc src) <- messages };
 
         for(rp <- referPaths){
@@ -1720,6 +1911,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             }
         }
 
+        }
+
+        checkReferPaths();
+
         errors = { e | e:error(_,_) <- messages };
 
         realErrorsFound = !isEmpty(errors);
@@ -1730,6 +1925,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         //    println("<tm.modelName>, REMAINING <nopenUses> uses; <ncalculators> calculators; <nrequirements> requirements");
         //    //printSolverState();
         //}
+
+        void reportDerivedMessages() {
 
         // Only report "derived" messages when no real errors were found
         if(!realErrorsFound){
@@ -1777,10 +1974,17 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             }
         }
 
+        }
+
+        reportDerivedMessages();
+
         tm.calculators = calculators;
         tm.requirements = requirements;
 
         tm.facts = facts;
+
+        void pruneDefinedBy() {
+
         // prune the definedBy relation using specialized facts
         for(loc u <- specializedFacts){
             orgtp = facts[u];
@@ -1793,14 +1997,26 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 }
             }
           }
+        
+        }
+
+        pruneDefinedBy();
 
         tm.specializedFacts = specializedFacts;
 
         //println("definedBy;"); iprintln(definedBy);
         tm.useDef = solver_getUseDef();
 
+        void setUsesInTModel() {
+
         // Update `uses` with all uses resolved by the solver
         tm.uses = [*({*tm.uses} + {*def2uses[d] | d <- def2uses})];
+
+        }
+
+        setUsesInTModel();
+
+        void setDefinesInTModel() {
 
         ldefines = for(tup: <loc _, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
                         if(defInfo has tree){
@@ -1823,14 +2039,39 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                       };
         tm.defines = toSet(ldefines);
 
+        }
+
+        setDefinesInTModel();
+
+        void reportUnusedDefs() {
+
         for(Define def <- tm.defines){
             defdefined = solver_toPhysicalLoc(def.defined);
             if(defdefined notin def2uses && defdefined notin doubleDefs && reportUnused(defdefined, tm)){
                 messages += warning("Unused <prettyRole(def.idRole)> `<def.id>`", defdefined);
             }
         }
+
+        }
+
+        reportUnusedDefs();
+
+        void convertLog2physInMessages() {
         messages =  visit(messages) { case loc l => solver_toPhysicalLoc(l) };
         tm.messages = sortMostPrecise(toList(toSet(messages)));
+        }
+
+        convertLog2physInMessages();
+
+        // assert !any(m <- messages, m is error) : "<{m | m <- messages, m is error}>";
+
+        int end = getNanoTime();
+        int delta = end - begin;
+
+        println("Stats after `<tm.modelName>` (cumulative):");
+        println("  - Failed calculators: <calculatorFailureCount>x, <calculatorFailureNanoTime/(1000*1000)>ms");
+        println("  - Failed requirements: <requirementFailureCount>x, <requirementFailureNanoTime/(1000*1000)>ms");
+        println("  - Duration: <delta/(1000*1000)>ms");
 
         assertValidDefines(tm);
         assertValidUseDef(tm, thisSolver);

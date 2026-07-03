@@ -403,14 +403,30 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
     /* lookupWide returns all definitions in the current syntactic scope (or its        */
     /* parents) and definitions that can be reached in a single step via semantic links */
     /************************************************************************************/
- 
+
+    map[loc, map[str, map[IdRole, set[loc]]]] convertDefinesMap() {
+        map[loc, map[str, rel[IdRole, loc]]] outer = tm.definesMap;
+        return (
+            scope: (id: Relation::index(inner[id]) | str id <- inner) 
+        |
+            loc scope <- tm.definesMap,
+            map[str, rel[IdRole, loc]] inner := outer[scope]
+        );
+    }
+
+    map[loc, map[str, map[IdRole, set[loc]]]] scope2id2role2defs = convertDefinesMap();
+
     //@memo
     // Retrieve all bindings for use in given syntactic scope
     private set[loc] bindWide(loc scope, str id, set[IdRole] idRoles){
-        idsInScope = (scope in tm.definesMap) ? tm.definesMap[scope] : ();
-        foundDefs = id in idsInScope ? domainR(idsInScope[id], idRoles)<1> : {};
-        // dbg("bindWide: <scope>, <id> =\> <foundDefs>");
-        return foundDefs;
+        map[IdRole, set[loc]] role2defs = (scope2id2role2defs[scope] ? ())[id] ? ();
+        return {*(role2defs[role] ? {}) | IdRole role <- idRoles};
+        // map[str, rel[IdRole idRole, loc defined]] idsInScope = (scope in tm.definesMap) ? tm.definesMap[scope] : ();
+        // rel[IdRole idRole, loc defined] idsToDefsWithAnyRoles = idsInScope[id] ? {};
+        // rel[IdRole idRole, loc defined] idsToDefsWithProvidedRoles = domainR(idsToDefsWithAnyRoles, idRoles);
+        // set[loc] foundDefs = idsToDefsWithProvidedRoles<1>;
+        // // dbg("bindWide: <scope>, <id> =\> <foundDefs>");
+        // return foundDefs;
     }
 
     // Lookup use in the given syntactic scope
@@ -427,23 +443,39 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         // dbgEnter("lookupPathsWide: <use.id> in scope <scope>, role <pathRole>");;
         res = {};
 
-        seenParents = {};
-        solve(res, scope) {
-        next_path:
-            for(<scope, loc parent> <- pathsByPathRole[pathRole] ? {}, parent notin seenParents){
-                seenParents += parent;
-                for(loc def <- lookupScopeWide(parent, use)){
-                    switch(isAcceptablePathFun(parent, def, use, pathRole, the_solver)){
+        // Assumption: `pathsByRole` doesn't change during this call
+        for (<scope, loc parent> <- pathsByPathRole[pathRole] ? {}) {
+            bool skip = false;
+            for (!skip, loc def <- lookupScopeWide(parent, use)) {
+                switch (isAcceptablePathFun(parent, def, use, pathRole, the_solver)) {
                     case acceptBinding():
-                       res += def;
-                     case ignoreContinue():
-                          continue;
-                     case ignoreSkipPath():
-                          continue next_path;
-                    }
+                        res += def;
+                    case ignoreContinue():
+                        continue;
+                    case ignoreSkipPath():
+                        skip = true;
                 }
             }
         }
+
+        // seenParents = {};
+        // solve(res, scope) {
+        // next_path:
+        //     for(<scope, loc parent> <- pathsByPathRole[pathRole] ? {}, parent notin seenParents){
+        //         seenParents += parent;
+        //         for(loc def <- lookupScopeWide(parent, use)){
+        //             switch(isAcceptablePathFun(parent, def, use, pathRole, the_solver)){
+        //             case acceptBinding():
+        //                res += def;
+        //              case ignoreContinue():
+        //                   continue;
+        //              case ignoreSkipPath():
+        //                   continue next_path;
+        //             }
+        //         }
+        //     }
+        // }
+
         // dbgLeave("lookupPathsWide: <use.id> in scope <scope>, <pathRole> ==\> <res>");
         return res;
     }
@@ -497,13 +529,20 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         return res;
     }
 
+    map[Use, set[loc]] lookupWideCache = ();
+
     public set[loc] lookupWide(Use u){
+        if (u in lookupWideCache) {
+            set[loc] defs = lookupWideCache[u];
+            if (isEmpty(defs)) throw NoBinding(); else return defs;
+        }
 
         // Update current paths and pathRoles
         current_pathsByPathRole =  the_solver.getPathsByPathRole();
         if(current_pathsByPathRole != pathsByPathRole){
             pathsByPathRole = current_pathsByPathRole;
             pathRoles = domain(pathsByPathRole);
+            lookupWideCache = ();
         }
 
         scope = u.scope;
@@ -512,6 +551,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         // dbgPaths();
         if(!(u has qualifierRoles)){
            defs = {def | loc def <- lookupNestWide(scope, u), isAcceptableSimpleFun(def, u, the_solver) == acceptBinding()};
+            lookupWideCache[u] = defs;
         //    dbg("lookupWide: <u> =\> <defs>");
            if(isEmpty(defs)) throw NoBinding(); else return defs;
         } else {
@@ -528,6 +568,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
                     scopeLookups = lookupNestWide(qscope, use(u.ids[-1], "<u.occ>", u.occ, qscope, u.idRoles));
                     defs += { def | def <- scopeLookups, isAcceptableQualifiedFun(def, u, the_solver) == acceptBinding()};
                 }
+                lookupWideCache[u] = defs;
                 if(!isEmpty(defs)){
                     // dbg("lookupWide: <u> returns:\n<for(d <- defs){>\t==\> <d><}>");
                     return defs;
