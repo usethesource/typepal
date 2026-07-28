@@ -1109,18 +1109,40 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         }
         newPaths = { tup | tup:<loc u, PathRole _, loc d> <- newPaths, u != d };
         tm.referPaths = referPaths;
-        newPathFound = !isEmpty(newPaths);
-        if(   newPathFound                                      // we found new paths
-           || (!isEmpty(tm.paths) && isEmpty(pathsByPathRole))  // pathsByPathRole not yet initialized
-           ){
-            tm.paths += newPaths;
-            pathsByPathRole = ();
-            for(<loc u, PathRole r, loc d> <- tm.paths){
+        tm.paths += newPaths;
+
+        void initPathsByPathRole() {
+            if (!isEmpty(tm.paths) && isEmpty(pathsByPathRole)) {
+                pathsByPathRole = (r: {} | <_, PathRole r, _> <- tm.paths);
+                for (PathRole r <- pathsByPathRole) {
+                    pathsByPathRole[r] = {<u, d> | <loc u, r, loc d> <- tm.paths};
+                }
+                // That is, first compute the keys, and second compute the total
+                // values. It seems to be significantly faster than computing
+                // keys and total values together:
+                // ```
+                // pathsByPathRole = (r: {<u, d> | <loc u, r, loc d> <- tm.paths} | <_, PathRole r, _> <- tm.paths);
+                // ```
+                // It also seems to be significantly faster than computing keys
+                // and partial values iteratively:
+                // ```
+                // pathsByPathRole = ();
+                // for (<loc u, PathRole r, loc d> <- tm.paths) {
+                //     pathsByPathRole[r] ? {} += {<u, d>};
+                // }
+                // ```
+            }
+        }
+
+        void updatePathsByPathRole() {
+            for(<loc u, PathRole r, loc d> <- newPaths){
                 pathsByPathRole[r] ? {} += {<u, d>};
             }
         }
         
-        return newPathFound;
+        initPathsByPathRole();
+        updatePathsByPathRole();
+        return !isEmpty(newPaths);
     }
 
     // ---- "equal" and "requireEqual" ----------------------------------------
