@@ -162,6 +162,7 @@ data TypePalConfig(
         list[str] (Use u, TModel tm) similarNames = defaultSimilarNames,
 
         bool enableErrorFixes = true,
+        bool enableMessageSorting = false,
 
         int cutoffForNameSimilarity = 3
     );

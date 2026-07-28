@@ -2056,12 +2056,16 @@ println("solve #<iterations>, ncalc=<ncalculators>, nreq=<nrequirements>, nfacts
 
         reportUnusedDefs();
 
-        void convertLog2physInMessages() {
-        messages =  visit(messages) { case loc l => solver_toPhysicalLoc(l) };
-        tm.messages = sortMostPrecise(toList(toSet(messages)));
+        void exportMessagesToTModel() {
+            messages = visit(messages) { case loc l => solver_toPhysicalLoc(l) };
+            messages = toList(toSet(messages)); // Remove duplicates
+            if (tm.config.enableMessageSorting) {
+                messages = sortMostPrecise(messages);
+            }
+            tm.messages = messages;
         }
 
-        convertLog2physInMessages();
+        exportMessagesToTModel();
 
         // assert !any(m <- messages, m is error) : "<{m | m <- messages, m is error}>";
 
