@@ -426,21 +426,15 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
     private set[loc] lookupPathsWide(loc scope, Use use, PathRole pathRole){
         // dbgEnter("lookupPathsWide: <use.id> in scope <scope>, role <pathRole>");;
         res = {};
-
-        seenParents = {};
-        solve(res, scope) {
-        next_path:
-            for(<scope, loc parent> <- pathsByPathRole[pathRole] ? {}, parent notin seenParents){
-                seenParents += parent;
-                for(loc def <- lookupScopeWide(parent, use)){
-                    switch(isAcceptablePathFun(parent, def, use, pathRole, the_solver)){
-                    case acceptBinding():
-                       res += def;
-                     case ignoreContinue():
-                          continue;
-                     case ignoreSkipPath():
-                          continue next_path;
-                    }
+        for (<scope, loc parent> <- pathsByPathRole[pathRole] ? {}) {
+            for (loc def <- lookupScopeWide(parent, use)) {
+                switch (isAcceptablePathFun(parent, def, use, pathRole, the_solver)) {
+                case acceptBinding():
+                    res += def;
+                case ignoreContinue():
+                    continue; // Continue inner loop
+                case ignoreSkipPath():
+                    break; // Break inner loop (continue outer loop)
                 }
             }
         }
