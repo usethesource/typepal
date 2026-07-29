@@ -421,12 +421,29 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         return res;
     }
 
+    // Cache to store results of `getPathTargets`. The assumption is that
+    // semantic paths might change between calls, so the cache needs to be
+    // invalidated when `the_solver.getPathsByPathRole()` returns an updated
+    // value (relative to the previous call of `getPathTargets`).
+    map[PathRole, map[loc, set[loc]]] getPathTargetsCache = ();
+
+    // Gets the target of each path with the provided role and source
+    set[loc] getPathTargets(PathRole role, loc source) {
+        if (role notin getPathTargetsCache) {
+            getPathTargetsCache[role] = ();
+        }
+        if (source notin getPathTargetsCache[role]) {
+            getPathTargetsCache[role][source] = {target | <source, loc target> <- pathsByPathRole[role]};
+        }
+        return getPathTargetsCache[role][source];
+    }
+
     //@memo
     // Find all (semantics induced, one-level) bindings for use in given syntactic scope via PathRole
     private set[loc] lookupPathsWide(loc scope, Use use, PathRole pathRole){
         // dbgEnter("lookupPathsWide: <use.id> in scope <scope>, role <pathRole>");;
         res = {};
-        for (<scope, loc parent> <- pathsByPathRole[pathRole] ? {}) {
+        for (loc parent <- getPathTargets(pathRole, scope)) {
             for (loc def <- lookupScopeWide(parent, use)) {
                 switch (isAcceptablePathFun(parent, def, use, pathRole, the_solver)) {
                 case acceptBinding():
@@ -498,6 +515,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         if(current_pathsByPathRole != pathsByPathRole){
             pathsByPathRole = current_pathsByPathRole;
             pathRoles = domain(pathsByPathRole);
+            getPathTargetsCache = ();
         }
 
         scope = u.scope;
