@@ -497,13 +497,24 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         return res;
     }
 
-    public set[loc] lookupWide(Use u){
+    // Cache to store results of `lookupWide`. The assumption is that syntactic
+    // scopes will not change between calls, but semantic paths might, so the
+    // cache needs to be invalidated when `the_solver.getPathsByPathRole()`
+    // returns an updated value (relative to the previous call of `lookupWide`).
+    map[Use, set[loc]] lookupWideCache = ();
 
+    public set[loc] lookupWide(Use u){
         // Update current paths and pathRoles
         current_pathsByPathRole =  the_solver.getPathsByPathRole();
         if(current_pathsByPathRole != pathsByPathRole){
             pathsByPathRole = current_pathsByPathRole;
             pathRoles = domain(pathsByPathRole);
+            lookupWideCache = ();
+        }
+
+        if (u in lookupWideCache) {
+            set[loc] defs = lookupWideCache[u];
+            if (isEmpty(defs)) throw NoBinding(); else return defs;
         }
 
         scope = u.scope;
@@ -512,6 +523,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         // dbgPaths();
         if(!(u has qualifierRoles)){
            defs = {def | loc def <- lookupNestWide(scope, u), isAcceptableSimpleFun(def, u, the_solver) == acceptBinding()};
+           lookupWideCache[u] = defs;
         //    dbg("lookupWide: <u> =\> <defs>");
            if(isEmpty(defs)) throw NoBinding(); else return defs;
         } else {
@@ -528,6 +540,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
                     scopeLookups = lookupNestWide(qscope, use(u.ids[-1], "<u.occ>", u.occ, qscope, u.idRoles));
                     defs += { def | def <- scopeLookups, isAcceptableQualifiedFun(def, u, the_solver) == acceptBinding()};
                 }
+                lookupWideCache[u] = defs;
                 if(!isEmpty(defs)){
                     // dbg("lookupWide: <u> returns:\n<for(d <- defs){>\t==\> <d><}>");
                     return defs;
