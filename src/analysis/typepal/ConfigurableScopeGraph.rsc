@@ -533,17 +533,17 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
     map[Use, set[loc]] lookupWideCache = ();
 
     public set[loc] lookupWide(Use u){
-        if (u in lookupWideCache) {
-            set[loc] defs = lookupWideCache[u];
-            if (isEmpty(defs)) throw NoBinding(); else return defs;
-        }
-
         // Update current paths and pathRoles
         current_pathsByPathRole =  the_solver.getPathsByPathRole();
         if(current_pathsByPathRole != pathsByPathRole){
             pathsByPathRole = current_pathsByPathRole;
             pathRoles = domain(pathsByPathRole);
             lookupWideCache = ();
+        }
+
+        if (u in lookupWideCache) {
+            set[loc] defs = lookupWideCache[u];
+            if (isEmpty(defs)) throw NoBinding(); else return defs;
         }
 
         scope = u.scope;
