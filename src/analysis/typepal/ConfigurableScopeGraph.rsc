@@ -438,23 +438,30 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         return res;
     }
 
+    map[PathRole, map[loc, set[loc]]] pathTargetsBySourceByRole = ();
+
     //@memo
     // Find all (semantics induced, one-level) bindings for use in given syntactic scope via PathRole
     private set[loc] lookupPathsWide(loc scope, Use use, PathRole pathRole){
         // dbgEnter("lookupPathsWide: <use.id> in scope <scope>, role <pathRole>");;
         res = {};
 
-        // Assumption: `pathsByRole` doesn't change during this call
-        for (<scope, loc parent> <- pathsByPathRole[pathRole] ? {}) {
-            bool skip = false;
-            for (!skip, loc def <- lookupScopeWide(parent, use)) {
+        if (pathRole notin pathTargetsBySourceByRole) {
+            pathTargetsBySourceByRole[pathRole] = ();
+        }
+        if (scope notin pathTargetsBySourceByRole[pathRole]) {
+            pathTargetsBySourceByRole[pathRole][scope] = {parent | <scope, loc parent> <- pathsByPathRole[pathRole]};
+        }
+
+        for (loc parent <- pathTargetsBySourceByRole[pathRole][scope]) {
+            for (loc def <- lookupScopeWide(parent, use)) {
                 switch (isAcceptablePathFun(parent, def, use, pathRole, the_solver)) {
-                    case acceptBinding():
-                        res += def;
-                    case ignoreContinue():
-                        continue;
-                    case ignoreSkipPath():
-                        skip = true;
+                case acceptBinding():
+                    res += def;
+                case ignoreContinue():
+                    continue; // Continue inner loop
+                case ignoreSkipPath():
+                    break; // Break inner loop (continue outer loop)
                 }
             }
         }
@@ -538,6 +545,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         if(current_pathsByPathRole != pathsByPathRole){
             pathsByPathRole = current_pathsByPathRole;
             pathRoles = domain(pathsByPathRole);
+            pathTargetsBySourceByRole = ();
             lookupWideCache = ();
         }
 
