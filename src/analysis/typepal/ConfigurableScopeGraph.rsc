@@ -75,6 +75,11 @@ bool defaultReportUnused (loc _, TModel _) {
     return false;
 }
 
+list[loc] defaultFilterUnused(list[loc] defs, TModel tm) {
+    bool(loc, TModel) reportUnused = tm.config.reportUnused;
+    return [d | loc d <- defs, reportUnused(d, tm)];
+}
+
 // https://en.wikipedia.org/wiki/Uniform_Resource_Identifier#:~:text=A%20URI%20is%20composed%20from,)%2C%20and%20the%20character%20%25%20.
 // gen-delims: : / ? # [ ] @
 // sub-delims: ! $ & ' ( ) * + , ;
@@ -156,6 +161,8 @@ data TypePalConfig(
         void (map[str,Tree] namedTrees, Solver s) postSolver  = void(map[str,Tree] _, Solver _) { return ; },
 
         bool(loc def, TModel tm) reportUnused = defaultReportUnused,
+
+        list[loc](list[loc] defs, TModel tm) filterUnused = defaultFilterUnused,
 
         loc (Define def, str modelName, PathConfig pcfg) createLogicalLoc = defaultLogicalLoc,
 
