@@ -1038,6 +1038,41 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         return newPathFound;
     }
 
+    // ---- Illegal overloading -----------------------------------------------
+
+    void checkIllegalOverloadingOfUnusedDefinitions() {
+        map[str, set[Define]] definesById = Relation::index({<d.id, d> | Define d <- defines});
+        for (str id <- definesById) {
+            set[Define] definesOfId = definesById[id];
+
+            // `id` can be illegally overloaded only if it isn't unique (i.e.,
+            // it has at least two definitions).
+            for (size(definesOfId) >= 2, Define d <- definesOfId, !isUsed(d)) {
+
+                // Turn unused definition into use and check for double
+                // declarations using scope graph lookup (i.e., not each
+                // definition in `definesOfId` might be in scope of `d`).
+                Use u = use(d.id, d.orgId, d.defined, d.scope, {d.idRole});
+                try {
+                    set[loc] foundDefs = scopeGraph.lookup(u);
+                    if (size(foundDefs) > 1 && !mayOverloadFun(foundDefs, definitions)) {
+                        doubleDefs += foundDefs;
+                        messages += [error("Double declaration of `<u.orgId>`", d1, 
+                                        causes=[info("Other declaration of `<u.orgId>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
+                                    | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope, logical2physical)
+                                    ];
+                    }
+                }
+                catch NoBinding(): {;}
+                catch TypeUnavailable(): {;}
+            }
+        }
+    }
+
+    bool isUsed(Define d) {
+        return d.defined in def2uses;
+    }
+
     // ---- "equal" and "requireEqual" ----------------------------------------
 
     bool solver_equal(value given, value expected){
@@ -1467,41 +1502,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             }
         }
 
-        // Check for illegal overloading of unused definitions
-        set[loc] unusedDefs = domain(definitions) - actuallyUsedDefs;
-
-        for(ud <- unusedDefs){
-            udef = definitions[ud];
-
-            scope = udef.scope;
-            id = udef.id;
-            orgId = udef.orgId;
-            idRole = udef.idRole;
-            defined = udef.defined;
-            //if(defined in logical2physical) defined = logical2physical[defined];
-
-            u = use(id, orgId, defined, scope, {idRole}); // turn each unused definition into a use and check for double declarations;
-            try {
-               foundDefs = scopeGraph.lookup(u);
-                if(isEmpty(foundDefs)){
-                    ;//throw TypePalInternalError("No binding found while checking for double definitions");
-               } else
-               if(size(foundDefs) == 1 || mayOverloadFun(foundDefs, definitions)){
-                 ;
-                } else {
-                    doubleDefs += foundDefs;
-                    messages += [error("Double declaration of `<u.orgId>`", d1, 
-                                       causes=[info("Other declaration of `<u.orgId>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
-                                | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope, logical2physical)
-                                ];
-                }
-            }
-            catch NoBinding(): {
-                ;//throw TypePalInternalError("No binding found while checking for double definitions");
-            }
-        }
-
-        unusedDefs = actuallyUsedDefs = {};
+        checkIllegalOverloadingOfUnusedDefinitions();
 
         // Process all defines (which may create new calculators/facts)
 
