@@ -1645,14 +1645,29 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
         /****************** end of main solve loop *****************************/
 
+        // Creating new `defType` values using the `defType` constructor takes
+        // significant interpreter time. To make it faster, the following map
+        // stores "prototypes" from which new `defType` values can be created.
+        map[AType, DefInfo] defInfoPrototypes = ();
+
+        DefInfo newDefInfo(AType t, map[str, value] keywordParameters) {
+            DefInfo proto;
+            if (t in defInfoPrototypes) {
+                proto = defInfoPrototypes[t];
+            } else {
+                proto = defType(t);
+                defInfoPrototypes[t] = proto;
+            }
+            return setKeywordParameters(proto, keywordParameters); // Create new value (i.e., leave `proto` unchanged)
+        }
+
         // Eliminate all defTypeCalls before handing control to the postSolver
         for(loc l <- definitions){
             Define def = definitions[l];
             if(defTypeCall(_, AType(Solver s) getAType) := def.defInfo){
                 kwparams = getKeywordParameters(def.defInfo);
                 try {
-                    di = defType(getAType(thisSolver));
-                    def.defInfo = setKeywordParameters(di, kwparams);
+                    def.defInfo = newDefInfo(getAType(thisSolver), kwparams);
                     definitions[l] = def;
                 } catch _: { // Guard against type incorrect defines, but record for now
                     ; //println("Skipping (type-incorrect) def: <def>\n");
@@ -1663,11 +1678,16 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
         newDefines =
             for(def <- defines){
+                // All `defTypeCall` values have already been eliminated from
+                // `definitions`, so this is a fast(er) way out.
+                if (def.defined in definitions) {
+                    append definitions[def.defined];
+                    continue;
+                }
                 if(defTypeCall(_, AType(Solver s) getAType) := def.defInfo){
                     kwparams = getKeywordParameters(def.defInfo);
                     try {
-                        di = defType(getAType(thisSolver));
-                        def.defInfo = setKeywordParameters(di, kwparams);
+                        def.defInfo = newDefInfo(getAType(thisSolver), kwparams);
                     } catch _: { // Guard against type incorrect defines, but record for now
                         ; //println("Skipping (type-incorrect) def: <def>\n");
                     }
@@ -1805,16 +1825,14 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         ldefines = for(tup: <loc _, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
                         if(defInfo has tree){
                             l = getLogicalLoc(defInfo.tree);
-                            if(l in tm.facts){
-                                   dt = defType(tm.facts[l]);
-                                   tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo));
+                            if(l in facts){
+                                tup.defInfo = newDefInfo(facts[l], getKeywordParameters(defInfo));
                             } else {
                                 continue;
                             }
                         } else {
-                            if(defined in tm.facts){
-                                dt = defType(tm.facts[defined]);
-                                tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo));
+                            if(defined in facts){
+                                tup.defInfo = newDefInfo(facts[defined], getKeywordParameters(defInfo));
                             } else {
                                 continue;
                             }
