@@ -1875,7 +1875,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         messages += [warning("Unused <prettyRole(def.idRole)> `<def.id>`", l) | loc l <- unused, Define def := definitions[l]];
         
         messages =  visit(messages) { case loc l => solver_toPhysicalLoc(l) };
-        tm.messages = sortMostPrecise(toList(toSet(messages)));
+        messages = toList(toSet(messages)); // Remove duplicates
+        if (tm.config.enableSortedMessages) {
+            messages = sortMostPrecise(messages);
+        }
+        tm.messages = messages;
 
         assertValidDefines(tm);
         assertValidUseDef(tm, thisSolver);

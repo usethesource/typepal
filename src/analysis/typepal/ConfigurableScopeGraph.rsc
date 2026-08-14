@@ -170,6 +170,8 @@ data TypePalConfig(
 
         bool enableErrorFixes = true,
 
+        bool enableSortedMessages = false,
+
         int cutoffForNameSimilarity = 3
     );
 
