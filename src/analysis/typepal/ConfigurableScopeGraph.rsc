@@ -75,6 +75,11 @@ bool defaultReportUnused (loc _, TModel _) {
     return false;
 }
 
+list[loc] defaultFilterUnused(list[loc] defs, TModel tm) {
+    bool(loc, TModel) reportUnused = tm.config.reportUnused;
+    return [d | loc d <- defs, reportUnused(d, tm)];
+}
+
 // https://en.wikipedia.org/wiki/Uniform_Resource_Identifier#:~:text=A%20URI%20is%20composed%20from,)%2C%20and%20the%20character%20%25%20.
 // gen-delims: : / ? # [ ] @
 // sub-delims: ! $ & ' ( ) * + , ;
@@ -157,11 +162,15 @@ data TypePalConfig(
 
         bool(loc def, TModel tm) reportUnused = defaultReportUnused,
 
+        list[loc](list[loc] defs, TModel tm) filterUnused = defaultFilterUnused,
+
         loc (Define def, str modelName, PathConfig pcfg) createLogicalLoc = defaultLogicalLoc,
 
         list[str] (Use u, TModel tm) similarNames = defaultSimilarNames,
 
         bool enableErrorFixes = true,
+
+        bool enableSortedMessages = false,
 
         int cutoffForNameSimilarity = 3
     );
@@ -404,11 +413,31 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
     /* parents) and definitions that can be reached in a single step via semantic links */
     /************************************************************************************/
  
+    // Convert `tm.definesMap` to a more efficient representation for the kind
+    // of lookups that are performed in `bindWide`. The idea is to convert only
+    // once, and enjoy a return on investment each time when a lookup is
+    // performed in it (instead of also needing a `domainR` call each time).
+    map[loc, map[str, map[IdRole, set[loc]]]] convertDefinesMap() {
+        // Conversion function for the outer map
+        map[loc, map[str, map[IdRole, set[loc]]]] convertOuter(map[loc, map[str, rel[IdRole, loc]]] scope2id2pairs) {
+            return (scope: convertInner(scope2id2pairs[scope]) | loc scope <- scope2id2pairs);
+        }
+        // Conversion function for the inner maps
+        map[str, map[IdRole, set[loc]]] convertInner(map[str, rel[IdRole, loc]] id2pairs) {
+            return (id: Relation::index(id2pairs[id]) | str id <- id2pairs);
+        }
+        return convertOuter(tm.definesMap);
+    }
+
+    // Convert only once. (Note: this variable is local to `newScopeGraph`, so
+    // always associated with the same TModel.)
+    map[loc, map[str, map[IdRole, set[loc]]]] scope2id2role2defs = convertDefinesMap();
+
     //@memo
     // Retrieve all bindings for use in given syntactic scope
     private set[loc] bindWide(loc scope, str id, set[IdRole] idRoles){
-        idsInScope = (scope in tm.definesMap) ? tm.definesMap[scope] : ();
-        foundDefs = id in idsInScope ? domainR(idsInScope[id], idRoles)<1> : {};
+        map[IdRole, set[loc]] role2defs = (scope2id2role2defs[scope] ? ())[id] ? ();
+        foundDefs = {*(role2defs[role] ? {}) | IdRole role <- idRoles};
         // dbg("bindWide: <scope>, <id> =\> <foundDefs>");
         return foundDefs;
     }
@@ -421,26 +450,37 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         return res;
     }
 
+    // Cache to store results of `getPathTargets`. The assumption is that
+    // semantic paths might change between calls, so the cache needs to be
+    // invalidated when `the_solver.getPathsByPathRole()` returns an updated
+    // value (relative to the previous call of `getPathTargets`).
+    map[PathRole, map[loc, set[loc]]] getPathTargetsCache = ();
+
+    // Gets the target of each path with the provided role and source
+    set[loc] getPathTargets(PathRole role, loc source) {
+        if (role notin getPathTargetsCache) {
+            getPathTargetsCache[role] = ();
+        }
+        if (source notin getPathTargetsCache[role]) {
+            getPathTargetsCache[role][source] = {target | <source, loc target> <- pathsByPathRole[role]};
+        }
+        return getPathTargetsCache[role][source];
+    }
+
     //@memo
     // Find all (semantics induced, one-level) bindings for use in given syntactic scope via PathRole
     private set[loc] lookupPathsWide(loc scope, Use use, PathRole pathRole){
         // dbgEnter("lookupPathsWide: <use.id> in scope <scope>, role <pathRole>");;
         res = {};
-
-        seenParents = {};
-        solve(res, scope) {
-        next_path:
-            for(<scope, loc parent> <- pathsByPathRole[pathRole] ? {}, parent notin seenParents){
-                seenParents += parent;
-                for(loc def <- lookupScopeWide(parent, use)){
-                    switch(isAcceptablePathFun(parent, def, use, pathRole, the_solver)){
-                    case acceptBinding():
-                       res += def;
-                     case ignoreContinue():
-                          continue;
-                     case ignoreSkipPath():
-                          continue next_path;
-                    }
+        for (loc parent <- getPathTargets(pathRole, scope)) {
+            for (loc def <- lookupScopeWide(parent, use)) {
+                switch (isAcceptablePathFun(parent, def, use, pathRole, the_solver)) {
+                case acceptBinding():
+                    res += def;
+                case ignoreContinue():
+                    continue; // Continue inner loop
+                case ignoreSkipPath():
+                    break; // Break inner loop (continue outer loop)
                 }
             }
         }
@@ -497,13 +537,25 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         return res;
     }
 
-    public set[loc] lookupWide(Use u){
+    // Cache to store results of `lookupWide`. The assumption is that syntactic
+    // scopes will not change between calls, but semantic paths might, so the
+    // cache needs to be invalidated when `the_solver.getPathsByPathRole()`
+    // returns an updated value (relative to the previous call of `lookupWide`).
+    map[Use, set[loc]] lookupWideCache = ();
 
+    public set[loc] lookupWide(Use u){
         // Update current paths and pathRoles
         current_pathsByPathRole =  the_solver.getPathsByPathRole();
         if(current_pathsByPathRole != pathsByPathRole){
             pathsByPathRole = current_pathsByPathRole;
             pathRoles = domain(pathsByPathRole);
+            getPathTargetsCache = ();
+            lookupWideCache = ();
+        }
+
+        if (u in lookupWideCache) {
+            set[loc] defs = lookupWideCache[u];
+            if (isEmpty(defs)) throw NoBinding(); else return defs;
         }
 
         scope = u.scope;
@@ -512,6 +564,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         // dbgPaths();
         if(!(u has qualifierRoles)){
            defs = {def | loc def <- lookupNestWide(scope, u), isAcceptableSimpleFun(def, u, the_solver) == acceptBinding()};
+           lookupWideCache[u] = defs;
         //    dbg("lookupWide: <u> =\> <defs>");
            if(isEmpty(defs)) throw NoBinding(); else return defs;
         } else {
@@ -528,6 +581,7 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
                     scopeLookups = lookupNestWide(qscope, use(u.ids[-1], "<u.occ>", u.occ, qscope, u.idRoles));
                     defs += { def | def <- scopeLookups, isAcceptableQualifiedFun(def, u, the_solver) == acceptBinding()};
                 }
+                lookupWideCache[u] = defs;
                 if(!isEmpty(defs)){
                     // dbg("lookupWide: <u> returns:\n<for(d <- defs){>\t==\> <d><}>");
                     return defs;

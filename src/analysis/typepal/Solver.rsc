@@ -141,7 +141,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     AType(AType containerType, Tree selector, loc scope, Solver s) getTypeInNamelessTypeFun = defaultGetTypeInNamelessType;
 
-    bool(loc def, TModel tm) reportUnused = defaultReportUnused;
+    list[loc](list[loc] defs, TModel tm) filterUnused = defaultFilterUnused;
 
     map[loc,loc] logical2physical = tm.logical2physical;
 
@@ -177,7 +177,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         getTypeNamesAndRole = tc.getTypeNamesAndRole;
         getTypeInTypeFromDefineFun = tc.getTypeInTypeFromDefine;
         getTypeInNamelessTypeFun = tc.getTypeInNamelessType;
-        reportUnused = tc.reportUnused;
+        filterUnused = tc.filterUnused;
     }
 
     TypePalConfig solver_getConfig() = tm.config;
@@ -1024,18 +1024,82 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         }
         newPaths = { tup | tup:<loc u, PathRole _, loc d> <- newPaths, u != d };
         tm.referPaths = referPaths;
-        newPathFound = !isEmpty(newPaths);
-        if(   newPathFound                                      // we found new paths
-           || (!isEmpty(tm.paths) && isEmpty(pathsByPathRole))  // pathsByPathRole not yet initialized
-           ){
-            tm.paths += newPaths;
-            pathsByPathRole = ();
-            for(<loc u, PathRole r, loc d> <- tm.paths){
-                pathsByPathRole[r] ? {} += {<u, d>};
-            }
+        tm.paths += newPaths;
+
+        initPathsByPathRole();
+        updatePathsByPathRole(newPaths);
+        return !isEmpty(newPaths);
+    }
+
+    void initPathsByPathRole() {
+        if (!isEmpty(pathsByPathRole)) { // Already initialized
+            return;
         }
         
-        return newPathFound;
+        paths = tm.paths;
+        if (isEmpty(paths)) { // Nothing to initialize
+            return;
+        }
+
+        pathsByPathRole = (r: {} | <_, PathRole r, _> <- paths);
+        for (PathRole r <- pathsByPathRole) {
+            pathsByPathRole[r] = {<u, d> | <loc u, r, loc d> <- paths};
+        }
+        // That is, first compute the keys, and second compute the total
+        // values. It seems to be significantly faster than computing keys
+        // and total values together:
+        // ```
+        // pathsByPathRole = (r: {<u, d> | <loc u, r, loc d> <- paths} | <_, PathRole r, _> <- paths);
+        // ```
+        // It also seems to be significantly faster than computing keys
+        // and partial values iteratively:
+        // ```
+        // pathsByPathRole = ();
+        // for (<loc u, PathRole r, loc d> <- tm.paths) {
+        //     pathsByPathRole[r] ? {} += {<u, d>};
+        // }
+        // ```
+    }
+
+    void updatePathsByPathRole(Paths newPaths) {
+        for(<loc u, PathRole r, loc d> <- newPaths){
+            pathsByPathRole[r] ? {} += {<u, d>};
+        }
+    }
+
+    // ---- Illegal overloading -----------------------------------------------
+
+    void checkIllegalOverloadingOfUnusedDefinitions() {
+        map[str, set[Define]] definesById = Relation::index({<d.id, d> | Define d <- defines});
+        for (str id <- definesById) {
+            set[Define] definesOfId = definesById[id];
+
+            // `id` can be illegally overloaded only if it isn't unique (i.e.,
+            // it has at least two definitions).
+            for (size(definesOfId) >= 2, Define d <- definesOfId, !isUsed(d)) {
+
+                // Turn unused definition into use and check for double
+                // declarations using scope graph lookup (i.e., not each
+                // definition in `definesOfId` might be in scope of `d`).
+                Use u = use(d.id, d.orgId, d.defined, d.scope, {d.idRole});
+                try {
+                    set[loc] foundDefs = scopeGraph.lookup(u);
+                    if (size(foundDefs) > 1 && !mayOverloadFun(foundDefs, definitions)) {
+                        doubleDefs += foundDefs;
+                        messages += [error("Double declaration of `<u.orgId>`", d1, 
+                                        causes=[info("Other declaration of `<u.orgId>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
+                                    | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope, logical2physical)
+                                    ];
+                    }
+                }
+                catch NoBinding(): {;}
+                catch TypeUnavailable(): {;}
+            }
+        }
+    }
+
+    bool isUsed(Define d) {
+        return d.defined in def2uses;
     }
 
     // ---- "equal" and "requireEqual" ----------------------------------------
@@ -1467,41 +1531,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             }
         }
 
-        // Check for illegal overloading of unused definitions
-        set[loc] unusedDefs = domain(definitions) - actuallyUsedDefs;
-
-        for(ud <- unusedDefs){
-            udef = definitions[ud];
-
-            scope = udef.scope;
-            id = udef.id;
-            orgId = udef.orgId;
-            idRole = udef.idRole;
-            defined = udef.defined;
-            //if(defined in logical2physical) defined = logical2physical[defined];
-
-            u = use(id, orgId, defined, scope, {idRole}); // turn each unused definition into a use and check for double declarations;
-            try {
-               foundDefs = scopeGraph.lookup(u);
-                if(isEmpty(foundDefs)){
-                    ;//throw TypePalInternalError("No binding found while checking for double definitions");
-               } else
-               if(size(foundDefs) == 1 || mayOverloadFun(foundDefs, definitions)){
-                 ;
-                } else {
-                    doubleDefs += foundDefs;
-                    messages += [error("Double declaration of `<u.orgId>`", d1, 
-                                       causes=[info("Other declaration of `<u.orgId>`", d2) | d2 <- foundDefs, d2 != d1 ]) 
-                                | d1 <- foundDefs, isContainedIn(u.scope, definitions[d1].scope, logical2physical)
-                                ];
-                }
-            }
-            catch NoBinding(): {
-                ;//throw TypePalInternalError("No binding found while checking for double definitions");
-            }
-        }
-
-        unusedDefs = actuallyUsedDefs = {};
+        checkIllegalOverloadingOfUnusedDefinitions();
 
         // Process all defines (which may create new calculators/facts)
 
@@ -1645,14 +1675,29 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
         /****************** end of main solve loop *****************************/
 
+        // Creating new `defType` values using the `defType` constructor takes
+        // significant interpreter time. To make it faster, the following map
+        // stores "prototypes" from which new `defType` values can be created.
+        map[AType, DefInfo] defInfoPrototypes = ();
+
+        DefInfo newDefInfo(AType t, map[str, value] keywordParameters) {
+            DefInfo proto;
+            if (t in defInfoPrototypes) {
+                proto = defInfoPrototypes[t];
+            } else {
+                proto = defType(t);
+                defInfoPrototypes[t] = proto;
+            }
+            return setKeywordParameters(proto, keywordParameters); // Create new value (i.e., leave `proto` unchanged)
+        }
+
         // Eliminate all defTypeCalls before handing control to the postSolver
         for(loc l <- definitions){
             Define def = definitions[l];
             if(defTypeCall(_, AType(Solver s) getAType) := def.defInfo){
                 kwparams = getKeywordParameters(def.defInfo);
                 try {
-                    di = defType(getAType(thisSolver));
-                    def.defInfo = setKeywordParameters(di, kwparams);
+                    def.defInfo = newDefInfo(getAType(thisSolver), kwparams);
                     definitions[l] = def;
                 } catch _: { // Guard against type incorrect defines, but record for now
                     ; //println("Skipping (type-incorrect) def: <def>\n");
@@ -1663,11 +1708,16 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
         newDefines =
             for(def <- defines){
+                // All `defTypeCall` values have already been eliminated from
+                // `definitions`, so this is a fast(er) way out.
+                if (def.defined in definitions) {
+                    append definitions[def.defined];
+                    continue;
+                }
                 if(defTypeCall(_, AType(Solver s) getAType) := def.defInfo){
                     kwparams = getKeywordParameters(def.defInfo);
                     try {
-                        di = defType(getAType(thisSolver));
-                        def.defInfo = setKeywordParameters(di, kwparams);
+                        def.defInfo = newDefInfo(getAType(thisSolver), kwparams);
                     } catch _: { // Guard against type incorrect defines, but record for now
                         ; //println("Skipping (type-incorrect) def: <def>\n");
                     }
@@ -1805,16 +1855,14 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         ldefines = for(tup: <loc _, str _, str _, IdRole _, loc defined, DefInfo defInfo> <- tm.defines){
                         if(defInfo has tree){
                             l = getLogicalLoc(defInfo.tree);
-                            if(l in tm.facts){
-                                   dt = defType(tm.facts[l]);
-                                   tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo));
+                            if(l in facts){
+                                tup.defInfo = newDefInfo(facts[l], getKeywordParameters(defInfo));
                             } else {
                                 continue;
                             }
                         } else {
-                            if(defined in tm.facts){
-                                dt = defType(tm.facts[defined]);
-                                tup.defInfo = setKeywordParameters(dt, getKeywordParameters(defInfo));
+                            if(defined in facts){
+                                tup.defInfo = newDefInfo(facts[defined], getKeywordParameters(defInfo));
                             } else {
                                 continue;
                             }
@@ -1823,14 +1871,15 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                       };
         tm.defines = toSet(ldefines);
 
-        for(Define def <- tm.defines){
-            defdefined = solver_toPhysicalLoc(def.defined);
-            if(defdefined notin def2uses && defdefined notin doubleDefs && reportUnused(defdefined, tm)){
-                messages += warning("Unused <prettyRole(def.idRole)> `<def.id>`", defdefined);
-            }
-        }
+        list[loc] unused = filterUnused([l | Define def <- tm.defines, loc l := solver_toPhysicalLoc(def.defined), l notin def2uses, l notin doubleDefs], tm);
+        messages += [warning("Unused <prettyRole(def.idRole)> `<def.id>`", l) | loc l <- unused, Define def := definitions[l]];
+        
         messages =  visit(messages) { case loc l => solver_toPhysicalLoc(l) };
-        tm.messages = sortMostPrecise(toList(toSet(messages)));
+        messages = toList(toSet(messages)); // Remove duplicates
+        if (tm.config.enableSortedMessages) {
+            messages = sortMostPrecise(messages);
+        }
+        tm.messages = messages;
 
         assertValidDefines(tm);
         assertValidUseDef(tm, thisSolver);
