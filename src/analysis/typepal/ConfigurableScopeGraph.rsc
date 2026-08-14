@@ -410,14 +410,14 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
     // performed in it (instead of also needing a `domainR` call each time).
     map[loc, map[str, map[IdRole, set[loc]]]] convertDefinesMap() {
         // Conversion function for the outer map
-        map[loc, map[str, map[IdRole, set[loc]]]] convert(map[loc, map[str, rel[IdRole, loc]]] scope2id2pairs) {
-            return (scope: convert(scope2id2pairs[scope]) | loc scope <- scope2id2pairs);
+        map[loc, map[str, map[IdRole, set[loc]]]] convertOuter(map[loc, map[str, rel[IdRole, loc]]] scope2id2pairs) {
+            return (scope: convertInner(scope2id2pairs[scope]) | loc scope <- scope2id2pairs);
         }
         // Conversion function for the inner maps
-        map[str, map[IdRole, set[loc]]] convert(map[str, rel[IdRole, loc]] id2pairs) {
+        map[str, map[IdRole, set[loc]]] convertInner(map[str, rel[IdRole, loc]] id2pairs) {
             return (id: Relation::index(id2pairs[id]) | str id <- id2pairs);
         }
-        return convert(tm.definesMap);
+        return convertOuter(tm.definesMap);
     }
 
     // Convert only once. (Note: this variable is local to `newScopeGraph`, so
