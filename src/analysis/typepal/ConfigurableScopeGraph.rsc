@@ -404,11 +404,31 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
     /* parents) and definitions that can be reached in a single step via semantic links */
     /************************************************************************************/
  
+    // Convert `tm.definesMap` to a more efficient representation for the kind
+    // of lookups that are performed in `bindWide`. The idea is to convert only
+    // once, and enjoy a return on investment each time when a lookup is
+    // performed in it (instead of also needing a `domainR` call each time).
+    map[loc, map[str, map[IdRole, set[loc]]]] convertDefinesMap() {
+        // Conversion function for the outer map
+        map[loc, map[str, map[IdRole, set[loc]]]] convertOuter(map[loc, map[str, rel[IdRole, loc]]] scope2id2pairs) {
+            return (scope: convertInner(scope2id2pairs[scope]) | loc scope <- scope2id2pairs);
+        }
+        // Conversion function for the inner maps
+        map[str, map[IdRole, set[loc]]] convertInner(map[str, rel[IdRole, loc]] id2pairs) {
+            return (id: Relation::index(id2pairs[id]) | str id <- id2pairs);
+        }
+        return convertOuter(tm.definesMap);
+    }
+
+    // Convert only once. (Note: this variable is local to `newScopeGraph`, so
+    // always associated with the same TModel.)
+    map[loc, map[str, map[IdRole, set[loc]]]] scope2id2role2defs = convertDefinesMap();
+
     //@memo
     // Retrieve all bindings for use in given syntactic scope
     private set[loc] bindWide(loc scope, str id, set[IdRole] idRoles){
-        idsInScope = (scope in tm.definesMap) ? tm.definesMap[scope] : ();
-        foundDefs = id in idsInScope ? domainR(idsInScope[id], idRoles)<1> : {};
+        map[IdRole, set[loc]] role2defs = (scope2id2role2defs[scope] ? ())[id] ? ();
+        foundDefs = {*(role2defs[role] ? {}) | IdRole role <- idRoles};
         // dbg("bindWide: <scope>, <id> =\> <foundDefs>");
         return foundDefs;
     }
