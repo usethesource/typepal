@@ -141,7 +141,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     AType(AType containerType, Tree selector, loc scope, Solver s) getTypeInNamelessTypeFun = defaultGetTypeInNamelessType;
 
-    bool(loc def, TModel tm) reportUnused = defaultReportUnused;
+    list[loc](list[loc] defs, TModel tm) filterUnused = defaultFilterUnused;
 
     map[loc,loc] logical2physical = tm.logical2physical;
 
@@ -177,7 +177,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         getTypeNamesAndRole = tc.getTypeNamesAndRole;
         getTypeInTypeFromDefineFun = tc.getTypeInTypeFromDefine;
         getTypeInNamelessTypeFun = tc.getTypeInNamelessType;
-        reportUnused = tc.reportUnused;
+        filterUnused = tc.filterUnused;
     }
 
     TypePalConfig solver_getConfig() = tm.config;
@@ -1871,12 +1871,9 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                       };
         tm.defines = toSet(ldefines);
 
-        for(Define def <- tm.defines){
-            defdefined = solver_toPhysicalLoc(def.defined);
-            if(defdefined notin def2uses && defdefined notin doubleDefs && reportUnused(defdefined, tm)){
-                messages += warning("Unused <prettyRole(def.idRole)> `<def.id>`", defdefined);
-            }
-        }
+        list[loc] unused = filterUnused([l | Define def <- tm.defines, loc l := solver_toPhysicalLoc(def.defined), l notin def2uses, l notin doubleDefs], tm);
+        messages += [warning("Unused <prettyRole(def.idRole)> `<def.id>`", l) | loc l <- unused, Define def := definitions[l]];
+        
         messages =  visit(messages) { case loc l => solver_toPhysicalLoc(l) };
         tm.messages = sortMostPrecise(toList(toSet(messages)));
 
