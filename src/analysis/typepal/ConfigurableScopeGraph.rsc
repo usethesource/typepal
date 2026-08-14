@@ -420,7 +420,8 @@ ScopeGraph newScopeGraph(TModel tm, TypePalConfig config){
         return convert(tm.definesMap);
     }
 
-    // Convert only once
+    // Convert only once. (Note: this variable is local to `newScopeGraph`, so
+    // always associated with the same TModel.)
     map[loc, map[str, map[IdRole, set[loc]]]] scope2id2role2defs = convertDefinesMap();
 
     //@memo
