@@ -57,6 +57,7 @@ data Collector
      /* Use */           void (Tree occ, set[IdRole] idRoles) use,
                          void (list[str] ids, Tree occ, set[IdRole] idRoles, set[IdRole] qualifierRoles) useQualified,
                          void (Tree container, Tree selector, set[IdRole] idRolesSel) useViaType,
+                         void (Tree container, Tree selector, set[IdRole] idRolesSel) useViaTypeNoAutoFact,
                          void (Tree occ, set[IdRole] idRoles) useLub,
  
      /* Path */          void (Tree occ, set[IdRole] idRoles, PathRole pathRole) addPathToDef,

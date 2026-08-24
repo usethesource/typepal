@@ -27,6 +27,7 @@ data Solver
                         AType (Tree occ, loc scope, set[IdRole] idRoles) getTypeInScope,
                         AType (str name, loc scope, set[IdRole] idRoles) getTypeInScopeFromName,
                         AType (value container, Tree selector, set[IdRole] idRolesSel, loc scope) getTypeInType,
+                        AType (value container, Tree selector, set[IdRole] idRolesSel, loc scope) getTypeInTypeNoAutoFact,
                         rel[str id, AType atype] (AType containerType, loc scope, set[IdRole] idRoles) getAllDefinedInType,
     /* Fact */          void (value, AType) fact,
                         void (value, AType) specializedFact,

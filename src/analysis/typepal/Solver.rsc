@@ -396,6 +396,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         if (trigger in tm.passives) return;
 
         for(Use u <- (def2uses[trigger] ? {})){
+            if (u has autoFact && !u.autoFact) continue;
+
             foundDefs = definedBy[u.occ];
             if({def} := foundDefs, def in facts){
                 openUses -= u;
@@ -758,10 +760,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 throw TypeUnavailable();
     }
 
-    AType getTypeInScope0(Tree occ, loc scope, set[IdRole] idRoles){
+    AType getTypeInScope0(Tree occ, loc scope, set[IdRole] idRoles, bool autoFact = true){
         orgId = "<occ>";
         id = normalizeName(orgId);
-        u = use(id, orgId, getLoc(occ), scope, idRoles);
+        u = use(id, orgId, getLoc(occ), scope, idRoles, autoFact = autoFact);
         foundDefs = scopeGraph.lookup(u);
         if({loc def} := foundDefs){
             addUse({def}, u);
@@ -817,7 +819,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             return getTypeInType(solver_getType(getLogicalLoc(container)), selector, idRolesSel, scope);
     }
 
-    AType getTypeInType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope){
+    AType solver_getTypeInTypeNoAutoFact(Tree container, Tree selector, set[IdRole] idRolesSel, loc scope){
+        return getTypeInType(solver_getType(getLogicalLoc(container)), selector, idRolesSel, scope, autoFact = false);
+    }
+
+    AType getTypeInType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope, bool autoFact = true){
         if(!solver_isFullyInstantiated(containerType)){
             throw TypeUnavailable();
         }
@@ -827,7 +833,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
         selectorName = normalizeName(selectorOrgName);
         scope = getLogicalLoc(scope);
 
-        selectorUse = use(selectorName, selectorOrgName, selectorLoc, scope, idRolesSel);
+        selectorUse = use(selectorName, selectorOrgName, selectorLoc, scope, idRolesSel, autoFact = autoFact);
         if(overloadedAType(rel[loc, IdRole, AType] overloads) := containerType){
             rel[loc, IdRole, AType]  valid_overloads = {};
             for(<key, role, tp> <- overloads){
@@ -867,7 +873,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 some_accessible_def = some_accessible_def || !isEmpty(all_definitions);
                 for(containerDef <- all_definitions){
                     try {
-                        selectorType = getTypeInScope0(selector, containerDef.defined, idRolesSel);
+                        selectorType = getTypeInScope0(selector, containerDef.defined, idRolesSel, autoFact = autoFact);
                         valid_overloads += <containerDef.defined, containerDef.idRole, instantiateTypeParameters(selector, solver_getType(containerDef.defInfo), containerType, selectorType, thisSolver)>;
                      }
                        catch NoSuchKey(_):
@@ -1900,6 +1906,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                                 solver_getTypeInScope,
                                 solver_getTypeInScopeFromName,
                                 solver_getTypeInType + getTypeInType,
+                                solver_getTypeInTypeNoAutoFact,
                                 solver_getAllDefinedInType,
            /*Fact */            fact,
                                 solver_specializedFact,

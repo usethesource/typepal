@@ -55,7 +55,7 @@ data ScopeRole
 // IdRoles are used to fold multiple scopeGraphs into one
 // (e.g., one for class and package names, one for variable names etc.)
 data Use
-    = use(str id, str orgId, loc occ, loc scope, set[IdRole] idRoles)
+    = use(str id, str orgId, loc occ, loc scope, set[IdRole] idRoles, bool autoFact = true)
     | useq(list[str] ids, str orgId, loc occ, loc scope, set[IdRole] idRoles, set[IdRole] qualifierRoles)
     ;
 alias Uses = list[Use];

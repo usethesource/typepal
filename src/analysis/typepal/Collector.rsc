@@ -447,9 +447,9 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         }
     }
 
-    AType(Solver) makeGetTypeInType(Tree container, Tree selector, set[IdRole] idRolesSel, loc scope){
+    AType(Solver) makeGetTypeInType(Tree container, Tree selector, set[IdRole] idRolesSel, loc scope, bool autoFact){
         return AType(Solver s) {
-            return s.getTypeInType(container, selector, idRolesSel, scope);
+            return autoFact ? s.getTypeInType(container, selector, idRolesSel, scope) : s.getTypeInTypeNoAutoFact(container, selector, idRolesSel, scope);
          };
     }
 
@@ -458,7 +458,18 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             name = normalizeName("<selector>");
             selectorLoc = getLoc(selector);
             containerLoc = getLoc(container);
-            calculators += calc("useViaType `<name>` in <containerLoc>", selectorLoc,  [containerLoc],  makeGetTypeInType(container, selector, idRolesSel, currentScope));
+            calculators += calc("useViaType `<name>` in <containerLoc>", selectorLoc,  [containerLoc],  makeGetTypeInType(container, selector, idRolesSel, currentScope, true));
+        } else {
+            throw TypePalUsage("Cannot call `useViaType` on Collector after `run`");
+        }
+    }
+
+    void collector_useViaTypeNoAutoFact(Tree container, Tree selector, set[IdRole] idRolesSel){
+        if(building){
+            name = normalizeName("<selector>");
+            selectorLoc = getLoc(selector);
+            containerLoc = getLoc(container);
+            calculators += calc("useViaType `<name>` in <containerLoc>", selectorLoc,  [containerLoc],  makeGetTypeInType(container, selector, idRolesSel, currentScope, false));
         } else {
             throw TypePalUsage("Cannot call `useViaType` on Collector after `run`");
         }
@@ -1140,6 +1151,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         /* Use */           collector_use,
                             collector_useQualified,
                             collector_useViaType,
+                            collector_useViaTypeNoAutoFact,
                             collector_useLub,
 
         /* Path */          collector_addPathToDef,
