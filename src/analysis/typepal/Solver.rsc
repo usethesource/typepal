@@ -393,6 +393,8 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             evalOrScheduleReq(req);
         }
 
+        if (trigger in tm.passives) return;
+
         for(Use u <- (def2uses[trigger] ? {})){
             foundDefs = definedBy[u.occ];
             if({def} := foundDefs, def in facts){

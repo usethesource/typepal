@@ -48,6 +48,7 @@ data Collector
                          bool (list[FailMessage] msgs) reports,
 
      /* Define */        void (value id, IdRole idRole, value def, DefInfo info) define,
+                         void (value id, IdRole idRole, value def, DefInfo info) definePassive,
                          void (value scope, value id, IdRole idRole, value def, DefInfo info) defineInScope,
                          Tree (str id, IdRole idRole, value def, DefInfo info) predefine,
                          Tree (value scope, str id, IdRole idRole, DefInfo info) predefineInScope,

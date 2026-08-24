@@ -217,6 +217,8 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
 
     map[loc,loc] define2id = ();
 
+    set[loc] passives = {};
+
     map[loc,loc] logical2physical = ();
 
     map[loc,loc] physical2logical = ();
@@ -281,6 +283,45 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             nname = normalizeName(orgId);
             Define newDef = <currentScope, nname, orgId, idRole, l, info>;
             logL = buildLogical2physical(newDef);
+            if(info is defTypeLub){
+                // Look for an outer variable declaration of id that overrules the defTypeLub
+                for(Define def <- defines + definesPerLubScope[currentLubScope]){
+                    if(def.id == nname && config.isInferrable(def.idRole)){
+                        if(def.scope in scopeStack<0>) {
+                            uses += use(nname, orgId, l, currentScope, {def.idRole});
+                            return;
+                        }
+                    }
+                }
+                lubDefinesPerLubScope[currentLubScope] += newDef;
+            } else {
+                definesPerLubScope[currentLubScope] += newDef;
+            }
+        } else {
+            throw TypePalUsage("Cannot call `define` on Collector after `run`");
+        }
+    }
+
+    void collector_definePassive(value id, IdRole idRole, value def, DefInfo info){
+        if(building){
+            loc l = |undefined:///|;
+            if(Tree tdef := def) l = getLoc(tdef);
+            else if(loc ldef := def) l = ldef;
+            else throw TypePalUsage("Argument `def` of `define` should be `Tree` or `loc`, found <typeOf(def)>");
+
+            str orgId = "";
+            if(Tree tid := id) {
+                orgId = "<tid>";
+                define2id[l] = tid.src;
+            }
+            else if(str sid := id) orgId = sid;
+            else throw TypePalUsage("Argument `id` of `define` should be `Tree` or `str`, found <typeOf(orgId)>");
+
+            nname = normalizeName(orgId);
+            Define newDef = <currentScope, nname, orgId, idRole, l, info>;
+
+            logL = buildLogical2physical(newDef);
+            passives += logL;
             if(info is defTypeLub){
                 // Look for an outer variable declaration of id that overrules the defTypeLub
                 for(Define def <- defines + definesPerLubScope[currentLubScope]){
@@ -1042,7 +1083,8 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
            tm.definesMap = definesMap;
            definesMap = (); defines = addedDefines = {};
            tm.define2id = define2id; define2id = ();
-           
+           tm.passives = passives; passives = {};        
+
            tm.scopes = toLogicalLocs(scopes - addedScopes) + addedScopes; scopes = addedScopes = ();
            tm.paths = toLogicalLocs(paths - addedPaths) + addedPaths; paths = addedPaths = {};
            tm.referPaths = toLogicalLocs(referPaths); referPaths = {};
@@ -1089,6 +1131,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                             collector_reports,
 
         /* Define */        collector_define,
+                            collector_definePassive,
                             collector_defineInScope,
                             collector_predefine,
                             collector_predefineInScope,
