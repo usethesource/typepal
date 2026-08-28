@@ -381,6 +381,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
 
     // ---- fire triggers when the type of a location comes available
 
+    set[loc] calculatedSrcsOf(calcType(loc src, _)) = {src};
+    set[loc] calculatedSrcsOf(calcLoc(loc src, _)) = {src};
+    set[loc] calculatedSrcsOf(calc(_, loc src, _, _)) = {src};
+    set[loc] calculatedSrcsOf(calcLub(_, list[loc] srcs, _, _)) = {*srcs};
+
+    set[loc] calculatedSrcs = {}; // To be initialized
+
     void fireTrigger(loc trigger){
         if(trigger in activeTriggers) return;
         addActiveTrigger(trigger);
@@ -393,7 +400,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             evalOrScheduleReq(req);
         }
 
-        for(Use u <- (def2uses[trigger] ? {})){
+        if ({} == calculatedSrcs) { // Not yet initialized
+            calculatedSrcs = {*calculatedSrcsOf(calc) | Calculator calc <- calculators};
+        }
+
+        for(Use u <- (def2uses[trigger] ? {}), u.occ notin calculatedSrcs){
             foundDefs = definedBy[u.occ];
             if({def} := foundDefs, def in facts){
                 openUses -= u;
@@ -703,7 +714,7 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
                 case loc l: {
                         l = getLogicalLoc(l);
                         checkDep(l);
-                        return l in specializedFacts ? specializedFacts[l] : facts[l];
+                        return instantiate(findType(l));
                 }
                 case defType(value v) : if(AType atype := v) return atype; else if(Tree tree := v) return instantiate(findType(getLogicalLoc(tree)));
                 case Define def:  {
@@ -1452,6 +1463,15 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
             if(tvar(loc src1) := v && src1 != src && (src1 in bindings || src1 in facts)) return findType(src1);
             return v;
         }
+        if (src in definedBy) {
+            foundDefs = definedBy[src];
+            if ({def} := foundDefs, def in facts) {
+                return facts[def];
+            } else if (all(loc def <- foundDefs, def in facts)) { // `all` guarantees the existence of at least one `def`
+                return overloadedAType({<def, definitions[def].idRole, instantiate(facts[def])> | loc def <- foundDefs});
+            }
+        }
+
        throw NoSuchKey(src);
     }
 
