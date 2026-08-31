@@ -29,6 +29,7 @@ import String;
 import analysis::typepal::Version;
 import analysis::typepal::Messenger;
 import analysis::typepal::LocationChecks;
+import analysis::typepal::GetLoc;
 
 extend analysis::typepal::ConfigurableScopeGraph;
 extend analysis::typepal::ICollector;
@@ -279,8 +280,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             else throw TypePalUsage("Argument `id` of `define` should be `Tree` or `str`, found <typeOf(orgId)>");
 
             nname = normalizeName(orgId);
-            Define newDef = <currentScope, nname, orgId, idRole, l, info>;
-            logL = buildLogical2physical(newDef);
+            Define newDef = buildLogicalDefine(<currentScope, nname, orgId, idRole, l, info>);
             if(info is defTypeLub){
                 // Look for an outer variable declaration of id that overrules the defTypeLub
                 for(Define def <- defines + definesPerLubScope[currentLubScope]){
@@ -366,8 +366,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
             else throw TypePalUsage("Argument `id` of `defineInScope` should be `Tree` or `str`, found <typeOf(orgId)>");
 
             nname = normalizeName(orgId);
-            Define newDef = <definingScope, nname, orgId, idRole, l, info>;
-            logL = buildLogical2physical(newDef);
+            Define newDef = buildLogicalDefine(<definingScope, nname, orgId, idRole, l, info>);
             if(info is defTypeLub){
                 throw TypePalUsage("`defLub` cannot be used in combination with `defineInScope`");
             } else {
@@ -980,23 +979,24 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         return l;
     }
 
-    loc buildLogical2physical(Define def){
-        if(def.defined in logical2physical) return logical2physical[def.defined];
+    Define buildLogicalDefine(Define def){
+        if(def.defined in logical2physical) return def;
         loc logicalLoc = physical2logical[def.defined] ? config.createLogicalLoc(def, modelName, config.typepalPathConfig);
-        if(logicalLoc != def.defined){
-            if(logicalLoc in logical2physical){
-                if(logical2physical[logicalLoc] != def.defined){
-                    causes = [ info("First declaration of <prettyRole(def.idRole)> `<def.id>`", logical2physical[logicalLoc]),
-                               info("Second declaration of <prettyRole(def.idRole)> `<def.id>`", def.defined) 
-                            ];
-                    // restrict clone location to first line for readability
-                    messages += error("Duplicate declaration of <prettyRole(def.idRole)> `<def.id>`", limitLocToFirstLine(def.defined), causes=causes);
-                }
+        
+        if(logicalLoc in logical2physical){
+            if(logical2physical[logicalLoc] != def.defined){
+                causes = [ info("First declaration of <prettyRole(def.idRole)> `<def.id>`", logical2physical[logicalLoc]),
+                           info("Second declaration of <prettyRole(def.idRole)> `<def.id>`", def.defined) 
+                         ];
+                // restrict clone location to first line for readability
+                messages += error("Duplicate declaration of <prettyRole(def.idRole)> `<def.id>`", limitLocToFirstLine(def.defined), causes=causes);
             }
-            logical2physical[logicalLoc] = def.defined;  
-            physical2logical[def.defined] = logicalLoc;
         }
-        return logicalLoc;
+        logical2physical[logicalLoc] = def.defined;  
+        physical2logical[def.defined] = logicalLoc;
+        def.defined = logicalLoc;
+
+        return def;
     }
 
     &T toLogicalLocs(&T v){
