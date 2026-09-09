@@ -752,8 +752,11 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     AType solver_getTypeInScopeFromName(str name, loc scope, set[IdRole] idRoles){
         try {
             return getTypeInScopeFromName0(name, getLogicalLoc(scope), idRoles);
-        } catch NoSuchKey(value _):
-                throw TypeUnavailable();
+        }
+        catch NoSuchKey(value _):
+            throw TypeUnavailable();
+        catch NoBinding():
+            throw TypeUnavailable();
     }
 
     AType getTypeInScope0(Tree occ, loc scope, set[IdRole] idRoles){
@@ -790,7 +793,10 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     AType solver_getTypeInScope(Tree occ, loc scope, set[IdRole] idRoles){
         try {
             return getTypeInScope0(occ, getLogicalLoc(scope), idRoles);
-        } catch NoSuchKey(_):
+        }
+        catch NoSuchKey(_):
+            throw TypeUnavailable();
+        catch NoBinding():
             throw TypeUnavailable();
     }
 
@@ -812,7 +818,13 @@ Solver newSolver(map[str,Tree] namedTrees, TModel tm){
     }
 
     AType solver_getTypeInType(Tree container, Tree selector, set[IdRole] idRolesSel, loc scope){
+        try {
             return getTypeInType(solver_getType(getLogicalLoc(container)), selector, idRolesSel, scope);
+        }
+        catch NoSuchKey(_):
+            throw TypeUnavailable();
+        catch NoBinding():
+            throw TypeUnavailable();
     }
 
     AType getTypeInType(AType containerType, Tree selector, set[IdRole] idRolesSel, loc scope){
