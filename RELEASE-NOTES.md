@@ -1,3 +1,11 @@
+##  Release 0.17.2
+
+Main changes:
+
+* Updated to `rascal` version 0.43.0
+
+See the commit [history](https://github.com/usethesource/typepal/compare/v0.17.1...v0.17.2) for details.
+
 ##  Release 0.17.1
 
 Main changes:
