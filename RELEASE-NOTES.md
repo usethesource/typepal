@@ -1,3 +1,41 @@
+##  Release 0.17.1
+
+Main changes:
+
+* Fixed issue that `NoBinding()` exceptions accidentally leaked out of the solver
+
+See the commit [history](https://github.com/usethesource/typepal/compare/v0.17.0...v0.17.1) for details.
+
+##  Release 0.17.0
+
+Main changes:
+
+* Removed all uses of annotations
+* Added tracing facility for dependencies of calculators and requirements
+* Added `defined2id` field to `TModel` to support improved use-def calculation and renaming logic
+* Added `filterUnused` field to `TypePalConfig` as faster alternative to `reportUnused`
+* Added `enableSortedMessages` field to `TypePalConfig` to toggle sorting of messages 
+* Added `assertValidUseDef` field to `TypePalConfig` to toggle use-def validation
+* Improved performance in various places.
+
+See the commit [history](https://github.com/usethesource/typepal/compare/v0.16.8...v0.17.0) for details.
+
+##  Release 0.16.x
+
+See the commit [history](https://github.com/usethesource/typepal/compare/v0.15.5...v0.16.8) for details.
+
+##  Release 0.15.x
+
+See the commit [history](https://github.com/usethesource/typepal/compare/v0.14.8...v0.15.5) for details.
+
+##  Release 0.14.x
+
+See the commit [history](https://github.com/usethesource/typepal/compare/v0.13.4...v0.14.8) for details.
+
+##  Release 0.13.x
+
+See the commit [history](https://github.com/usethesource/typepal/compare/v0.11.5...v0.13.4) for details.
+
 ##  Release 0.11.5 
 
 * Administrative release that prepares for a complete Rascal bootstrap
