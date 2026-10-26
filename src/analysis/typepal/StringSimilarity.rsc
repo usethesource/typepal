@@ -15,6 +15,7 @@ module analysis::typepal::StringSimilarity
 import Location;
 import Set;
 import String;
+import util::Memo;
 import analysis::typepal::LocationChecks;
 import analysis::typepal::ConfigurableScopeGraph;
 
@@ -27,7 +28,7 @@ int lev(str a, str b){
     int sizea = size(a);
     int sizeb = size(b);
 
-    @memo{expireAfter(minutes=1),maximumSize(50)}
+    @memo={expireAfter(minutes=1),maximumSize(50)}
     int lev(int ia, int ib){
         if(ib == sizeb) return sizea - ia;
         if(ia == sizea) return sizeb - ib;
