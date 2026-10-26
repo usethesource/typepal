@@ -145,17 +145,17 @@ private RenameResult _rename(
 
     // Tree & TModel caching
 
-    @memo{maximumSize(50)}
+    @memo=maximumSize(50)
     TModel getTModelCached(Tree t) {
         tm = config.tmodelForTree(t);
         if (msg <- tm.messages, msg is error) registerMessage(error(t.src.top, "Renaming failed, since this file has type error(s)."));
         return tm;
     }
 
-    @memo{maximumSize(50)}
+    @memo=maximumSize(50)
     TModel getTModelForLocCached(loc l) = config.tmodelForLoc(l);
 
-    @memo{maximumSize(50)}
+    @memo=maximumSize(50)
     Tree parseLocCached(loc l) {
         // We already have the parse tree of the module under cursor
         if (l == cursor[-1].src.top) {
