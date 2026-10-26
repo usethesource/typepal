@@ -46,7 +46,6 @@
                 </includes>
             </resource>
         </resources>
-        <testSourceDirectory>src</testSourceDirectory>
 
         <plugins>
 
@@ -79,6 +78,13 @@
                         </goals>
                     </execution>
                     <execution>
+                        <id>typepal-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                    </execution>
+                    <execution>
                         <id>typepal-package</id>
                         <phase>prepare-package</phase>
                         <goals>
@@ -103,24 +109,6 @@
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.2.5</version>
-                <configuration>
-                    <argLine>
-                        -ea
-                        -Xmx2G
-                        -Xss128m
-                        -Dfile.encoding=UTF-8
-                    </argLine>
-                    <includes>
-                        <include>**/*Tests.java</include>
-                    </includes>
-                    <testSourceDirectory>${basedir}/src/</testSourceDirectory>
-                    <testClassesDirectory>${project.build.directory}/classes/</testClassesDirectory>
-                </configuration>
             </plugin>
 
             <plugin>
