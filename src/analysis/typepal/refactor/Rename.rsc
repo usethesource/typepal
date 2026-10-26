@@ -42,6 +42,7 @@ import Node;
 import ParseTree;
 import Relation;
 import Set;
+import util::Memo;
 
 alias RenameResult = tuple[list[FileSystemChange], set[Message]];
 alias Focus = list[Tree];
