@@ -429,12 +429,12 @@ default void validateNewNameOccurrences(set[Define] cursorDefs, str newName, Tre
     }
 }
 
-@synopsis{Renames a single ((Define)) `_d `with its name at `nameLoc`, defined in ((TModel)) `_tm`, to `newName`, by producing corresponding ((FileSystemChange))s.}
+@synopsis{Renames a single ((Define)) `_d `with its name at `nameLoc`, defined in ((TModel)) `_tm`, to `newName`, by producing corresponding ((TextEdits-FileSystemChange))s.}
 default void renameDefinition(Define _d, loc nameLoc, str newName, TModel _tm, Renamer r) {
     r.textEdit(replace(nameLoc, newName));
 }
 
-@synopsis{{Renames all uses of `defs` in a single file/((TModel)) `tm`, by producing corresponding ((FileSystemChange))s.}}
+@synopsis{{Renames all uses of `defs` in a single file/((TModel)) `tm`, by producing corresponding ((TextEdits-FileSystemChange))s.}}
 default void renameUses(set[Define] defs, str newName, TModel tm, Renamer r) {
     for (loc u <- invert(tm.useDef)[defs.defined] - defs.defined) {
         r.textEdit(replace(u, newName));
