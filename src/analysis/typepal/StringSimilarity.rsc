@@ -28,7 +28,7 @@ int lev(str a, str b){
     int sizea = size(a);
     int sizeb = size(b);
 
-    @memo={expireAfter(minutes=1),maximumSize(5000)}
+    @memo
     int lev(int ia, int ib){
         if(ib == sizeb) return sizea - ia;
         if(ia == sizea) return sizeb - ib;
