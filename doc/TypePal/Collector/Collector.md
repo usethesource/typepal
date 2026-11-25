@@ -109,6 +109,7 @@ Scope management amounts to entering a new scope, leave the current scope and re
 /* Collector field */ void (Tree inner) leaveScope;
 /* Collector field */ void (list[Tree] trees) leaveCompositeScope;
 /* Collector field */ loc () getScope,
+/* Collector field */ void (void() work) inParentScope,
 ```
 In order to check consistency, `leaveScope` has the inner scope that it is supposed to be leaving as argument.
 

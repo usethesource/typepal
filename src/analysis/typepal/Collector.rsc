@@ -518,6 +518,16 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         leaveScope(cover([getLoc(t) | t <- trees]));
     }
 
+    void collector_doInParentScope(void() block) {
+        current = popScope();
+        try {
+            block();
+        } catch 22: ;
+        finally {
+            pushScope(current);
+        }
+    }
+
     Scope popScope() {
         if ([h, *t] := scopeStack) {
             scopeStack = t;
@@ -1110,6 +1120,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                             collector_leaveScope,
                             collector_leaveCompositeScope,
                             collector_getScope,
+                            collector_doInParentScope,
 
         /* Scope Info */    collector_setScopeInfo,
                             collector_getScopeInfo,
