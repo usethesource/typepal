@@ -33,6 +33,8 @@ import analysis::typepal::LocationChecks;
 extend analysis::typepal::ConfigurableScopeGraph;
 extend analysis::typepal::ICollector;
 
+alias Scope = tuple[loc scope, bool lubScope, map[ScopeRole, value] scopeInfo];
+
 // Extract (nested) tree locations and type variables from a list of dependencies
 list[loc] dependenciesAslocList(list[value] dependencies){
     return
@@ -256,7 +258,8 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     loc rootScope = globalScope;
 
     for(nm <- namedTrees) scopes[getLoc(namedTrees[nm])] = globalScope;
-    lrel[loc scope, bool lubScope, map[ScopeRole, value] scopeInfo] scopeStack = [<globalScope, false, (anonymousScope(): false)>];
+
+    list[Scope] scopeStack = [<globalScope, false, (anonymousScope(): false)>];
     list[loc] lubScopeStack = [];
     loc currentLubScope = globalScope;
     int nPredefinedTree = 0;
