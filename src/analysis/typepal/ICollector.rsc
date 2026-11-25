@@ -32,6 +32,7 @@ data Collector
                          void (Tree tree) leaveScope,
                          void (list[Tree] trees) leaveCompositeScope,
                          loc () getScope,
+                         void (void() work) inParentScope,
                          
      /* Scope Info */    void (loc scope, ScopeRole scopeRole, value info) setScopeInfo,
                          lrel[loc scope, value scopeInfo] (ScopeRole scopeRole) getScopeInfo,
