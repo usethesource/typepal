@@ -264,6 +264,8 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
     loc currentLubScope = globalScope;
     int nPredefinedTree = 0;
 
+    set[loc] temporarilyLeftScopes = {};
+
     bool building = true;
 
     void collector_define(value id, IdRole idRole, value def, DefInfo info){
@@ -487,10 +489,12 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
               // Initialization
               scopesStar[currentScope] = {currentScope};
            } else {
-              // Wrap up previous scope
-              scopes[innerLoc] = currentScope;
-              scopesStar[innerLoc] = scopesStar[currentScope] + innerLoc;
-              scopesPerLubScope[currentLubScope] += <currentScope, innerLoc>;
+              if (currentScope notin temporarilyLeftScopes) {
+                // Wrap up previous scope
+                scopes[innerLoc] = currentScope;
+                scopesStar[innerLoc] = scopesStar[currentScope] + innerLoc;
+                scopesPerLubScope[currentLubScope] += <currentScope, innerLoc>;
+              }
 
               // Scope pointer
               pushScope(<innerLoc, lubScope, ()>);
@@ -520,36 +524,36 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
 
     void collector_inParentScope(void() block) {
         current = popScope();
+        temporarilyLeftScopes += current.scope;
+
+        beforeScope = currentScope;
+        beforeStack = scopeStack;
         try {
             block();
         } catch 22: ;
         finally {
+            assert currentScope == beforeScope : "Work in parent-scope hook permanently changed the current scope, which is not allowed.";
+            assert scopeStack == beforeStack : "Work in parent-scope hook permanently changed the scope stack, which is not allowed.";
+
             pushScope(current);
+            temporarilyLeftScopes -= current.scope;
         }
     }
 
     Scope popScope() {
-        if ([h, *t] := scopeStack) {
-            scopeStack = t;
-            currentScope = scopeStack[0].scope;
-            return h;
-        } else {
-            throw TypePalUsage("Cannot pop empty scope stack");
-        }
+        <current, scopeStack> = pop(scopeStack);
+        currentScope = scopeStack[0].scope;
+        return current;
     }
 
     loc popLubScope() {
-        if ([h, *t] := lubScopeStack) {
-            lubScopeStack = t;
-            if(isEmpty(lubScopeStack)){
-                currentLubScope = globalScope;
-            } else {
-                currentLubScope = lubScopeStack[0];
-            }
-            return h;
+        <current, lubScopeStack> = pop(lubScopeStack);
+        if(isEmpty(lubScopeStack)){
+            currentLubScope = globalScope;
         } else {
-            throw TypePalUsage("Cannot pop empty lub scope stack");
+            currentLubScope = lubScopeStack[0];
         }
+        return current;
     }
 
     void leaveScope(loc innerLoc){
@@ -560,8 +564,10 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                  throw TypePalUsage("Cannot call `leaveScope` beyond the root scope");
               }
               if(!isEmpty(lubScopeStack) && innerLoc == lubScopeStack[0]){
-                extraDefs = finalizeDefines(currentLubScope);
-                defines += extraDefs;
+                if (innerLoc notin temporarilyLeftScopes) {
+                    extraDefs = finalizeDefines(currentLubScope);
+                    defines += extraDefs;
+                }
                 popLubScope();
               }
            } else {
