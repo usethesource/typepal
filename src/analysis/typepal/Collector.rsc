@@ -518,7 +518,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         leaveScope(cover([getLoc(t) | t <- trees]));
     }
 
-    void collector_doInParentScope(void() block) {
+    void collector_inParentScope(void() block) {
         current = popScope();
         try {
             block();
@@ -1120,7 +1120,7 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
                             collector_leaveScope,
                             collector_leaveCompositeScope,
                             collector_getScope,
-                            collector_doInParentScope,
+                            collector_inParentScope,
 
         /* Scope Info */    collector_setScopeInfo,
                             collector_getScopeInfo,
