@@ -468,21 +468,37 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         enterScope(cover([getLoc(inner) | inner <- trees]), lubScope=true);
     }
 
+    void pushScope(Scope s) {
+        currentScope = s.scope;
+        scopeStack = push(s, scopeStack);
+    }
+
+    void pushLubScope(loc innerLoc) {
+        currentLubScope = innerLoc;
+        lubScopeStack = push(innerLoc, lubScopeStack);
+    }
+
     void enterScope(loc innerLoc, bool lubScope=false){
         if(building){
             if(innerLoc == rootScope){
-              currentScope = innerLoc;
-              scopeStack = push(<innerLoc, lubScope, ()>, scopeStack);
+              // Scope pointer
+              pushScope(<innerLoc, lubScope, ()>);
+
+              // Initialization
               scopesStar[currentScope] = {currentScope};
            } else {
+              // Wrap up previous scope
               scopes[innerLoc] = currentScope;
               scopesStar[innerLoc] = scopesStar[currentScope] + innerLoc;
               scopesPerLubScope[currentLubScope] += <currentScope, innerLoc>;
-              currentScope = innerLoc;
-              scopeStack = push(<innerLoc, lubScope, ()>, scopeStack);
+
+              // Scope pointer
+              pushScope(<innerLoc, lubScope, ()>);
+
               if(lubScope && isEmpty(lubScopeStack)){   // Nested lubScopes are merged in outer lubScope
-                lubScopeStack = push(innerLoc, lubScopeStack);
-                currentLubScope = innerLoc;
+                pushLubScope(innerLoc);
+
+                // Initialization
                 definesPerLubScope[currentLubScope] = {};
                 lubDefinesPerLubScope[currentLubScope] = {};
                 lubUsesPerLubScope[currentLubScope] = {};
@@ -502,23 +518,41 @@ Collector newCollector(str modelName, map[str,Tree] namedTrees, TypePalConfig co
         leaveScope(cover([getLoc(t) | t <- trees]));
     }
 
+    Scope popScope() {
+        if ([h, *t] := scopeStack) {
+            scopeStack = t;
+            currentScope = scopeStack[0].scope;
+            return h;
+        } else {
+            throw TypePalUsage("Cannot pop empty scope stack");
+        }
+    }
+
+    loc popLubScope() {
+        if ([h, *t] := lubScopeStack) {
+            lubScopeStack = t;
+            if(isEmpty(lubScopeStack)){
+                currentLubScope = globalScope;
+            } else {
+                currentLubScope = lubScopeStack[0];
+            }
+            return h;
+        } else {
+            throw TypePalUsage("Cannot pop empty lub scope stack");
+        }
+    }
+
     void leaveScope(loc innerLoc){
         if(building){
-           if(innerLoc == currentScope){
-              scopeStack = tail(scopeStack);
+           if(innerLoc == currentScope) {
+              popScope();
               if(isEmpty(scopeStack)){
                  throw TypePalUsage("Cannot call `leaveScope` beyond the root scope");
               }
-              currentScope = scopeStack[0].scope;
               if(!isEmpty(lubScopeStack) && innerLoc == lubScopeStack[0]){
                 extraDefs = finalizeDefines(currentLubScope);
                 defines += extraDefs;
-                lubScopeStack = tail(lubScopeStack);
-                if(isEmpty(lubScopeStack)){
-                   currentLubScope = globalScope;
-                } else {
-                   currentLubScope = lubScopeStack[0];
-                }
+                popLubScope();
               }
            } else {
               throw TypePalUsage("Cannot call `leaveScope` with scope that is not the current scope", [innerLoc, currentScope]);
